@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ClassDetailClient from '@/components/class/ClassDetailClient'
+import type { ClassWithTeacher } from '@danceclass/shared'
 
 interface Props {
   params: { id: string }
@@ -11,7 +12,7 @@ export default async function ClassDetailPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: classData } = await supabase
+  const { data: rawClass } = await supabase
     .from('classes')
     .select(`
       *,
@@ -24,7 +25,9 @@ export default async function ClassDetailPage({ params }: Props) {
     .eq('id', params.id)
     .single()
 
-  if (!classData) notFound()
+  if (!rawClass) notFound()
+
+  const classData = rawClass as unknown as ClassWithTeacher
 
   const { data: profile } = await supabase
     .from('profiles')

@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PaymentClient from '@/components/payment/PaymentClient'
+import type { EnrollmentWithDetails } from '@danceclass/shared'
 
 interface Props {
   params: { enrollmentId: string }
@@ -11,7 +12,7 @@ export default async function PaymentPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: enrollment } = await supabase
+  const { data: rawEnrollment } = await supabase
     .from('enrollments')
     .select(`
       *,
@@ -28,7 +29,9 @@ export default async function PaymentPage({ params }: Props) {
     .eq('student_id', user.id)
     .single()
 
-  if (!enrollment) notFound()
+  if (!rawEnrollment) notFound()
+
+  const enrollment = rawEnrollment as unknown as EnrollmentWithDetails
 
   // Already confirmed, redirect to class
   if (enrollment.status === 'confirmed') {
