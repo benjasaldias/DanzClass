@@ -1,0 +1,267 @@
+'use client'
+
+import { useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock } from 'lucide-react'
+import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import Avatar from '@/components/ui/Avatar'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { DAYS_OF_WEEK } from '@danceclass/shared'
+import type { Profile } from '@danceclass/shared'
+
+type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
+
+interface TeacherProfileClientProps {
+  teacher: Profile
+  classes: any[]
+  enrolledClasses: any[]
+  followersCount: number
+  isFollowing: boolean
+  currentUserId?: string
+  isOwnProfile: boolean
+  friendStatus: FriendStatus
+}
+
+export default function TeacherProfileClient({
+  teacher,
+  classes,
+  enrolledClasses,
+  followersCount: initialFollowers,
+  isFollowing: initialIsFollowing,
+  currentUserId,
+  isOwnProfile,
+  friendStatus: initialFriendStatus,
+}: TeacherProfileClientProps) {
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
+  const [followers, setFollowers] = useState(initialFollowers)
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>(initialFriendStatus)
+  const [loadingFollow, setLoadingFollow] = useState(false)
+  const [loadingFriend, setLoadingFriend] = useState(false)
+  const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false)
+
+  const supabase = createClient()
+
+  async function handleFollowToggle() {
+    if (!currentUserId) return
+    setLoadingFollow(true)
+    if (isFollowing) {
+      await supabase.from('follows').delete()
+        .eq('follower_id', currentUserId).eq('following_id', teacher.id)
+      setFollowers((f) => f - 1)
+    } else {
+      await supabase.from('follows').insert({ follower_id: currentUserId, following_id: teacher.id })
+      await supabase.from('notifications').insert({
+        user_id: teacher.id,
+        type: 'follow',
+        data: { from_user_id: currentUserId },
+      })
+      setFollowers((f) => f + 1)
+    }
+    setIsFollowing(!isFollowing)
+    setLoadingFollow(false)
+  }
+
+  async function handleFriendAction() {
+    if (!currentUserId) return
+    if (friendStatus === 'accepted') {
+      setShowUnfriendConfirm(true)
+      return
+    }
+    setLoadingFriend(true)
+    if (friendStatus === 'none') {
+      await supabase.from('friendships').insert({ requester_id: currentUserId, addressee_id: teacher.id, status: 'pending' })
+      await supabase.from('notifications').insert({ user_id: teacher.id, type: 'friend_request', data: { from_user_id: currentUserId } })
+      setFriendStatus('pending_sent')
+    } else if (friendStatus === 'pending_received') {
+      await supabase.from('friendships').update({ status: 'accepted' })
+        .eq('requester_id', teacher.id).eq('addressee_id', currentUserId)
+      await supabase.from('notifications').insert({ user_id: teacher.id, type: 'friend_accepted', data: { from_user_id: currentUserId } })
+      setFriendStatus('accepted')
+    }
+    setLoadingFriend(false)
+  }
+
+  async function handleUnfriendConfirm() {
+    if (!currentUserId) return
+    setLoadingFriend(true)
+    await supabase.from('friendships').delete()
+      .or(`requester_id.eq.${currentUserId},addressee_id.eq.${currentUserId}`)
+      .or(`requester_id.eq.${teacher.id},addressee_id.eq.${teacher.id}`)
+    setFriendStatus('none')
+    setShowUnfriendConfirm(false)
+    setLoadingFriend(false)
+  }
+
+  const friendBtnLabel = {
+    none: 'Agregar amig@',
+    pending_sent: 'Solicitud enviada',
+    pending_received: 'Aceptar solicitud',
+    accepted: 'Amig@',
+  }[friendStatus]
+  const FriendIcon = { none: UserPlus, pending_sent: Clock, pending_received: UserCheck, accepted: UserCheck }[friendStatus]
+
+  return (
+    <div className="flex flex-col">
+      {showUnfriendConfirm && (
+        <ConfirmDialog
+          title="Eliminar amig@"
+          message={`¿Seguro que quieres eliminar a @${teacher.username} de tus amigos?`}
+          confirmLabel="Eliminar"
+          destructive
+          loading={loadingFriend}
+          onConfirm={handleUnfriendConfirm}
+          onCancel={() => setShowUnfriendConfirm(false)}
+        />
+      )}
+      {/* Header */}
+      <div className="px-4 py-6 flex flex-col items-center text-center gap-3">
+        <Avatar src={teacher.avatar_url} name={teacher.full_name} size="xl" />
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{teacher.full_name}</h1>
+          <p className="text-sm text-gray-500">@{teacher.username}</p>
+        </div>
+
+        {teacher.bio && <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{teacher.bio}</p>}
+
+        <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap justify-center">
+          {teacher.city && (
+            <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{teacher.city}</span>
+          )}
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            <strong className="text-gray-900">{followers}</strong> seguidores
+          </span>
+        </div>
+
+        {teacher.instagram_handle && (
+          <a href={`https://instagram.com/${teacher.instagram_handle}`} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm text-pink-600 hover:text-pink-700">
+            <Instagram className="h-4 w-4" />@{teacher.instagram_handle}
+          </a>
+        )}
+
+        {!isOwnProfile && currentUserId && (
+          <div className="flex gap-2 flex-wrap justify-center">
+            <button onClick={handleFollowToggle} disabled={loadingFollow}
+              className={cn('flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border transition-colors',
+                isFollowing
+                  ? 'border-gray-200 text-gray-700 hover:border-red-200 hover:text-red-600'
+                  : 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700'
+              )}>
+              {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+              {isFollowing ? 'Dejar de seguir' : 'Seguir'}
+            </button>
+
+            <button onClick={handleFriendAction}
+              disabled={loadingFriend || friendStatus === 'pending_sent'}
+              className={cn('flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border transition-colors',
+                friendStatus === 'accepted' ? 'border-green-200 bg-green-50 text-green-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600' :
+                friendStatus === 'pending_sent' ? 'border-gray-200 text-gray-400 cursor-default' :
+                friendStatus === 'pending_received' ? 'bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200' :
+                'border-gray-200 text-gray-700 hover:border-brand-400 hover:text-brand-700'
+              )}>
+              <FriendIcon className="h-4 w-4" />
+              {friendBtnLabel}
+            </button>
+          </div>
+        )}
+
+        {isOwnProfile && (
+          <Link href="/profile/edit" className="btn-secondary">Editar perfil</Link>
+        )}
+      </div>
+
+      {/* Estilos de baile */}
+      {((teacher.styles_dancing?.length ?? 0) > 0 || (teacher.styles_teaching?.length ?? 0) > 0) && (
+        <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-4">
+          {(teacher.styles_dancing?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Baila</p>
+              <div className="flex flex-wrap gap-1.5">
+                {teacher.styles_dancing.map((s) => (
+                  <span key={s} className="badge bg-gray-100 text-gray-700">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {(teacher.styles_teaching?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Enseña</p>
+              <div className="flex flex-wrap gap-1.5">
+                {teacher.styles_teaching.map((s) => (
+                  <span key={s} className="badge bg-brand-50 text-brand-700">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Clases publicadas */}
+      {classes.length > 0 && (
+        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
+          <h2 className="font-bold text-gray-900 mb-3">Clases activas</h2>
+          <div className="space-y-3">
+            {classes.map((cls) => <ClassMiniCard key={cls.id} cls={cls} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Clases inscritas */}
+      {enrolledClasses.length > 0 && (
+        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
+          <h2 className="font-bold text-gray-900 mb-3">
+            {isOwnProfile ? 'Mis inscripciones' : 'Inscrito/a en'}
+          </h2>
+          <div className="space-y-3">
+            {enrolledClasses.map((e: any) => e.class && <ClassMiniCard key={e.id} cls={e.class} />)}
+          </div>
+        </div>
+      )}
+
+      {classes.length === 0 && enrolledClasses.length === 0 && (
+        <div className="flex flex-col items-center py-10 text-center text-gray-500 border-t border-gray-100">
+          <Music2 className="h-10 w-10 text-gray-300 mb-3" />
+          <p className="text-sm">Sin actividad pública aún</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ClassMiniCard({ cls }: { cls: any }) {
+  const firstMedia = cls.media?.[0]
+  const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
+  const schedule = cls.type === 'suelta'
+    ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
+    : cls.recurrence === 'custom'
+      ? `${cls.custom_dates?.length ?? 0} clases · ${formatTime(cls.recurring_time)}`
+      : `${recurrenceLabel[cls.recurrence] ?? ''} · ${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`
+
+  return (
+    <Link href={`/class/${cls.id}`} className="card flex gap-3 p-3 hover:shadow-md transition-shadow">
+      {firstMedia ? (
+        <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+          {firstMedia.type === 'image'
+            ? <Image src={firstMedia.url} alt={cls.title} fill className="object-cover" sizes="80px" />
+            : <video src={firstMedia.url} className="h-full w-full object-cover" />}
+        </div>
+      ) : (
+        <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
+          <Music2 className="h-8 w-8 text-brand-400" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm text-gray-900 truncate">{cls.title}</p>
+        {cls.dance_style && <p className="text-xs text-brand-600">{cls.dance_style}</p>}
+        <p className="text-xs text-gray-500 mt-1">{schedule}</p>
+        <p className="mt-1 text-sm font-bold text-gray-900">{formatCLP(cls.price)}</p>
+        {cls.price_suelta && (
+          <p className="text-xs text-gray-400">Suelta: {formatCLP(cls.price_suelta)}</p>
+        )}
+      </div>
+    </Link>
+  )
+}

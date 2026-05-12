@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "DanceClass",
+    "slug": "danceclass",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#c026d3"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "cl.danceclass.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#c026d3"
+      },
+      "package": "cl.danceclass.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        { "photosPermission": "DanceClass necesita acceso a tus fotos para subir comprobantes de pago." }
+      ],
+      [
+        "expo-document-picker",
+        { "iCloudContainerEnvironment": "Production" }
+      ]
+    ],
+    "scheme": "danceclass",
+    "extra": {
+      "router": { "origin": false },
+      "eas": { "projectId": "your-eas-project-id" }
+    }
+  }
+}

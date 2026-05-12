@@ -1,0 +1,246 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useDropzone } from 'react-dropzone'
+import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { formatCLP } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+
+interface PaymentClientProps {
+  enrollment: any
+  currentUserId: string
+}
+
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  cuenta_corriente: 'Cuenta Corriente',
+  cuenta_vista: 'Cuenta Vista',
+  cuenta_rut: 'Cuenta RUT',
+  cuenta_ahorro: 'Cuenta Ahorro',
+}
+
+export default function PaymentClient({ enrollment, currentUserId }: PaymentClientProps) {
+  const router = useRouter()
+  const cls = enrollment.class
+  const teacher = cls.teacher
+  const paymentInfo = teacher.payment_info?.[0] ?? teacher.payment_info
+
+  const [receipt, setReceipt] = useState<File | null>(null)
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+
+  const alreadySubmitted = enrollment.status === 'payment_submitted'
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0]
+    if (!file) return
+    setReceipt(file)
+    const reader = new FileReader()
+    reader.onload = (e) => setReceiptPreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'], 'application/pdf': ['.pdf'] },
+    maxFiles: 1,
+    maxSize: 10 * 1024 * 1024, // 10 MB
+    disabled: alreadySubmitted,
+  })
+
+  async function copyToClipboard(text: string, field: string) {
+    await navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
+
+  async function handleSubmit() {
+    if (!receipt) return
+    setUploading(true)
+
+    const supabase = createClient()
+
+    // Upload receipt to storage
+    const ext = receipt.name.split('.').pop()
+    const fileName = `${currentUserId}/${enrollment.id}.${ext}`
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('payment-receipts')
+      .upload(fileName, receipt, { upsert: true })
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError)
+      setUploading(false)
+      return
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('payment-receipts')
+      .getPublicUrl(uploadData.path)
+
+    // Create/update payment record
+    const existingPayment = enrollment.payment?.[0] ?? enrollment.payment
+    if (existingPayment?.id) {
+      await supabase.from('payments').update({
+        receipt_url: urlData.publicUrl,
+        status: 'pending',
+      }).eq('id', existingPayment.id)
+    } else {
+      await supabase.from('payments').insert({
+        enrollment_id: enrollment.id,
+        amount: cls.price,
+        receipt_url: urlData.publicUrl,
+        status: 'pending',
+      })
+    }
+
+    // Update enrollment status
+    await supabase.from('enrollments').update({
+      status: 'payment_submitted',
+    }).eq('id', enrollment.id)
+
+    setSuccess(true)
+    setUploading(false)
+
+    setTimeout(() => router.push(`/class/${cls.id}`), 2500)
+  }
+
+  if (success) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mb-5">
+          <CheckCircle2 className="h-10 w-10 text-green-600" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">¡Comprobante enviado!</h2>
+        <p className="text-gray-500 text-sm">
+          El profesor verificará tu pago pronto. Te avisaremos cuando confirme tu inscripción.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-4 py-4 space-y-5">
+      <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+        <ChevronLeft className="h-4 w-4" />
+        Volver
+      </button>
+
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Pagar clase</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{cls.title}</p>
+      </div>
+
+      {/* Amount */}
+      <div className="card p-5 bg-brand-50 border-brand-100">
+        <p className="text-sm text-brand-700 font-medium mb-1">Monto a transferir</p>
+        <p className="text-4xl font-bold text-brand-900">{formatCLP(cls.price)}</p>
+      </div>
+
+      {/* Bank details */}
+      {paymentInfo ? (
+        <div className="card p-4 space-y-3">
+          <h3 className="font-semibold text-sm text-gray-900">Datos de transferencia</h3>
+
+          {[
+            { label: 'Banco', value: paymentInfo.bank_name },
+            { label: 'Tipo de cuenta', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] ?? paymentInfo.account_type },
+            { label: 'Número de cuenta', value: paymentInfo.account_number, copyable: true },
+            { label: 'RUT', value: paymentInfo.rut, copyable: true },
+            { label: 'Titular', value: paymentInfo.account_holder_name },
+            { label: 'Email', value: paymentInfo.email, copyable: true },
+          ].map(({ label, value, copyable }) => (
+            <div key={label} className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-gray-500">{label}</p>
+                <p className="text-sm font-medium text-gray-900">{value}</p>
+              </div>
+              {copyable && (
+                <button
+                  onClick={() => copyToClipboard(value, label)}
+                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
+                >
+                  {copiedField === label
+                    ? <Check className="h-4 w-4 text-green-600" />
+                    : <Copy className="h-4 w-4" />
+                  }
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="card p-4 text-center text-sm text-gray-500">
+          El profesor aún no ha configurado sus datos bancarios. Contáctalo directamente.
+        </div>
+      )}
+
+      {/* Receipt upload */}
+      <div>
+        <h3 className="font-semibold text-sm text-gray-900 mb-2">
+          {alreadySubmitted ? 'Comprobante enviado' : 'Sube el comprobante de pago'}
+        </h3>
+
+        {alreadySubmitted ? (
+          <div className="card p-4 flex items-center gap-3 bg-blue-50 border-blue-100">
+            <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <p className="text-sm text-blue-700">Tu comprobante fue enviado. El profesor lo está revisando.</p>
+          </div>
+        ) : (
+          <div
+            {...getRootProps()}
+            className={cn(
+              'relative rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors',
+              isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 hover:bg-gray-50',
+              receipt && 'border-green-400 bg-green-50'
+            )}
+          >
+            <input {...getInputProps()} />
+
+            {receiptPreview ? (
+              <div className="space-y-2">
+                {receipt?.type.startsWith('image/') ? (
+                  <img src={receiptPreview} alt="Comprobante" className="mx-auto max-h-48 rounded-xl object-contain" />
+                ) : (
+                  <div className="flex items-center gap-3 justify-center">
+                    <FileImage className="h-8 w-8 text-gray-400" />
+                    <p className="text-sm font-medium text-gray-700">{receipt?.name}</p>
+                  </div>
+                )}
+                <p className="text-xs text-green-700 font-medium">✓ Archivo listo para enviar</p>
+                <p className="text-xs text-gray-500">Haz clic para cambiar</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="h-10 w-10 text-gray-300 mx-auto" />
+                <p className="text-sm font-medium text-gray-700">
+                  {isDragActive ? 'Suelta aquí' : 'Arrastra o haz clic para subir'}
+                </p>
+                <p className="text-xs text-gray-400">JPG, PNG o PDF · Máx 10 MB</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Submit */}
+      {!alreadySubmitted && (
+        <button
+          onClick={handleSubmit}
+          disabled={!receipt || uploading}
+          className="btn-primary w-full py-3 text-base"
+        >
+          {uploading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Enviando...
+            </span>
+          ) : 'Enviar comprobante'}
+        </button>
+      )}
+    </div>
+  )
+}
