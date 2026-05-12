@@ -1,5 +1,6 @@
 // Auto-generated types from Supabase schema
 // Re-generate with: npx supabase gen types typescript --local > packages/shared/src/types/database.ts
+// Last manual update: reflects migrations 001–006
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
@@ -13,9 +14,13 @@ export interface Database {
           full_name: string
           avatar_url: string | null
           bio: string | null
-          role: 'teacher' | 'student'
+          role: 'user'
           city: string | null
           instagram_handle: string | null
+          styles_dancing: string[]
+          styles_teaching: string[]
+          enrolled_classes_public: boolean
+          subscription_tier: string
           created_at: string
           updated_at: string
         }
@@ -25,9 +30,13 @@ export interface Database {
           full_name: string
           avatar_url?: string | null
           bio?: string | null
-          role: 'teacher' | 'student'
+          role?: 'user'
           city?: string | null
           instagram_handle?: string | null
+          styles_dancing?: string[]
+          styles_teaching?: string[]
+          enrolled_classes_public?: boolean
+          subscription_tier?: string
           created_at?: string
           updated_at?: string
         }
@@ -38,6 +47,10 @@ export interface Database {
           bio?: string | null
           city?: string | null
           instagram_handle?: string | null
+          styles_dancing?: string[]
+          styles_teaching?: string[]
+          enrolled_classes_public?: boolean
+          subscription_tier?: string
           updated_at?: string
         }
       }
@@ -73,6 +86,40 @@ export interface Database {
           email?: string
         }
       }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          tier: 'basic' | 'teacher' | 'pro'
+          status: 'active' | 'grace' | 'expired' | 'cancelled'
+          started_at: string
+          expires_at: string
+          mp_subscription_id: string | null
+          mp_preapproval_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tier: 'basic' | 'teacher' | 'pro'
+          status?: 'active' | 'grace' | 'expired' | 'cancelled'
+          started_at?: string
+          expires_at: string
+          mp_subscription_id?: string | null
+          mp_preapproval_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          tier?: 'basic' | 'teacher' | 'pro'
+          status?: 'active' | 'grace' | 'expired' | 'cancelled'
+          expires_at?: string
+          mp_subscription_id?: string | null
+          mp_preapproval_id?: string | null
+          updated_at?: string
+        }
+      }
       follows: {
         Row: {
           follower_id: string
@@ -86,6 +133,25 @@ export interface Database {
         }
         Update: never
       }
+      friendships: {
+        Row: {
+          id: string
+          requester_id: string
+          addressee_id: string
+          status: 'pending' | 'accepted' | 'rejected'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          requester_id: string
+          addressee_id: string
+          status?: 'pending' | 'accepted' | 'rejected'
+          created_at?: string
+        }
+        Update: {
+          status?: 'pending' | 'accepted' | 'rejected'
+        }
+      }
       classes: {
         Row: {
           id: string
@@ -97,7 +163,7 @@ export interface Database {
           level: 'principiante' | 'intermedio' | 'avanzado' | 'todos'
           date: string | null
           time: string | null
-          recurrence: 'weekly' | 'biweekly' | 'monthly' | null
+          recurrence: 'weekly' | 'biweekly' | 'monthly' | 'custom' | null
           day_of_week: number | null
           recurring_time: string | null
           duration_minutes: number
@@ -106,6 +172,9 @@ export interface Database {
           city: string | null
           max_spots: number
           price: number
+          price_suelta: number | null
+          price_2x: number | null
+          custom_dates: string[]
           status: 'active' | 'cancelled' | 'completed'
           created_at: string
           updated_at: string
@@ -120,7 +189,7 @@ export interface Database {
           level?: 'principiante' | 'intermedio' | 'avanzado' | 'todos'
           date?: string | null
           time?: string | null
-          recurrence?: 'weekly' | 'biweekly' | 'monthly' | null
+          recurrence?: 'weekly' | 'biweekly' | 'monthly' | 'custom' | null
           day_of_week?: number | null
           recurring_time?: string | null
           duration_minutes?: number
@@ -129,6 +198,9 @@ export interface Database {
           city?: string | null
           max_spots: number
           price: number
+          price_suelta?: number | null
+          price_2x?: number | null
+          custom_dates?: string[]
           status?: 'active' | 'cancelled' | 'completed'
           created_at?: string
           updated_at?: string
@@ -140,7 +212,7 @@ export interface Database {
           level?: 'principiante' | 'intermedio' | 'avanzado' | 'todos'
           date?: string | null
           time?: string | null
-          recurrence?: 'weekly' | 'biweekly' | 'monthly' | null
+          recurrence?: 'weekly' | 'biweekly' | 'monthly' | 'custom' | null
           day_of_week?: number | null
           recurring_time?: string | null
           duration_minutes?: number
@@ -149,6 +221,9 @@ export interface Database {
           city?: string | null
           max_spots?: number
           price?: number
+          price_suelta?: number | null
+          price_2x?: number | null
+          custom_dates?: string[]
           status?: 'active' | 'cancelled' | 'completed'
           updated_at?: string
         }
@@ -208,6 +283,8 @@ export interface Database {
           class_id: string
           session_id: string | null
           status: 'pending_payment' | 'payment_submitted' | 'confirmed' | 'cancelled'
+          is_2x: boolean
+          partner_enrollment_id: string | null
           created_at: string
         }
         Insert: {
@@ -216,10 +293,14 @@ export interface Database {
           class_id: string
           session_id?: string | null
           status?: 'pending_payment' | 'payment_submitted' | 'confirmed' | 'cancelled'
+          is_2x?: boolean
+          partner_enrollment_id?: string | null
           created_at?: string
         }
         Update: {
           status?: 'pending_payment' | 'payment_submitted' | 'confirmed' | 'cancelled'
+          is_2x?: boolean
+          partner_enrollment_id?: string | null
         }
       }
       payments: {
@@ -248,6 +329,51 @@ export interface Database {
           status?: 'pending' | 'verified' | 'rejected'
           verified_at?: string | null
           rejection_reason?: string | null
+        }
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          data: Json
+          read: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          data?: Json
+          read?: boolean
+          created_at?: string
+        }
+        Update: {
+          read?: boolean
+        }
+      }
+      class_2x_requests: {
+        Row: {
+          id: string
+          user_id: string
+          class_id: string
+          session_id: string | null
+          matched_with: string | null
+          status: 'looking' | 'matched' | 'cancelled'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          class_id: string
+          session_id?: string | null
+          matched_with?: string | null
+          status?: 'looking' | 'matched' | 'cancelled'
+          created_at?: string
+        }
+        Update: {
+          matched_with?: string | null
+          status?: 'looking' | 'matched' | 'cancelled'
         }
       }
     }

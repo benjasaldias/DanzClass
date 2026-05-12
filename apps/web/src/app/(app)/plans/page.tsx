@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getActiveTier } from '@/lib/subscription'
 import { SUBSCRIPTION_PLANS, formatCLP } from '@danceclass/shared'
 import { Check, Crown } from 'lucide-react'
+import { SubscribeButton } from '@/components/plans/SubscribeButton'
 
 export default async function PlansPage() {
   const supabase = createClient()
@@ -54,15 +55,7 @@ export default async function PlansPage() {
                 ))}
               </ul>
 
-              {isActive ? (
-                <div className="w-full py-2.5 text-center text-sm font-medium text-brand-600 bg-brand-50 rounded-xl border border-brand-200">
-                  Plan actual
-                </div>
-              ) : (
-                <div className="w-full py-2.5 text-center text-sm font-medium text-gray-400 bg-gray-50 rounded-xl border border-gray-200 cursor-not-allowed">
-                  Próximamente — pago con Mercado Pago
-                </div>
-              )}
+              <SubscribeButton plan={plan.tier} currentTier={currentTier} />
             </div>
           )
         })}

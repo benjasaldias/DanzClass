@@ -9,4 +9,3 @@ build/
 *.tsbuildinfo
 .DS_Store
 .turbo/
-resumen.md
