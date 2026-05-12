@@ -1,9 +1,8 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 export async function getActiveTier(
   userId: string,
-  supabase: SupabaseClient
+  supabase: { from: (table: string) => any }
 ): Promise<SubscriptionTier> {
   const { data } = await supabase
     .from('subscriptions')
