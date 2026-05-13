@@ -1,16 +1,18 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getActiveTier } from '@/lib/subscription'
+import { getActiveSubscription } from '@/lib/subscription'
 import { SUBSCRIPTION_PLANS, formatCLP } from '@danceclass/shared'
 import { Check, Crown } from 'lucide-react'
 import { SubscribeButton } from '@/components/plans/SubscribeButton'
+import { CancelSubscriptionButton } from '@/components/plans/CancelSubscriptionButton'
 
 export default async function PlansPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const currentTier = await getActiveTier(user.id, supabase)
+  const activeSub = await getActiveSubscription(user.id, supabase)
+  const currentTier = activeSub?.tier ?? 'none'
 
   return (
     <div className="px-4 py-6">
@@ -56,14 +58,28 @@ export default async function PlansPage() {
               </ul>
 
               <SubscribeButton plan={plan.tier} currentTier={currentTier} />
+
+              {isActive && activeSub && (
+                <div className="mt-3 flex flex-col items-center gap-1">
+                  <p className="text-xs text-gray-400">
+                    Vence el{' '}
+                    {new Date(activeSub.expires_at).toLocaleDateString('es-CL', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </p>
+                  <CancelSubscriptionButton />
+                </div>
+              )}
             </div>
           )
         })}
       </div>
 
       <p className="mt-6 text-center text-xs text-gray-400">
-        Los pagos serán procesados mensualmente por Mercado Pago.
-        <br />Puedes cancelar en cualquier momento desde tu perfil.
+        Los pagos son procesados por Mercado Pago. Al cancelar, tu plan
+        sigue activo hasta la fecha de vencimiento.
       </p>
     </div>
   )

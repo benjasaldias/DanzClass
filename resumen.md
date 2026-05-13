@@ -210,26 +210,9 @@ SELECT id, 'pro', 'active', NOW(), NOW() + INTERVAL '1 year'
 FROM profiles WHERE username = 'benjasaldias';
 ```
 
-### B. Integración Mercado Pago (suscripciones) — PRÓXIMO PASO
+### B. Integración Mercado Pago (suscripciones) — ✅ IMPLEMENTADO, pendiente configuración en Vercel
 
-El plan de suscripciones web ya tiene una página `/plans` que muestra "Próximamente". Hay que implementar el flujo real:
-
-1. **Backend:** crear API route `/api/mercadopago/create-preference` que:
-   - Recibe `{ plan: 'basic' | 'teacher' | 'pro', userId }`
-   - Llama a Mercado Pago SDK para crear una preference de pago
-   - Devuelve `init_point` (URL de checkout de MP)
-2. **Backend:** crear webhook `/api/mercadopago/webhook` que:
-   - Recibe eventos de MP (payment.created, payment.approved, etc.)
-   - Verifica firma del webhook
-   - Al aprobarse: upsert en tabla `subscriptions` con tier y fecha de expiración
-3. **Frontend:** botón "Suscribirse" en la página `/plans` que llama al API route y redirige al checkout de MP
-4. **Frontend:** página de éxito/fallo después del pago
-
-Credenciales necesarias en `.env.local`:
-```
-MERCADOPAGO_ACCESS_TOKEN=APP_USR-...
-MERCADOPAGO_WEBHOOK_SECRET=...
-```
+El flujo completo está implementado. Ver sección "Integración Mercado Pago — Estado actual" para detalle de archivos y pasos manuales pendientes (registrar webhook en MP Dashboard, agregar env vars en Vercel).
 
 ### C. Pantallas mobile pendientes (Expo)
 
@@ -252,6 +235,96 @@ La app mobile tiene el layout base pero faltan pantallas:
 - **Descuentos de último minuto** — campo `discount_percentage` en clases, notificación push a seguidores
 - **OCR de comprobantes** — identificación automática del monto en la imagen (diferido del MVP)
 - **Dashboard de analytics** — estadísticas de ingresos y asistencia para profesores
+
+---
+
+## Integración Mercado Pago — Estado actual (COMPLETO)
+
+### Archivos creados
+
+| Archivo | Descripción |
+|---|---|
+| `apps/web/src/app/api/mercadopago/create-preference/route.ts` | Crea preferencia de pago MP y devuelve `init_point` |
+| `apps/web/src/app/api/mercadopago/webhook/route.ts` | Recibe evento de pago, verifica firma HMAC-SHA256, activa suscripción |
+| `apps/web/src/app/(app)/plans/page.tsx` | Página `/plans` con cards de planes y botón Suscribirse |
+| `apps/web/src/app/(app)/plans/success/page.tsx` | Página de éxito post-pago |
+| `apps/web/src/app/(app)/plans/failure/page.tsx` | Página de fallo post-pago |
+| `apps/web/src/components/plans/SubscribeButton.tsx` | Botón cliente que llama a create-preference y redirige a MP |
+| `apps/web/src/lib/subscription.ts` | Helper `getActiveTier(userId, supabase)` — reutilizable |
+| `apps/web/src/lib/supabase/admin.ts` | `createAdminClient()` con service role key — para webhook |
+
+### Flujo implementado
+
+1. Usuario en `/plans` hace clic en "Suscribirse"
+2. `SubscribeButton` llama `POST /api/mercadopago/create-preference` con `{ plan }`
+3. API route crea preference con `external_reference = "{userId}:{plan}"` y redirige a MP checkout
+4. MP procesa el pago y llama al webhook `POST /api/mercadopago/webhook`
+5. Webhook verifica firma HMAC-SHA256 (`x-signature` header con `ts` + `v1`)
+6. Webhook consulta el pago por ID a la API de MP para confirmar `status === 'approved'`
+7. Webhook expira suscripciones activas anteriores e inserta nueva en `subscriptions`
+8. MP redirige al usuario a `/plans/success` o `/plans/failure`
+
+### Precios configurados (en `create-preference/route.ts`, modificar según modelo de negocio)
+
+```typescript
+const PLAN_CONFIG = {
+  basic:   { name: 'DanceClass Básico',   price: 1000 },
+  teacher: { name: 'DanceClass Profesor', price: 1500 },
+  pro:     { name: 'DanceClass Pro',      price: 2000 },
+}
+```
+
+### Variables de entorno necesarias en Vercel
+
+| Variable | Dónde conseguirla | Estado |
+|---|---|---|
+| `MERCADOPAGO_ACCESS_TOKEN` | MP Developers → Credenciales de producción o test | ✅ En `.env.local` |
+| `MERCADOPAGO_WEBHOOK_SECRET` | MP Developers → Webhooks → Secreto | ⚠️ Pendiente (se genera al registrar el webhook) |
+| `NEXT_PUBLIC_APP_URL` | URL del deploy en Vercel (ej: `https://danceclass.vercel.app`) | ⚠️ Pendiente |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Project Settings → API | ⚠️ Agregar en Vercel |
+
+### Pasos manuales pendientes para activar Mercado Pago
+
+1. **Agregar variables de entorno en Vercel:**
+   - Dashboard de Vercel → proyecto → Settings → Environment Variables
+   - Agregar `MERCADOPAGO_ACCESS_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
+
+2. **Registrar el webhook en Mercado Pago:**
+   - Ir a [https://www.mercadopago.cl/developers/panel/app](https://www.mercadopago.cl/developers/panel/app)
+   - Sección "Webhooks" → "Agregar"
+   - URL: `https://{tu-dominio-vercel}/api/mercadopago/webhook`
+   - Evento: `payment`
+   - Copiar el secreto generado → guardarlo como `MERCADOPAGO_WEBHOOK_SECRET` en Vercel
+
+3. **Hacer redeploy** en Vercel después de agregar todas las variables
+
+4. **Probar flujo completo** con credenciales de prueba MP:
+   - Usar tarjeta de prueba MP (Visa: 4509 9535 6623 3704, CVV: 123, vencimiento: cualquiera futura)
+   - Verificar que la subscripción se crea en Supabase → tabla `subscriptions`
+
+5. **Para desarrollo local con webhook:** usar ngrok
+   ```bash
+   ngrok http 3000
+   # URL temporal ej: https://abc123.ngrok.io
+   # Registrar en MP como webhook: https://abc123.ngrok.io/api/mercadopago/webhook
+   ```
+
+---
+
+## Deploy en Vercel — Estado y correcciones aplicadas
+
+### Errores TypeScript solucionados (sesión 2026-05-13)
+
+**Error 1: Generic mismatch en `SupabaseClient`**
+- Archivo: `apps/web/src/lib/subscription.ts`
+- Causa: pasar `SupabaseClient<Database>` a función que esperaba `SupabaseClient<any>`
+- Fix: cambiar el parámetro a tipo estructural `{ from: (table: string) => any }`
+
+**Error 2: `Property 'x' does not exist on type 'never'` en múltiples pages**
+- Archivos: `explore/page.tsx`, `layout.tsx`, `notifications/page.tsx`, `teacher/[username]/page.tsx`
+- Causa raíz: tablas nuevas (`subscriptions`, `friendships`, `notifications`, `class_2x_requests`, `follows`) en `database.ts` no tenían el campo `Relationships: []` requerido por `@supabase/postgrest-js` `GenericTable`
+- Fix definitivo: agregar `Relationships: []` a todas esas tablas en `packages/shared/src/types/database.ts`
+- Commit que lo resolvió: `0986de7` → deploy exitoso en Vercel
 
 ---
 
