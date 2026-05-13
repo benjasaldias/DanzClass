@@ -13,7 +13,7 @@ export default async function ExplorePage() {
     .in('tier', ['teacher', 'pro'])
     .in('status', ['active', 'grace'])
 
-  const teacherIds = teacherSubs?.map(s => s.user_id) ?? []
+  const teacherIds = teacherSubs?.map((s: any) => s.user_id as string) ?? []
 
   const [
     { data: teachers },
