@@ -50,5 +50,9 @@ export async function POST(request: Request) {
     },
   })
 
-  return NextResponse.json({ init_point: result.init_point })
+  // En modo test, MP usa sandbox_init_point; en producción, init_point
+  const isTest = process.env.MERCADOPAGO_ACCESS_TOKEN?.startsWith('TEST-') ?? false
+  const checkoutUrl = isTest ? result.sandbox_init_point : result.init_point
+
+  return NextResponse.json({ init_point: checkoutUrl })
 }
