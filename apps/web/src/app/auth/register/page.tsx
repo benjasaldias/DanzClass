@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Music2, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Music2, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z.object({
@@ -26,6 +26,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -43,6 +44,7 @@ export default function RegisterPage() {
           full_name: data.full_name,
           username: data.username.toLowerCase(),
         },
+        emailRedirectTo: `${window.location.origin}/feed`,
       },
     })
 
@@ -55,8 +57,33 @@ export default function RegisterPage() {
       return
     }
 
-    router.push('/plans')
-    router.refresh()
+    setEmailSent(true)
+  }
+
+  if (emailSent) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-brand-950 via-brand-900 to-purple-900 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm">
+          <div className="card p-8 text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 rounded-full bg-brand-50 flex items-center justify-center">
+                <MailCheck className="h-8 w-8 text-brand-600" />
+              </div>
+            </div>
+            <h1 className="text-xl font-bold text-gray-900">Revisa tu correo</h1>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Te enviamos un enlace de confirmación. Haz clic en él para activar tu cuenta y luego inicia sesión.
+            </p>
+            <Link
+              href="/auth/login"
+              className="btn-primary w-full py-3 block text-center"
+            >
+              Ir a iniciar sesión
+            </Link>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (

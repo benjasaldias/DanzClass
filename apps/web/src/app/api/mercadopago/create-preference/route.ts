@@ -22,13 +22,14 @@ export async function POST(request: Request) {
   }
 
   const config = PLAN_CONFIG[plan as Exclude<SubscriptionTier, 'none'>]
+  // APP_URL es server-side (sin NEXT_PUBLIC_) y siempre está disponible en runtime.
+  // NEXT_PUBLIC_APP_URL solo funciona si estuvo seteada al momento del build.
   const appUrl =
+    process.env.APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
-  if (!process.env.NEXT_PUBLIC_APP_URL) {
-    console.warn('[create-preference] NEXT_PUBLIC_APP_URL not set, falling back to:', appUrl)
-  }
+  console.log('[create-preference] appUrl:', appUrl)
 
   const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
   const preference = new Preference(mp)
