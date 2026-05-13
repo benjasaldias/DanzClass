@@ -18,6 +18,7 @@ DanceClass es una plataforma web + móvil para conectar profesores y estudiantes
 - **Backend:** Supabase — PostgreSQL + Auth + Storage + Realtime
 - **Shared:** `packages/shared/` — tipos TypeScript compartidos y cliente Supabase base
 - **Color de marca:** `#c026d3` (Tailwind `brand-600`, escala morada en ambas apps)
+- **Node.js local:** v12 (WSL2) — demasiado viejo para correr `next build` localmente. Siempre buildear en Vercel.
 
 ---
 
@@ -69,8 +70,13 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 
 ### 006_notification_types.sql
 - Extiende constraint de tipo de notificación para incluir: `follow`, `new_class`, `class_updated`, `class_cancelled`
-- Añade política `notifications_insert_any`: cualquier usuario autenticado puede insertar notificaciones para cualquier `user_id` (necesario para notificaciones sociales cross-user)
+- Añade política `notifications_insert_any`: cualquier usuario autenticado puede insertar notificaciones para cualquier `user_id`
 - **Nota:** la política `classes_delete_teacher` ya existía y fue omitida de esta migración
+
+### 007_payment_receipts_bucket.sql ← NUEVA (sesión 2026-05-13)
+- Crea bucket `payment-receipts` (público, 10MB, imagen/PDF)
+- Políticas RLS: cualquiera puede leer; usuarios autenticados solo pueden subir/editar dentro de su propia carpeta `{user_id}/...`
+- **Crítico:** sin esta migración, subir comprobantes de pago de clases falla con error RLS
 
 ---
 
@@ -78,71 +84,66 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 
 ### Autenticación y layout
 - Login / Register con react-hook-form + zod, manejo de errores Supabase
-- **Register muestra pantalla "Revisa tu correo"** tras el signup (no redirige automáticamente); pasa `emailRedirectTo: window.location.origin/feed` a Supabase
+- **Register muestra pantalla "Revisa tu correo"** tras el signup; pasa `emailRedirectTo: window.location.origin/feed`
 - Middleware refresca sesión y protege rutas `/(app)/*`
 - Layout `(app)/layout.tsx`: carga perfil, subscripción, count de notificaciones sin leer → pasa a TopBar
 
-### TopBar (`components/ui/TopBar.tsx`)
+### TopBar
 - Muestra nombre de usuario y avatar
 - Botón de campana → `/notifications` con badge rojo (número, "9+" si >9) cuando hay notificaciones sin leer
 
-### Feed (`(app)/feed`)
-- Tabs: **Siguiendo** / **Global** / **Cerca** (matching por ciudad)
-- Cards de clases con carrusel de media (imagen/video), precio, horario, cupos
+### Feed (`/feed`)
+- Tabs: **Siguiendo** / **Global** / **Cerca** (matching por ciudad exacta — pendiente mejorar)
+- Cards de clases con carrusel de media, precio, horario, cupos
 
-### Explorar (`(app)/explore`)
+### Explorar (`/explore`)
 - Búsqueda de clases por texto
 - Búsqueda de usuarios con filtros: **Tod@s** / **Amig@s** / **Siguiendo**
-- UserCard con botón de seguir y botón de amistad (con estados: enviar / pendiente / aceptar / amig@)
+- UserCard con botón de seguir y botón de amistad (estados: enviar / pendiente / aceptar / amig@)
 
 ### Clases
-- **`/create-class`** — Crear clase con tipo suelta/periódica, campos condicionales, drag-and-drop de media
-  - Periodicidad: Semanal, Quincenal, Personalizado (fechas específicas con calendario)
+- **`/create-class`** — Crear clase con tipo suelta/periódica, drag-and-drop de media
+  - Periodicidad: Semanal, Quincenal, Personalizado (fechas específicas)
   - Precio mensual + precio clase suelta opcional para periódicas
-  - Al publicar: inserta notificación `new_class` a todos los seguidores del profesor
+  - Al publicar: notificación `new_class` a todos los seguidores
 - **`/class/[id]`** — Detalle: carrusel, info, estado de inscripción, CTA de reservar
-  - Para el profesor: botones **Editar** y **Eliminar** (con ConfirmDialog)
-  - Eliminar: notifica a inscritos con `class_cancelled`, soft-delete (status='cancelled')
-  - Seguir/dejar de seguir al profesor (con notificación `follow` al seguir)
-- **`/class/[id]/edit`** — Editar clase: igual que CreateClassForm pero pre-rellenado
-  - Media existente con botón de eliminar, nueva media con indicador visual diferenciado
-  - Al guardar: notifica a inscritos con `class_updated`
+  - Profesor: botones **Editar** y **Eliminar** (con ConfirmDialog)
+  - Eliminar: notifica inscritos con `class_cancelled`, soft-delete
+  - **Alumno inscrito: botón "Salir de la clase"** con ConfirmDialog destructivo
+    - Si `status === 'confirmed'` o `payment_submitted`: alerta especial "IMPORTANTE: ya pagaste esta clase, esta acción no es reversible"
+    - Salir cancela el enrollment y libera el cupo
+- **`/class/[id]/edit`** — Editar clase pre-rellenada; notifica inscritos con `class_updated`
 
-### Notificaciones (`(app)/notifications`)
+### Mis clases (`/my-classes`) — ACTUALIZADO sesión 2026-05-13
+- Página unificada con dos tabs: **"Clases que tomo"** / **"Clases que dicto"**
+- Profesores ven "Clases que dicto" por defecto; estudiantes ven "Clases que tomo"
+- Tab "Clases que tomo": lista de enrollments con estado, link a clase y a pago
+- Tab "Clases que dicto": lista de clases con alumnos, confirmar/rechazar pagos, **eliminar alumno** (ConfirmDialog)
+- BottomNav actualizado: todos los usuarios (teacher y student) apuntan a `/my-classes`
+- `/dashboard` sigue existiendo pero ya no está en nav principal
+
+### Notificaciones (`/notifications`)
 - Lista cronológica, últimas 50
-- Tipos soportados: `follow`, `friend_request`, `friend_accepted`, `new_class`, `class_updated`, `class_cancelled`, `payment_confirmed`, `payment_rejected`, `2x_request`, `2x_match`
-- Enriquecido con datos de perfil (avatar, username) y título de clase
-- Marcadas como leídas al entrar a la página
-- Avatar del emisor con icono superpuesto (para notificaciones de persona), icono solo (para clases/pagos)
-- Estado vacío con ícono de campana
+- Tipos: `follow`, `friend_request`, `friend_accepted`, `new_class`, `class_updated`, `class_cancelled`, `payment_confirmed`, `payment_rejected`, `2x_request`, `2x_match`
+- Marcadas como leídas al entrar; estado vacío con ícono
 
-### Perfil de profesor (`/teacher/[username]`)
+### Perfil público profesor (`/teacher/[username]`)
 - Follow/unfollow con notificación `follow`
-- Botón de amistad: enviar solicitud / cancelar / aceptar / ver amig@
-- **Eliminar amistad**: clic en "Amig@" muestra ConfirmDialog "¿Seguro que quieres eliminar a @username de tus amigos?"
-- Grid de clases publicadas con ClassMiniCard
+- Botón de amistad con estados completos; eliminar amistad con ConfirmDialog
 
-### Dashboard de profesor (`/dashboard`)
-- Lista de clases, inscritos, botones confirmar/rechazar pago
-- Al confirmar: inserta notificación `payment_confirmed`
-- Al rechazar: inserta notificación `payment_rejected`
-
-### Pagos (`/payment/[enrollmentId]`)
+### Pagos de clases (`/payment/[enrollmentId]`)
 - Muestra datos bancarios del profesor
-- react-dropzone para subir comprobante de transferencia
-- Sube imagen a bucket `payment-receipts`
+- react-dropzone para subir comprobante → bucket `payment-receipts`
+- Ruta del archivo: `{student_id}/{enrollment_id}.{ext}`
 
-### Planes y suscripciones (`/plans`) — ✅ COMPLETO Y FUNCIONANDO EN PRODUCCIÓN
+### Editar perfil (`/profile/edit`) — ✅ IMPLEMENTADO
+- Avatar con cámara, nombre, username, bio, ciudad, Instagram
+- StylesPicker para estilos que baila / enseña
+- Toggle privacidad "Clases inscritas públicas"
 
-- Cards de planes (Básico / Profesor / Pro) con features y precio
-- Muestra plan activo con fecha de vencimiento
-- Botón **Cancelar plan** (ConfirmDialog destructivo → `POST /api/subscriptions/cancel`)
-- Al suscribirse → redirige a MP checkout → al volver activa la suscripción en Supabase
+### Planes y suscripciones (`/plans`) — ✅ COMPLETO Y EN PRODUCCIÓN
 
-### Mi perfil (`/profile`)
-
-- Info del usuario con tier activo y link "Suscribirse" / "Cambiar" → `/plans`
-- Link a `/profile/payment-info` para profesores (tier teacher o pro)
+Ver sección "Integración Mercado Pago" más abajo para detalle completo.
 
 ---
 
@@ -151,22 +152,25 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 | Componente | Descripción |
 |---|---|
 | `ui/TopBar.tsx` | Barra superior con badge de notificaciones |
-| `ui/BottomNav.tsx` | Navegación inferior |
+| `ui/BottomNav.tsx` | Nav inferior; todos los roles apuntan a `/my-classes` |
 | `ui/Avatar.tsx` | Avatar con fallback a iniciales |
-| `ui/ConfirmDialog.tsx` | Modal de confirmación con backdrop, modo destructivo, spinner de carga |
-| `ui/MonthCalendar.tsx` | Calendario para seleccionar fechas específicas (clases custom) |
+| `ui/ConfirmDialog.tsx` | Modal de confirmación con backdrop, modo destructivo, spinner |
+| `ui/MonthCalendar.tsx` | Calendario para fechas específicas (clases custom) |
 | `feed/ClassCard.tsx` | Card de clase en feed/explore |
-| `feed/ExploreClient.tsx` | Cliente de explorar con filtros de usuarios |
+| `feed/ExploreClient.tsx` | Explorar con filtros de usuarios |
 | `feed/UserCard.tsx` | Card de usuario con follow + amistad + unfriend confirm |
 | `class/CreateClassForm.tsx` | Formulario completo de creación |
 | `class/EditClassForm.tsx` | Formulario de edición pre-rellenado |
-| `class/ClassDetailClient.tsx` | Detalle de clase con acciones de profesor |
-| `class/DashboardClient.tsx` | Dashboard del profesor |
+| `class/ClassDetailClient.tsx` | Detalle con acciones de profesor + "Salir de clase" para alumno |
+| `class/MyClassesClient.tsx` | Tabs "Clases que tomo" / "Clases que dicto" — NUEVO |
+| `class/DashboardClient.tsx` | Dashboard del profesor (también embebido en MyClassesClient) |
 | `notifications/NotificationsClient.tsx` | Lista de notificaciones con config por tipo |
+| `payment/PaymentClient.tsx` | Pago con comprobante, sube a `payment-receipts` |
+| `plans/SubscribeButton.tsx` | Dos botones: mensual (crédito) y anual (cualquier medio) — ACTUALIZADO |
+| `plans/CancelSubscriptionButton.tsx` | Cancelar plan con ConfirmDialog; cancela también en MP |
+| `profile/EditProfileForm.tsx` | Edición completa del perfil |
 | `profile/TeacherProfileClient.tsx` | Perfil público con follow/amistad/unfriend |
-| `payment/PaymentClient.tsx` | Pago con comprobante |
-| `plans/SubscribeButton.tsx` | Botón cliente que llama a create-preference y redirige a MP |
-| `plans/CancelSubscriptionButton.tsx` | Botón cancelar con ConfirmDialog, llama a `/api/subscriptions/cancel` |
+| `profile/PaymentInfoForm.tsx` | Datos bancarios del profesor |
 
 ---
 
@@ -182,204 +186,143 @@ type NotificationType =
   | 'payment_confirmed' | 'payment_rejected'
   | 'follow' | 'new_class' | 'class_updated' | 'class_cancelled'
 
-interface Class {
-  // ...campos base...
-  price_suelta: number | null      // precio clase suelta para periódicas
-  custom_dates: string[]           // fechas ISO 'YYYY-MM-DD' para recurrence='custom'
-}
+const SUBSCRIPTION_PLANS = [
+  { tier: 'basic',   price: 1000, name: 'Básico',   ... },
+  { tier: 'teacher', price: 1500, name: 'Profesor',  ... },
+  { tier: 'pro',     price: 2000, name: 'Pro',       ... },
+]
 ```
 
 ---
 
 ## Decisiones técnicas importantes
 
-- **Roles eliminados:** todos los usuarios tienen `role='user'` desde migración 002. La diferenciación entre estudiante/profesor es por `subscription_tier`. El botón de inscripción en ClassDetail se muestra a cualquier no-profesor (sin chequeo de rol).
-- **Notificaciones cross-user:** la política RLS `notifications_insert_any` permite `WITH CHECK (true)` para autenticados, necesario para insertar notificaciones en el `user_id` de otra persona.
-- **Friendship delete:** la tabla usa UNIQUE en (requester_id, addressee_id). El delete usa `.or()` para manejar ambas direcciones (el usuario actual puede ser requester o addressee).
-- **Soft-delete clases:** `UPDATE classes SET status='cancelled'` en vez de DELETE, para preservar historial de inscripciones.
-- **Storage policies:** separadas de la RLS de tablas, viven en `storage.objects`. Sin ellas, los uploads de media fallan silenciosamente.
-- **Precio clase suelta:** campo opcional `price_suelta` en `classes`. Solo relevante para periódicas. Se muestra en ClassCard, ClassDetail y ClassMiniCard.
-- **Recurrencia custom:** `day_of_week` es NULL cuando `recurrence='custom'`; se usa `custom_dates[]` en su lugar. La validación Zod usa `superRefine` para este condicional.
-- **Activación de suscripción MP:** el mecanismo principal es la página `/plans/success` (verifica el pago contra la API de MP con el `payment_id` que MP añade al redirect). El webhook es secundario. Esto es más confiable que depender solo del webhook para el flujo inmediato del usuario.
+- **Roles eliminados:** diferenciación estudiante/profesor por `subscription_tier` (`canTeach(tier)`).
+- **Notificaciones cross-user:** política RLS `notifications_insert_any` con `WITH CHECK (true)`.
+- **Soft-delete clases:** `UPDATE classes SET status='cancelled'`, preserva historial de inscripciones.
+- **Storage policies separadas:** viven en `storage.objects`, no en tablas. Sin ellas, uploads fallan silenciosamente.
+- **Salir de clase:** se marca enrollment como `cancelled`, no se elimina — preserva historial.
+- **Activación suscripción MP:** dual-path — `plans/success` (mecanismo primario al volver de MP) + webhook (secundario). Ambos son idempotentes usando `mp_subscription_id` como clave de deduplicación.
+- **`external_reference` en MP:** formato `{userId}:{plan}` para mensual; `{userId}:{plan}:annual` para anual. Se parsea con `.split(':')` en webhook y success page para determinar meses de expiración.
+- **Suscripción paused por MP:** cuando MP no puede cobrar, pausa la suscripción y reintenta. No tocamos la BD — el `expires_at` natural actúa de grace period (7 días adicionales en `getActiveTier`).
 
 ---
 
-## Pasos siguientes pendientes
-
-### A. SQL pendiente de ejecutar en Supabase
-
-Verificar en el SQL Editor que todas las migraciones estén aplicadas:
-1. `supabase/migrations/003_profiles_extra.sql` — columnas extra en profiles
-2. `supabase/migrations/004_class_schedule_improvements.sql` — price_suelta, custom_dates
-3. `supabase/migrations/005_storage_policies.sql` — políticas de Storage (crítico para uploads)
-4. `supabase/migrations/006_notification_types.sql` — tipos de notificación + política insert cross-user
-5. **`supabase/migrations/007_payment_receipts_bucket.sql` — bucket `payment-receipts` + RLS** ← NUEVO, ejecutar para habilitar subida de comprobantes
-
-Para tener un usuario pro de prueba:
-```sql
-INSERT INTO subscriptions (user_id, tier, status, started_at, expires_at)
-SELECT id, 'pro', 'active', NOW(), NOW() + INTERVAL '1 year'
-FROM profiles WHERE username = 'benjasaldias';
-```
-
-### B. Integración Mercado Pago (suscripciones) — ✅ COMPLETO Y EN PRODUCCIÓN
-
-El flujo completo funciona con credenciales de producción. Ver sección "Integración Mercado Pago" para detalle de archivos, flujo y variables de entorno.
-
-### C. Pantallas mobile pendientes (Expo)
-
-La app mobile tiene el layout base pero faltan pantallas:
-- `apps/mobile/app/(app)/class/create-suelta.tsx` — formulario clase suelta
-- `apps/mobile/app/(app)/class/create-periodica.tsx` — formulario clase periódica
-- `apps/mobile/app/(app)/class/[id].tsx` — detalle de clase con botón reservar
-- `apps/mobile/app/(app)/teacher/[username].tsx` — perfil público del profesor
-- Notificaciones en mobile (bell badge en tab bar o header)
-
-### D. Mejoras y correcciones menores
-
-- **Bucket `payment-receipts`:** es privado, pero el código usa `getPublicUrl()`. Cambiar a `createSignedUrl()` con tiempo de expiración para mostrar el comprobante al profesor en el dashboard.
-- **Filtro "Cerca":** actualmente filtra por ciudad exacta (string match). Mejorar con selección de ciudad en perfil y matching normalizado.
-- **Editar perfil (`/profile/edit`):** la página existe como link en `/profile` pero aún no está implementada.
-
-### E. Funcionalidades futuras (no prioritarias)
-
-- **Notificaciones push Expo** — cuando se confirma/rechaza un pago o se publica una clase nueva
-- **Sistema 2x** — buscar compañer@ para ir a una clase de pareja (`2x_request` / `2x_match` ya están en el schema de notificaciones)
-- **Descuentos de último minuto** — campo `discount_percentage` en clases, notificación push a seguidores
-- **OCR de comprobantes** — identificación automática del monto en la imagen (diferido del MVP)
-- **Dashboard de analytics** — estadísticas de ingresos y asistencia para profesores
-
----
-
-## Integración Mercado Pago — Estado actual (COMPLETO Y EN PRODUCCIÓN)
+## Integración Mercado Pago — Estado actual
 
 ### Archivos
 
 | Archivo | Descripción |
 |---|---|
-| `apps/web/src/app/api/mercadopago/create-preference/route.ts` | Crea preferencia MP, detecta modo test/prod automáticamente |
-| `apps/web/src/app/api/mercadopago/webhook/route.ts` | Recibe notificación MP, verifica firma HMAC-SHA256, activa suscripción |
-| `apps/web/src/app/api/subscriptions/cancel/route.ts` | Cancela suscripción activa del usuario (`status='cancelled'`) |
-| `apps/web/src/app/(app)/plans/page.tsx` | Cards de planes con fecha vencimiento y botón cancelar |
-| `apps/web/src/app/(app)/plans/success/page.tsx` | Verifica pago con MP API y activa suscripción si webhook no lo hizo |
-| `apps/web/src/app/(app)/plans/failure/page.tsx` | Página de fallo post-pago |
-| `apps/web/src/components/plans/SubscribeButton.tsx` | Botón cliente que llama a create-preference y redirige a MP |
-| `apps/web/src/components/plans/CancelSubscriptionButton.tsx` | Botón cancelar con ConfirmDialog destructivo |
-| `apps/web/src/lib/subscription.ts` | `getActiveTier()` y `getActiveSubscription()` — reutilizables |
-| `apps/web/src/lib/supabase/admin.ts` | `createAdminClient()` con service role key — bypasea RLS |
+| `api/mercadopago/create-subscription/route.ts` | Crea PreApproval MP (cobro mensual automático, solo crédito) |
+| `api/mercadopago/create-preference/route.ts` | Crea Preference MP (pago único; soporta `period=annual` → precio×12) |
+| `api/mercadopago/webhook/route.ts` | Recibe notificaciones MP; maneja pagos, preapprovals y renovaciones |
+| `api/subscriptions/cancel/route.ts` | Cancela preapproval en MP + marca `cancelled` en BD |
+| `(app)/plans/page.tsx` | Cards de planes con fecha vencimiento y botón cancelar |
+| `(app)/plans/success/page.tsx` | Activa suscripción post-pago (maneja `preapproval_id` y `payment_id`) |
+| `(app)/plans/failure/page.tsx` | Página de fallo post-pago |
+| `lib/subscription.ts` | `getActiveTier()`, `getActiveSubscription()` — reutilizables |
+| `lib/supabase/admin.ts` | `createAdminClient()` con service role key — bypasea RLS |
 
-### Flujo de pago
+### Dos modalidades de suscripción
 
-1. Usuario en `/plans` hace clic en "Suscribirse"
-2. `SubscribeButton` llama `POST /api/mercadopago/create-preference` con `{ plan }`
-3. API route crea preference con `external_reference = "{userId}:{plan}"` y retorna URL de checkout
-   - Token `TEST-` → usa `sandbox_init_point`; token `APP_USR-` → usa `init_point`
-4. Usuario paga en MP checkout
-5. **Mecanismo primario:** MP redirige a `/plans/success?payment_id=XXX&status=approved`
-   - La página verifica el pago llamando a la API de MP con ese `payment_id`
-   - Si está approved y el `external_reference` coincide con el usuario actual → activa suscripción
-   - Si el webhook ya la activó, no inserta duplicado (chequea tier activo primero)
-6. **Mecanismo secundario (webhook):** MP llama a `POST /api/mercadopago/webhook`
-   - Verifica firma HMAC-SHA256 (`x-signature` header)
-   - Consulta el pago por ID para confirmar `status === 'approved'`
-   - Expira suscripciones previas e inserta nueva
+**Mensual con tarjeta de crédito (PreApproval):**
+1. `SubscribeButton` → `POST /api/mercadopago/create-subscription` → crea PreApproval
+2. Usuario autoriza en checkout MP → regresa a `/plans/success?preapproval_id=XXX`
+3. Success page activa suscripción con `expires_at = now + 1 mes`
+4. Cada mes: webhook `subscription_authorized_payment` → extiende `expires_at` +1 mes
+5. Si MP no puede cobrar: webhook `subscription_preapproval` con `status=paused` → solo log
+6. Si se cancela desde MP: webhook `subscription_preapproval` con `status=cancelled` → BD actualizada
+
+**Anual con cualquier medio de pago (Preference, pago único):**
+1. `SubscribeButton` → `POST /api/mercadopago/create-preference` con `{ plan, period: 'annual' }`
+2. Checkout MP con precio = monthly × 12; `external_reference = "{userId}:{plan}:annual"`
+3. Retorna a `/plans/success?payment_id=XXX&status=approved`
+4. Success page parsea `:annual` → activa con `expires_at = now + 12 meses`
+5. No hay renovación automática — el usuario debe renovar manualmente al vencer
+
+### Webhook — eventos manejados
+
+| Evento (`body.type`) | Qué hace |
+|---|---|
+| `payment` | Pago único aprobado → activa suscripción (1 mes o 12 si `external_reference` termina en `:annual`) |
+| `subscription_preapproval` status `authorized` | Preapproval autorizado → activa suscripción con 1 mes |
+| `subscription_preapproval` status `cancelled` | Cancelado desde MP → marca `status=cancelled` en BD |
+| `subscription_preapproval` status `paused` | MP reintentará cobro → solo log, no toca BD |
+| `subscription_authorized_payment` | Cargo mensual exitoso → extiende `expires_at` +1 mes en BD |
+
+Verificación de firma: HMAC-SHA256 con `x-signature` header. Manifest: `id={data_id}&request-id={x-request-id}&ts={ts}`.
+
+### Cancelar suscripción
+`POST /api/subscriptions/cancel` → intenta cancelar el PreApproval en MP via `preApproval.update({ status: 'cancelled' })` (falla silenciosamente si era pago único) → marca `status=cancelled` en BD. El usuario conserva acceso hasta `expires_at`.
 
 ### Variables de entorno en Vercel (todas configuradas ✅)
 
 | Variable | Valor / Origen |
 |---|---|
-| `APP_URL` | `https://dc-project-web.vercel.app` — URL estable de producción (server-side) |
-| `MERCADOPAGO_ACCESS_TOKEN` | MP Developers → Credenciales de producción (`APP_USR-...`) |
-| `MERCADOPAGO_WEBHOOK_SECRET` | MP Developers → Webhooks → Secreto del webhook productivo |
+| `APP_URL` | `https://dc-project-web.vercel.app` (server-side, sin NEXT_PUBLIC_) |
+| `MERCADOPAGO_ACCESS_TOKEN` | MP Developers → Credenciales producción (`APP_USR-...`) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | MP Developers → Webhooks → Secreto |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://hkmvbutjjrxmegdliiqt.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` |
 
 ### Webhook en MP Dashboard
 
-- Registrado en modo **Productivo** en [mercadopago.cl/developers/panel](https://www.mercadopago.cl/developers/panel)
+- Registrado en modo **Productivo** en mercadopago.cl/developers/panel
 - URL: `https://dc-project-web.vercel.app/api/mercadopago/webhook`
-- Evento: `Pagos`
+- Eventos: **Pagos** + **Suscripciones** (agregar Suscripciones si aún no está)
+
+### Cómo testear MP en sandbox
+
+1. Usar token `TEST-...` (Vercel preview branch o local con ngrok)
+2. Tarjeta de prueba aprobada: `4009175332806176` (Visa Chile), cualquier vencimiento futuro, CVV `123`
+3. Tarjeta rechazada: `4013793337199442`
+4. Para testear renovación mensual: MP Dashboard → Suscripciones → seleccionar suscripción de prueba → "Cobrar ahora"
+5. Para testear paused/cancelled: cambiar estado desde el panel de MP sandbox
 
 ---
 
 ## Deploy en Vercel — Lecciones aprendidas
 
-### Errores TypeScript solucionados (sesión 2026-05-13)
+### Node.js local es v12 — no puede buildear Next.js
 
-**Error 1: Generic mismatch en `SupabaseClient`**
-- Archivo: `apps/web/src/lib/subscription.ts`
-- Fix: cambiar el parámetro a tipo estructural `{ from: (table: string) => any }`
+El entorno WSL2 local tiene Node v12 (demasiado viejo para Next.js 14). Todo build se hace en Vercel. Para verificar errores de TypeScript antes de pushear, hacer code review manual.
 
-**Error 2: `Property 'x' does not exist on type 'never'` en múltiples pages**
+### Errores TypeScript solucionados
 
-- Causa raíz: tablas nuevas en `database.ts` sin `Relationships: []`
-- Fix: agregar `Relationships: []` a todas las tablas en `packages/shared/src/types/database.ts`
+**`Property 'x' does not exist on type 'never'`** en server components:
+- Causa: tablas en `database.ts` sin `Relationships: []`
+- Fix: agregar `Relationships: []` + casts explícitos con `as Type | null`
 
-### Variables de entorno: `NEXT_PUBLIC_` vs server-side
+**`Type 'null' is not assignable to type 'string | undefined'`** en PreApproval:
+- Causa: SDK de MP no acepta `null` en `end_date`, solo `undefined`
+- Fix: usar `end_date: undefined` en lugar de `null`
 
-**Regla crítica:** las variables `NEXT_PUBLIC_` se incrustan en el bundle JavaScript en el momento del **build**, no en runtime. Consecuencias:
+### Variables de entorno: NEXT_PUBLIC_ vs server-side
 
-- Si se agregan/cambian en Vercel después de un build, no tienen efecto hasta el **próximo build** (no basta con "Redeploy" — se necesita un push nuevo que genere un build fresco)
-- En API routes (`route.ts`) y server components, **no son confiables** como variables de entorno runtime
-- **Solución:** para URLs o valores que se usan en el servidor, usar variables sin el prefijo `NEXT_PUBLIC_` (ej: `APP_URL`). Estas sí están disponibles en runtime en todos los contextos del servidor
+Las `NEXT_PUBLIC_` se incrustan en el bundle en el momento del build. Cambiarlas en Vercel requiere un push nuevo (no basta con "Redeploy"). Para valores server-side usar variables sin prefijo (ej: `APP_URL`).
 
-**Para forzar un build fresco en Vercel:**
-
+Para forzar rebuild limpio:
 ```bash
-git commit --allow-empty -m "force rebuild"
-git push
+git commit --allow-empty -m "force rebuild" && git push
 ```
 
-### Incidente: `NEXT_PUBLIC_SUPABASE_URL` apuntando al dominio de Vercel
-
-En algún momento `NEXT_PUBLIC_SUPABASE_URL` quedó seteada en Vercel con el valor `https://dc-project-web.vercel.app` en vez de `https://hkmvbutjjrxmegdliiqt.supabase.co`. Síntoma: todas las llamadas a Supabase desde el cliente (login, queries) retornaban 404. Diagnóstico: en DevTools → Network, la request fallida era `https://dc-project-web.vercel.app/auth/v1/token`. Fix: restaurar el valor correcto y forzar rebuild.
-
-### Supabase — Configuración de producción necesaria
+### Supabase — Configuración de producción
 
 En Supabase Dashboard → Authentication → URL Configuration:
-
 - **Site URL:** `https://dc-project-web.vercel.app`
 - **Redirect URLs:** `https://dc-project-web.vercel.app/**`
 
-Sin esto, los links de confirmación de email redirigen a `localhost:3000`.
-
----
-
-## Tipos Supabase y error `never` — causa y solución
-
-### Estado actual del `database.ts`
-
-El archivo `packages/shared/src/types/database.ts` fue generado por la Supabase CLI y **limpiado manualmente** para eliminar ~900 líneas de funciones PostGIS. El archivo limpio tiene ~811 líneas.
-
-**Importante:** la sección `Functions` debe usar esta firma:
-
-```typescript
-Functions: {
-  [_: string]: {
-    Args: Record<string, unknown>
-    Returns: unknown
-  }
-}
-```
-
-Si se regenera el archivo con `supabase gen types`, hay que volver a limpiar el PostGIS Y verificar que `Functions` tenga index signature (no `{ [_ in never]: never }`).
-
 ### El bug de `never` en supabase-js
 
-**Síntoma:** `Property 'x' does not exist on type 'never'` al acceder propiedades de resultados de queries en server components.
-
-**Tablas afectadas:** `follows`, `friendships`, `subscriptions`, `notifications`, `enrollments`
-
-**Patrón de fix:**
-
+El archivo `packages/shared/src/types/database.ts` fue limpiado manualmente (eliminadas ~900 líneas de PostGIS). La sección `Functions` debe tener:
 ```typescript
-// ✅ cast explícito con el tipo esperado
-const followingIds = (follows as { following_id: string }[] | null)?.map(f => f.following_id) ?? []
-
-type SubRow = { tier: string; expires_at: string }
-const sub = subscription as SubRow | null
+Functions: {
+  [_: string]: { Args: Record<string, unknown>; Returns: unknown }
+}
 ```
+Si se regenera con `supabase gen types`, volver a limpiar PostGIS y verificar `Functions`.
 
 ---
 
@@ -389,40 +332,79 @@ const sub = subscription as SubRow | null
 apps/web/src/
 ├── app/
 │   ├── (app)/
-│   │   ├── layout.tsx                    # carga perfil + unread count → TopBar
+│   │   ├── layout.tsx
 │   │   ├── feed/page.tsx
 │   │   ├── explore/page.tsx
 │   │   ├── create-class/page.tsx
-│   │   ├── class/[id]/page.tsx
-│   │   ├── class/[id]/edit/page.tsx      # solo el profesor
+│   │   ├── class/[id]/page.tsx           # "Salir de clase" para alumnos
+│   │   ├── class/[id]/edit/page.tsx
+│   │   ├── my-classes/page.tsx           # tabs: tomo / dicto (ACTUALIZADO)
+│   │   ├── dashboard/page.tsx            # legacy, no está en nav
 │   │   ├── notifications/page.tsx
 │   │   ├── payment/[enrollmentId]/page.tsx
 │   │   ├── teacher/[username]/page.tsx
-│   │   ├── dashboard/page.tsx
-│   │   ├── my-classes/page.tsx
 │   │   ├── profile/page.tsx
+│   │   ├── profile/edit/page.tsx         # edición completa
 │   │   ├── profile/payment-info/page.tsx
-│   │   └── plans/                        # suscripciones MP
-│   │       ├── page.tsx
-│   │       ├── success/page.tsx          # verifica pago y activa suscripción
+│   │   └── plans/
+│   │       ├── page.tsx                  # dos botones por plan (mensual/anual)
+│   │       ├── success/page.tsx          # maneja preapproval_id y payment_id
 │   │       └── failure/page.tsx
 │   ├── api/
 │   │   ├── mercadopago/
-│   │   │   ├── create-preference/route.ts
-│   │   │   └── webhook/route.ts
+│   │   │   ├── create-subscription/route.ts  # PreApproval (mensual, crédito)
+│   │   │   ├── create-preference/route.ts    # Preference (anual o legacy mensual)
+│   │   │   └── webhook/route.ts              # maneja todos los eventos MP
 │   │   └── subscriptions/
-│   │       └── cancel/route.ts
+│   │       └── cancel/route.ts               # cancela en MP + BD
 │   └── auth/login/ + auth/register/
 ├── components/
 │   ├── ui/ (TopBar, BottomNav, Avatar, ConfirmDialog, MonthCalendar, LogoutButton)
 │   ├── feed/ (FeedClient, ClassCard, ExploreClient, UserCard)
-│   ├── class/ (ClassDetailClient, CreateClassForm, EditClassForm, DashboardClient)
+│   ├── class/ (ClassDetailClient, CreateClassForm, EditClassForm, DashboardClient, MyClassesClient)
 │   ├── notifications/ (NotificationsClient)
 │   ├── payment/ (PaymentClient)
 │   ├── plans/ (SubscribeButton, CancelSubscriptionButton)
-│   └── profile/ (TeacherProfileClient, PaymentInfoForm)
+│   └── profile/ (EditProfileForm, TeacherProfileClient, PaymentInfoForm)
 └── lib/
     ├── utils.ts
-    ├── subscription.ts                   # getActiveTier(), getActiveSubscription()
+    ├── subscription.ts
     └── supabase/ (client.ts, server.ts, admin.ts)
 ```
+
+---
+
+## Pasos siguientes — próxima sesión
+
+### A. SQL pendiente de verificar en Supabase
+
+Las migraciones 001–006 deberían estar aplicadas. Verificar que también esté:
+- `007_payment_receipts_bucket.sql` — sin esto los comprobantes de pago de clases no se pueden subir
+
+### B. Pantallas mobile pendientes (Expo) ← PRIORIDAD SIGUIENTE
+
+La app mobile tiene el layout base pero faltan todas las pantallas funcionales:
+- `apps/mobile/app/(app)/feed/` — feed de clases con tabs
+- `apps/mobile/app/(app)/class/[id].tsx` — detalle de clase con botón reservar
+- `apps/mobile/app/(app)/class/create-suelta.tsx` — formulario clase suelta
+- `apps/mobile/app/(app)/class/create-periodica.tsx` — formulario clase periódica
+- `apps/mobile/app/(app)/teacher/[username].tsx` — perfil público del profesor
+- `apps/mobile/app/(app)/my-classes/` — mis clases (tabs tomo/dicto)
+- `apps/mobile/app/(app)/explore/` — explorar usuarios y clases
+- `apps/mobile/app/(app)/notifications/` — lista de notificaciones
+- Badge de notificaciones en tab bar o header
+- Antes de empezar mobile: explorar qué pantallas ya existen en `apps/mobile/`
+
+### C. Mejoras web pendientes (menor prioridad)
+
+- **Filtro "Cerca":** actualmente filtra por ciudad exacta (string match). Mejorar con normalización (lowercase, trim, equivalencias) o selección de ciudad desde un listado fijo.
+- **`/dashboard`:** considerar redirect a `/my-classes?tab=teaching` o dejarlo como está (legacy, funcional pero fuera del nav).
+
+### D. Funcionalidades futuras (no prioritarias para MVP)
+
+- **Notificaciones push Expo** — cuando se confirma/rechaza un pago o se publica una clase
+- **Sistema 2x** — buscar compañer@ de baile (`2x_request` / `2x_match` ya están en schema)
+- **Descuentos de último minuto** — campo `discount_percentage` en clases
+- **OCR de comprobantes** — identificación automática del monto
+- **Dashboard de analytics** — estadísticas de ingresos y asistencia para profesores
+- **Renovación anual automática** — actualmente el plan anual no se renueva solo; el usuario debe volver a pagar manualmente
