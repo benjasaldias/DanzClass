@@ -22,7 +22,13 @@ export async function POST(request: Request) {
   }
 
   const config = PLAN_CONFIG[plan as Exclude<SubscriptionTier, 'none'>]
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+
+  if (!process.env.NEXT_PUBLIC_APP_URL) {
+    console.warn('[create-preference] NEXT_PUBLIC_APP_URL not set, falling back to:', appUrl)
+  }
 
   const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
   const preference = new Preference(mp)
