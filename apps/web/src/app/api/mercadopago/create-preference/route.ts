@@ -54,5 +54,7 @@ export async function POST(request: Request) {
   const isTest = process.env.MERCADOPAGO_ACCESS_TOKEN?.startsWith('TEST-') ?? false
   const checkoutUrl = isTest ? result.sandbox_init_point : result.init_point
 
+  console.log('[create-preference] appUrl:', appUrl, '| checkoutUrl:', checkoutUrl?.slice(0, 60))
+
   return NextResponse.json({ init_point: checkoutUrl })
 }
