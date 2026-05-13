@@ -61,7 +61,7 @@ export default async function UserProfilePage({ params }: Props) {
   type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
   let friendStatus: FriendStatus = 'none'
   if (friendshipData.data) {
-    const f = friendshipData.data
+    const f = friendshipData.data as any
     if (f.status === 'accepted') {
       friendStatus = 'accepted'
     } else if (f.status === 'pending') {
