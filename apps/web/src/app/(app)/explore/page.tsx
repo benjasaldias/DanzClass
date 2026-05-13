@@ -7,13 +7,12 @@ export default async function ExplorePage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Profesores = usuarios con suscripción teacher o pro activa
-  const { data: rawTeacherSubs } = await supabase
+  const { data: teacherSubs } = await supabase
     .from('subscriptions')
     .select('user_id')
     .in('tier', ['teacher', 'pro'])
     .in('status', ['active', 'grace'])
 
-  const teacherSubs = rawTeacherSubs as { user_id: string }[] | null
   const teacherIds = teacherSubs?.map(s => s.user_id) ?? []
 
   const [
@@ -48,11 +47,10 @@ export default async function ExplorePage() {
 
   const followingIds = new Set((myFollows ?? []).map((f: any) => f.following_id))
 
-  type FriendshipRow = { requester_id: string; addressee_id: string; status: string }
   // Mapa userId → estado de amistad desde la perspectiva del usuario actual
   type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
   const friendMap: Record<string, FriendStatus> = {}
-  for (const f of (myFriendships ?? []) as FriendshipRow[]) {
+  for (const f of myFriendships ?? []) {
     const otherId = f.requester_id === user?.id ? f.addressee_id : f.requester_id
     if (f.status === 'accepted') {
       friendMap[otherId] = 'accepted'

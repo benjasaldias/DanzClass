@@ -119,6 +119,7 @@ export interface Database {
           mp_preapproval_id?: string | null
           updated_at?: string
         }
+        Relationships: []
       }
       follows: {
         Row: {
@@ -131,7 +132,10 @@ export interface Database {
           following_id: string
           created_at?: string
         }
-        Update: never
+        Update: {
+          follower_id?: string
+        }
+        Relationships: []
       }
       friendships: {
         Row: {
@@ -151,6 +155,7 @@ export interface Database {
         Update: {
           status?: 'pending' | 'accepted' | 'rejected'
         }
+        Relationships: []
       }
       classes: {
         Row: {
@@ -351,6 +356,7 @@ export interface Database {
         Update: {
           read?: boolean
         }
+        Relationships: []
       }
       class_2x_requests: {
         Row: {
@@ -375,6 +381,7 @@ export interface Database {
           matched_with?: string | null
           status?: 'looking' | 'matched' | 'cancelled'
         }
+        Relationships: []
       }
     }
     Views: {

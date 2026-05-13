@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!user) redirect('/auth/login')
 
-  const [{ data: profile }, { data: rawSubscription }, { count: unreadCount }] = await Promise.all([
+  const [{ data: profile }, { data: subscription }, { count: unreadCount }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase
       .from('subscriptions')
@@ -26,8 +26,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('user_id', user.id)
       .eq('read', false),
   ])
-
-  const subscription = rawSubscription as { tier: string; status: string; expires_at: string } | null
 
   const now = new Date()
   let activeTier: SubscriptionTier = 'none'

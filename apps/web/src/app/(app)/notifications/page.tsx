@@ -7,15 +7,12 @@ export default async function NotificationsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: rawNotifications } = await supabase
+  const { data: notifications } = await supabase
     .from('notifications')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(50)
-
-  type NotificationRow = { id: string; user_id: string; type: string; data: Record<string, unknown>; read: boolean; created_at: string }
-  const notifications = rawNotifications as NotificationRow[] | null
 
   // Collect IDs needed to enrich notification display
   const fromUserIds = [...new Set(
