@@ -12,9 +12,10 @@ async function activateIfNew(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
   tier: string,
-  mpId: string
+  mpId: string,
+  months = 1
 ) {
-  // Idempotente: no duplicar si ya fue procesado por el webhook
+  // Idempotente: no duplicar si el webhook ya lo procesó
   const { data: existing } = await admin
     .from('subscriptions')
     .select('id')
@@ -28,7 +29,7 @@ async function activateIfNew(
 
   const now = new Date()
   const expiresAt = new Date(now)
-  expiresAt.setMonth(expiresAt.getMonth() + 1)
+  expiresAt.setMonth(expiresAt.getMonth() + months)
 
   await admin
     .from('subscriptions')
@@ -48,7 +49,7 @@ async function activateIfNew(
   if (error) {
     console.error('[plans/success] insert error:', error)
   } else {
-    console.log('[plans/success] subscription activated — user:', userId, 'tier:', tier)
+    console.log('[plans/success] subscription activated — user:', userId, 'tier:', tier, 'months:', months)
   }
 }
 
@@ -65,7 +66,7 @@ export default async function PlanSuccessPage({
   const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
   const admin = createAdminClient()
 
-  // ── Recurring subscription authorization ────────────────────────────────────
+  // ── Suscripción recurrente (mensual con crédito) ─────────────────────────────
   if (preapproval_id) {
     try {
       const preApproval = new PreApproval(mp)
@@ -76,7 +77,7 @@ export default async function PlanSuccessPage({
       if (sub.external_reference && sub.id) {
         const [refUserId, tier] = sub.external_reference.split(':')
         if (refUserId === user.id && VALID_TIERS.includes(tier)) {
-          await activateIfNew(admin, user.id, tier, sub.id)
+          await activateIfNew(admin, user.id, tier, sub.id, 1)
         }
       }
     } catch (e) {
@@ -84,7 +85,7 @@ export default async function PlanSuccessPage({
     }
   }
 
-  // ── One-time payment fallback ────────────────────────────────────────────────
+  // ── Pago único: mensual legacy o anual ──────────────────────────────────────
   if (payment_id && status === 'approved') {
     try {
       const paymentClient = new Payment(mp)
@@ -93,9 +94,14 @@ export default async function PlanSuccessPage({
       console.log('[plans/success] payment status:', payment.status, '| ref:', payment.external_reference)
 
       if (payment.status === 'approved' && payment.external_reference) {
-        const [refUserId, tier] = payment.external_reference.split(':')
+        const parts = payment.external_reference.split(':')
+        const refUserId = parts[0]
+        const tier = parts[1]
+        const period = parts[2] // 'annual' o undefined
+        const months = period === 'annual' ? 12 : 1
+
         if (refUserId === user.id && VALID_TIERS.includes(tier)) {
-          await activateIfNew(admin, user.id, tier, String(payment.id))
+          await activateIfNew(admin, user.id, tier, String(payment.id), months)
         }
       }
     } catch (e) {

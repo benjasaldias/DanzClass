@@ -32,9 +32,10 @@ async function activateSubscription(
   supabase: ReturnType<typeof createAdminClient>,
   userId: string,
   tier: string,
-  mpId: string
+  mpId: string,
+  months = 1
 ) {
-  // Idempotent: skip if this preapproval/payment was already processed
+  // Idempotente: no duplicar si este pago/preapproval ya fue procesado
   const { data: existing } = await supabase
     .from('subscriptions')
     .select('id')
@@ -48,7 +49,7 @@ async function activateSubscription(
 
   const now = new Date()
   const expiresAt = new Date(now)
-  expiresAt.setMonth(expiresAt.getMonth() + 1)
+  expiresAt.setMonth(expiresAt.getMonth() + months)
 
   await supabase
     .from('subscriptions')
@@ -68,7 +69,7 @@ async function activateSubscription(
   if (error) {
     console.error('[webhook] supabase insert error:', error)
   } else {
-    console.log('[webhook] subscription activated — user:', userId, 'tier:', tier)
+    console.log('[webhook] subscription activated — user:', userId, 'tier:', tier, 'months:', months)
   }
 }
 
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
   const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
   const supabase = createAdminClient()
 
-  // ── One-time payment ────────────────────────────────────────────────────────
+  // ── Pago único (mensual legacy o anual) ─────────────────────────────────────
   if (eventType === 'payment') {
     const paymentClient = new Payment(mp)
     const payment = await paymentClient.get({ id: eventDataId })
@@ -105,36 +106,63 @@ export async function POST(request: Request) {
 
     if (payment.status !== 'approved') return NextResponse.json({ ok: true })
 
-    const [userId, tier] = (payment.external_reference ?? '').split(':')
+    const parts = (payment.external_reference ?? '').split(':')
+    const userId = parts[0]
+    const tier = parts[1]
+    const period = parts[2] // 'annual' o undefined
+    const months = period === 'annual' ? 12 : 1
+
     if (!userId || !['basic', 'teacher', 'pro'].includes(tier)) {
+      console.warn('[webhook] invalid external_reference:', payment.external_reference)
       return NextResponse.json({ ok: true })
     }
 
-    await activateSubscription(supabase, userId, tier, String(payment.id))
+    await activateSubscription(supabase, userId, tier, String(payment.id), months)
     return NextResponse.json({ ok: true })
   }
 
-  // ── Recurring subscription authorized ──────────────────────────────────────
+  // ── Suscripción recurrente — cambio de estado ────────────────────────────────
   if (eventType === 'subscription_preapproval') {
     const preApproval = new PreApproval(mp)
     const sub = await preApproval.get({ id: eventDataId })
 
-    console.log('[webhook] preapproval status:', sub.status, '| ref:', sub.external_reference)
+    console.log('[webhook] preapproval status:', sub.status, '| id:', sub.id, '| ref:', sub.external_reference)
 
-    if (sub.status !== 'authorized' || !sub.id) return NextResponse.json({ ok: true })
+    if (!sub.id) return NextResponse.json({ ok: true })
 
-    const [userId, tier] = (sub.external_reference ?? '').split(':')
-    if (!userId || !['basic', 'teacher', 'pro'].includes(tier)) {
-      return NextResponse.json({ ok: true })
+    if (sub.status === 'authorized') {
+      const parts = (sub.external_reference ?? '').split(':')
+      const userId = parts[0]
+      const tier = parts[1]
+
+      if (!userId || !['basic', 'teacher', 'pro'].includes(tier)) {
+        return NextResponse.json({ ok: true })
+      }
+
+      await activateSubscription(supabase, userId, tier, sub.id)
+
+    } else if (sub.status === 'cancelled') {
+      // Cancelada desde MP (usuario canceló directo, o demasiados fallos de cobro)
+      // El acceso se mantiene hasta expires_at (comportamiento igual al cancel manual)
+      await supabase
+        .from('subscriptions')
+        .update({ status: 'cancelled' })
+        .eq('mp_subscription_id', sub.id)
+        .in('status', ['active', 'grace'])
+
+      console.log('[webhook] subscription cancelled from MP — sub id:', sub.id)
+
+    } else if (sub.status === 'paused') {
+      // MP pausa tras cobro fallido; reintentará. No tocamos el estado en BD:
+      // el expires_at natural actúa de grace period. Solo logueamos.
+      console.log('[webhook] subscription paused by MP (failed charge retry pending) — sub id:', sub.id)
     }
 
-    await activateSubscription(supabase, userId, tier, sub.id)
     return NextResponse.json({ ok: true })
   }
 
-  // ── Monthly renewal charge ─────────────────────────────────────────────────
+  // ── Cargo mensual de renovación ──────────────────────────────────────────────
   if (eventType === 'subscription_authorized_payment') {
-    // Fetch the authorized payment to get the preapproval_id
     const mpRes = await fetch(
       `https://api.mercadopago.com/authorized_payments/${eventDataId}`,
       { headers: { Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}` } }
@@ -154,7 +182,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    // Extend expiry by 1 month on the existing subscription
+    // Extender expires_at en 1 mes
     const { data: existingSub } = await supabase
       .from('subscriptions')
       .select('id, expires_at')

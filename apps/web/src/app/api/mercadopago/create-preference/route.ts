@@ -16,37 +16,43 @@ export async function POST(request: Request) {
 
   const body = await request.json()
   const plan = body.plan as string
+  const period: 'annual' | 'monthly' = body.period === 'annual' ? 'annual' : 'monthly'
 
   if (!['basic', 'teacher', 'pro'].includes(plan)) {
     return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
   }
 
   const config = PLAN_CONFIG[plan as Exclude<SubscriptionTier, 'none'>]
-  // APP_URL es server-side (sin NEXT_PUBLIC_) y siempre está disponible en runtime.
-  // NEXT_PUBLIC_APP_URL solo funciona si estuvo seteada al momento del build.
+  const unitPrice = period === 'annual' ? config.price * 12 : config.price
+  const title = period === 'annual'
+    ? `${config.name} (Anual)`
+    : config.name
+
   const appUrl =
     process.env.APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
-  console.log('[create-preference] appUrl:', appUrl)
-
   const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
   const preference = new Preference(mp)
+
+  // external_reference: "{userId}:{plan}" para mensual, "{userId}:{plan}:annual" para anual
+  const externalRef = period === 'annual'
+    ? `${user.id}:${plan}:annual`
+    : `${user.id}:${plan}`
 
   const result = await preference.create({
     body: {
       items: [
         {
-          id: plan,
-          title: config.name,
+          id: `${plan}-${period}`,
+          title,
           quantity: 1,
           currency_id: 'CLP',
-          unit_price: config.price,
+          unit_price: unitPrice,
         },
       ],
-      // {userId}:{plan} — leído en el webhook para activar la suscripción
-      external_reference: `${user.id}:${plan}`,
+      external_reference: externalRef,
       back_urls: {
         success: `${appUrl}/plans/success`,
         failure: `${appUrl}/plans/failure`,
@@ -57,11 +63,10 @@ export async function POST(request: Request) {
     },
   })
 
-  // En modo test, MP usa sandbox_init_point; en producción, init_point
   const isTest = process.env.MERCADOPAGO_ACCESS_TOKEN?.startsWith('TEST-') ?? false
   const checkoutUrl = isTest ? result.sandbox_init_point : result.init_point
 
-  console.log('[create-preference] appUrl:', appUrl, '| checkoutUrl:', checkoutUrl?.slice(0, 60))
+  console.log('[create-preference] plan:', plan, '| period:', period, '| price:', unitPrice)
 
   return NextResponse.json({ init_point: checkoutUrl })
 }

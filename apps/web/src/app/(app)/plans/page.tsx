@@ -57,7 +57,7 @@ export default async function PlansPage() {
                 ))}
               </ul>
 
-              <SubscribeButton plan={plan.tier} currentTier={currentTier} />
+              <SubscribeButton plan={plan.tier} currentTier={currentTier} price={plan.price} />
 
               {isActive && activeSub && (
                 <div className="mt-3 flex flex-col items-center gap-1">
