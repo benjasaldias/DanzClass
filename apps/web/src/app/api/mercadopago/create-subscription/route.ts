@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         transaction_amount: config.price,
         currency_id: 'CLP',
         start_date: new Date().toISOString(),
-        end_date: null,
+        end_date: undefined,
       },
       back_url: `${appUrl}/plans/success`,
       external_reference: `${user.id}:${plan}`,
