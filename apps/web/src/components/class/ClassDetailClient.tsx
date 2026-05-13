@@ -78,6 +78,8 @@ export default function ClassDetailClient({
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [leaving, setLeaving] = useState(false)
 
   const teacher = classData.teacher
   const media = [...(classData.media ?? [])].sort(
@@ -179,6 +181,21 @@ export default function ClassDetailClient({
     setFollowLoading(false)
   }
 
+  async function handleLeaveClass() {
+    setLeaving(true)
+    const supabase = createClient()
+    await supabase
+      .from('enrollments' as any)
+      .update({ status: 'cancelled' } as any)
+      .eq('id', enrollment.id)
+    setEnrollment(null)
+    setSpots((prev: any) =>
+      prev ? { ...prev, spots_available: prev.spots_available + 1, spots_taken: prev.spots_taken - 1 } : prev
+    )
+    setLeaving(false)
+    setShowLeaveConfirm(false)
+  }
+
   async function handleDeleteClass() {
     setDeleting(true)
 
@@ -216,6 +233,11 @@ export default function ClassDetailClient({
     router.push('/my-classes')
   }
 
+  const alreadyPaid = enrollment?.status === 'confirmed' || enrollment?.status === 'payment_submitted'
+  const leaveMessage = alreadyPaid
+    ? `IMPORTANTE: ya pagaste esta clase. ¿Seguro que quieres salirte? Esta acción no es reversible.`
+    : `¿Seguro que quieres salirte de "${classData.title}"? Tu cupo quedará libre.`
+
   return (
     <div className="flex flex-col">
       {showDeleteConfirm && (
@@ -227,6 +249,18 @@ export default function ClassDetailClient({
           loading={deleting}
           onConfirm={handleDeleteClass}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {showLeaveConfirm && (
+        <ConfirmDialog
+          title="Salir de la clase"
+          message={leaveMessage}
+          confirmLabel="Sí, salirme"
+          destructive
+          loading={leaving}
+          onConfirm={handleLeaveClass}
+          onCancel={() => setShowLeaveConfirm(false)}
         />
       )}
 
@@ -427,7 +461,11 @@ export default function ClassDetailClient({
         )}
 
         {enrollment && enrollment.status !== 'cancelled' && (
-          <EnrollmentBanner enrollment={enrollment} classId={classData.id} />
+          <EnrollmentBanner
+            enrollment={enrollment}
+            classId={classData.id}
+            onLeave={() => setShowLeaveConfirm(true)}
+          />
         )}
       </div>
 
@@ -482,9 +520,11 @@ export default function ClassDetailClient({
 function EnrollmentBanner({
   enrollment,
   classId,
+  onLeave,
 }: {
   enrollment: any
   classId: string
+  onLeave: () => void
 }) {
   const statusConfig = {
     pending_payment: {
@@ -532,6 +572,13 @@ function EnrollmentBanner({
               Ir a pagar
             </Link>
           )}
+
+          <button
+            onClick={onLeave}
+            className="mt-2 text-xs text-red-500 hover:text-red-700 font-medium underline"
+          >
+            Salir de la clase
+          </button>
         </div>
       </div>
     </div>

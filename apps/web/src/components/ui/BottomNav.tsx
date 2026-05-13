@@ -22,7 +22,7 @@ export default function BottomNav({ tier }: BottomNavProps) {
   const teacherLinks = [
     ...baseLinks,
     { href: '/create-class', icon: PlusSquare, label: 'Publicar' },
-    { href: '/dashboard', icon: BookOpen, label: 'Mis clases' },
+    { href: '/my-classes', icon: BookOpen, label: 'Mis clases' },
     { href: '/profile', icon: User, label: 'Perfil' },
   ]
 

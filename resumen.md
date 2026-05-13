@@ -206,13 +206,14 @@ interface Class {
 
 ## Pasos siguientes pendientes
 
-### A. SQL pendiente de ejecutar en Supabase (si no se ha hecho)
+### A. SQL pendiente de ejecutar en Supabase
 
 Verificar en el SQL Editor que todas las migraciones estén aplicadas:
 1. `supabase/migrations/003_profiles_extra.sql` — columnas extra en profiles
 2. `supabase/migrations/004_class_schedule_improvements.sql` — price_suelta, custom_dates
 3. `supabase/migrations/005_storage_policies.sql` — políticas de Storage (crítico para uploads)
 4. `supabase/migrations/006_notification_types.sql` — tipos de notificación + política insert cross-user
+5. **`supabase/migrations/007_payment_receipts_bucket.sql` — bucket `payment-receipts` + RLS** ← NUEVO, ejecutar para habilitar subida de comprobantes
 
 Para tener un usuario pro de prueba:
 ```sql

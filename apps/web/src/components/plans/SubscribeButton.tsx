@@ -18,7 +18,7 @@ export function SubscribeButton({ plan, currentTier }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/mercadopago/create-preference', {
+      const res = await fetch('/api/mercadopago/create-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan }),

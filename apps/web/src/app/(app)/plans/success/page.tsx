@@ -1,26 +1,92 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { CheckCircle } from 'lucide-react'
-import { MercadoPagoConfig, Payment } from 'mercadopago'
+import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getActiveTier } from '@/lib/subscription'
 import type { SubscriptionTier } from '@danceclass/shared'
+
+const VALID_TIERS = ['basic', 'teacher', 'pro']
+
+async function activateIfNew(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  tier: string,
+  mpId: string
+) {
+  // Idempotente: no duplicar si ya fue procesado por el webhook
+  const { data: existing } = await admin
+    .from('subscriptions')
+    .select('id')
+    .eq('mp_subscription_id', mpId)
+    .maybeSingle()
+
+  if (existing) {
+    console.log('[plans/success] subscription already active for mp_id:', mpId)
+    return
+  }
+
+  const now = new Date()
+  const expiresAt = new Date(now)
+  expiresAt.setMonth(expiresAt.getMonth() + 1)
+
+  await admin
+    .from('subscriptions')
+    .update({ status: 'expired' })
+    .eq('user_id', userId)
+    .in('status', ['active', 'grace'])
+
+  const { error } = await admin.from('subscriptions').insert({
+    user_id: userId,
+    tier: tier as Exclude<SubscriptionTier, 'none'>,
+    status: 'active',
+    started_at: now.toISOString(),
+    expires_at: expiresAt.toISOString(),
+    mp_subscription_id: mpId,
+  })
+
+  if (error) {
+    console.error('[plans/success] insert error:', error)
+  } else {
+    console.log('[plans/success] subscription activated — user:', userId, 'tier:', tier)
+  }
+}
 
 export default async function PlanSuccessPage({
   searchParams,
 }: {
-  searchParams: { payment_id?: string; status?: string }
+  searchParams: { payment_id?: string; status?: string; preapproval_id?: string }
 }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { payment_id, status } = searchParams
+  const { payment_id, status, preapproval_id } = searchParams
+  const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
+  const admin = createAdminClient()
 
+  // ── Recurring subscription authorization ────────────────────────────────────
+  if (preapproval_id) {
+    try {
+      const preApproval = new PreApproval(mp)
+      const sub = await preApproval.get({ id: preapproval_id })
+
+      console.log('[plans/success] preapproval status:', sub.status, '| ref:', sub.external_reference)
+
+      if (sub.external_reference && sub.id) {
+        const [refUserId, tier] = sub.external_reference.split(':')
+        if (refUserId === user.id && VALID_TIERS.includes(tier)) {
+          await activateIfNew(admin, user.id, tier, sub.id)
+        }
+      }
+    } catch (e) {
+      console.error('[plans/success] preapproval verification error:', e)
+    }
+  }
+
+  // ── One-time payment fallback ────────────────────────────────────────────────
   if (payment_id && status === 'approved') {
     try {
-      const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
       const paymentClient = new Payment(mp)
       const payment = await paymentClient.get({ id: payment_id })
 
@@ -28,38 +94,8 @@ export default async function PlanSuccessPage({
 
       if (payment.status === 'approved' && payment.external_reference) {
         const [refUserId, tier] = payment.external_reference.split(':')
-
-        if (refUserId === user.id && ['basic', 'teacher', 'pro'].includes(tier)) {
-          // El webhook puede haberlo creado ya; solo activamos si no existe
-          const currentTier = await getActiveTier(user.id, supabase)
-
-          if (currentTier === 'none') {
-            const admin = createAdminClient()
-            const now = new Date()
-            const expiresAt = new Date(now)
-            expiresAt.setMonth(expiresAt.getMonth() + 1)
-
-            await admin
-              .from('subscriptions')
-              .update({ status: 'expired' })
-              .eq('user_id', user.id)
-              .in('status', ['active', 'grace'])
-
-            const { error } = await admin.from('subscriptions').insert({
-              user_id: user.id,
-              tier: tier as Exclude<SubscriptionTier, 'none'>,
-              status: 'active',
-              started_at: now.toISOString(),
-              expires_at: expiresAt.toISOString(),
-              mp_subscription_id: String(payment.id),
-            })
-
-            if (error) {
-              console.error('[plans/success] insert error:', error)
-            } else {
-              console.log('[plans/success] subscription activated for user:', user.id, 'tier:', tier)
-            }
-          }
+        if (refUserId === user.id && VALID_TIERS.includes(tier)) {
+          await activateIfNew(admin, user.id, tier, String(payment.id))
         }
       }
     } catch (e) {
