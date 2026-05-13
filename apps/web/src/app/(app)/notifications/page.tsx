@@ -16,10 +16,10 @@ export default async function NotificationsPage() {
 
   // Collect IDs needed to enrich notification display
   const fromUserIds = [...new Set(
-    (notifications as any[] ?? []).filter((n) => n.data?.from_user_id).map((n) => n.data.from_user_id as string)
+    (notifications ?? []).filter((n) => n.data?.from_user_id).map((n) => n.data.from_user_id as string)
   )]
   const classIds = [...new Set(
-    (notifications as any[] ?? []).filter((n) => n.data?.class_id).map((n) => n.data.class_id as string)
+    (notifications ?? []).filter((n) => n.data?.class_id).map((n) => n.data.class_id as string)
   )]
 
   const [profilesResult, classesResult] = await Promise.all([

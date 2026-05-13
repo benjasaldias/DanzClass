@@ -79,8 +79,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
-  // Sincronizar subscription_tier en profiles para acceso rápido
-  await supabase.from('profiles').update({ subscription_tier: tier }).eq('id', userId)
-
   return NextResponse.json({ ok: true })
 }

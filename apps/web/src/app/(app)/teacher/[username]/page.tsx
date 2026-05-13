@@ -37,7 +37,6 @@ export default async function UserProfilePage({ params }: Props) {
     user && !isOwnProfile
       ? supabase.from('follows').select('*').eq('follower_id', user.id).eq('following_id', profileUser.id).maybeSingle()
       : Promise.resolve({ data: null }),
-    // Inscripciones: solo si son públicas o es el propio perfil
     profileUser.enrolled_classes_public || isOwnProfile
       ? supabase
           .from('enrollments')
@@ -47,7 +46,6 @@ export default async function UserProfilePage({ params }: Props) {
           .order('created_at', { ascending: false })
           .limit(10)
       : Promise.resolve({ data: [] }),
-    // Estado de amistad
     user && !isOwnProfile
       ? supabase
           .from('friendships')
@@ -61,7 +59,7 @@ export default async function UserProfilePage({ params }: Props) {
   type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
   let friendStatus: FriendStatus = 'none'
   if (friendshipData.data) {
-    const f = friendshipData.data as any
+    const f = friendshipData.data
     if (f.status === 'accepted') {
       friendStatus = 'accepted'
     } else if (f.status === 'pending') {

@@ -17,7 +17,7 @@ export default async function FeedPage() {
     .select('following_id')
     .eq('follower_id', user!.id)
 
-  const followingIds = follows?.map((f: any) => f.following_id as string) ?? []
+  const followingIds = follows?.map(f => f.following_id) ?? []
 
   // Initial feed data: global
   const { data: classes } = await supabase

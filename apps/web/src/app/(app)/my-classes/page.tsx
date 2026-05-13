@@ -50,7 +50,7 @@ export default async function MyClassesPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {(enrollments as any[]).map((enrollment) => {
+          {enrollments.map((enrollment) => {
             const cls = enrollment.class as any
             const teacher = cls?.teacher
             const config = STATUS_DISPLAY[enrollment.status as keyof typeof STATUS_DISPLAY]

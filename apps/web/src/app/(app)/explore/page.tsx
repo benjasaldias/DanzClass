@@ -13,7 +13,7 @@ export default async function ExplorePage() {
     .in('tier', ['teacher', 'pro'])
     .in('status', ['active', 'grace'])
 
-  const teacherIds = teacherSubs?.map((s: any) => s.user_id as string) ?? []
+  const teacherIds = teacherSubs?.map(s => s.user_id) ?? []
 
   const [
     { data: teachers },
@@ -50,7 +50,7 @@ export default async function ExplorePage() {
   // Mapa userId → estado de amistad desde la perspectiva del usuario actual
   type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
   const friendMap: Record<string, FriendStatus> = {}
-  for (const f of (myFriendships ?? []) as any[]) {
+  for (const f of myFriendships ?? []) {
     const otherId = f.requester_id === user?.id ? f.addressee_id : f.requester_id
     if (f.status === 'accepted') {
       friendMap[otherId] = 'accepted'

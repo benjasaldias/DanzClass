@@ -29,11 +29,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const now = new Date()
   let activeTier: SubscriptionTier = 'none'
-  const sub = subscription as any
-  if (sub) {
-    const graceCutoff = new Date(new Date(sub.expires_at).getTime() + 7 * 24 * 60 * 60 * 1000)
+  if (subscription) {
+    const graceCutoff = new Date(new Date(subscription.expires_at).getTime() + 7 * 24 * 60 * 60 * 1000)
     if (graceCutoff > now) {
-      activeTier = sub.tier as SubscriptionTier
+      activeTier = subscription.tier as SubscriptionTier
     }
   }
 

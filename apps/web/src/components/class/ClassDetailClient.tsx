@@ -1,14 +1,24 @@
 'use client'
 
 import { useState } from 'react'
+import type { ElementType } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
-  MapPin, Clock, Users, Calendar, ChevronLeft, Music2,
-  UserPlus, UserMinus, AlertCircle, CheckCircle2, Pencil, Trash2,
+  MapPin,
+  Clock,
+  Users,
+  Calendar,
+  ChevronLeft,
+  UserPlus,
+  UserMinus,
+  AlertCircle,
+  CheckCircle2,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
-import { cn, formatCLP, formatDate, formatTime, timeAgo } from '@/lib/utils'
+import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -23,6 +33,24 @@ interface ClassDetailClientProps {
   enrollment: any
   spots: any
   isFollowing: boolean
+}
+
+type EnrollmentInsert = {
+  student_id: string
+  class_id: string
+  session_id: string | null
+  status: 'pending_payment'
+}
+
+type FollowInsert = {
+  follower_id: string
+  following_id: string
+}
+
+type NotificationInsert = {
+  user_id: string
+  type: 'follow' | 'class_cancelled'
+  data: Record<string, unknown>
 }
 
 const LEVEL_COLORS = {
@@ -41,6 +69,7 @@ export default function ClassDetailClient({
   isFollowing: initialIsFollowing,
 }: ClassDetailClientProps) {
   const router = useRouter()
+
   const [enrollment, setEnrollment] = useState(initialEnrollment)
   const [spots, setSpots] = useState(initialSpots)
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
@@ -51,60 +80,99 @@ export default function ClassDetailClient({
   const [deleting, setDeleting] = useState(false)
 
   const teacher = classData.teacher
-  const media = [...(classData.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
+  const media = [...(classData.media ?? [])].sort(
+    (a: any, b: any) => a.order_index - b.order_index
+  )
+
   const isTeacher = classData.teacher_id === currentUser.id
   const spotsAvailable = spots?.spots_available ?? classData.max_spots
   const isFull = spotsAvailable <= 0
 
-  const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
-  const scheduleText = classData.type === 'suelta'
-    ? `${formatDate(classData.date)} · ${formatTime(classData.time)}`
-    : classData.recurrence === 'custom'
-      ? `${classData.custom_dates?.length ?? 0} clase${(classData.custom_dates?.length ?? 0) !== 1 ? 's' : ''} programada${(classData.custom_dates?.length ?? 0) !== 1 ? 's' : ''} · ${formatTime(classData.recurring_time)}`
-      : `${recurrenceLabel[classData.recurrence] ?? ''} · ${DAYS_OF_WEEK[classData.day_of_week]} · ${formatTime(classData.recurring_time)}`
+  const recurrenceLabel: Record<string, string> = {
+    weekly: 'Semanal',
+    biweekly: 'Quincenal',
+    monthly: 'Mensual',
+  }
+
+  const scheduleText =
+    classData.type === 'suelta'
+      ? `${formatDate(classData.date)} · ${formatTime(classData.time)}`
+      : classData.recurrence === 'custom'
+        ? `${classData.custom_dates?.length ?? 0} clase${
+            (classData.custom_dates?.length ?? 0) !== 1 ? 's' : ''
+          } programada${
+            (classData.custom_dates?.length ?? 0) !== 1 ? 's' : ''
+          } · ${formatTime(classData.recurring_time)}`
+        : `${recurrenceLabel[classData.recurrence] ?? ''} · ${
+            DAYS_OF_WEEK[classData.day_of_week]
+          } · ${formatTime(classData.recurring_time)}`
 
   async function handleEnroll() {
     if (isFull) return
+
     setEnrolling(true)
 
     const supabase = createClient()
+
+    const enrollmentPayload: EnrollmentInsert = {
+      student_id: currentUser.id,
+      class_id: classData.id,
+      session_id: null,
+      status: 'pending_payment',
+    }
+
     const { data, error } = await supabase
-      .from('enrollments')
-      .insert({
-        student_id: currentUser.id,
-        class_id: classData.id,
-        session_id: null,
-        status: 'pending_payment',
-      })
+      .from('enrollments' as any)
+      .insert(enrollmentPayload as any)
       .select('*, payment:payments(*)')
       .single()
 
     if (!error && data) {
       setEnrollment(data)
-      setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available - 1, spots_taken: prev.spots_taken + 1 } : prev)
+
+      setSpots((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              spots_available: prev.spots_available - 1,
+              spots_taken: prev.spots_taken + 1,
+            }
+          : prev
+      )
+
       router.push(`/payment/${data.id}`)
     }
+
     setEnrolling(false)
   }
 
   async function handleFollowToggle() {
     setFollowLoading(true)
+
     const supabase = createClient()
 
     if (isFollowing) {
-      await supabase.from('follows').delete()
+      await supabase
+        .from('follows' as any)
+        .delete()
         .eq('follower_id', currentUser.id)
         .eq('following_id', classData.teacher_id)
     } else {
-      await supabase.from('follows').insert({
+      const followPayload: FollowInsert = {
         follower_id: currentUser.id,
         following_id: classData.teacher_id,
-      })
-      await supabase.from('notifications').insert({
+      }
+
+      const notificationPayload: NotificationInsert = {
         user_id: classData.teacher_id,
         type: 'follow',
         data: { from_user_id: currentUser.id },
-      })
+      }
+
+      await supabase.from('follows' as any).insert(followPayload as any)
+      await supabase
+        .from('notifications' as any)
+        .insert(notificationPayload as any)
     }
 
     setIsFollowing(!isFollowing)
@@ -113,27 +181,37 @@ export default function ClassDetailClient({
 
   async function handleDeleteClass() {
     setDeleting(true)
+
     const supabase = createClient()
 
-    // Notify enrolled students first
     const { data: enrollments } = await supabase
-      .from('enrollments')
+      .from('enrollments' as any)
       .select('student_id')
       .eq('class_id', classData.id)
       .in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
 
     if (enrollments && enrollments.length > 0) {
-      await supabase.from('notifications').insert(
-        enrollments.map((e: any) => ({
-          user_id: e.student_id,
+      const notificationPayloads: NotificationInsert[] = enrollments.map(
+        (enrollmentItem: any) => ({
+          user_id: enrollmentItem.student_id,
           type: 'class_cancelled',
-          data: { class_id: classData.id, class_title: classData.title },
-        }))
+          data: {
+            class_id: classData.id,
+            class_title: classData.title,
+          },
+        })
       )
+
+      await supabase
+        .from('notifications' as any)
+        .insert(notificationPayloads as any)
     }
 
-    // Soft-delete: mark as cancelled
-    await supabase.from('classes').update({ status: 'cancelled' }).eq('id', classData.id)
+    await supabase
+      .from('classes' as any)
+      .update({ status: 'cancelled' } as any)
+      .eq('id', classData.id)
+
     setDeleting(false)
     router.push('/my-classes')
   }
@@ -152,14 +230,15 @@ export default function ClassDetailClient({
         />
       )}
 
-      {/* Back button */}
       <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-        <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        >
           <ChevronLeft className="h-4 w-4" />
           Volver
         </button>
 
-        {/* Teacher actions */}
         {isTeacher && (
           <div className="flex gap-2">
             <Link
@@ -169,6 +248,7 @@ export default function ClassDetailClient({
               <Pencil className="h-3.5 w-3.5" />
               Editar
             </Link>
+
             <button
               onClick={() => setShowDeleteConfirm(true)}
               className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
@@ -180,19 +260,38 @@ export default function ClassDetailClient({
         )}
       </div>
 
-      {/* Media */}
       {media.length > 0 && (
         <div className="relative aspect-square bg-gray-100">
           {media[currentMediaIndex].type === 'image' ? (
-            <Image src={media[currentMediaIndex].url} alt={classData.title} fill className="object-cover" sizes="512px" />
+            <Image
+              src={media[currentMediaIndex].url}
+              alt={classData.title}
+              fill
+              className="object-cover"
+              sizes="512px"
+            />
           ) : (
-            <video src={media[currentMediaIndex].url} className="w-full h-full object-cover" controls playsInline />
+            <video
+              src={media[currentMediaIndex].url}
+              className="w-full h-full object-cover"
+              controls
+              playsInline
+            />
           )}
+
           {media.length > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {media.map((_: any, i: number) => (
-                <button key={i} onClick={() => setCurrentMediaIndex(i)}
-                  className={cn('h-1.5 rounded-full transition-all', i === currentMediaIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60')} />
+              {media.map((_: any, index: number) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentMediaIndex(index)}
+                  className={cn(
+                    'h-1.5 rounded-full transition-all',
+                    index === currentMediaIndex
+                      ? 'w-4 bg-white'
+                      : 'w-1.5 bg-white/60'
+                  )}
+                />
               ))}
             </div>
           )}
@@ -200,86 +299,138 @@ export default function ClassDetailClient({
       )}
 
       <div className="px-4 py-4 space-y-5">
-        {/* Title + Level */}
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{classData.title}</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              {classData.title}
+            </h1>
+
             {classData.dance_style && (
-              <span className="text-sm text-brand-600 font-medium">{classData.dance_style}</span>
+              <span className="text-sm text-brand-600 font-medium">
+                {classData.dance_style}
+              </span>
             )}
           </div>
-          <span className={cn('badge', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600')}>
+
+          <span
+            className={cn(
+              'badge',
+              LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ??
+                'bg-gray-100 text-gray-600'
+            )}
+          >
             {classData.level}
           </span>
         </div>
 
-        {/* Teacher */}
         <div className="flex items-center justify-between">
-          <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-3">
-            <Avatar src={teacher.avatar_url} name={teacher.full_name} size="md" />
+          <Link
+            href={`/teacher/${teacher.username}`}
+            className="flex items-center gap-3"
+          >
+            <Avatar
+              src={teacher.avatar_url}
+              name={teacher.full_name}
+              size="md"
+            />
+
             <div>
-              <p className="font-semibold text-sm text-gray-900">{teacher.full_name}</p>
+              <p className="font-semibold text-sm text-gray-900">
+                {teacher.full_name}
+              </p>
               <p className="text-xs text-gray-500">@{teacher.username}</p>
             </div>
           </Link>
+
           {!isTeacher && (
             <button
               onClick={handleFollowToggle}
               disabled={followLoading}
-              className={cn('flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors',
+              className={cn(
+                'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors',
                 isFollowing
                   ? 'border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600'
                   : 'border-brand-500 text-brand-600 bg-brand-50 hover:bg-brand-100'
               )}
             >
-              {isFollowing ? <UserMinus className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+              {isFollowing ? (
+                <UserMinus className="h-3.5 w-3.5" />
+              ) : (
+                <UserPlus className="h-3.5 w-3.5" />
+              )}
               {isFollowing ? 'Siguiendo' : 'Seguir'}
             </button>
           )}
         </div>
 
-        {/* Details */}
         <div className="card p-4 space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="h-4 w-4 text-brand-500 flex-shrink-0" />
             <span className="text-gray-700">{scheduleText}</span>
           </div>
+
           <div className="flex items-center gap-3 text-sm">
             <Clock className="h-4 w-4 text-brand-500 flex-shrink-0" />
-            <span className="text-gray-700">{classData.duration_minutes} minutos</span>
+            <span className="text-gray-700">
+              {classData.duration_minutes} minutos
+            </span>
           </div>
+
           {classData.location_name && (
             <div className="flex items-center gap-3 text-sm">
               <MapPin className="h-4 w-4 text-brand-500 flex-shrink-0" />
+
               <div>
                 <p className="text-gray-700">{classData.location_name}</p>
-                {classData.location_address && <p className="text-xs text-gray-500">{classData.location_address}</p>}
+
+                {classData.location_address && (
+                  <p className="text-xs text-gray-500">
+                    {classData.location_address}
+                  </p>
+                )}
               </div>
             </div>
           )}
+
           <div className="flex items-center gap-3 text-sm">
             <Users className="h-4 w-4 text-brand-500 flex-shrink-0" />
-            <span className={cn('font-medium', isFull ? 'text-red-600' : spotsAvailable <= 3 ? 'text-orange-600' : 'text-gray-700')}>
-              {isFull ? 'Sin cupos disponibles' : `${spotsAvailable} cupo${spotsAvailable !== 1 ? 's' : ''} disponible${spotsAvailable !== 1 ? 's' : ''}`}
+
+            <span
+              className={cn(
+                'font-medium',
+                isFull
+                  ? 'text-red-600'
+                  : spotsAvailable <= 3
+                    ? 'text-orange-600'
+                    : 'text-gray-700'
+              )}
+            >
+              {isFull
+                ? 'Sin cupos disponibles'
+                : `${spotsAvailable} cupo${
+                    spotsAvailable !== 1 ? 's' : ''
+                  } disponible${spotsAvailable !== 1 ? 's' : ''}`}
             </span>
           </div>
         </div>
 
-        {/* Description */}
         {classData.description && (
           <div>
-            <h3 className="font-semibold text-sm text-gray-900 mb-2">Descripción</h3>
-            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{classData.description}</p>
+            <h3 className="font-semibold text-sm text-gray-900 mb-2">
+              Descripción
+            </h3>
+
+            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+              {classData.description}
+            </p>
           </div>
         )}
 
-        {/* Enrollment status */}
         {enrollment && enrollment.status !== 'cancelled' && (
           <EnrollmentBanner enrollment={enrollment} classId={classData.id} />
         )}
       </div>
 
-      {/* Sticky bottom: price + CTA (only for non-teachers without active enrollment) */}
       {!isTeacher && (!enrollment || enrollment.status === 'cancelled') && (
         <div className="sticky bottom-16 left-0 right-0 border-t border-gray-100 bg-white/90 backdrop-blur-md px-4 py-3">
           <div className="flex items-center justify-between">
@@ -287,24 +438,39 @@ export default function ClassDetailClient({
               <p className="text-xs text-gray-500">
                 {classData.type === 'periodica' ? 'Precio mensual' : 'Precio'}
               </p>
-              <p className="text-2xl font-bold text-gray-900">{formatCLP(classData.price)}</p>
+
+              <p className="text-2xl font-bold text-gray-900">
+                {formatCLP(classData.price)}
+              </p>
+
               {classData.price_suelta && (
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Clase suelta: <span className="font-semibold text-gray-700">{formatCLP(classData.price_suelta)}</span>
+                  Clase suelta:{' '}
+                  <span className="font-semibold text-gray-700">
+                    {formatCLP(classData.price_suelta)}
+                  </span>
                 </p>
               )}
             </div>
+
             <button
               onClick={handleEnroll}
               disabled={enrolling || isFull}
-              className={cn('btn-primary px-6 py-3 text-base', isFull && 'opacity-50 cursor-not-allowed')}
+              className={cn(
+                'btn-primary px-6 py-3 text-base',
+                isFull && 'opacity-50 cursor-not-allowed'
+              )}
             >
               {enrolling ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   Reservando...
                 </span>
-              ) : isFull ? 'Sin cupos' : 'Reservar cupo'}
+              ) : isFull ? (
+                'Sin cupos'
+              ) : (
+                'Reservar cupo'
+              )}
             </button>
           </div>
         </div>
@@ -313,7 +479,13 @@ export default function ClassDetailClient({
   )
 }
 
-function EnrollmentBanner({ enrollment, classId }: { enrollment: any; classId: string }) {
+function EnrollmentBanner({
+  enrollment,
+  classId,
+}: {
+  enrollment: any
+  classId: string
+}) {
   const statusConfig = {
     pending_payment: {
       icon: AlertCircle,
@@ -340,17 +512,23 @@ function EnrollmentBanner({ enrollment, classId }: { enrollment: any; classId: s
 
   const config = statusConfig[enrollment.status as keyof typeof statusConfig]
   if (!config) return null
-  const Icon = config.icon as React.ElementType
+
+  const Icon = config.icon as ElementType
 
   return (
     <div className={cn('rounded-xl border p-4', config.color)}>
       <div className="flex items-start gap-3">
         <Icon className="h-5 w-5 flex-shrink-0 mt-0.5" />
+
         <div className="flex-1">
           <p className="font-semibold text-sm">{config.title}</p>
           <p className="text-xs mt-0.5 opacity-80">{config.desc}</p>
+
           {config.showPayButton && (
-            <Link href={`/payment/${enrollment.id}`} className="mt-2 inline-flex btn-primary text-xs py-1.5">
+            <Link
+              href={`/payment/${enrollment.id}`}
+              className="mt-2 inline-flex btn-primary text-xs py-1.5"
+            >
               Ir a pagar
             </Link>
           )}
@@ -359,4 +537,3 @@ function EnrollmentBanner({ enrollment, classId }: { enrollment: any; classId: s
     </div>
   )
 }
-
