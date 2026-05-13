@@ -39,11 +39,10 @@ Schema base completo con RLS en todas las tablas:
 
 ### 002_subscription_tiers.sql
 - Elimina el campo `role` de `profiles` (ya no existe `student`/`teacher`; todos los usuarios son iguales a nivel de auth)
-- Crea tabla `subscriptions` (user_id, tier: none/basic/teacher/pro, status, started_at, expires_at)
+- Crea tabla `subscriptions` (user_id, tier: none/basic/teacher/pro, status, started_at, expires_at, mp_subscription_id)
 - Añade `friendships` (requester_id, addressee_id, status: pending/accepted/rejected)
 - Añade `styles_dancing TEXT[]` y `styles_teaching TEXT[]` a `profiles`
 - Añade `enrolled_classes_public BOOLEAN DEFAULT TRUE` a `profiles`
-- Añade `subscription_tier TEXT DEFAULT 'none'` a `profiles`
 
 ### 003_profiles_extra.sql
 ```sql
@@ -79,6 +78,7 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 
 ### Autenticación y layout
 - Login / Register con react-hook-form + zod, manejo de errores Supabase
+- **Register muestra pantalla "Revisa tu correo"** tras el signup (no redirige automáticamente); pasa `emailRedirectTo: window.location.origin/feed` a Supabase
 - Middleware refresca sesión y protege rutas `/(app)/*`
 - Layout `(app)/layout.tsx`: carga perfil, subscripción, count de notificaciones sin leer → pasa a TopBar
 
@@ -132,9 +132,17 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - react-dropzone para subir comprobante de transferencia
 - Sube imagen a bucket `payment-receipts`
 
+### Planes y suscripciones (`/plans`) — ✅ COMPLETO Y FUNCIONANDO EN PRODUCCIÓN
+
+- Cards de planes (Básico / Profesor / Pro) con features y precio
+- Muestra plan activo con fecha de vencimiento
+- Botón **Cancelar plan** (ConfirmDialog destructivo → `POST /api/subscriptions/cancel`)
+- Al suscribirse → redirige a MP checkout → al volver activa la suscripción en Supabase
+
 ### Mi perfil (`/profile`)
-- Info del usuario
-- Link a `/profile/payment-info` para profesores
+
+- Info del usuario con tier activo y link "Suscribirse" / "Cambiar" → `/plans`
+- Link a `/profile/payment-info` para profesores (tier teacher o pro)
 
 ---
 
@@ -157,6 +165,8 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 | `notifications/NotificationsClient.tsx` | Lista de notificaciones con config por tipo |
 | `profile/TeacherProfileClient.tsx` | Perfil público con follow/amistad/unfriend |
 | `payment/PaymentClient.tsx` | Pago con comprobante |
+| `plans/SubscribeButton.tsx` | Botón cliente que llama a create-preference y redirige a MP |
+| `plans/CancelSubscriptionButton.tsx` | Botón cancelar con ConfirmDialog, llama a `/api/subscriptions/cancel` |
 
 ---
 
@@ -190,6 +200,7 @@ interface Class {
 - **Storage policies:** separadas de la RLS de tablas, viven en `storage.objects`. Sin ellas, los uploads de media fallan silenciosamente.
 - **Precio clase suelta:** campo opcional `price_suelta` en `classes`. Solo relevante para periódicas. Se muestra en ClassCard, ClassDetail y ClassMiniCard.
 - **Recurrencia custom:** `day_of_week` es NULL cuando `recurrence='custom'`; se usa `custom_dates[]` en su lugar. La validación Zod usa `superRefine` para este condicional.
+- **Activación de suscripción MP:** el mecanismo principal es la página `/plans/success` (verifica el pago contra la API de MP con el `payment_id` que MP añade al redirect). El webhook es secundario. Esto es más confiable que depender solo del webhook para el flujo inmediato del usuario.
 
 ---
 
@@ -210,9 +221,9 @@ SELECT id, 'pro', 'active', NOW(), NOW() + INTERVAL '1 year'
 FROM profiles WHERE username = 'benjasaldias';
 ```
 
-### B. Integración Mercado Pago (suscripciones) — ✅ IMPLEMENTADO, pendiente configuración en Vercel
+### B. Integración Mercado Pago (suscripciones) — ✅ COMPLETO Y EN PRODUCCIÓN
 
-El flujo completo está implementado. Ver sección "Integración Mercado Pago — Estado actual" para detalle de archivos y pasos manuales pendientes (registrar webhook en MP Dashboard, agregar env vars en Vercel).
+El flujo completo funciona con credenciales de producción. Ver sección "Integración Mercado Pago" para detalle de archivos, flujo y variables de entorno.
 
 ### C. Pantallas mobile pendientes (Expo)
 
@@ -227,6 +238,7 @@ La app mobile tiene el layout base pero faltan pantallas:
 
 - **Bucket `payment-receipts`:** es privado, pero el código usa `getPublicUrl()`. Cambiar a `createSignedUrl()` con tiempo de expiración para mostrar el comprobante al profesor en el dashboard.
 - **Filtro "Cerca":** actualmente filtra por ciudad exacta (string match). Mejorar con selección de ciudad en perfil y matching normalizado.
+- **Editar perfil (`/profile/edit`):** la página existe como link en `/profile` pero aún no está implementada.
 
 ### E. Funcionalidades futuras (no prioritarias)
 
@@ -238,93 +250,98 @@ La app mobile tiene el layout base pero faltan pantallas:
 
 ---
 
-## Integración Mercado Pago — Estado actual (COMPLETO)
+## Integración Mercado Pago — Estado actual (COMPLETO Y EN PRODUCCIÓN)
 
-### Archivos creados
+### Archivos
 
 | Archivo | Descripción |
 |---|---|
-| `apps/web/src/app/api/mercadopago/create-preference/route.ts` | Crea preferencia de pago MP y devuelve `init_point` |
-| `apps/web/src/app/api/mercadopago/webhook/route.ts` | Recibe evento de pago, verifica firma HMAC-SHA256, activa suscripción |
-| `apps/web/src/app/(app)/plans/page.tsx` | Página `/plans` con cards de planes y botón Suscribirse |
-| `apps/web/src/app/(app)/plans/success/page.tsx` | Página de éxito post-pago |
+| `apps/web/src/app/api/mercadopago/create-preference/route.ts` | Crea preferencia MP, detecta modo test/prod automáticamente |
+| `apps/web/src/app/api/mercadopago/webhook/route.ts` | Recibe notificación MP, verifica firma HMAC-SHA256, activa suscripción |
+| `apps/web/src/app/api/subscriptions/cancel/route.ts` | Cancela suscripción activa del usuario (`status='cancelled'`) |
+| `apps/web/src/app/(app)/plans/page.tsx` | Cards de planes con fecha vencimiento y botón cancelar |
+| `apps/web/src/app/(app)/plans/success/page.tsx` | Verifica pago con MP API y activa suscripción si webhook no lo hizo |
 | `apps/web/src/app/(app)/plans/failure/page.tsx` | Página de fallo post-pago |
 | `apps/web/src/components/plans/SubscribeButton.tsx` | Botón cliente que llama a create-preference y redirige a MP |
-| `apps/web/src/lib/subscription.ts` | Helper `getActiveTier(userId, supabase)` — reutilizable |
-| `apps/web/src/lib/supabase/admin.ts` | `createAdminClient()` con service role key — para webhook |
+| `apps/web/src/components/plans/CancelSubscriptionButton.tsx` | Botón cancelar con ConfirmDialog destructivo |
+| `apps/web/src/lib/subscription.ts` | `getActiveTier()` y `getActiveSubscription()` — reutilizables |
+| `apps/web/src/lib/supabase/admin.ts` | `createAdminClient()` con service role key — bypasea RLS |
 
-### Flujo implementado
+### Flujo de pago
 
 1. Usuario en `/plans` hace clic en "Suscribirse"
 2. `SubscribeButton` llama `POST /api/mercadopago/create-preference` con `{ plan }`
-3. API route crea preference con `external_reference = "{userId}:{plan}"` y redirige a MP checkout
-4. MP procesa el pago y llama al webhook `POST /api/mercadopago/webhook`
-5. Webhook verifica firma HMAC-SHA256 (`x-signature` header con `ts` + `v1`)
-6. Webhook consulta el pago por ID a la API de MP para confirmar `status === 'approved'`
-7. Webhook expira suscripciones activas anteriores e inserta nueva en `subscriptions`
-8. MP redirige al usuario a `/plans/success` o `/plans/failure`
+3. API route crea preference con `external_reference = "{userId}:{plan}"` y retorna URL de checkout
+   - Token `TEST-` → usa `sandbox_init_point`; token `APP_USR-` → usa `init_point`
+4. Usuario paga en MP checkout
+5. **Mecanismo primario:** MP redirige a `/plans/success?payment_id=XXX&status=approved`
+   - La página verifica el pago llamando a la API de MP con ese `payment_id`
+   - Si está approved y el `external_reference` coincide con el usuario actual → activa suscripción
+   - Si el webhook ya la activó, no inserta duplicado (chequea tier activo primero)
+6. **Mecanismo secundario (webhook):** MP llama a `POST /api/mercadopago/webhook`
+   - Verifica firma HMAC-SHA256 (`x-signature` header)
+   - Consulta el pago por ID para confirmar `status === 'approved'`
+   - Expira suscripciones previas e inserta nueva
 
-### Precios configurados (en `create-preference/route.ts`, modificar según modelo de negocio)
+### Variables de entorno en Vercel (todas configuradas ✅)
 
-```typescript
-const PLAN_CONFIG = {
-  basic:   { name: 'DanceClass Básico',   price: 1000 },
-  teacher: { name: 'DanceClass Profesor', price: 1500 },
-  pro:     { name: 'DanceClass Pro',      price: 2000 },
-}
-```
+| Variable | Valor / Origen |
+|---|---|
+| `APP_URL` | `https://dc-project-web.vercel.app` — URL estable de producción (server-side) |
+| `MERCADOPAGO_ACCESS_TOKEN` | MP Developers → Credenciales de producción (`APP_USR-...`) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | MP Developers → Webhooks → Secreto del webhook productivo |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://hkmvbutjjrxmegdliiqt.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `sb_publishable_...` |
 
-### Variables de entorno necesarias en Vercel
+### Webhook en MP Dashboard
 
-| Variable | Dónde conseguirla | Estado |
-|---|---|---|
-| `MERCADOPAGO_ACCESS_TOKEN` | MP Developers → Credenciales de producción o test | ✅ En `.env.local` |
-| `MERCADOPAGO_WEBHOOK_SECRET` | MP Developers → Webhooks → Secreto | ⚠️ Pendiente (se genera al registrar el webhook) |
-| `NEXT_PUBLIC_APP_URL` | URL del deploy en Vercel (ej: `https://danceclass.vercel.app`) | ⚠️ Pendiente |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Project Settings → API | ⚠️ Agregar en Vercel |
-
-### Pasos manuales pendientes para activar Mercado Pago
-
-1. **Agregar variables de entorno en Vercel:**
-   - Dashboard de Vercel → proyecto → Settings → Environment Variables
-   - Agregar `MERCADOPAGO_ACCESS_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL`
-
-2. **Registrar el webhook en Mercado Pago:**
-   - Ir a [https://www.mercadopago.cl/developers/panel/app](https://www.mercadopago.cl/developers/panel/app)
-   - Sección "Webhooks" → "Agregar"
-   - URL: `https://{tu-dominio-vercel}/api/mercadopago/webhook`
-   - Evento: `payment`
-   - Copiar el secreto generado → guardarlo como `MERCADOPAGO_WEBHOOK_SECRET` en Vercel
-
-3. **Hacer redeploy** en Vercel después de agregar todas las variables
-
-4. **Probar flujo completo** con credenciales de prueba MP:
-   - Usar tarjeta de prueba MP (Visa: 4509 9535 6623 3704, CVV: 123, vencimiento: cualquiera futura)
-   - Verificar que la subscripción se crea en Supabase → tabla `subscriptions`
-
-5. **Para desarrollo local con webhook:** usar ngrok
-   ```bash
-   ngrok http 3000
-   # URL temporal ej: https://abc123.ngrok.io
-   # Registrar en MP como webhook: https://abc123.ngrok.io/api/mercadopago/webhook
-   ```
+- Registrado en modo **Productivo** en [mercadopago.cl/developers/panel](https://www.mercadopago.cl/developers/panel)
+- URL: `https://dc-project-web.vercel.app/api/mercadopago/webhook`
+- Evento: `Pagos`
 
 ---
 
-## Deploy en Vercel — Estado y correcciones aplicadas
+## Deploy en Vercel — Lecciones aprendidas
 
 ### Errores TypeScript solucionados (sesión 2026-05-13)
 
 **Error 1: Generic mismatch en `SupabaseClient`**
 - Archivo: `apps/web/src/lib/subscription.ts`
-- Causa: pasar `SupabaseClient<Database>` a función que esperaba `SupabaseClient<any>`
 - Fix: cambiar el parámetro a tipo estructural `{ from: (table: string) => any }`
 
 **Error 2: `Property 'x' does not exist on type 'never'` en múltiples pages**
-- Archivos: `explore/page.tsx`, `layout.tsx`, `notifications/page.tsx`, `teacher/[username]/page.tsx`
-- Causa raíz: tablas nuevas (`subscriptions`, `friendships`, `notifications`, `class_2x_requests`, `follows`) en `database.ts` no tenían el campo `Relationships: []` requerido por `@supabase/postgrest-js` `GenericTable`
-- Fix definitivo: agregar `Relationships: []` a todas esas tablas en `packages/shared/src/types/database.ts`
-- Commit que lo resolvió: `0986de7` → deploy exitoso en Vercel
+
+- Causa raíz: tablas nuevas en `database.ts` sin `Relationships: []`
+- Fix: agregar `Relationships: []` a todas las tablas en `packages/shared/src/types/database.ts`
+
+### Variables de entorno: `NEXT_PUBLIC_` vs server-side
+
+**Regla crítica:** las variables `NEXT_PUBLIC_` se incrustan en el bundle JavaScript en el momento del **build**, no en runtime. Consecuencias:
+
+- Si se agregan/cambian en Vercel después de un build, no tienen efecto hasta el **próximo build** (no basta con "Redeploy" — se necesita un push nuevo que genere un build fresco)
+- En API routes (`route.ts`) y server components, **no son confiables** como variables de entorno runtime
+- **Solución:** para URLs o valores que se usan en el servidor, usar variables sin el prefijo `NEXT_PUBLIC_` (ej: `APP_URL`). Estas sí están disponibles en runtime en todos los contextos del servidor
+
+**Para forzar un build fresco en Vercel:**
+
+```bash
+git commit --allow-empty -m "force rebuild"
+git push
+```
+
+### Incidente: `NEXT_PUBLIC_SUPABASE_URL` apuntando al dominio de Vercel
+
+En algún momento `NEXT_PUBLIC_SUPABASE_URL` quedó seteada en Vercel con el valor `https://dc-project-web.vercel.app` en vez de `https://hkmvbutjjrxmegdliiqt.supabase.co`. Síntoma: todas las llamadas a Supabase desde el cliente (login, queries) retornaban 404. Diagnóstico: en DevTools → Network, la request fallida era `https://dc-project-web.vercel.app/auth/v1/token`. Fix: restaurar el valor correcto y forzar rebuild.
+
+### Supabase — Configuración de producción necesaria
+
+En Supabase Dashboard → Authentication → URL Configuration:
+
+- **Site URL:** `https://dc-project-web.vercel.app`
+- **Redirect URLs:** `https://dc-project-web.vercel.app/**`
+
+Sin esto, los links de confirmación de email redirigen a `localhost:3000`.
 
 ---
 
@@ -332,9 +349,9 @@ const PLAN_CONFIG = {
 
 ### Estado actual del `database.ts`
 
-El archivo `packages/shared/src/types/database.ts` es la fuente de tipos para toda la app. Fue generado automáticamente por la Supabase CLI y luego **limpiado manualmente** para eliminar ~900 líneas de funciones PostGIS que venían incluidas por defecto. El archivo limpio tiene ~811 líneas y contiene solo las tablas de la app.
+El archivo `packages/shared/src/types/database.ts` fue generado por la Supabase CLI y **limpiado manualmente** para eliminar ~900 líneas de funciones PostGIS. El archivo limpio tiene ~811 líneas.
 
-**Importante:** la sección `Functions` usa esta firma para satisfacer el constraint `GenericSchema` de supabase-js:
+**Importante:** la sección `Functions` debe usar esta firma:
 
 ```typescript
 Functions: {
@@ -344,71 +361,30 @@ Functions: {
   }
 }
 ```
-Si se regenera el archivo con `supabase gen types`, hay que volver a limpiar el PostGIS Y verificar que `Functions` tenga index signature (no usar `{ [_ in never]: never }` que produce `{}` y rompe el tipado de todos los `from()`).
+
+Si se regenera el archivo con `supabase gen types`, hay que volver a limpiar el PostGIS Y verificar que `Functions` tenga index signature (no `{ [_ in never]: never }`).
 
 ### El bug de `never` en supabase-js
 
 **Síntoma:** `Property 'x' does not exist on type 'never'` al acceder propiedades de resultados de queries en server components.
 
-**Causa:** Bug conocido de supabase-js + TypeScript — el inferenciador de tipos de supabase-js usa tipos condicionales tan complejos que TypeScript colapsa para ciertas tablas simples y devuelve `never` como tipo de fila.
+**Tablas afectadas:** `follows`, `friendships`, `subscriptions`, `notifications`, `enrollments`
 
-**Tablas afectadas** (las que fallan con `never`):
-- `follows`, `friendships`, `subscriptions`, `notifications`, `enrollments`
-
-**Tablas que funcionan bien:** `profiles`, `classes` (generalmente las que tienen JOINs complejos o están primeras en el archivo).
-
-### Cómo prevenirlo: patrón de cast tipado
-
-**Regla:** En cualquier server component (`page.tsx`) donde accedas directamente a propiedades de resultados de las tablas problemáticas, usa un cast con el tipo mínimo necesario.
+**Patrón de fix:**
 
 ```typescript
-// ❌ INCORRECTO — falla con "Property 'x' does not exist on type 'never'"
-const followingIds = follows?.map(f => f.following_id) ?? []
-
-// ✅ CORRECTO — cast explícito con el tipo esperado
+// ✅ cast explícito con el tipo esperado
 const followingIds = (follows as { following_id: string }[] | null)?.map(f => f.following_id) ?? []
-```
 
-```typescript
-// ❌ INCORRECTO
-if (subscription) {
-  activeTier = subscription.tier  // never
-}
-
-// ✅ CORRECTO
 type SubRow = { tier: string; expires_at: string }
 const sub = subscription as SubRow | null
-if (sub) {
-  activeTier = sub.tier
-}
 ```
-
-```typescript
-// ❌ INCORRECTO
-for (const f of myFriendships ?? []) {
-  const id = f.requester_id  // never
-}
-
-// ✅ CORRECTO
-type FriendRow = { requester_id: string; addressee_id: string; status: string }
-for (const f of (myFriendships as FriendRow[] | null) ?? []) {
-  const id = f.requester_id  // ✓
-}
-```
-
-**Cuándo NO hace falta el cast:**
-
-- Cuando el resultado solo se pasa como prop a un componente cliente que acepta `any` o tiene su propio tipo
-- Cuando solo se usa `!!data` (check de veracidad) sin acceder propiedades
-- Cuando se usa `.count` (las queries con `{ count: 'exact', head: true }` no acceden filas)
-
-**Para JOINs complejos** (ej: `enrollments` con `class:classes(...)`), usar `as any[]` en el `.map()` es aceptable ya que el tipo de JOIN no está modelado en los tipos base.
 
 ---
 
 ## Estructura de archivos relevante (web)
 
-```
+```text
 apps/web/src/
 ├── app/
 │   ├── (app)/
@@ -424,7 +400,17 @@ apps/web/src/
 │   │   ├── dashboard/page.tsx
 │   │   ├── my-classes/page.tsx
 │   │   ├── profile/page.tsx
-│   │   └── profile/payment-info/page.tsx
+│   │   ├── profile/payment-info/page.tsx
+│   │   └── plans/                        # suscripciones MP
+│   │       ├── page.tsx
+│   │       ├── success/page.tsx          # verifica pago y activa suscripción
+│   │       └── failure/page.tsx
+│   ├── api/
+│   │   ├── mercadopago/
+│   │   │   ├── create-preference/route.ts
+│   │   │   └── webhook/route.ts
+│   │   └── subscriptions/
+│   │       └── cancel/route.ts
 │   └── auth/login/ + auth/register/
 ├── components/
 │   ├── ui/ (TopBar, BottomNav, Avatar, ConfirmDialog, MonthCalendar, LogoutButton)
@@ -432,8 +418,10 @@ apps/web/src/
 │   ├── class/ (ClassDetailClient, CreateClassForm, EditClassForm, DashboardClient)
 │   ├── notifications/ (NotificationsClient)
 │   ├── payment/ (PaymentClient)
+│   ├── plans/ (SubscribeButton, CancelSubscriptionButton)
 │   └── profile/ (TeacherProfileClient, PaymentInfoForm)
 └── lib/
     ├── utils.ts
-    └── supabase/ (client.ts, server.ts)
+    ├── subscription.ts                   # getActiveTier(), getActiveSubscription()
+    └── supabase/ (client.ts, server.ts, admin.ts)
 ```
