@@ -13,7 +13,7 @@ export default async function ExplorePage() {
     .in('tier', ['teacher', 'pro'])
     .in('status', ['active', 'grace'])
 
-  const teacherIds = teacherSubs?.map(s => s.user_id) ?? []
+  const teacherIds = (teacherSubs as { user_id: string }[] | null)?.map(s => s.user_id) ?? []
 
   const [
     { data: teachers },
@@ -45,12 +45,14 @@ export default async function ExplorePage() {
       : Promise.resolve({ data: [] }),
   ])
 
-  const followingIds = new Set((myFollows ?? []).map((f: any) => f.following_id))
+  type FollowRow = { following_id: string }
+  type FriendRow = { requester_id: string; addressee_id: string; status: string }
+  const followingIds = new Set((myFollows as FollowRow[] | null ?? []).map(f => f.following_id))
 
   // Mapa userId → estado de amistad desde la perspectiva del usuario actual
   type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
   const friendMap: Record<string, FriendStatus> = {}
-  for (const f of myFriendships ?? []) {
+  for (const f of (myFriendships as FriendRow[] | null) ?? []) {
     const otherId = f.requester_id === user?.id ? f.addressee_id : f.requester_id
     if (f.status === 'accepted') {
       friendMap[otherId] = 'accepted'

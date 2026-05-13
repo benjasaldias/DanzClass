@@ -243,7 +243,6 @@ La app mobile tiene el layout base pero faltan pantallas:
 ### D. Mejoras y correcciones menores
 
 - **Bucket `payment-receipts`:** es privado, pero el código usa `getPublicUrl()`. Cambiar a `createSignedUrl()` con tiempo de expiración para mostrar el comprobante al profesor en el dashboard.
-- **Tipos Supabase:** `packages/shared/src/types/database.ts` no refleja el schema actualizado (migraciones 002+). Regenerar con `supabase gen types typescript`. Actualmente hay errores TypeScript de tipo `never` en algunos componentes, pero no afectan el runtime.
 - **Filtro "Cerca":** actualmente filtra por ciudad exacta (string match). Mejorar con selección de ciudad en perfil y matching normalizado.
 
 ### E. Funcionalidades futuras (no prioritarias)
@@ -253,6 +252,84 @@ La app mobile tiene el layout base pero faltan pantallas:
 - **Descuentos de último minuto** — campo `discount_percentage` en clases, notificación push a seguidores
 - **OCR de comprobantes** — identificación automática del monto en la imagen (diferido del MVP)
 - **Dashboard de analytics** — estadísticas de ingresos y asistencia para profesores
+
+---
+
+## Tipos Supabase y error `never` — causa y solución
+
+### Estado actual del `database.ts`
+
+El archivo `packages/shared/src/types/database.ts` es la fuente de tipos para toda la app. Fue generado automáticamente por la Supabase CLI y luego **limpiado manualmente** para eliminar ~900 líneas de funciones PostGIS que venían incluidas por defecto. El archivo limpio tiene ~811 líneas y contiene solo las tablas de la app.
+
+**Importante:** la sección `Functions` usa esta firma para satisfacer el constraint `GenericSchema` de supabase-js:
+
+```typescript
+Functions: {
+  [_: string]: {
+    Args: Record<string, unknown>
+    Returns: unknown
+  }
+}
+```
+Si se regenera el archivo con `supabase gen types`, hay que volver a limpiar el PostGIS Y verificar que `Functions` tenga index signature (no usar `{ [_ in never]: never }` que produce `{}` y rompe el tipado de todos los `from()`).
+
+### El bug de `never` en supabase-js
+
+**Síntoma:** `Property 'x' does not exist on type 'never'` al acceder propiedades de resultados de queries en server components.
+
+**Causa:** Bug conocido de supabase-js + TypeScript — el inferenciador de tipos de supabase-js usa tipos condicionales tan complejos que TypeScript colapsa para ciertas tablas simples y devuelve `never` como tipo de fila.
+
+**Tablas afectadas** (las que fallan con `never`):
+- `follows`, `friendships`, `subscriptions`, `notifications`, `enrollments`
+
+**Tablas que funcionan bien:** `profiles`, `classes` (generalmente las que tienen JOINs complejos o están primeras en el archivo).
+
+### Cómo prevenirlo: patrón de cast tipado
+
+**Regla:** En cualquier server component (`page.tsx`) donde accedas directamente a propiedades de resultados de las tablas problemáticas, usa un cast con el tipo mínimo necesario.
+
+```typescript
+// ❌ INCORRECTO — falla con "Property 'x' does not exist on type 'never'"
+const followingIds = follows?.map(f => f.following_id) ?? []
+
+// ✅ CORRECTO — cast explícito con el tipo esperado
+const followingIds = (follows as { following_id: string }[] | null)?.map(f => f.following_id) ?? []
+```
+
+```typescript
+// ❌ INCORRECTO
+if (subscription) {
+  activeTier = subscription.tier  // never
+}
+
+// ✅ CORRECTO
+type SubRow = { tier: string; expires_at: string }
+const sub = subscription as SubRow | null
+if (sub) {
+  activeTier = sub.tier
+}
+```
+
+```typescript
+// ❌ INCORRECTO
+for (const f of myFriendships ?? []) {
+  const id = f.requester_id  // never
+}
+
+// ✅ CORRECTO
+type FriendRow = { requester_id: string; addressee_id: string; status: string }
+for (const f of (myFriendships as FriendRow[] | null) ?? []) {
+  const id = f.requester_id  // ✓
+}
+```
+
+**Cuándo NO hace falta el cast:**
+
+- Cuando el resultado solo se pasa como prop a un componente cliente que acepta `any` o tiene su propio tipo
+- Cuando solo se usa `!!data` (check de veracidad) sin acceder propiedades
+- Cuando se usa `.count` (las queries con `{ count: 'exact', head: true }` no acceden filas)
+
+**Para JOINs complejos** (ej: `enrollments` con `class:classes(...)`), usar `as any[]` en el `.map()` es aceptable ya que el tipo de JOIN no está modelado en los tipos base.
 
 ---
 

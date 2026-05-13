@@ -27,12 +27,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('read', false),
   ])
 
+  type SubRow = { expires_at: string; tier: string }
   const now = new Date()
   let activeTier: SubscriptionTier = 'none'
-  if (subscription) {
-    const graceCutoff = new Date(new Date(subscription.expires_at).getTime() + 7 * 24 * 60 * 60 * 1000)
+  const sub = subscription as SubRow | null
+  if (sub) {
+    const graceCutoff = new Date(new Date(sub.expires_at).getTime() + 7 * 24 * 60 * 60 * 1000)
     if (graceCutoff > now) {
-      activeTier = subscription.tier as SubscriptionTier
+      activeTier = sub.tier as SubscriptionTier
     }
   }
 

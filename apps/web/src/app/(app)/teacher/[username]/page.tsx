@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import TeacherProfileClient from '@/components/profile/TeacherProfileClient'
+import type { Profile } from '@danceclass/shared'
 
 interface Props {
   params: { username: string }
@@ -10,12 +11,13 @@ export default async function UserProfilePage({ params }: Props) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: profileUser } = await supabase
+  const { data: rawProfile } = await supabase
     .from('profiles')
     .select('*')
     .eq('username', params.username)
     .single()
 
+  const profileUser = rawProfile as Profile | null
   if (!profileUser) notFound()
 
   const isOwnProfile = user?.id === profileUser.id
@@ -57,9 +59,10 @@ export default async function UserProfilePage({ params }: Props) {
   ])
 
   type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
+  type FriendRow = { status: string; requester_id: string; addressee_id: string }
   let friendStatus: FriendStatus = 'none'
   if (friendshipData.data) {
-    const f = friendshipData.data
+    const f = friendshipData.data as FriendRow
     if (f.status === 'accepted') {
       friendStatus = 'accepted'
     } else if (f.status === 'pending') {

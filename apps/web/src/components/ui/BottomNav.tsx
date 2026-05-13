@@ -39,7 +39,7 @@ export default function BottomNav({ tier }: BottomNavProps) {
       <div className="mx-auto max-w-lg">
         <div className="flex items-center justify-around h-16">
           {links.map(({ href, icon: Icon, label }) => {
-            const isActive = pathname === href || (href !== '/feed' && pathname.startsWith(href))
+            const isActive = pathname === href || (href !== '/feed' && (pathname ?? '').startsWith(href))
             return (
               <Link
                 key={href}

@@ -14,12 +14,14 @@ export default async function NotificationsPage() {
     .order('created_at', { ascending: false })
     .limit(50)
 
+  type NotifRow = { data: Record<string, string> | null }
+  const notifs = notifications as NotifRow[] | null
   // Collect IDs needed to enrich notification display
   const fromUserIds = [...new Set(
-    (notifications ?? []).filter((n) => n.data?.from_user_id).map((n) => n.data.from_user_id as string)
+    (notifs ?? []).filter(n => n.data?.from_user_id).map(n => n.data!.from_user_id)
   )]
   const classIds = [...new Set(
-    (notifications ?? []).filter((n) => n.data?.class_id).map((n) => n.data.class_id as string)
+    (notifs ?? []).filter(n => n.data?.class_id).map(n => n.data!.class_id)
   )]
 
   const [profilesResult, classesResult] = await Promise.all([
