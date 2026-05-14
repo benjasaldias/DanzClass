@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Users, Globe, MapPin, ChevronDown, PlusCircle, Video } from 'lucide-react'
+import { Users, Globe, MapPin, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import ClassCard from './ClassCard'
 import PostCard from './PostCard'
-import CreatePostModal from './CreatePostModal'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, FeedFilter } from '@danceclass/shared'
 
@@ -45,7 +44,6 @@ export default function FeedClient({
   const [classes, setClasses] = useState(initialClasses)
   const [posts, setPosts] = useState(initialPosts)
   const [loading, setLoading] = useState(false)
-  const [showCreatePost, setShowCreatePost] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -157,15 +155,6 @@ export default function FeedClient({
             )}
           </div>
 
-          {/* Create post button */}
-          <button
-            onClick={() => setShowCreatePost(true)}
-            className="flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors"
-            title="Publicar coreografía"
-          >
-            <Video className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Video</span>
-          </button>
         </div>
       </div>
 
@@ -186,14 +175,6 @@ export default function FeedClient({
         )}
       </div>
 
-      {showCreatePost && (
-        <CreatePostModal
-          userId={currentUser.id}
-          userCity={currentProfile?.city ?? null}
-          onClose={() => setShowCreatePost(false)}
-          onCreated={(post) => setPosts((prev) => [post, ...prev])}
-        />
-      )}
     </div>
   )
 }
