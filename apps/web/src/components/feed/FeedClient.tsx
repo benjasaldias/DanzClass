@@ -1,16 +1,20 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { Users, Globe, MapPin } from 'lucide-react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { Users, Globe, MapPin, ChevronDown, PlusCircle, Video } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import ClassCard from './ClassCard'
+import PostCard from './PostCard'
+import CreatePostModal from './CreatePostModal'
 import type { User } from '@supabase/supabase-js'
-import type { Profile } from '@danceclass/shared'
-import type { FeedFilter } from '@danceclass/shared'
+import type { Profile, FeedFilter } from '@danceclass/shared'
+
+type ContentType = 'all' | 'classes' | 'posts'
 
 interface FeedClientProps {
   initialClasses: any[]
+  initialPosts: any[]
   currentUser: User
   currentProfile: Profile | null
   followingIds: string[]
@@ -22,40 +26,70 @@ const FILTERS: { key: FeedFilter; label: string; icon: React.ElementType }[] = [
   { key: 'nearby', label: 'Cerca', icon: MapPin },
 ]
 
+const CONTENT_LABELS: Record<ContentType, string> = {
+  all: 'Todos',
+  classes: 'Clases',
+  posts: 'Videos',
+}
+
 export default function FeedClient({
   initialClasses,
+  initialPosts,
   currentUser,
   currentProfile,
   followingIds,
 }: FeedClientProps) {
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('global')
+  const [contentType, setContentType] = useState<ContentType>('all')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const [classes, setClasses] = useState(initialClasses)
+  const [posts, setPosts] = useState(initialPosts)
   const [loading, setLoading] = useState(false)
+  const [showCreatePost, setShowCreatePost] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
 
   const loadFeed = useCallback(async (filter: FeedFilter) => {
     setLoading(true)
     const supabase = createClient()
 
-    let query = supabase
+    let classQuery = supabase
       .from('classes')
-      .select(`*, teacher:profiles!teacher_id(*), media:class_media(*)`)
+      .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(20)
 
+    let postQuery = supabase
+      .from('posts' as any)
+      .select('*, user:profiles!user_id(*)')
+      .order('created_at', { ascending: false })
+      .limit(20)
+
     if (filter === 'following') {
-      if (followingIds.length === 0) {
-        setClasses([])
-        setLoading(false)
-        return
-      }
-      query = query.in('teacher_id', followingIds)
+      if (followingIds.length === 0) { setClasses([]); setPosts([]); setLoading(false); return }
+      classQuery = classQuery.in('teacher_id', followingIds)
+      postQuery = postQuery.in('user_id', followingIds)
     } else if (filter === 'nearby' && currentProfile?.city) {
-      query = query.eq('city', currentProfile.city)
+      classQuery = classQuery.eq('city', currentProfile.city)
+      postQuery = postQuery.eq('city', currentProfile.city)
     }
 
-    const { data } = await query
-    setClasses(data ?? [])
+    // Posts: only public unless following
+    if (filter !== 'following') {
+      postQuery = postQuery.eq('is_public', true)
+    }
+
+    const [{ data: classData }, { data: postData }] = await Promise.all([classQuery, postQuery])
+    setClasses(classData ?? [])
+    setPosts((postData as any[]) ?? [])
     setLoading(false)
   }, [followingIds, currentProfile])
 
@@ -64,26 +98,74 @@ export default function FeedClient({
     loadFeed(filter)
   }
 
+  // Merge and sort feed items by created_at
+  const feedItems: { type: 'class' | 'post'; data: any; created_at: string }[] = []
+  if (contentType !== 'posts') {
+    classes.forEach((c) => feedItems.push({ type: 'class', data: c, created_at: c.created_at }))
+  }
+  if (contentType !== 'classes') {
+    posts.forEach((p) => feedItems.push({ type: 'post', data: p, created_at: p.created_at }))
+  }
+  feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
   return (
     <div className="flex flex-col">
-      {/* Filter tabs */}
+      {/* Filter bar */}
       <div className="sticky top-14 z-30 bg-gray-50/80 backdrop-blur-md border-b border-gray-100 px-4">
-        <div className="flex gap-1 py-2">
-          {FILTERS.map(({ key, label, icon: Icon }) => (
+        <div className="flex items-center gap-2 py-2">
+          {/* Location/follow filters */}
+          <div className="flex gap-1 flex-1 overflow-x-auto no-scrollbar">
+            {FILTERS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => handleFilterChange(key)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors whitespace-nowrap',
+                  activeFilter === key ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-gray-200'
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Content type dropdown */}
+          <div ref={dropdownRef} className="relative flex-shrink-0">
             <button
-              key={key}
-              onClick={() => handleFilterChange(key)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
-                activeFilter === key
-                  ? 'bg-brand-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-200'
-              )}
+              onClick={() => setDropdownOpen((o) => !o)}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
+              {CONTENT_LABELS[contentType]}
+              <ChevronDown className="h-3.5 w-3.5" />
             </button>
-          ))}
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-1 w-32 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden z-40">
+                {(Object.keys(CONTENT_LABELS) as ContentType[]).map((ct) => (
+                  <button
+                    key={ct}
+                    onClick={() => { setContentType(ct); setDropdownOpen(false) }}
+                    className={cn(
+                      'w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors',
+                      contentType === ct && 'font-semibold text-brand-600'
+                    )}
+                  >
+                    {CONTENT_LABELS[ct]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Create post button */}
+          <button
+            onClick={() => setShowCreatePost(true)}
+            className="flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors"
+            title="Publicar coreografía"
+          >
+            <Video className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Video</span>
+          </button>
         </div>
       </div>
 
@@ -93,41 +175,37 @@ export default function FeedClient({
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
           </div>
-        ) : classes.length === 0 ? (
-          <EmptyState filter={activeFilter} />
+        ) : feedItems.length === 0 ? (
+          <EmptyState filter={activeFilter} contentType={contentType} />
         ) : (
-          classes.map((cls) => (
-            <ClassCard
-              key={cls.id}
-              classData={cls}
-              currentUserId={currentUser.id}
-              currentUserRole={currentProfile?.role ?? 'student'}
-            />
-          ))
+          feedItems.map((item) =>
+            item.type === 'class'
+              ? <ClassCard key={`class-${item.data.id}`} classData={item.data} currentUserId={currentUser.id} currentUserRole={currentProfile?.role ?? 'user'} />
+              : <PostCard key={`post-${item.data.id}`} post={item.data} />
+          )
         )}
       </div>
+
+      {showCreatePost && (
+        <CreatePostModal
+          userId={currentUser.id}
+          userCity={currentProfile?.city ?? null}
+          onClose={() => setShowCreatePost(false)}
+          onCreated={(post) => setPosts((prev) => [post, ...prev])}
+        />
+      )}
     </div>
   )
 }
 
-function EmptyState({ filter }: { filter: FeedFilter }) {
+function EmptyState({ filter, contentType }: { filter: FeedFilter; contentType: ContentType }) {
+  const typeLabel = contentType === 'posts' ? 'videos' : contentType === 'classes' ? 'clases' : 'contenido'
   const messages: Record<FeedFilter, { title: string; desc: string }> = {
-    following: {
-      title: 'Aún no sigues a nadie',
-      desc: 'Explora profesores y síguelos para ver sus clases aquí',
-    },
-    global: {
-      title: 'No hay clases publicadas',
-      desc: 'Sé el primero en publicar una clase',
-    },
-    nearby: {
-      title: 'Sin clases cerca',
-      desc: 'No hay clases disponibles en tu ciudad',
-    },
+    following: { title: 'Aún no sigues a nadie', desc: `Explora profesores para ver sus ${typeLabel} aquí` },
+    global: { title: `No hay ${typeLabel} publicados`, desc: `Sé el primero en publicar` },
+    nearby: { title: `Sin ${typeLabel} cerca`, desc: 'No hay contenido disponible en tu ciudad' },
   }
-
   const { title, desc } = messages[filter]
-
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100">

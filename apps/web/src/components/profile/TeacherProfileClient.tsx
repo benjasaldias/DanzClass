@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock } from 'lucide-react'
+import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock, ShieldCheck, BookOpen, Star } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import TrustButton from '@/components/ui/TrustButton'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import type { Profile } from '@danceclass/shared'
 
@@ -22,6 +23,10 @@ interface TeacherProfileClientProps {
   currentUserId?: string
   isOwnProfile: boolean
   friendStatus: FriendStatus
+  trustCount: number
+  classesCount: number
+  paidSpotsCount: number
+  hasEndorsed: boolean
 }
 
 export default function TeacherProfileClient({
@@ -33,6 +38,10 @@ export default function TeacherProfileClient({
   currentUserId,
   isOwnProfile,
   friendStatus: initialFriendStatus,
+  trustCount,
+  classesCount,
+  paidSpotsCount,
+  hasEndorsed,
 }: TeacherProfileClientProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [followers, setFollowers] = useState(initialFollowers)
@@ -135,6 +144,24 @@ export default function TeacherProfileClient({
           </span>
         </div>
 
+        {/* Stats row */}
+        <div className="flex items-center gap-4 flex-wrap justify-center mt-1">
+          <div className="flex flex-col items-center">
+            <span className="text-base font-bold text-gray-900">{classesCount}</span>
+            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
+          </div>
+          <div className="h-7 w-px bg-gray-200" />
+          <div className="flex flex-col items-center">
+            <span className="text-base font-bold text-gray-900">{paidSpotsCount}</span>
+            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
+          </div>
+          <div className="h-7 w-px bg-gray-200" />
+          <div className="flex flex-col items-center">
+            <span className="text-base font-bold text-green-700">{trustCount}</span>
+            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
+          </div>
+        </div>
+
         {teacher.instagram_handle && (
           <a href={`https://instagram.com/${teacher.instagram_handle}`} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-pink-600 hover:text-pink-700">
@@ -165,6 +192,13 @@ export default function TeacherProfileClient({
               <FriendIcon className="h-4 w-4" />
               {friendBtnLabel}
             </button>
+
+            <TrustButton
+              endorsedId={teacher.id}
+              endorserId={currentUserId}
+              initialEndorsed={hasEndorsed}
+              initialCount={trustCount}
+            />
           </div>
         )}
 

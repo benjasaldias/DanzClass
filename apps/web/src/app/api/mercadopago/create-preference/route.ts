@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { createClient } from '@/lib/supabase/server'
-import type { SubscriptionTier } from '@danceclass/shared'
 
-const PLAN_CONFIG: Record<Exclude<SubscriptionTier, 'none'>, { name: string; price: number }> = {
-  basic: { name: 'DanceClass Básico', price: 1000 },
-  teacher: { name: 'DanceClass Profesor', price: 1500 },
-  pro: { name: 'DanceClass Pro', price: 2000 },
+const PLAN_CONFIG: Record<string, { name: string; price: number }> = {
+  basic: { name: 'DanceClass Básico', price: 1500 },
+  pro:   { name: 'DanceClass Pro',    price: 3500 },
 }
 
 export async function POST(request: Request) {
@@ -18,11 +16,11 @@ export async function POST(request: Request) {
   const plan = body.plan as string
   const period: 'annual' | 'monthly' = body.period === 'annual' ? 'annual' : 'monthly'
 
-  if (!['basic', 'teacher', 'pro'].includes(plan)) {
+  if (!['basic', 'pro'].includes(plan)) {
     return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
   }
 
-  const config = PLAN_CONFIG[plan as Exclude<SubscriptionTier, 'none'>]
+  const config = PLAN_CONFIG[plan]
   const unitPrice = period === 'annual' ? config.price * 12 : config.price
   const title = period === 'annual'
     ? `${config.name} (Anual)`

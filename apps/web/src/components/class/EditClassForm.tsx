@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
+import CityCombobox from '@/components/ui/CityCombobox'
 import type { ClassType, ClassLevel } from '@danceclass/shared'
 
 const schema = z.object({
@@ -69,6 +70,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   )
   const [newMediaFiles, setNewMediaFiles] = useState<{ file: File; preview: string; type: 'image' | 'video' }[]>([])
   const [customDates, setCustomDates] = useState<string[]>(classData.custom_dates ?? [])
+  const [cityValue, setCityValue] = useState<string>(classData.city ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -171,7 +173,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         duration_minutes: data.duration_minutes,
         location_name: data.location_name || null,
         location_address: data.location_address || null,
-        city: data.city || null,
+        city: cityValue || null,
         max_spots: data.max_spots,
         price: data.price,
         price_suelta: data.type === 'periodica' && data.price_suelta ? data.price_suelta : null,
@@ -356,7 +358,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
-            <input {...register('city')} className="input" />
+            <CityCombobox value={cityValue} onChange={setCityValue} />
           </div>
         </div>
 

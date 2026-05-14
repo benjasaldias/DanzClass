@@ -142,6 +142,35 @@ export default function ClassDetailClient({
           : prev
       )
 
+      // Check if student has any pending_payment enrollments in teacher's past classes
+      const today = new Date().toISOString().split('T')[0]
+      const { data: debts } = await supabase
+        .from('enrollments')
+        .select('id, class:classes!inner(id, teacher_id, date, type)')
+        .eq('student_id', currentUser.id)
+        .eq('status', 'pending_payment')
+        .neq('class_id', classData.id) as any
+
+      const hasDebt = (debts as any[] ?? []).some((e: any) => {
+        const cls = e.class
+        return cls?.teacher_id === classData.teacher_id &&
+          cls?.type === 'suelta' &&
+          cls?.date &&
+          cls.date < today
+      })
+
+      if (hasDebt) {
+        await supabase.from('notifications' as any).insert({
+          user_id: classData.teacher_id,
+          type: 'debt_warning',
+          data: {
+            student_id: currentUser.id,
+            student_name: currentProfile?.username ?? currentUser.email,
+            class_id: classData.id,
+          },
+        } as any)
+      }
+
       router.push(`/payment/${data.id}`)
     }
 

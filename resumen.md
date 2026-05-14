@@ -73,7 +73,7 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - Añade política `notifications_insert_any`: cualquier usuario autenticado puede insertar notificaciones para cualquier `user_id`
 - **Nota:** la política `classes_delete_teacher` ya existía y fue omitida de esta migración
 
-### 007_payment_receipts_bucket.sql ← NUEVA (sesión 2026-05-13)
+### 007_payment_receipts_bucket.sql (sesión 2026-05-13)
 - Crea bucket `payment-receipts` (público, 10MB, imagen/PDF)
 - Políticas RLS: cualquiera puede leer; usuarios autenticados solo pueden subir/editar dentro de su propia carpeta `{user_id}/...`
 - **Crítico:** sin esta migración, subir comprobantes de pago de clases falla con error RLS
@@ -376,31 +376,25 @@ apps/web/src/
 
 ## Pasos siguientes — próxima sesión
 
-### A. SQL pendiente de verificar en Supabase
+### A. SQL pendiente de aplicar en Supabase
 
-Las migraciones 001–006 deberían estar aplicadas. Verificar que también esté:
-- `007_payment_receipts_bucket.sql` — sin esto los comprobantes de pago de clases no se pueden subir
+Aplicar en orden en el Dashboard SQL Editor:
+- `007_payment_receipts_bucket.sql` — bucket para comprobantes de pago de clases
+- `008_trust_posts.sql` ← NUEVA (sesión 2026-05-14): trust_endorsements, posts, dismissed_debts, bucket posts-media, tipo notificación `debt_warning`
 
-### B. Pantallas mobile pendientes (Expo) ← PRIORIDAD SIGUIENTE
+### B. Variable de entorno nueva en Vercel
 
-La app mobile tiene el layout base pero faltan todas las pantallas funcionales:
-- `apps/mobile/app/(app)/feed/` — feed de clases con tabs
-- `apps/mobile/app/(app)/class/[id].tsx` — detalle de clase con botón reservar
-- `apps/mobile/app/(app)/class/create-suelta.tsx` — formulario clase suelta
-- `apps/mobile/app/(app)/class/create-periodica.tsx` — formulario clase periódica
-- `apps/mobile/app/(app)/teacher/[username].tsx` — perfil público del profesor
-- `apps/mobile/app/(app)/my-classes/` — mis clases (tabs tomo/dicto)
-- `apps/mobile/app/(app)/explore/` — explorar usuarios y clases
-- `apps/mobile/app/(app)/notifications/` — lista de notificaciones
-- Badge de notificaciones en tab bar o header
-- Antes de empezar mobile: explorar qué pantallas ya existen en `apps/mobile/`
+Agregar `CRON_SECRET` (string aleatorio) en Vercel → Settings → Environment Variables. Mismo valor debe estar en el header `Authorization: Bearer {CRON_SECRET}` que Vercel envía automáticamente a los cron jobs.
 
-### C. Mejoras web pendientes (menor prioridad)
+### C. Pantallas mobile pendientes (Expo) ← PRIORIDAD SIGUIENTE
 
-- **Filtro "Cerca":** actualmente filtra por ciudad exacta (string match). Mejorar con normalización (lowercase, trim, equivalencias) o selección de ciudad desde un listado fijo.
+La app mobile tiene el layout base pero faltan todas las pantallas funcionales. Antes de empezar mobile: explorar qué pantallas ya existen en `apps/mobile/`.
+
+### D. Mejoras web pendientes (menor prioridad)
+
 - **`/dashboard`:** considerar redirect a `/my-classes?tab=teaching` o dejarlo como está (legacy, funcional pero fuera del nav).
 
-### D. Funcionalidades futuras (no prioritarias para MVP)
+### E. Funcionalidades futuras (no prioritarias para MVP)
 
 - **Notificaciones push Expo** — cuando se confirma/rechaza un pago o se publica una clase
 - **Sistema 2x** — buscar compañer@ de baile (`2x_request` / `2x_match` ya están en schema)

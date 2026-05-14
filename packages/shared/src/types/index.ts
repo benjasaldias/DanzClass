@@ -3,7 +3,7 @@
 // ============================================================
 
 export type UserRole = 'user'
-export type SubscriptionTier = 'none' | 'basic' | 'teacher' | 'pro'
+export type SubscriptionTier = 'none' | 'basic' | 'teacher' | 'pro' // 'teacher' kept for DB compat only
 export type SubscriptionStatus = 'active' | 'grace' | 'expired' | 'cancelled'
 export type FriendshipStatus = 'pending' | 'accepted' | 'rejected'
 export type TwoxRequestStatus = 'looking' | 'matched' | 'cancelled'
@@ -18,6 +18,7 @@ export type NotificationType =
   | 'new_class'
   | 'class_updated'
   | 'class_cancelled'
+  | 'debt_warning'
 
 export type ClassType = 'suelta' | 'periodica'
 export type ClassLevel = 'principiante' | 'intermedio' | 'avanzado' | 'todos'
@@ -31,14 +32,24 @@ export type MediaType = 'image' | 'video'
 
 export type FeedFilter = 'following' | 'global' | 'nearby'
 
-// Helper: si el tier permite dictar clases
+// Helper: si el tier permite dictar clases (basic: solo 1 suelta/mes)
 export function canTeach(tier: SubscriptionTier): boolean {
+  return tier === 'basic' || tier === 'teacher' || tier === 'pro'
+}
+
+// Helper: si el tier permite dictar clases periódicas y sin límite mensual
+export function canTeachUnlimited(tier: SubscriptionTier): boolean {
   return tier === 'teacher' || tier === 'pro'
 }
 
-// Helper: si el tier permite subir videos
+// Helper: si el tier permite subir videos en clases/posts
 export function canUploadVideo(tier: SubscriptionTier): boolean {
-  return tier === 'pro'
+  return tier === 'teacher' || tier === 'pro'
+}
+
+// Helper: si el tier permite subir media (imágenes) en clases
+export function canUploadMedia(tier: SubscriptionTier): boolean {
+  return tier === 'basic' || tier === 'teacher' || tier === 'pro'
 }
 
 // Helper: si el tier permite inscribirse en clases
@@ -283,23 +294,28 @@ export const SUBSCRIPTION_PLANS = [
   {
     tier: 'basic' as const,
     name: 'Básico',
-    price: 1000,
-    description: 'Toma clases de baile',
-    features: ['Inscríbete en cualquier clase', 'Explora profesores', 'Busca compañero 2x'],
-  },
-  {
-    tier: 'teacher' as const,
-    name: 'Profesor',
     price: 1500,
-    description: 'Dicta y toma clases',
-    features: ['Todo lo del plan Básico', 'Publica clases', 'Recibe pagos de alumnos', 'Sube fotos en publicaciones'],
+    description: 'Toma y dicta clases',
+    features: [
+      'Inscríbete en cualquier clase',
+      'Publica 1 clase suelta por mes',
+      'Sube 1 foto o video en esa clase',
+      'Explora profesores',
+      'Busca compañero 2x',
+    ],
   },
   {
     tier: 'pro' as const,
     name: 'Pro',
-    price: 2000,
-    description: 'Experiencia completa',
-    features: ['Todo lo del plan Profesor', 'Sube videos en publicaciones', 'Perfil destacado'],
+    price: 3500,
+    description: 'Experiencia completa sin límites',
+    features: [
+      'Todo lo del plan Básico',
+      'Publica clases ilimitadas (sueltas y periódicas)',
+      'Sube hasta 5 fotos/videos por clase',
+      'Publica videos de coreografías',
+      'Perfil destacado',
+    ],
   },
 ] as const
 
@@ -350,6 +366,18 @@ export const CHILEAN_BANKS = [
   'Tenpo',
   'Mercado Pago',
   'Otro',
+] as const
+
+export const CHILEAN_CITIES = [
+  'Santiago',
+  'Viña del Mar',
+  'Valparaíso',
+  'Rancagua',
+  'Concepción',
+  'La Serena',
+  'Antofagasta',
+  'Iquique',
+  'Arica',
 ] as const
 
 export const DAYS_OF_WEEK = [

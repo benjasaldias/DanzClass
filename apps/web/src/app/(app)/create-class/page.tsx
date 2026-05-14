@@ -12,11 +12,25 @@ export default async function CreateClassPage() {
   const tier = await getActiveTier(user.id, supabase)
   if (!canTeach(tier)) redirect('/plans')
 
-  const { data: paymentInfo } = await supabase
-    .from('teacher_payment_info')
-    .select('*')
-    .eq('teacher_id', user.id)
-    .maybeSingle()
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-  return <CreateClassForm teacherId={user.id} hasPaymentInfo={!!paymentInfo} />
+  const [{ data: paymentInfo }, { count: sueltas_this_month }] = await Promise.all([
+    supabase.from('teacher_payment_info').select('*').eq('teacher_id', user.id).maybeSingle(),
+    supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('teacher_id', user.id)
+      .eq('type', 'suelta')
+      .gte('created_at', monthStart),
+  ])
+
+  return (
+    <CreateClassForm
+      teacherId={user.id}
+      hasPaymentInfo={!!paymentInfo}
+      tier={tier}
+      sueltas_this_month={sueltas_this_month ?? 0}
+    />
+  )
 }

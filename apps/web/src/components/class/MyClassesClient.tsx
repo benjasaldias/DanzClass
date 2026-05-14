@@ -5,13 +5,26 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
-  Users, ChevronDown, ChevronUp, ExternalLink, XCircle,
+  Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
+  AlertTriangle, ShieldAlert,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function formatDeletionDate(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function isDeleted(deletionDate: string | null): boolean {
+  if (!deletionDate) return false
+  return new Date(deletionDate) <= new Date()
+}
 
 // ─── Enrolled tab ────────────────────────────────────────────────────────────
 
@@ -82,12 +95,21 @@ const PAYMENT_STATUS = {
   cancelled: { label: 'Cancelado', color: 'text-red-600', dot: 'bg-red-400' },
 }
 
-function TeachingTab({ initialClasses }: { initialClasses: any[] }) {
+function TeachingTab({
+  initialClasses,
+  currentUserId,
+  dismissedStudentIds: initialDismissed,
+}: {
+  initialClasses: any[]
+  currentUserId: string
+  dismissedStudentIds: string[]
+}) {
   const [expandedClass, setExpandedClass] = useState<string | null>(initialClasses[0]?.id ?? null)
   const [loadingEnrollment, setLoadingEnrollment] = useState<string | null>(null)
   const [classData, setClassData] = useState(initialClasses)
   const [removeConfirm, setRemoveConfirm] = useState<{ enrollmentId: string; name: string } | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [dismissedIds, setDismissedIds] = useState<string[]>(initialDismissed)
 
   async function handlePaymentAction(enrollmentId: string, paymentId: string, action: 'verified' | 'rejected') {
     setLoadingEnrollment(enrollmentId)
@@ -144,8 +166,35 @@ function TeachingTab({ initialClasses }: { initialClasses: any[] }) {
     setRemoveConfirm(null)
   }
 
+  async function handleDebtConfirmed(studentId: string) {
+    const supabase = createClient()
+    await supabase.from('dismissed_debts' as any).upsert(
+      { teacher_id: currentUserId, student_id: studentId } as any,
+      { onConflict: 'teacher_id,student_id', ignoreDuplicates: true }
+    )
+    setDismissedIds((prev) => [...prev, studentId])
+  }
+
   const pendingPayments = classData.reduce((acc: number, cls: any) =>
     acc + cls.enrollments.filter((e: any) => e.status === 'payment_submitted').length, 0)
+
+  // Collect all debtors across ALL classes (pending_payment from past/active classes, not dismissed)
+  const today = new Date().toISOString().split('T')[0]
+  const debtors = classData.flatMap((cls: any) =>
+    cls.enrollments
+      .filter((e: any) =>
+        e.status === 'pending_payment' &&
+        !dismissedIds.includes(e.student?.id ?? e.student_id) &&
+        (cls.type === 'suelta' && cls.date && cls.date < today) // Only for past suelta classes
+      )
+      .map((e: any) => ({
+        enrollmentId: e.id,
+        student: e.student,
+        classTitle: cls.title,
+        classId: cls.id,
+        studentId: e.student?.id ?? e.student_id,
+      }))
+  )
 
   if (classData.length === 0) {
     return (
@@ -180,12 +229,44 @@ function TeachingTab({ initialClasses }: { initialClasses: any[] }) {
         </p>
       )}
 
+      {/* Debtors section */}
+      {debtors.length > 0 && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className="h-4 w-4 text-red-600" />
+            <p className="text-sm font-semibold text-red-700">Pagos pendientes de clases pasadas</p>
+          </div>
+          <p className="text-xs text-red-600 mb-3">
+            Resuelve estos pagos directamente con el alumno. Una vez confirmado, el alumno saldrá de esta lista.
+          </p>
+          <div className="space-y-2">
+            {debtors.map((d: any) => (
+              <div key={d.enrollmentId} className="flex items-center gap-3 rounded-lg bg-white border border-red-100 p-3">
+                <Avatar src={d.student?.avatar_url} name={d.student?.full_name ?? '?'} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{d.student?.full_name}</p>
+                  <p className="text-xs text-gray-500 truncate">@{d.student?.username} · {d.classTitle}</p>
+                </div>
+                <button
+                  onClick={() => handleDebtConfirmed(d.studentId)}
+                  className="flex-shrink-0 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+                >
+                  Pago confirmado
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3">
         {classData.map((cls) => {
           const isExpanded = expandedClass === cls.id
           const enrollments = cls.enrollments ?? []
           const confirmed = enrollments.filter((e: any) => e.status === 'confirmed').length
           const pending = enrollments.filter((e: any) => e.status === 'payment_submitted').length
+          const deletionDate = cls.deletion_date
+          const deleted = isDeleted(deletionDate)
 
           return (
             <div key={cls.id} className="card overflow-hidden">
@@ -212,6 +293,20 @@ function TeachingTab({ initialClasses }: { initialClasses: any[] }) {
                       {enrollments.filter((e: any) => e.status !== 'cancelled').length}/{cls.max_spots} cupos
                     </span>
                   </div>
+
+                  {/* Deletion warning */}
+                  {deletionDate && !deleted && (
+                    <p className="mt-1.5 text-xs text-orange-600 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Archivos eliminados el {formatDeletionDate(deletionDate)}
+                    </p>
+                  )}
+                  {deleted && (
+                    <p className="mt-1.5 text-xs text-gray-400 flex items-center gap-1">
+                      <Trash2 className="h-3 w-3" />
+                      Archivos eliminados
+                    </p>
+                  )}
                 </div>
                 <div className="flex-shrink-0 text-gray-400">
                   {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -220,6 +315,38 @@ function TeachingTab({ initialClasses }: { initialClasses: any[] }) {
 
               {isExpanded && (
                 <div className="border-t border-gray-100">
+                  {/* Post-deletion pending list */}
+                  {deleted && (
+                    <div className="p-4 bg-orange-50 border-b border-orange-100">
+                      <p className="text-xs text-orange-700 font-medium flex items-center gap-1.5 mb-2">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Los archivos de esta clase ya fueron eliminados. Usuarios con pago pendiente:
+                      </p>
+                      {enrollments
+                        .filter((e: any) => e.status === 'pending_payment' && !dismissedIds.includes(e.student?.id ?? e.student_id))
+                        .length === 0 ? (
+                        <p className="text-xs text-gray-500">Sin pagos pendientes.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {enrollments
+                            .filter((e: any) => e.status === 'pending_payment' && !dismissedIds.includes(e.student?.id ?? e.student_id))
+                            .map((e: any) => (
+                              <div key={e.id} className="flex items-center gap-2">
+                                <Avatar src={e.student?.avatar_url} name={e.student?.full_name ?? '?'} size="sm" />
+                                <span className="text-xs text-gray-700 flex-1">{e.student?.full_name}</span>
+                                <button
+                                  onClick={() => handleDebtConfirmed(e.student?.id ?? e.student_id)}
+                                  className="text-xs rounded-lg bg-green-600 text-white px-2.5 py-1 hover:bg-green-700 transition-colors"
+                                >
+                                  Pago confirmado
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {enrollments.filter((e: any) => e.status !== 'cancelled').length === 0 ? (
                     <p className="text-center text-sm text-gray-400 py-6">Sin inscripciones aún</p>
                   ) : (
@@ -312,9 +439,17 @@ interface MyClassesClientProps {
   enrollments: any[]
   teachingClasses: any[]
   defaultTab: 'enrolled' | 'teaching'
+  currentUserId: string
+  dismissedStudentIds: string[]
 }
 
-export default function MyClassesClient({ enrollments, teachingClasses, defaultTab }: MyClassesClientProps) {
+export default function MyClassesClient({
+  enrollments,
+  teachingClasses,
+  defaultTab,
+  currentUserId,
+  dismissedStudentIds,
+}: MyClassesClientProps) {
   const [tab, setTab] = useState<'enrolled' | 'teaching'>(defaultTab)
 
   return (
@@ -359,7 +494,11 @@ export default function MyClassesClient({ enrollments, teachingClasses, defaultT
 
       {tab === 'enrolled'
         ? <EnrolledTab enrollments={enrollments} />
-        : <TeachingTab initialClasses={teachingClasses} />
+        : <TeachingTab
+            initialClasses={teachingClasses}
+            currentUserId={currentUserId}
+            dismissedStudentIds={dismissedStudentIds}
+          />
       }
     </div>
   )

@@ -6,12 +6,13 @@ import { useDropzone } from 'react-dropzone'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Upload, X, Loader2, AlertCircle } from 'lucide-react'
+import { Upload, X, Loader2, AlertCircle, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
+import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
-import type { ClassType, ClassLevel, Recurrence } from '@danceclass/shared'
+import CityCombobox from '@/components/ui/CityCombobox'
+import type { ClassType, ClassLevel, Recurrence, SubscriptionTier } from '@danceclass/shared'
 
 const schema = z.object({
   title: z.string().min(3, 'Mínimo 3 caracteres').max(80),
@@ -54,16 +55,24 @@ type FormData = z.infer<typeof schema>
 interface CreateClassFormProps {
   teacherId: string
   hasPaymentInfo: boolean
+  tier: SubscriptionTier
+  sueltas_this_month: number
 }
 
-export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateClassFormProps) {
+export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, sueltas_this_month }: CreateClassFormProps) {
   const router = useRouter()
+  const isBasic = tier === 'basic'
+  const unlimited = canTeachUnlimited(tier)
+  const mediaLimit = isBasic ? 1 : 5
+  const basicBlocked = isBasic && sueltas_this_month >= 1
+
   const [mediaFiles, setMediaFiles] = useState<{ file: File; preview: string; type: 'image' | 'video' }[]>([])
   const [customDates, setCustomDates] = useState<string[]>([])
+  const [cityValue, setCityValue] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { type: 'suelta', level: 'todos', duration_minutes: 60 },
   })
@@ -71,20 +80,25 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateCla
   const classType = watch('type')
   const recurrence = watch('recurrence')
 
+  const maxMedia = mediaLimit
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.slice(0, 5 - mediaFiles.length).map((file) => ({
+    const newFiles = acceptedFiles.slice(0, maxMedia - mediaFiles.length).map((file) => ({
       file,
       preview: URL.createObjectURL(file),
       type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
     }))
+    if (!canUploadVideo(tier) && newFiles.some((f) => f.type === 'video')) {
+      setError('Tu plan no permite subir videos. Solo imágenes.')
+      return
+    }
     setMediaFiles((prev) => [...prev, ...newFiles])
   }, [mediaFiles.length])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'image/*': [], 'video/*': [] },
-    maxFiles: 5,
-    disabled: mediaFiles.length >= 5,
+    accept: canUploadVideo(tier) ? { 'image/*': [], 'video/*': [] } : { 'image/*': [] },
+    maxFiles: mediaLimit,
+    disabled: mediaFiles.length >= mediaLimit,
   })
 
   function removeMedia(index: number) {
@@ -120,7 +134,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateCla
         duration_minutes: data.duration_minutes,
         location_name: data.location_name || null,
         location_address: data.location_address || null,
-        city: data.city || null,
+        city: cityValue || null,
         max_spots: data.max_spots,
         price: data.price,
         price_suelta: data.type === 'periodica' && data.price_suelta ? data.price_suelta : null,
@@ -207,25 +221,58 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateCla
         <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
+      {basicBlocked && (
+        <div className="mb-4 rounded-xl bg-brand-50 border border-brand-200 p-4 flex gap-3">
+          <Info className="h-5 w-5 text-brand-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-brand-800">Límite mensual alcanzado</p>
+            <p className="text-xs text-brand-700 mt-0.5">
+              El plan Básico permite 1 clase suelta por mes. Ya publicaste tu clase de este mes.
+              Actualiza a Pro para publicar sin límites.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isBasic && !basicBlocked && (
+        <div className="mb-4 rounded-xl bg-gray-50 border border-gray-200 p-4 flex gap-3">
+          <Info className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-gray-600">
+            Plan Básico: puedes publicar <strong>1 clase suelta por mes</strong> con hasta <strong>1 foto o video</strong>.
+            Actualiza a Pro para publicar clases ilimitadas.
+          </p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Type selector */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">Tipo de clase</label>
           <div className="grid grid-cols-2 gap-3">
-            {(['suelta', 'periodica'] as ClassType[]).map((t) => (
-              <label key={t} className={cn(
-                'flex flex-col gap-1 rounded-xl border-2 p-3 cursor-pointer transition-colors',
-                classType === t ? 'border-brand-500 bg-brand-50' : 'border-gray-200'
-              )}>
-                <input type="radio" value={t} {...register('type')} className="sr-only" />
-                <span className="font-semibold text-sm capitalize">
-                  {t === 'suelta' ? 'Clase suelta' : 'Periódica'}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {t === 'suelta' ? 'Una fecha específica' : 'Varias fechas o recurrente'}
-                </span>
-              </label>
-            ))}
+            {(['suelta', 'periodica'] as ClassType[]).map((t) => {
+              const locked = isBasic && t === 'periodica'
+              return (
+                <label key={t} className={cn(
+                  'flex flex-col gap-1 rounded-xl border-2 p-3 transition-colors',
+                  locked ? 'opacity-40 cursor-not-allowed border-gray-200' : 'cursor-pointer',
+                  !locked && classType === t ? 'border-brand-500 bg-brand-50' : 'border-gray-200'
+                )}>
+                  <input
+                    type="radio"
+                    value={t}
+                    {...register('type')}
+                    className="sr-only"
+                    disabled={locked}
+                  />
+                  <span className="font-semibold text-sm capitalize">
+                    {t === 'suelta' ? 'Clase suelta' : 'Periódica'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {t === 'suelta' ? 'Una fecha específica' : locked ? 'Solo plan Pro' : 'Varias fechas o recurrente'}
+                  </span>
+                </label>
+              )
+            })}
           </div>
         </div>
 
@@ -353,7 +400,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateCla
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
-            <input {...register('city')} placeholder="Santiago, Valparaíso..." className="input" />
+            <CityCombobox value={cityValue} onChange={setCityValue} />
           </div>
         </div>
 
@@ -380,7 +427,8 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateCla
         {/* Media upload */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">
-            Fotos/Videos <span className="text-gray-400 font-normal">(máx. 5)</span>
+            {isBasic ? 'Foto o Video' : 'Fotos/Videos'}{' '}
+            <span className="text-gray-400 font-normal">(máx. {mediaLimit})</span>
           </label>
 
           {mediaFiles.length > 0 && (
@@ -403,7 +451,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateCla
             </div>
           )}
 
-          {mediaFiles.length < 5 && (
+          {mediaFiles.length < mediaLimit && (
             <div
               {...getRootProps()}
               className={cn(
@@ -419,13 +467,13 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo }: CreateCla
           )}
         </div>
 
-        <button type="submit" disabled={submitting} className="btn-primary w-full py-3 text-base">
+        <button type="submit" disabled={submitting || basicBlocked} className="btn-primary w-full py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed">
           {submitting ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               Publicando...
             </span>
-          ) : 'Publicar clase'}
+          ) : basicBlocked ? 'Límite mensual alcanzado' : 'Publicar clase'}
         </button>
       </form>
     </div>

@@ -6,6 +6,7 @@ import { Loader2, Camera, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import StylesPicker from '@/components/ui/StylesPicker'
+import CityCombobox from '@/components/ui/CityCombobox'
 import type { Profile } from '@danceclass/shared'
 
 interface EditProfileFormProps {
@@ -163,7 +164,7 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
-            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Santiago..." className="input" />
+            <CityCombobox value={city} onChange={setCity} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Instagram</label>

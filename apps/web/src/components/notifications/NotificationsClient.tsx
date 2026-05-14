@@ -113,6 +113,12 @@ const NOTIF_CONFIG: Record<string, {
     label: () => '¡Encontraste compañer@ para ir 2x!',
     href: () => '/feed',
   },
+  debt_warning: {
+    icon: AlertCircle,
+    color: 'text-red-500 bg-red-50',
+    label: (data) => `⚠️ ${data.student_name ?? 'Un alumno'} que te debe un pago se inscribió en tu clase`,
+    href: () => '/my-classes',
+  },
 }
 
 export default function NotificationsClient({ notifications, profileMap, classMap, userId }: NotificationsClientProps) {
