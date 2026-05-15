@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { X, Upload, Loader2, Globe, Lock, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import CityCombobox from '@/components/ui/CityCombobox'
 import { cn } from '@/lib/utils'
 
@@ -49,25 +50,32 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
     let videoUrl: string | null = null
 
     if (videoFile) {
-      const ext = videoFile.file.name.split('.').pop()
-      const path = `${userId}/${Date.now()}.${ext}`
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from('posts-media')
-        .upload(path, videoFile.file)
-
-      if (uploadErr || !uploadData) {
+      try {
+        if (isCloudinaryConfigured()) {
+          const result = await uploadToCloudinary(videoFile.file, 'video', 'posts')
+          videoUrl = result.secure_url
+        } else {
+          const supabase = createClient()
+          const ext = videoFile.file.name.split('.').pop()
+          const path = `${userId}/${Date.now()}.${ext}`
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from('posts-media')
+            .upload(path, videoFile.file)
+          if (uploadErr || !uploadData) throw new Error('upload_failed')
+          const { data: urlData } = supabase.storage.from('posts-media').getPublicUrl(uploadData.path)
+          videoUrl = urlData.publicUrl
+        }
+      } catch {
         setError('Error al subir el video. Intenta de nuevo.')
         setLoading(false)
         return
       }
-      const { data: urlData } = supabase.storage.from('posts-media').getPublicUrl(uploadData.path)
-      videoUrl = urlData.publicUrl
     }
 
+    const supabase = createClient()
     const { data: post, error: insertErr } = await supabase
       .from('posts' as any)
       .insert({
@@ -113,7 +121,6 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
             />
           </div>
 
-          {/* Video */}
           {videoFile ? (
             <div className="relative rounded-xl overflow-hidden bg-black">
               <video src={videoFile.preview} controls className="w-full h-auto max-h-[60vh]" />
@@ -136,7 +143,7 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
               <input {...getInputProps()} />
               <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
               <p className="text-sm text-gray-600">Arrastra o selecciona un video</p>
-              <p className="text-xs text-gray-400 mt-1">MP4, MOV, WebM (máx. 100MB)</p>
+              <p className="text-xs text-gray-400 mt-1">MP4, MOV, WebM</p>
             </div>
           )}
 
@@ -145,7 +152,6 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
             <CityCombobox value={city} onChange={setCity} />
           </div>
 
-          {/* Visibilidad */}
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">Visibilidad</label>
             <div className="flex gap-2">

@@ -172,7 +172,7 @@ export default function FeedClient({
           feedItems.map((item) =>
             item.type === 'class'
               ? <ClassCard key={`class-${item.data.id}`} classData={item.data} currentUserId={currentUser.id} currentUserRole={currentProfile?.role ?? 'user'} />
-              : <PostCard key={`post-${item.data.id}`} post={item.data} />
+              : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser.id} />
           )
         )}
       </div>

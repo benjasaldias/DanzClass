@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Pencil,
   Trash2,
+  Flag,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -24,6 +25,7 @@ import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import CustomDatesCalendar from '@/components/class/CustomDatesCalendar'
+import ReportModal from '@/components/ui/ReportModal'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@danceclass/shared'
 
@@ -82,6 +84,7 @@ export default function ClassDetailClient({
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [showDatesCalendar, setShowDatesCalendar] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   const teacher = classData.teacher
   const media = [...(classData.media ?? [])].sort(
@@ -302,6 +305,15 @@ export default function ClassDetailClient({
         />
       )}
 
+      {showReport && (
+        <ReportModal
+          contentType="class"
+          contentId={classData.id}
+          reporterId={currentUser.id}
+          onClose={() => setShowReport(false)}
+        />
+      )}
+
       <div className="px-4 pt-3 pb-1 flex items-center justify-between">
         <button
           onClick={() => router.back()}
@@ -311,7 +323,7 @@ export default function ClassDetailClient({
           Volver
         </button>
 
-        {isTeacher && (
+        {isTeacher ? (
           <div className="flex gap-2">
             <Link
               href={`/class/${classData.id}/edit`}
@@ -329,6 +341,14 @@ export default function ClassDetailClient({
               Eliminar
             </button>
           </div>
+        ) : (
+          <button
+            onClick={() => setShowReport(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-red-500 hover:border-red-200 transition-colors"
+          >
+            <Flag className="h-3.5 w-3.5" />
+            Reportar
+          </button>
         )}
       </div>
 

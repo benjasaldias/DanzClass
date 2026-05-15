@@ -18,6 +18,9 @@ const schema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres'),
   city: z.string().optional(),
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: 'Debes aceptar los Términos de Uso para continuar' }),
+  }),
 })
 
 type FormData = z.infer<typeof schema>
@@ -154,6 +157,32 @@ export default function RegisterPage() {
                 </button>
               </div>
               {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
+            </div>
+
+            {/* Términos de Uso */}
+            <div>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  {...register('acceptTerms')}
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span className="text-sm text-gray-600 leading-snug">
+                  He leído y acepto los{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="font-semibold text-brand-600 hover:text-brand-700 underline"
+                  >
+                    Términos de Uso
+                  </Link>
+                  , incluyendo que soy responsable del contenido que publico y declaro tener los derechos
+                  sobre cualquier audio y video que suba a la plataforma.
+                </span>
+              </label>
+              {errors.acceptTerms && (
+                <p className="mt-1 text-xs text-red-600">{errors.acceptTerms.message}</p>
+              )}
             </div>
 
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3">

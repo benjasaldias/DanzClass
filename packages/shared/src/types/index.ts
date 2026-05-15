@@ -7,6 +7,9 @@ export type SubscriptionTier = 'none' | 'basic' | 'teacher' | 'pro' // 'teacher'
 export type SubscriptionStatus = 'active' | 'grace' | 'expired' | 'cancelled'
 export type FriendshipStatus = 'pending' | 'accepted' | 'rejected'
 export type TwoxRequestStatus = 'looking' | 'matched' | 'cancelled'
+export type ReportReason = 'copyright' | 'inappropriate' | 'spam' | 'other'
+export type ReportStatus = 'pending' | 'reviewed' | 'dismissed'
+export type ReportContentType = 'post' | 'class'
 export type NotificationType =
   | '2x_request'
   | '2x_match'
@@ -31,6 +34,17 @@ export type AccountType = 'cuenta_corriente' | 'cuenta_vista' | 'cuenta_rut' | '
 export type MediaType = 'image' | 'video'
 
 export type FeedFilter = 'following' | 'global' | 'nearby'
+
+export interface Report {
+  id: string
+  reporter_id: string | null
+  content_type: ReportContentType
+  content_id: string
+  reason: ReportReason
+  description: string | null
+  status: ReportStatus
+  created_at: string
+}
 
 // Helper: si el tier permite dictar clases (basic: solo 1 suelta/mes)
 export function canTeach(tier: SubscriptionTier): boolean {
