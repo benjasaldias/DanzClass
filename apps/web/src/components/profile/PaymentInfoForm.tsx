@@ -55,7 +55,7 @@ export default function PaymentInfoForm({ teacherId, existingInfo }: PaymentInfo
         Volver
       </button>
 
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Datos bancarios</h1>
+      <h1 className="text-xl font-bold text-gray-900 mb-1">Datos Transferencia</h1>
       <p className="text-sm text-gray-500 mb-5">Los estudiantes usarán estos datos para transferirte</p>
 
       {saved && (
@@ -110,7 +110,7 @@ export default function PaymentInfoForm({ teacherId, existingInfo }: PaymentInfo
         </div>
 
         <button type="submit" disabled={isSubmitting || saved} className="btn-primary w-full py-3">
-          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar datos bancarios'}
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guardar datos de transferencia'}
         </button>
       </form>
     </div>

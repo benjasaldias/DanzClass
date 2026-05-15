@@ -7,6 +7,7 @@ import { MapPin, Clock, Users, ChevronRight, Music2, Calendar } from 'lucide-rea
 import { cn, timeAgo, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
+
 interface ClassCardProps {
   classData: any
   currentUserId: string
@@ -27,6 +28,9 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
   const sortedMedia = media.sort((a: any, b: any) => a.order_index - b.order_index)
   const isTeacher = classData.teacher_id === currentUserId
 
+  const confirmedCount = (classData.enrollments ?? []).filter((e: any) => e.status === 'confirmed').length
+  const spotsAvailable = (classData.max_spots ?? 0) - confirmedCount
+
   const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
   const scheduleText = classData.type === 'suelta'
     ? `${formatDate(classData.date)} · ${formatTime(classData.time)}`
@@ -34,8 +38,14 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
       ? `${classData.custom_dates?.length ?? 0} clase${(classData.custom_dates?.length ?? 0) !== 1 ? 's' : ''} · ${formatTime(classData.recurring_time)}`
       : `${recurrenceLabel[classData.recurrence] ?? ''} · ${DAYS_OF_WEEK[classData.day_of_week]} ${formatTime(classData.recurring_time)}`
 
+  const styleBadge = classData.dance_style
+    ? classData.class_type
+      ? `${classData.dance_style} - ${classData.class_type}`
+      : classData.dance_style
+    : null
+
   return (
-    <article className="border-b border-gray-100 bg-white">
+    <article className="border-b border-gray-100 bg-violet-50/30">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <Link href={`/teacher/${teacher.username}`}>
@@ -47,8 +57,8 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
           </Link>
           <p className="text-xs text-gray-500">{timeAgo(classData.created_at)}</p>
         </div>
-        {classData.dance_style && (
-          <span className="badge bg-brand-50 text-brand-700 text-xs">{classData.dance_style}</span>
+        {styleBadge && (
+          <span className="badge bg-brand-50 text-brand-700 text-xs">{styleBadge}</span>
         )}
       </div>
 
@@ -123,7 +133,12 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
-            <span>Cupos: {classData.max_spots}</span>
+            <span>
+              <span className={cn('font-medium', spotsAvailable <= 0 ? 'text-red-600' : 'text-green-700')}>
+                {Math.max(0, spotsAvailable)}
+              </span>
+              /{classData.max_spots} cupos disponibles
+            </span>
           </div>
         </div>
 
@@ -142,10 +157,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
           </div>
 
           {!isTeacher && (
-            <Link
-              href={`/class/${classData.id}`}
-              className="btn-primary"
-            >
+            <Link href={`/class/${classData.id}`} className="btn-primary">
               Ver clase
               <ChevronRight className="h-4 w-4" />
             </Link>

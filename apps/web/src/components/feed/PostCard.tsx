@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Play, Globe, Lock } from 'lucide-react'
+import { Lock, Users } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import Avatar from '@/components/ui/Avatar'
 
@@ -11,7 +11,8 @@ interface PostCardProps {
     title: string
     video_url: string | null
     thumbnail_url: string | null
-    is_public: boolean
+    is_public?: boolean
+    visibility?: 'public' | 'followers' | 'friends'
     city: string | null
     created_at: string
     user: {
@@ -23,11 +24,18 @@ interface PostCardProps {
   }
 }
 
+const VISIBILITY_LABELS: Record<string, { icon: React.ElementType; label: string }> = {
+  followers: { icon: Lock, label: 'Solo seguidores' },
+  friends: { icon: Users, label: 'Solo amigos' },
+}
+
 export default function PostCard({ post }: PostCardProps) {
   const user = post.user
+  const visibility = post.visibility ?? (post.is_public === false ? 'followers' : 'public')
+  const privacyInfo = VISIBILITY_LABELS[visibility]
 
   return (
-    <div className="border-b border-gray-100 px-4 py-4">
+    <div className="border-b border-gray-100 bg-white px-4 py-4">
       <div className="flex items-center gap-3 mb-3">
         <Link href={`/teacher/${user.username}`}>
           <Avatar src={user.avatar_url} name={user.full_name} size="md" />
@@ -36,14 +44,14 @@ export default function PostCard({ post }: PostCardProps) {
           <Link href={`/teacher/${user.username}`} className="text-sm font-semibold text-gray-900 hover:text-brand-600">
             {user.full_name}
           </Link>
-          <div className="flex items-center gap-2 text-xs text-gray-400">
+          <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
             <span>@{user.username}</span>
             <span>·</span>
             <span>{formatDate(post.created_at)}</span>
             {post.city && <><span>·</span><span>{post.city}</span></>}
-            {!post.is_public && (
-              <span className="flex items-center gap-0.5 text-gray-400">
-                <Lock className="h-3 w-3" /> Solo seguidores
+            {privacyInfo && (
+              <span className="flex items-center gap-0.5">
+                <privacyInfo.icon className="h-3 w-3" /> {privacyInfo.label}
               </span>
             )}
           </div>
@@ -53,12 +61,13 @@ export default function PostCard({ post }: PostCardProps) {
       <p className="text-sm font-semibold text-gray-900 mb-3">{post.title}</p>
 
       {post.video_url && (
-        <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+        <div className="rounded-xl overflow-hidden bg-black">
           <video
             src={post.video_url}
             controls
             preload="metadata"
-            className="w-full h-full object-contain"
+            playsInline
+            className="w-full h-auto max-h-[85vh]"
             poster={post.thumbnail_url ?? undefined}
           />
         </div>

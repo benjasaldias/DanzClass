@@ -19,6 +19,7 @@ const schema = z.object({
   description: z.string().max(500).optional(),
   type: z.enum(['suelta', 'periodica']),
   dance_style: z.string().optional(),
+  class_type: z.enum(['coreografía', 'freestyle', 'otro']).optional(),
   level: z.enum(['principiante', 'intermedio', 'avanzado', 'todos']),
   // One-time
   date: z.string().optional(),
@@ -124,6 +125,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         description: data.description || null,
         type: data.type,
         dance_style: data.dance_style || null,
+        class_type: data.class_type || null,
         level: data.level,
         date: data.type === 'suelta' ? data.date : null,
         time: data.type === 'suelta' ? data.time : null,
@@ -307,6 +309,19 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Class type */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            Tipo <span className="text-gray-400 font-normal">(opcional)</span>
+          </label>
+          <select {...register('class_type')} className="input">
+            <option value="">Sin especificar</option>
+            <option value="coreografía">Coreografía</option>
+            <option value="freestyle">Freestyle</option>
+            <option value="otro">Otro</option>
+          </select>
         </div>
 
         {/* Schedule - One-time */}

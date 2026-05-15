@@ -23,6 +23,7 @@ import { DAYS_OF_WEEK } from '@danceclass/shared'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import CustomDatesCalendar from '@/components/class/CustomDatesCalendar'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@danceclass/shared'
 
@@ -79,6 +80,7 @@ export default function ClassDetailClient({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [showDatesCalendar, setShowDatesCalendar] = useState(false)
   const [leaving, setLeaving] = useState(false)
 
   const teacher = classData.teacher
@@ -293,6 +295,13 @@ export default function ClassDetailClient({
         />
       )}
 
+      {showDatesCalendar && (
+        <CustomDatesCalendar
+          dates={classData.custom_dates ?? []}
+          onClose={() => setShowDatesCalendar(false)}
+        />
+      )}
+
       <div className="px-4 pt-3 pb-1 flex items-center justify-between">
         <button
           onClick={() => router.back()}
@@ -429,7 +438,15 @@ export default function ClassDetailClient({
         <div className="card p-4 space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="h-4 w-4 text-brand-500 flex-shrink-0" />
-            <span className="text-gray-700">{scheduleText}</span>
+            <span className="text-gray-700 flex-1">{scheduleText}</span>
+            {classData.recurrence === 'custom' && (classData.custom_dates?.length ?? 0) > 0 && (
+              <button
+                onClick={() => setShowDatesCalendar(true)}
+                className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors flex-shrink-0"
+              >
+                <Calendar className="h-3 w-3" /> Ver fechas
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3 text-sm">

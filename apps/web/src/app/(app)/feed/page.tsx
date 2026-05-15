@@ -10,14 +10,14 @@ export default async function FeedPage() {
     supabase.from('follows').select('following_id').eq('follower_id', user!.id),
     supabase
       .from('classes')
-      .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
+      .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(20),
     supabase
       .from('posts' as any)
       .select('*, user:profiles!user_id(*)')
-      .eq('is_public', true)
+      .eq('visibility' as any, 'public')
       .order('created_at', { ascending: false })
       .limit(20),
   ])

@@ -60,7 +60,7 @@ export default function FeedClient({
 
     let classQuery = supabase
       .from('classes')
-      .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
+      .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(20)
@@ -80,9 +80,11 @@ export default function FeedClient({
       postQuery = postQuery.eq('city', currentProfile.city)
     }
 
-    // Posts: only public unless following
+    // Posts: only public unless following (followers/friends shown when following)
     if (filter !== 'following') {
-      postQuery = postQuery.eq('is_public', true)
+      postQuery = (postQuery as any).eq('visibility', 'public')
+    } else {
+      postQuery = (postQuery as any).in('visibility', ['public', 'followers', 'friends'])
     }
 
     const [{ data: classData }, { data: postData }] = await Promise.all([classQuery, postQuery])

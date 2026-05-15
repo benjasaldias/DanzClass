@@ -289,7 +289,11 @@ function ClassMiniCard({ cls }: { cls: any }) {
       )}
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm text-gray-900 truncate">{cls.title}</p>
-        {cls.dance_style && <p className="text-xs text-brand-600">{cls.dance_style}</p>}
+        {cls.dance_style && (
+          <p className="text-xs text-brand-600">
+            {cls.dance_style}{cls.class_type ? ` - ${cls.class_type}` : ''}
+          </p>
+        )}
         <p className="text-xs text-gray-500 mt-1">{schedule}</p>
         <p className="mt-1 text-sm font-bold text-gray-900">{formatCLP(cls.price)}</p>
         {cls.price_suelta && (

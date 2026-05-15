@@ -1,11 +1,13 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier } from '@/lib/subscription'
-import { canTeach, SUBSCRIPTION_PLANS } from '@danceclass/shared'
-import Link from 'next/link'
-import { Settings, CreditCard, Crown } from 'lucide-react'
+import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, ShieldCheck, Instagram, Music2 } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
+import { formatCLP, formatDate, formatTime } from '@/lib/utils'
 
 const TIER_LABELS: Record<string, string> = {
   none: 'Sin plan',
@@ -14,141 +16,229 @@ const TIER_LABELS: Record<string, string> = {
   pro: 'Plan Pro',
 }
 
-type Profile = {
-  id: string
-  username: string | null
-  full_name: string | null
-  avatar_url: string | null
-  bio?: string | null
-  city?: string | null
-}
-
 export default async function ProfilePage() {
   const supabase = createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
   const [
     { data: profileData },
     tier,
     { count: followersCount },
-    { count: followingCount },
+    { count: classesCount },
+    { count: paidSpotsCount },
+    { count: trustCount },
+    { data: classes },
+    { data: enrolledData },
   ] = await Promise.all([
-    supabase.from('profiles' as any).select('*').eq('id', user.id).single(),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
     getActiveTier(user.id, supabase as any),
+    supabase.from('follows' as any).select('*', { count: 'exact', head: true }).eq('following_id', user.id),
+    supabase.from('classes').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
     supabase
-      .from('follows' as any)
-      .select('*', { count: 'exact', head: true })
-      .eq('following_id', user.id),
+      .from('enrollments')
+      .select('*, class:classes!inner(*)', { count: 'exact', head: true })
+      .eq('class.teacher_id' as any, user.id)
+      .eq('status', 'confirmed'),
+    supabase.from('trust_endorsements' as any).select('*', { count: 'exact', head: true }).eq('endorsed_id', user.id),
     supabase
-      .from('follows' as any)
-      .select('*', { count: 'exact', head: true })
-      .eq('follower_id', user.id),
+      .from('classes')
+      .select('*, media:class_media(*)')
+      .eq('teacher_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('enrollments')
+      .select('*, class:classes(*, media:class_media(*))')
+      .eq('student_id', user.id)
+      .in('status', ['confirmed', 'payment_submitted'])
+      .order('created_at', { ascending: false })
+      .limit(10),
   ])
 
-  const profile = profileData as Profile | null
+  const profile = profileData as any
   const planInfo = SUBSCRIPTION_PLANS.find((p) => p.tier === tier)
+  const enrolledClasses = (enrolledData as any[]) ?? []
 
   return (
-    <div className="px-4 py-6 space-y-5">
-      <div className="flex flex-col items-center text-center gap-3">
-        <Avatar
-          src={profile?.avatar_url}
-          name={profile?.full_name ?? '?'}
-          size="xl"
-        />
+    <div className="flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-6 flex flex-col items-center text-center gap-3">
+        <Avatar src={profile?.avatar_url} name={profile?.full_name ?? '?'} size="xl" />
 
         <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            {profile?.full_name ?? 'Usuario'}
-          </h1>
-
-          <p className="text-sm text-gray-500">
-            @{profile?.username ?? 'sin-usuario'}
-          </p>
-
-          <span className="mt-1 badge bg-brand-50 text-brand-700">
-            {TIER_LABELS[tier] ?? 'Sin plan'}
-          </span>
+          <h1 className="text-xl font-bold text-gray-900">{profile?.full_name ?? 'Usuario'}</h1>
+          <p className="text-sm text-gray-500">@{profile?.username ?? 'sin-usuario'}</p>
         </div>
 
         {profile?.bio && (
-          <p className="text-sm text-gray-600">{profile.bio}</p>
+          <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{profile.bio}</p>
         )}
 
-        <div className="flex gap-6 text-sm text-gray-500">
-          <div className="text-center">
-            <p className="text-lg font-bold text-gray-900">
-              {followersCount ?? 0}
-            </p>
-            <p>seguidores</p>
-          </div>
+        <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap justify-center">
+          {profile?.city && (
+            <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{profile.city}</span>
+          )}
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5" />
+            <strong className="text-gray-900">{followersCount ?? 0}</strong> seguidores
+          </span>
+        </div>
 
-          <div className="text-center">
-            <p className="text-lg font-bold text-gray-900">
-              {followingCount ?? 0}
-            </p>
-            <p>siguiendo</p>
+        {/* Stats row */}
+        <div className="flex items-center gap-4 flex-wrap justify-center mt-1">
+          <div className="flex flex-col items-center">
+            <span className="text-base font-bold text-gray-900">{classesCount ?? 0}</span>
+            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
           </div>
+          <div className="h-7 w-px bg-gray-200" />
+          <div className="flex flex-col items-center">
+            <span className="text-base font-bold text-gray-900">{paidSpotsCount ?? 0}</span>
+            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
+          </div>
+          <div className="h-7 w-px bg-gray-200" />
+          <div className="flex flex-col items-center">
+            <span className="text-base font-bold text-green-700">{trustCount ?? 0}</span>
+            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
+          </div>
+        </div>
+
+        {profile?.instagram_handle && (
+          <a href={`https://instagram.com/${profile.instagram_handle}`} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm text-pink-600 hover:text-pink-700">
+            <Instagram className="h-4 w-4" />@{profile.instagram_handle}
+          </a>
+        )}
+
+        {/* Own-profile action buttons */}
+        <div className="flex gap-2 flex-wrap justify-center">
+          <Link
+            href="/profile/edit"
+            className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 text-gray-700 hover:border-brand-400 hover:text-brand-700 transition-colors"
+          >
+            <Settings className="h-4 w-4" />
+            Editar perfil
+          </Link>
+
+          {canTeach(tier) && (
+            <Link
+              href="/profile/payment-info"
+              className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 text-gray-700 hover:border-brand-400 hover:text-brand-700 transition-colors"
+            >
+              <CreditCard className="h-4 w-4" />
+              Datos Transferencia
+            </Link>
+          )}
+
+          <LogoutButton asButton />
         </div>
       </div>
 
-      {/* Suscripción */}
-      <div className="card px-4 py-3 flex items-center justify-between">
+      {/* Subscription banner */}
+      <div className="mx-4 mb-4 rounded-xl border border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Crown className="h-5 w-5 text-brand-500" />
-
           <div>
-            <p className="text-sm font-medium text-gray-900">
-              {TIER_LABELS[tier] ?? 'Sin plan'}
-            </p>
-
-            {planInfo && (
-              <p className="text-xs text-gray-500">
-                {planInfo.description}
-              </p>
-            )}
+            <p className="text-sm font-medium text-gray-900">{TIER_LABELS[tier] ?? 'Sin plan'}</p>
+            {planInfo && <p className="text-xs text-gray-500">{planInfo.description}</p>}
           </div>
         </div>
-
-        <Link
-          href="/plans"
-          className="text-xs font-semibold text-brand-600 hover:text-brand-700"
-        >
+        <Link href="/plans" className="text-xs font-semibold text-brand-600 hover:text-brand-700">
           {tier === 'none' ? 'Suscribirse' : 'Cambiar'}
         </Link>
       </div>
 
-      {/* Settings links */}
-      <div className="card divide-y divide-gray-100">
-        <Link
-          href="/profile/edit"
-          className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
-        >
-          <Settings className="h-5 w-5 text-gray-400" />
-          <span className="text-sm font-medium text-gray-700">
-            Editar perfil
-          </span>
-        </Link>
+      {/* Estilos de baile */}
+      {((profile?.styles_dancing?.length ?? 0) > 0 || (profile?.styles_teaching?.length ?? 0) > 0) && (
+        <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-4">
+          {(profile?.styles_dancing?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Baila</p>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.styles_dancing.map((s: string) => (
+                  <span key={s} className="badge bg-gray-100 text-gray-700">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {(profile?.styles_teaching?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Enseña</p>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.styles_teaching.map((s: string) => (
+                  <span key={s} className="badge bg-brand-50 text-brand-700">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-        {canTeach(tier) && (
-          <Link
-            href="/profile/payment-info"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
-          >
-            <CreditCard className="h-5 w-5 text-gray-400" />
-            <span className="text-sm font-medium text-gray-700">
-              Datos bancarios
-            </span>
-          </Link>
-        )}
+      {/* Clases publicadas */}
+      {(classes ?? []).length > 0 && (
+        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
+          <h2 className="font-bold text-gray-900 mb-3">Mis clases activas</h2>
+          <div className="space-y-3">
+            {(classes ?? []).map((cls: any) => <ClassMiniCard key={cls.id} cls={cls} />)}
+          </div>
+        </div>
+      )}
 
-        <LogoutButton />
-      </div>
+      {/* Inscripciones */}
+      {enrolledClasses.length > 0 && (
+        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
+          <h2 className="font-bold text-gray-900 mb-3">Mis inscripciones</h2>
+          <div className="space-y-3">
+            {enrolledClasses.map((e: any) => e.class && <ClassMiniCard key={e.id} cls={e.class} />)}
+          </div>
+        </div>
+      )}
+
+      {(classes ?? []).length === 0 && enrolledClasses.length === 0 && (
+        <div className="flex flex-col items-center py-10 text-center text-gray-500 border-t border-gray-100">
+          <Music2 className="h-10 w-10 text-gray-300 mb-3" />
+          <p className="text-sm">Sin actividad pública aún</p>
+        </div>
+      )}
     </div>
+  )
+}
+
+function ClassMiniCard({ cls }: { cls: any }) {
+  const firstMedia = cls.media?.[0]
+  const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
+  const schedule = cls.type === 'suelta'
+    ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
+    : cls.recurrence === 'custom'
+      ? `${cls.custom_dates?.length ?? 0} clases · ${formatTime(cls.recurring_time)}`
+      : `${recurrenceLabel[cls.recurrence] ?? ''} · ${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`
+
+  return (
+    <Link href={`/class/${cls.id}`} className="card flex gap-3 p-3 hover:shadow-md transition-shadow">
+      {firstMedia ? (
+        <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+          {firstMedia.type === 'image'
+            ? <Image src={firstMedia.url} alt={cls.title} fill className="object-cover" sizes="80px" />
+            : <video src={firstMedia.url} className="h-full w-full object-cover" />}
+        </div>
+      ) : (
+        <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
+          <Music2 className="h-8 w-8 text-brand-400" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm text-gray-900 truncate">{cls.title}</p>
+        {cls.dance_style && (
+          <p className="text-xs text-brand-600">
+            {cls.dance_style}{cls.class_type ? ` - ${cls.class_type}` : ''}
+          </p>
+        )}
+        <p className="text-xs text-gray-500 mt-1">{schedule}</p>
+        <p className="mt-1 text-sm font-bold text-gray-900">{formatCLP(cls.price)}</p>
+        {cls.price_suelta && (
+          <p className="text-xs text-gray-400">Suelta: {formatCLP(cls.price_suelta)}</p>
+        )}
+      </div>
+    </Link>
   )
 }

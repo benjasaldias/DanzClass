@@ -2,10 +2,12 @@
 
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { X, Upload, Loader2, Globe, Lock } from 'lucide-react'
+import { X, Upload, Loader2, Globe, Lock, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import CityCombobox from '@/components/ui/CityCombobox'
 import { cn } from '@/lib/utils'
+
+type Visibility = 'public' | 'followers' | 'friends'
 
 interface CreatePostModalProps {
   userId: string
@@ -14,9 +16,15 @@ interface CreatePostModalProps {
   onCreated: (post: any) => void
 }
 
+const VISIBILITY_OPTIONS: { value: Visibility; label: string; icon: React.ElementType; active: string; inactive: string }[] = [
+  { value: 'public', label: 'Público', icon: Globe, active: 'bg-brand-50 border-brand-200 text-brand-700', inactive: 'border-gray-200 text-gray-500' },
+  { value: 'followers', label: 'Seguidores', icon: Lock, active: 'bg-gray-100 border-gray-300 text-gray-700', inactive: 'border-gray-200 text-gray-500' },
+  { value: 'friends', label: 'Amigos', icon: Users, active: 'bg-purple-50 border-purple-200 text-purple-700', inactive: 'border-gray-200 text-gray-500' },
+]
+
 export default function CreatePostModal({ userId, userCity, onClose, onCreated }: CreatePostModalProps) {
   const [title, setTitle] = useState('')
-  const [isPublic, setIsPublic] = useState(true)
+  const [visibility, setVisibility] = useState<Visibility>('public')
   const [city, setCity] = useState(userCity ?? '')
   const [videoFile, setVideoFile] = useState<{ file: File; preview: string } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -66,7 +74,8 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
         user_id: userId,
         title: title.trim(),
         video_url: videoUrl,
-        is_public: isPublic,
+        is_public: visibility === 'public',
+        visibility,
         city: city || null,
       } as any)
       .select('*, user:profiles!user_id(*)')
@@ -106,8 +115,8 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
 
           {/* Video */}
           {videoFile ? (
-            <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
-              <video src={videoFile.preview} controls className="w-full h-full object-contain" />
+            <div className="relative rounded-xl overflow-hidden bg-black">
+              <video src={videoFile.preview} controls className="w-full h-auto max-h-[60vh]" />
               <button
                 type="button"
                 onClick={() => setVideoFile(null)}
@@ -137,23 +146,23 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
           </div>
 
           {/* Visibilidad */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setIsPublic(true)}
-              className={cn('flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium border transition-colors',
-                isPublic ? 'bg-brand-50 border-brand-200 text-brand-700' : 'border-gray-200 text-gray-500')}
-            >
-              <Globe className="h-3.5 w-3.5" /> Público
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsPublic(false)}
-              className={cn('flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium border transition-colors',
-                !isPublic ? 'bg-gray-100 border-gray-300 text-gray-700' : 'border-gray-200 text-gray-500')}
-            >
-              <Lock className="h-3.5 w-3.5" /> Solo seguidores
-            </button>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Visibilidad</label>
+            <div className="flex gap-2">
+              {VISIBILITY_OPTIONS.map(({ value, label, icon: Icon, active, inactive }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setVisibility(value)}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium border transition-colors',
+                    visibility === value ? active : inactive
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
