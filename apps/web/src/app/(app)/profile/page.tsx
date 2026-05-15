@@ -35,19 +35,19 @@ export default async function ProfilePage() {
     getActiveTier(user.id, supabase as any),
     supabase.from('follows' as any).select('*', { count: 'exact', head: true }).eq('following_id', user.id),
     supabase.from('classes').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
-    supabase
+    (supabase as any)
       .from('enrollments')
       .select('*, class:classes!inner(*)', { count: 'exact', head: true })
-      .eq('class.teacher_id' as any, user.id)
+      .eq('class.teacher_id', user.id)
       .eq('status', 'confirmed'),
     supabase.from('trust_endorsements' as any).select('*', { count: 'exact', head: true }).eq('endorsed_id', user.id),
-    supabase
+    (supabase as any)
       .from('classes')
       .select('*, media:class_media(*)')
       .eq('teacher_id', user.id)
       .eq('status', 'active')
       .order('created_at', { ascending: false }),
-    supabase
+    (supabase as any)
       .from('enrollments')
       .select('*, class:classes(*, media:class_media(*))')
       .eq('student_id', user.id)
