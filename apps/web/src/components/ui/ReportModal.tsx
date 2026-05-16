@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { X, Loader2, Flag } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
 type Reason = 'copyright' | 'inappropriate' | 'spam' | 'other'
 type ContentType = 'post' | 'class'
@@ -37,7 +36,7 @@ const REASONS: { value: Reason; label: string; description: string }[] = [
   },
 ]
 
-export default function ReportModal({ contentType, contentId, reporterId, onClose }: ReportModalProps) {
+export default function ReportModal({ contentType, contentId, reporterId: _reporterId, onClose }: ReportModalProps) {
   const [reason, setReason] = useState<Reason | null>(null)
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -50,17 +49,15 @@ export default function ReportModal({ contentType, contentId, reporterId, onClos
     setLoading(true)
     setError(null)
 
-    const supabase = createClient()
-    const { error: insertErr } = await (supabase as any).from('reports').insert({
-      reporter_id: reporterId,
-      content_type: contentType,
-      content_id: contentId,
-      reason,
-      description: description.trim() || null,
+    const res = await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType, contentId, reason, description }),
     })
 
-    if (insertErr) {
-      if (insertErr.code === '23505') {
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      if (data.error === 'duplicate' || res.status === 409) {
         setError('Ya reportaste este contenido anteriormente.')
       } else {
         setError('Error al enviar el reporte. Intenta de nuevo.')

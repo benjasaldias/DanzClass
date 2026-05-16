@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { ClassType, ClassLevel } from '@danceclass/shared'
 
 const schema = z.object({
@@ -74,6 +75,8 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   const [cityValue, setCityValue] = useState<string>(classData.city ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const totalMedia = existingMedia.length + newMediaFiles.length
 
@@ -221,8 +224,41 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
     router.refresh()
   }
 
+  async function handleDeleteClass() {
+    setDeleting(true)
+    const { data: enrollments } = await supabase
+      .from('enrollments' as any)
+      .select('student_id')
+      .eq('class_id', classData.id)
+      .in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
+
+    if ((enrollments as any[])?.length > 0) {
+      await supabase.from('notifications' as any).insert(
+        (enrollments as any[]).map((e: any) => ({
+          user_id: e.student_id,
+          type: 'class_cancelled',
+          data: { class_id: classData.id, class_title: classData.title },
+        })) as any
+      )
+    }
+    await supabase.from('classes' as any).update({ status: 'cancelled' } as any).eq('id', classData.id)
+    setDeleting(false)
+    router.push('/my-classes')
+  }
+
   return (
     <div className="px-4 py-4">
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar clase"
+          message={`¿Eliminar "${classData.title}"? Todos los inscritos serán notificados. Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar clase"
+          destructive
+          loading={deleting}
+          onConfirm={handleDeleteClass}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
       <h1 className="text-xl font-bold text-gray-900 mb-1">Editar clase</h1>
       <p className="text-sm text-gray-500 mb-5">Los inscritos serán notificados de los cambios</p>
 
@@ -470,6 +506,18 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           ) : 'Guardar cambios'}
         </button>
       </form>
+
+      <div className="mt-8 border-t border-gray-100 pt-6">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Zona peligrosa</p>
+        <button
+          type="button"
+          onClick={() => setShowDeleteConfirm(true)}
+          className="flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <Trash2 className="h-4 w-4" />
+          Eliminar esta clase
+        </button>
+      </div>
     </div>
   )
 }

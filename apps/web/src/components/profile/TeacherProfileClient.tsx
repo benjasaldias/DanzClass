@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock, ShieldCheck, BookOpen, Star } from 'lucide-react'
+import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock, ShieldCheck, BookOpen, Star, Video } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import TrustButton from '@/components/ui/TrustButton'
+import PostCard from '@/components/feed/PostCard'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import type { Profile } from '@danceclass/shared'
 
@@ -18,6 +19,7 @@ interface TeacherProfileClientProps {
   teacher: Profile
   classes: any[]
   enrolledClasses: any[]
+  posts: any[]
   followersCount: number
   isFollowing: boolean
   currentUserId?: string
@@ -33,6 +35,7 @@ export default function TeacherProfileClient({
   teacher,
   classes,
   enrolledClasses,
+  posts,
   followersCount: initialFollowers,
   isFollowing: initialIsFollowing,
   currentUserId,
@@ -255,7 +258,22 @@ export default function TeacherProfileClient({
         </div>
       )}
 
-      {classes.length === 0 && enrolledClasses.length === 0 && (
+      {/* Publicaciones (videos) */}
+      {posts.length > 0 && (
+        <div className="border-t border-gray-100 pt-4 pb-2">
+          <h2 className="font-bold text-gray-900 mb-1 px-4 flex items-center gap-2">
+            <Video className="h-4 w-4 text-brand-500" />
+            {isOwnProfile ? 'Mis publicaciones' : 'Publicaciones'}
+          </h2>
+          <div>
+            {posts.map((post: any) => (
+              <PostCard key={post.id} post={post} currentUserId={currentUserId} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {classes.length === 0 && enrolledClasses.length === 0 && posts.length === 0 && (
         <div className="flex flex-col items-center py-10 text-center text-gray-500 border-t border-gray-100">
           <Music2 className="h-10 w-10 text-gray-300 mb-3" />
           <p className="text-sm">Sin actividad pública aún</p>

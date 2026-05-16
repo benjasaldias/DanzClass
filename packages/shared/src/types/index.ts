@@ -22,6 +22,7 @@ export type NotificationType =
   | 'class_updated'
   | 'class_cancelled'
   | 'debt_warning'
+  | 'new_report'
 
 export type ClassType = 'suelta' | 'periodica'
 export type ClassLevel = 'principiante' | 'intermedio' | 'avanzado' | 'todos'

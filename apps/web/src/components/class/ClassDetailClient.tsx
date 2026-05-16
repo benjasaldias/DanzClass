@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import type { ElementType } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   MapPin,
@@ -353,19 +352,17 @@ export default function ClassDetailClient({
       </div>
 
       {media.length > 0 && (
-        <div className="relative aspect-square bg-gray-100">
+        <div className="relative w-full bg-black" style={{ minHeight: '240px' }}>
           {media[currentMediaIndex].type === 'image' ? (
-            <Image
+            <img
               src={media[currentMediaIndex].url}
               alt={classData.title}
-              fill
-              className="object-cover"
-              sizes="512px"
+              className="w-full h-auto max-h-[70vh] object-contain mx-auto block"
             />
           ) : (
             <video
               src={media[currentMediaIndex].url}
-              className="w-full h-full object-cover"
+              className="w-full h-auto max-h-[85vh] block"
               controls
               playsInline
             />

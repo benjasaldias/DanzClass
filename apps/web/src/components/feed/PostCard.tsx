@@ -1,11 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Lock, Users, Flag } from 'lucide-react'
+import { Lock, Users, Flag, MoreVertical, Globe, Trash2, Pencil, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import ReportModal from '@/components/ui/ReportModal'
+
+type Visibility = 'public' | 'followers' | 'friends'
 
 interface PostCardProps {
   post: {
@@ -14,7 +19,7 @@ interface PostCardProps {
     video_url: string | null
     thumbnail_url: string | null
     is_public?: boolean
-    visibility?: 'public' | 'followers' | 'friends'
+    visibility?: Visibility
     city: string | null
     created_at: string
     user: {
@@ -32,16 +37,76 @@ const VISIBILITY_LABELS: Record<string, { icon: React.ElementType; label: string
   friends: { icon: Users, label: 'Solo amigos' },
 }
 
+const VISIBILITY_OPTIONS: { value: Visibility; label: string; icon: React.ElementType }[] = [
+  { value: 'public', label: 'Público', icon: Globe },
+  { value: 'followers', label: 'Seguidores', icon: Lock },
+  { value: 'friends', label: 'Amigos', icon: Users },
+]
+
 export default function PostCard({ post, currentUserId }: PostCardProps) {
+  const router = useRouter()
   const [showReport, setShowReport] = useState(false)
+  const [showOptions, setShowOptions] = useState(false)
+  const [showEditVisibility, setShowEditVisibility] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [savingVisibility, setSavingVisibility] = useState(false)
+  const [visibility, setVisibility] = useState<Visibility>(
+    post.visibility ?? (post.is_public === false ? 'followers' : 'public')
+  )
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const user = post.user
-  const visibility = post.visibility ?? (post.is_public === false ? 'followers' : 'public')
   const privacyInfo = VISIBILITY_LABELS[visibility]
-  const canReport = !!currentUserId && currentUserId !== user.id
+  const isAuthor = !!currentUserId && currentUserId === user.id
+  const canReport = !!currentUserId && !isAuthor
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowOptions(false)
+      }
+    }
+    if (showOptions) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showOptions])
+
+  async function handleDelete() {
+    setDeleting(true)
+    const supabase = createClient()
+    await (supabase as any).from('posts').delete().eq('id', post.id)
+    setDeleting(false)
+    setShowDeleteConfirm(false)
+    router.refresh()
+  }
+
+  async function handleVisibilityChange(newVisibility: Visibility) {
+    setSavingVisibility(true)
+    const supabase = createClient()
+    await (supabase as any).from('posts').update({
+      visibility: newVisibility,
+      is_public: newVisibility === 'public',
+    }).eq('id', post.id)
+    setVisibility(newVisibility)
+    setSavingVisibility(false)
+    setShowEditVisibility(false)
+    setShowOptions(false)
+  }
 
   return (
     <>
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar publicación"
+          message={`¿Eliminar "${post.title}"? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          destructive
+          loading={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
       <div className="border-b border-gray-100 bg-white px-4 py-4">
         <div className="flex items-center gap-3 mb-3">
           <Link href={`/teacher/${user.username}`}>
@@ -63,6 +128,69 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
               )}
             </div>
           </div>
+
+          {isAuthor && (
+            <div className="relative flex-shrink-0" ref={menuRef}>
+              <button
+                onClick={() => setShowOptions(!showOptions)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                aria-label="Opciones"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              {showOptions && !showEditVisibility && (
+                <div className="absolute right-0 top-7 z-20 w-48 rounded-xl border border-gray-200 bg-white shadow-lg py-1">
+                  <button
+                    onClick={() => setShowEditVisibility(true)}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Pencil className="h-4 w-4 text-gray-400" />
+                    Editar privacidad
+                  </button>
+                  <button
+                    onClick={() => { setShowOptions(false); setShowDeleteConfirm(true) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </button>
+                </div>
+              )}
+              {showOptions && showEditVisibility && (
+                <div className="absolute right-0 top-7 z-20 w-52 rounded-xl border border-gray-200 bg-white shadow-lg p-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-2 px-1">Visibilidad</p>
+                  <div className="space-y-1">
+                    {VISIBILITY_OPTIONS.map(({ value, label, icon: Icon }) => (
+                      <button
+                        key={value}
+                        onClick={() => handleVisibilityChange(value)}
+                        disabled={savingVisibility}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-colors ${
+                          visibility === value
+                            ? 'bg-brand-50 text-brand-700 font-medium'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {savingVisibility && visibility !== value ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Icon className="h-4 w-4" />
+                        )}
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowEditVisibility(false)}
+                    className="mt-2 w-full text-xs text-gray-400 hover:text-gray-600 text-center py-1"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {canReport && (
             <button
               onClick={() => setShowReport(true)}

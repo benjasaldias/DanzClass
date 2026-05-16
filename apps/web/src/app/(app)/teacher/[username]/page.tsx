@@ -124,12 +124,32 @@ export default async function UserProfilePage({ params }: Props) {
       classId: e.class.id,
     }))
 
+  // Fetch posts filtered by viewer's relationship with this profile
+  const isFriendFinal = friendStatus === 'accepted'
+  const isFollowingFinal = !!followData.data
+  const visibilities = isOwnProfile
+    ? ['public', 'followers', 'friends']
+    : isFriendFinal
+      ? ['public', 'followers', 'friends']
+      : isFollowingFinal
+        ? ['public', 'followers']
+        : ['public']
+
+  const { data: postsData } = await (supabase as any)
+    .from('posts')
+    .select('*, user:profiles!user_id(id, full_name, username, avatar_url)')
+    .eq('user_id', profileUser.id)
+    .in('visibility', visibilities)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
   return (
     <>
       <TeacherProfileClient
         teacher={profileUser}
         classes={classes ?? []}
         enrolledClasses={enrolledData.data ?? []}
+        posts={postsData ?? []}
         followersCount={followersCount ?? 0}
         isFollowing={!!followData.data}
         currentUserId={user?.id}

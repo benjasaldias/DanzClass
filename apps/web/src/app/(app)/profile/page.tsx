@@ -4,9 +4,10 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, ShieldCheck, Instagram, Music2 } from 'lucide-react'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, ShieldCheck, Instagram, Music2, Video } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
+import PostCard from '@/components/feed/PostCard'
 import { formatCLP, formatDate, formatTime } from '@/lib/utils'
 
 const TIER_LABELS: Record<string, string> = {
@@ -30,6 +31,7 @@ export default async function ProfilePage() {
     { count: trustCount },
     { data: classes },
     { data: enrolledData },
+    { data: ownPostsData },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     getActiveTier(user.id, supabase as any),
@@ -54,11 +56,18 @@ export default async function ProfilePage() {
       .in('status', ['confirmed', 'payment_submitted'])
       .order('created_at', { ascending: false })
       .limit(10),
+    (supabase as any)
+      .from('posts')
+      .select('*, user:profiles!user_id(id, full_name, username, avatar_url)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20),
   ])
 
   const profile = profileData as any
   const planInfo = SUBSCRIPTION_PLANS.find((p) => p.tier === tier)
   const enrolledClasses = (enrolledData as any[]) ?? []
+  const ownPosts = (ownPostsData as any[]) ?? []
 
   return (
     <div className="flex flex-col">
@@ -194,7 +203,22 @@ export default async function ProfilePage() {
         </div>
       )}
 
-      {(classes ?? []).length === 0 && enrolledClasses.length === 0 && (
+      {/* Publicaciones propias */}
+      {ownPosts.length > 0 && (
+        <div className="border-t border-gray-100 pt-4 pb-2">
+          <h2 className="font-bold text-gray-900 mb-1 px-4 flex items-center gap-2">
+            <Video className="h-4 w-4 text-brand-500" />
+            Mis publicaciones
+          </h2>
+          <div>
+            {ownPosts.map((post: any) => (
+              <PostCard key={post.id} post={post} currentUserId={user.id} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(classes ?? []).length === 0 && enrolledClasses.length === 0 && ownPosts.length === 0 && (
         <div className="flex flex-col items-center py-10 text-center text-gray-500 border-t border-gray-100">
           <Music2 className="h-10 w-10 text-gray-300 mb-3" />
           <p className="text-sm">Sin actividad pública aún</p>

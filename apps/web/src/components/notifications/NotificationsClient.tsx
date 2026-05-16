@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import {
   UserPlus, UserCheck, Bell, Music2, AlertCircle,
-  CheckCircle2, XCircle, Users,
+  CheckCircle2, XCircle, Users, Flag,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -118,6 +118,17 @@ const NOTIF_CONFIG: Record<string, {
     color: 'text-red-500 bg-red-50',
     label: (data) => `⚠️ ${data.student_name ?? 'Un alumno'} que te debe un pago se inscribió en tu clase`,
     href: () => '/my-classes',
+  },
+  new_report: {
+    icon: Flag,
+    color: 'text-orange-500 bg-orange-50',
+    label: (data) => {
+      const type = data.content_type === 'post' ? 'video' : 'clase'
+      const reason = data.reason ?? ''
+      const reporter = data.reporter_name ? `@${data.reporter_name}` : 'alguien'
+      return `Nuevo reporte de ${reporter}: ${reason} en ${type}`
+    },
+    href: () => '/admin',
   },
 }
 
