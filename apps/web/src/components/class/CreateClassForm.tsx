@@ -12,19 +12,19 @@ import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
-import type { ClassType, ClassLevel, Recurrence, SubscriptionTier } from '@danceclass/shared'
+import type { ClassLevel, Recurrence, SubscriptionTier } from '@danceclass/shared'
 
 const schema = z.object({
   title: z.string().min(3, 'Mínimo 3 caracteres').max(80),
   description: z.string().max(500).optional(),
-  type: z.enum(['suelta', 'periodica']),
+  type: z.enum(['suelta', 'periodica', 'entrenamiento']),
   dance_style: z.string().optional(),
   class_type: z.enum(['coreografía', 'freestyle', 'otro']).optional(),
   level: z.enum(['principiante', 'intermedio', 'avanzado', 'todos']),
   // One-time
   date: z.string().optional(),
   time: z.string().optional(),
-  // Periodic
+  // Periodic / Entrenamiento
   recurrence: z.enum(['weekly', 'biweekly', 'custom']).optional(),
   day_of_week: z.coerce.number().min(0).max(6).optional(),
   recurring_time: z.string().optional(),
@@ -36,6 +36,13 @@ const schema = z.object({
   max_spots: z.coerce.number().min(1).max(100),
   price: z.coerce.number().min(0),
   price_suelta: z.coerce.number().min(0).optional(),
+  price_2x: z.coerce.number().min(0).optional(),
+  price_suelta_2x: z.coerce.number().min(0).optional(),
+  // End date
+  ends_at: z.string().optional(),
+  ends_indefinitely: z.boolean().optional(),
+  // Entrenamiento
+  requires_audition: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   if (data.type === 'suelta') {
     if (!data.date) ctx.addIssue({ code: 'custom', path: ['date'], message: 'Requerido para clase suelta' })
@@ -47,6 +54,13 @@ const schema = z.object({
       if (data.day_of_week === undefined || data.day_of_week === null || isNaN(data.day_of_week as number)) {
         ctx.addIssue({ code: 'custom', path: ['day_of_week'], message: 'Requerido' })
       }
+    }
+    // ends_at required for periodica (not entrenamiento with indefinitely)
+    if (data.type === 'periodica' && !data.ends_at) {
+      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'Las clases periódicas requieren fecha de término' })
+    }
+    if (data.type === 'entrenamiento' && !data.ends_at && !data.ends_indefinitely) {
+      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'Indica fecha de término o marca como Indefinido' })
     }
   }
 })
@@ -72,18 +86,29 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
   const [cityValue, setCityValue] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showIndefinitePopup, setShowIndefinitePopup] = useState(false)
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { type: 'suelta', level: 'todos', duration_minutes: 60 },
+    defaultValues: {
+      type: 'suelta',
+      level: 'todos',
+      duration_minutes: 60,
+      ends_indefinitely: false,
+      requires_audition: false,
+    },
   })
 
   const classType = watch('type')
   const recurrence = watch('recurrence')
+  const endsIndefinitely = watch('ends_indefinitely')
+  const requiresAudition = watch('requires_audition')
 
-  const maxMedia = mediaLimit
+  const isEntrenamiento = classType === 'entrenamiento'
+  const isPeriodic = classType === 'periodica' || isEntrenamiento
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.slice(0, maxMedia - mediaFiles.length).map((file) => ({
+    const newFiles = acceptedFiles.slice(0, mediaLimit - mediaFiles.length).map((file) => ({
       file,
       preview: URL.createObjectURL(file),
       type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
@@ -107,8 +132,17 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
     setMediaFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
+  function handleIndefiniteChange(checked: boolean) {
+    if (checked && classType === 'periodica') {
+      setShowIndefinitePopup(true)
+      return
+    }
+    setValue('ends_indefinitely', checked)
+    if (checked) setValue('ends_at', undefined)
+  }
+
   async function onSubmit(data: FormData) {
-    if (data.type === 'periodica' && data.recurrence === 'custom' && customDates.length === 0) {
+    if (isPeriodic && data.recurrence === 'custom' && customDates.length === 0) {
       setError('Selecciona al menos una fecha en el calendario')
       return
     }
@@ -129,19 +163,25 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         level: data.level,
         date: data.type === 'suelta' ? data.date : null,
         time: data.type === 'suelta' ? data.time : null,
-        recurrence: data.type === 'periodica' ? data.recurrence : null,
-        day_of_week: data.type === 'periodica' && data.recurrence !== 'custom' ? data.day_of_week : null,
-        recurring_time: data.type === 'periodica' ? data.recurring_time : null,
-        custom_dates: data.type === 'periodica' && data.recurrence === 'custom' ? customDates : [],
+        recurrence: isPeriodic ? data.recurrence : null,
+        day_of_week: isPeriodic && data.recurrence !== 'custom' ? data.day_of_week : null,
+        recurring_time: isPeriodic ? data.recurring_time : null,
+        custom_dates: isPeriodic && data.recurrence === 'custom' ? customDates : [],
         duration_minutes: data.duration_minutes,
         location_name: data.location_name || null,
         location_address: data.location_address || null,
         city: cityValue || null,
         max_spots: data.max_spots,
         price: data.price,
-        price_suelta: data.type === 'periodica' && data.price_suelta ? data.price_suelta : null,
+        price_suelta: (classType === 'periodica' && data.price_suelta) ? data.price_suelta : null,
+        price_2x: data.price_2x || null,
+        price_suelta_2x: (classType === 'periodica' && data.price_suelta_2x) ? data.price_suelta_2x : null,
+        ends_at: isPeriodic && !data.ends_indefinitely ? (data.ends_at || null) : null,
+        ends_indefinitely: isEntrenamiento ? (data.ends_indefinitely ?? false) : false,
+        requires_audition: isEntrenamiento ? (data.requires_audition ?? false) : false,
+        audition_closed: false,
         status: 'active',
-      })
+      } as any)
       .select()
       .single()
 
@@ -156,40 +196,18 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       const { file, type } = mediaFiles[i]
       const ext = file.name.split('.').pop()
       const path = `${classRecord.id}/${i}.${ext}`
-
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from('class-media')
-        .upload(path, file)
-
-      if (uploadErr || !uploadData) {
-        console.error('Media upload error:', uploadErr)
-        mediaError = true
-        continue
-      }
-
+      const { data: uploadData, error: uploadErr } = await supabase.storage.from('class-media').upload(path, file)
+      if (uploadErr || !uploadData) { mediaError = true; continue }
       const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
       const { error: mediaInsertErr } = await supabase.from('class_media').insert({
-        class_id: classRecord.id,
-        type,
-        url: urlData.publicUrl,
-        order_index: i,
+        class_id: classRecord.id, type, url: urlData.publicUrl, order_index: i,
       })
-      if (mediaInsertErr) {
-        console.error('class_media insert error:', mediaInsertErr)
-        mediaError = true
-      }
+      if (mediaInsertErr) mediaError = true
     }
 
-    if (mediaError) {
-      setError('La clase se creó correctamente, pero hubo un error al subir algunos archivos multimedia.')
-    }
+    if (mediaError) setError('La clase se creó, pero hubo un error al subir algunos archivos.')
 
-    // Notify all followers about the new class
-    const { data: followers } = await supabase
-      .from('follows')
-      .select('follower_id')
-      .eq('following_id', teacherId)
-
+    const { data: followers } = await supabase.from('follows').select('follower_id').eq('following_id', teacherId)
     if (followers && followers.length > 0) {
       await supabase.from('notifications').insert(
         followers.map((f) => ({
@@ -208,6 +226,25 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
     <div className="px-4 py-4">
       <h1 className="text-xl font-bold text-gray-900 mb-1">Publicar clase</h1>
       <p className="text-sm text-gray-500 mb-5">Comparte los detalles de tu clase</p>
+
+      {/* Indefinite popup for periodica */}
+      {showIndefinitePopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-base font-bold text-gray-900 mb-2">Usa el tipo "Entrenamiento"</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Las clases sin fecha de término deben ser de tipo <strong>Entrenamiento</strong>.
+              Las clases periódicas regulares requieren una fecha de cierre.
+            </p>
+            <button
+              onClick={() => setShowIndefinitePopup(false)}
+              className="w-full btn-primary py-2.5"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
 
       {!hasPaymentInfo && (
         <div className="mb-4 rounded-xl bg-yellow-50 border border-yellow-200 p-4 flex gap-3">
@@ -241,7 +278,6 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
           <Info className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-gray-600">
             Plan Básico: puedes publicar <strong>1 clase suelta por mes</strong> con hasta <strong>1 foto o video</strong>.
-            Actualiza a Pro para publicar clases ilimitadas.
           </p>
         </div>
       )}
@@ -250,31 +286,24 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         {/* Type selector */}
         <div>
           <label className="mb-2 block text-sm font-medium text-gray-700">Tipo de clase</label>
-          <div className="grid grid-cols-2 gap-3">
-            {(['suelta', 'periodica'] as ClassType[]).map((t) => {
-              const locked = isBasic && t === 'periodica'
-              return (
-                <label key={t} className={cn(
-                  'flex flex-col gap-1 rounded-xl border-2 p-3 transition-colors',
-                  locked ? 'opacity-40 cursor-not-allowed border-gray-200' : 'cursor-pointer',
-                  !locked && classType === t ? 'border-brand-500 bg-brand-50' : 'border-gray-200'
-                )}>
-                  <input
-                    type="radio"
-                    value={t}
-                    {...register('type')}
-                    className="sr-only"
-                    disabled={locked}
-                  />
-                  <span className="font-semibold text-sm capitalize">
-                    {t === 'suelta' ? 'Clase suelta' : 'Periódica'}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {t === 'suelta' ? 'Una fecha específica' : locked ? 'Solo plan Pro' : 'Varias fechas o recurrente'}
-                  </span>
-                </label>
-              )
-            })}
+          <div className="space-y-2">
+            {[
+              { value: 'suelta', label: 'Clase suelta', desc: 'Una fecha específica', locked: false },
+              { value: 'periodica', label: 'Periódica', desc: unlimited ? 'Recurrente con fechas de cierre' : 'Solo plan Pro', locked: isBasic },
+              { value: 'entrenamiento', label: 'Entrenamiento', desc: unlimited ? 'Proceso largo, con postulaciones opcionales' : 'Solo plan Pro', locked: isBasic },
+            ].map(({ value, label, desc, locked }) => (
+              <label key={value} className={cn(
+                'flex items-center gap-3 rounded-xl border-2 p-3 transition-colors',
+                locked ? 'opacity-40 cursor-not-allowed border-gray-200' : 'cursor-pointer',
+                !locked && classType === value ? 'border-brand-500 bg-brand-50' : 'border-gray-200'
+              )}>
+                <input type="radio" value={value} {...register('type')} className="sr-only" disabled={locked} />
+                <div>
+                  <p className="font-semibold text-sm">{label}</p>
+                  <p className="text-xs text-gray-500">{desc}</p>
+                </div>
+              </label>
+            ))}
           </div>
         </div>
 
@@ -289,7 +318,6 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">Descripción</label>
           <textarea {...register('description')} rows={4} placeholder="Describe la clase, qué aprenderán, requisitos previos..." className="input resize-none" />
-          {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
         </div>
 
         {/* Dance style + Level */}
@@ -311,18 +339,20 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
           </div>
         </div>
 
-        {/* Class type */}
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Tipo <span className="text-gray-400 font-normal">(opcional)</span>
-          </label>
-          <select {...register('class_type')} className="input">
-            <option value="">Sin especificar</option>
-            <option value="coreografía">Coreografía</option>
-            <option value="freestyle">Freestyle</option>
-            <option value="otro">Otro</option>
-          </select>
-        </div>
+        {/* Class type (category) */}
+        {!isEntrenamiento && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Categoría <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <select {...register('class_type')} className="input">
+              <option value="">Sin especificar</option>
+              <option value="coreografía">Coreografía</option>
+              <option value="freestyle">Freestyle</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+        )}
 
         {/* Schedule - One-time */}
         {classType === 'suelta' && (
@@ -340,8 +370,8 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
           </div>
         )}
 
-        {/* Schedule - Periodic */}
-        {classType === 'periodica' && (
+        {/* Schedule - Periodic / Entrenamiento */}
+        {isPeriodic && (
           <div className="space-y-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Periodicidad *</label>
@@ -354,7 +384,6 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               {errors.recurrence && <p className="mt-1 text-xs text-red-600">{errors.recurrence.message}</p>}
             </div>
 
-            {/* Semanal / Quincenal: pick day + time */}
             {recurrence && recurrence !== 'custom' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -373,7 +402,6 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               </div>
             )}
 
-            {/* Custom: calendar + time */}
             {recurrence === 'custom' && (
               <div className="space-y-3">
                 <MonthCalendar selected={customDates} onChange={setCustomDates} />
@@ -385,21 +413,79 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               </div>
             )}
 
-            {/* Price suelta — optional for any periodic class */}
-            <div className="rounded-xl border border-gray-200 p-3 space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Precio clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
-              </label>
-              <p className="text-xs text-gray-400">Si los alumnos también pueden pagar solo una clase, indica su precio</p>
-              <input
-                {...register('price_suelta')}
-                type="number"
-                min={0}
-                placeholder="ej: 5000"
-                className="input mt-1"
-              />
-              {errors.price_suelta && <p className="mt-1 text-xs text-red-600">{errors.price_suelta.message}</p>}
+            {/* End date */}
+            <div className="rounded-xl border border-gray-200 p-3 space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Fecha de término *</label>
+              {!endsIndefinitely && (
+                <input {...register('ends_at')} type="date" className="input" />
+              )}
+              {errors.ends_at && <p className="mt-1 text-xs text-red-600">{errors.ends_at.message}</p>}
+
+              {isEntrenamiento && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={endsIndefinitely ?? false}
+                    onChange={(e) => handleIndefiniteChange(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600"
+                  />
+                  <span className="text-sm text-gray-700">Indefinido</span>
+                  {endsIndefinitely && (
+                    <span className="text-xs text-amber-600">— Recuerda avisar a tus alumnos cuándo dejar de pagar</span>
+                  )}
+                </label>
+              )}
+
+              {!isEntrenamiento && (
+                <label
+                  className="flex items-center gap-2 cursor-pointer text-gray-400"
+                  onClick={() => setShowIndefinitePopup(true)}
+                >
+                  <input type="checkbox" className="h-4 w-4 rounded border-gray-300" disabled />
+                  <span className="text-sm line-through">Indefinido</span>
+                </label>
+              )}
             </div>
+
+            {/* Price suelta (only for periodica, not entrenamiento) */}
+            {classType === 'periodica' && (
+              <div className="rounded-xl border border-gray-200 p-3 space-y-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Precio clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <p className="text-xs text-gray-400">Si los alumnos también pueden pagar solo una clase</p>
+                <input {...register('price_suelta')} type="number" min={0} placeholder="ej: 5000" className="input mt-1" />
+                {errors.price_suelta && <p className="mt-1 text-xs text-red-600">{errors.price_suelta.message}</p>}
+
+                {/* 2x for suelta within monthly */}
+                <label className="block text-sm font-medium text-gray-700 mt-3">
+                  Precio 2x clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <p className="text-xs text-gray-400">Precio total para dos personas en una clase suelta</p>
+                <input {...register('price_suelta_2x')} type="number" min={0} placeholder="ej: 8000" className="input mt-1" />
+              </div>
+            )}
+
+            {/* Audition toggle for entrenamiento */}
+            {isEntrenamiento && (
+              <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('requires_audition')}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600"
+                  />
+                  <span className="text-sm font-medium text-gray-800">Requiere postulación</span>
+                </label>
+                {requiresAudition && (
+                  <p className="text-xs text-brand-700">
+                    Los interesados deberán completar un formulario con su nombre, edad, teléfono y video opcional.
+                    Podrás aceptar o rechazar cada postulación desde el panel de postulaciones.
+                    Al cerrar la etapa, la clase se puede editar normalmente.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -432,11 +518,24 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              {classType === 'periodica' ? 'Precio mensual ($) *' : 'Precio ($) *'}
+              {isPeriodic ? 'Precio mensual ($) *' : 'Precio ($) *'}
             </label>
             <input {...register('price')} type="number" min={0} placeholder="15000" className="input" />
             {errors.price && <p className="mt-1 text-xs text-red-600">{errors.price.message}</p>}
           </div>
+        </div>
+
+        {/* Price 2x (for suelta or entrenamiento monthly) */}
+        <div className="rounded-xl border border-brand-100 bg-brand-50/30 p-3 space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Precio 2x <span className="text-gray-400 font-normal">(opcional)</span>
+          </label>
+          <p className="text-xs text-gray-400">
+            {classType === 'suelta'
+              ? 'Precio total cuando dos alumnos pagan juntos en un mismo comprobante'
+              : 'Precio mensual total para dos alumnos que pagan juntos'}
+          </p>
+          <input {...register('price_2x')} type="number" min={0} placeholder="ej: 18000" className="input mt-1" />
         </div>
 
         {/* Media upload */}
@@ -454,11 +553,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                     ? <img src={m.preview} className="w-full h-full object-cover" alt="" />
                     : <video src={m.preview} className="w-full h-full object-cover" />
                   }
-                  <button
-                    type="button"
-                    onClick={() => removeMedia(i)}
-                    className="absolute top-1 right-1 rounded-full bg-black/60 p-1"
-                  >
+                  <button type="button" onClick={() => removeMedia(i)} className="absolute top-1 right-1 rounded-full bg-black/60 p-1">
                     <X className="h-3 w-3 text-white" />
                   </button>
                 </div>
@@ -477,7 +572,6 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               <input {...getInputProps()} />
               <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
               <p className="text-sm text-gray-600">Arrastra o selecciona fotos/videos</p>
-              <p className="text-xs text-gray-400 mt-1">Tip: agrega una imagen con los precios</p>
             </div>
           )}
         </div>

@@ -146,12 +146,37 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         <div className="flex items-center justify-between pt-1">
           <div>
             <p className="text-xs text-gray-500">
-              {classData.type === 'periodica' ? 'Precio mensual' : 'Precio'}
+              {classData.type === 'periodica' || classData.type === 'entrenamiento' ? 'Precio mensual' : 'Precio'}
             </p>
-            <p className="text-xl font-bold text-gray-900">{formatCLP(classData.price)}</p>
+            {classData.discount_price_monthly && classData.type !== 'suelta' ? (
+              <div className="flex items-baseline gap-2">
+                <p className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price_monthly)}</p>
+                <p className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</p>
+              </div>
+            ) : classData.discount_price && classData.type === 'suelta' ? (
+              <div className="flex items-baseline gap-2">
+                <p className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price)}</p>
+                <p className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</p>
+              </div>
+            ) : (
+              <p className="text-xl font-bold text-gray-900">{formatCLP(classData.price)}</p>
+            )}
             {classData.price_suelta && (
               <p className="text-xs text-gray-500 mt-0.5">
-                Suelta: <span className="font-medium text-gray-700">{formatCLP(classData.price_suelta)}</span>
+                Suelta:{' '}
+                {classData.discount_price ? (
+                  <>
+                    <span className="font-medium text-orange-600">{formatCLP(classData.discount_price)}</span>
+                    <span className="line-through text-gray-400 ml-1">{formatCLP(classData.price_suelta)}</span>
+                  </>
+                ) : (
+                  <span className="font-medium text-gray-700">{formatCLP(classData.price_suelta)}</span>
+                )}
+              </p>
+            )}
+            {classData.price_2x && (
+              <p className="text-xs text-brand-600 mt-0.5 font-medium">
+                2x: {formatCLP(classData.price_2x)}
               </p>
             )}
           </div>

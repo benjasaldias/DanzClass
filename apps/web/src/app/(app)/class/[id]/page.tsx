@@ -59,6 +59,18 @@ export default async function ClassDetailPage({ params }: Props) {
     .eq('following_id', classData.teacher_id)
     .maybeSingle()
 
+  // Fetch audition if entrenamiento
+  let myAudition = null
+  if ((classData as any).type === 'entrenamiento') {
+    const { data: audition } = await (supabase as any)
+      .from('auditions')
+      .select('*')
+      .eq('class_id', params.id)
+      .eq('applicant_id', user.id)
+      .maybeSingle()
+    myAudition = audition
+  }
+
   return (
     <ClassDetailClient
       classData={classData}
@@ -67,6 +79,7 @@ export default async function ClassDetailPage({ params }: Props) {
       enrollment={enrollment}
       spots={spots}
       isFollowing={!!followData}
+      myAudition={myAudition}
     />
   )
 }

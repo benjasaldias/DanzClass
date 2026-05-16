@@ -130,6 +130,30 @@ const NOTIF_CONFIG: Record<string, {
     },
     href: () => '/admin',
   },
+  '2x_payment_turn': {
+    icon: Users,
+    color: 'text-brand-600 bg-brand-50',
+    label: () => 'Tu compañer@ te pasó el turno de pago para la clase 2x',
+    href: () => '/my-classes',
+  },
+  class_discount: {
+    icon: Bell,
+    color: 'text-orange-500 bg-orange-50',
+    label: (data) => `🏷️ Descuento en "${data.class_title ?? 'una clase'}"`,
+    href: (data) => data.class_id ? `/class/${data.class_id}` : '/feed',
+  },
+  audition_accepted: {
+    icon: CheckCircle2,
+    color: 'text-green-500 bg-green-50',
+    label: (data) => `¡Felicidades! Fuiste aceptad@ en "${data.class_title ?? 'el entrenamiento'}"`,
+    href: (data) => data.class_id ? `/class/${data.class_id}` : '/feed',
+  },
+  audition_rejected: {
+    icon: XCircle,
+    color: 'text-red-500 bg-red-50',
+    label: (data) => `Tu postulación a "${data.class_title ?? 'el entrenamiento'}" no fue seleccionada`,
+    href: () => '/explore',
+  },
 }
 
 export default function NotificationsClient({ notifications, profileMap, classMap, userId }: NotificationsClientProps) {

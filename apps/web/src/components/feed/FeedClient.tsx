@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import ClassCard from './ClassCard'
 import PostCard from './PostCard'
+import FriendsTwoxList from '@/components/class/FriendsTwoxList'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, FeedFilter } from '@danceclass/shared'
 
@@ -17,6 +18,7 @@ interface FeedClientProps {
   currentUser: User
   currentProfile: Profile | null
   followingIds: string[]
+  friendsTwoxRequests?: any[]
 }
 
 const FILTERS: { key: FeedFilter; label: string; icon: React.ElementType }[] = [
@@ -37,6 +39,7 @@ export default function FeedClient({
   currentUser,
   currentProfile,
   followingIds,
+  friendsTwoxRequests = [],
 }: FeedClientProps) {
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('global')
   const [contentType, setContentType] = useState<ContentType>('all')
@@ -159,6 +162,14 @@ export default function FeedClient({
 
         </div>
       </div>
+
+      {/* Friends 2x section — only in Siguiendo tab */}
+      {activeFilter === 'following' && friendsTwoxRequests.length > 0 && (
+        <FriendsTwoxList
+          requests={friendsTwoxRequests}
+          currentUserId={currentUser.id}
+        />
+      )}
 
       {/* Feed */}
       <div className="flex flex-col">

@@ -95,6 +95,36 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 ### 011_drop_music_columns.sql ✅ APLICADA (sesión 2026-05-15)
 - Elimina columnas `music_id`, `music_title`, `music_artist`, `music_preview_url` de `posts`
 
+### 012_add_new_report_notification.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-16)
+
+- Extiende constraint de tipo de notificación para incluir: `new_report`
+- Aplicar en Supabase SQL Editor antes de hacer deploy
+
+### 013_2x_requests.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-17)
+
+- Tabla `class_2x_requests` (user_id, class_id, matched_with, status, payment_assignee) con UNIQUE(user_id, class_id)
+- `ALTER TABLE enrollments ADD COLUMN is_2x BOOLEAN DEFAULT FALSE`
+- `ALTER TABLE enrollments ADD COLUMN partner_enrollment_id UUID`
+- `ALTER TABLE classes ADD COLUMN price_suelta_2x INTEGER`
+- Extiende constraint notifications con `2x_payment_turn`
+
+### 014_discounts.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-17)
+
+- `ALTER TABLE classes ADD COLUMN discount_price INTEGER`
+- `ALTER TABLE classes ADD COLUMN discount_price_monthly INTEGER`
+- Extiende constraint notifications con `class_discount`
+
+### 015_entrenamiento.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-17)
+
+- Modifica constraint `classes_type_check` para incluir `'entrenamiento'`
+- `ALTER TABLE classes ADD COLUMN requires_audition BOOLEAN DEFAULT FALSE`
+- `ALTER TABLE classes ADD COLUMN audition_closed BOOLEAN DEFAULT FALSE`
+- `ALTER TABLE classes ADD COLUMN ends_at DATE`
+- `ALTER TABLE classes ADD COLUMN ends_indefinitely BOOLEAN DEFAULT FALSE`
+- Tabla `auditions` (class_id, applicant_id, full_name, age, phone, video_url, status, notes) con UNIQUE(class_id, applicant_id)
+- Bucket `audition-videos` (privado, 100MB, video)
+- Constraint final notifications con todos los tipos: `audition_accepted`, `audition_rejected`
+
 ---
 
 ## Estado de implementación — Web (apps/web)
@@ -126,10 +156,10 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 
 ### ✅ Clases
 - **`/create-class`** — tipo, estilo, **tipo de clase** (coreografía/freestyle/otro), nivel, fechas, media, precio
-- **`/class/[id]`** — detalle con carrusel, info, CTA de reservar
+- **`/class/[id]`** — detalle con carrusel sin crop (imágenes `object-contain`, videos ratio nativo), info, CTA de reservar
   - Profesor: editar, eliminar; Alumno: salir de la clase
   - Clases custom: botón **"Ver fechas"** abre `CustomDatesCalendar` con calendario de solo lectura destacando las fechas
-- **`/class/[id]/edit`** — edición pre-rellenada con `class_type`
+- **`/class/[id]/edit`** — edición pre-rellenada con `class_type`; sección "Zona peligrosa" al final con botón **Eliminar esta clase** (notifica inscritos, soft-delete)
 
 ### ✅ Mis clases (`/my-classes`)
 - Tabs: "Clases que tomo" / "Clases que dicto"
@@ -138,39 +168,96 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - Sección post-eliminación con pagos pendientes y botón "Pago Confirmado"
 
 ### ✅ Notificaciones (`/notifications`)
-- Tipos: follow, friend_request, friend_accepted, new_class, class_updated, class_cancelled, payment_confirmed, payment_rejected, 2x_request, 2x_match, **debt_warning**
 
-### ✅ Perfil público (`/teacher/[username]`)
+- Tipos: follow, friend_request, friend_accepted, new_class, class_updated, class_cancelled, payment_confirmed, payment_rejected, 2x_request, 2x_match, debt_warning, **new_report**
+
+### ✅ Perfil público (`/teacher/[username]`) — ACTUALIZADO sesión 2026-05-16
+
 - Stats: clases dictadas, cupos pagados, cuántos confían
 - Botón "Confío en este usuario" (toggle, muestra count)
 - Popup post-clase preguntando recomendación (`EndorsementPopup`)
 - Follow/unfollow, amistad completa (enviar/aceptar/eliminar)
+- **Sección "Publicaciones"** — muestra posts del usuario con filtro de visibilidad según relación:
+  - Amigo → ve todos (público + seguidores + amigos)
+  - Seguidor → ve público + seguidores
+  - Sin relación → solo públicos
+  - Perfil propio → todos sin filtro
 
-### ✅ Perfil propio (`/profile`) — ACTUALIZADO sesión 2026-05-15
+### ✅ Perfil propio (`/profile`) — ACTUALIZADO sesión 2026-05-16
+
 - Mismo layout rico que perfil ajeno: avatar, bio, ciudad, seguidores, stats, Instagram
 - Botones de acción como pills: **Editar Perfil**, **Datos Transferencia** (solo si canTeach), **Cerrar Sesión**
 - Banner de plan de suscripción justo debajo de los botones
 - Estilos de baile (baila/enseña)
 - Clases activas publicadas + inscripciones propias
+- **Sección "Mis publicaciones"** — todos los posts propios con menú de gestión (editar privacidad / eliminar)
 
-### ✅ Posts/Videos
+### ✅ Posts/Videos — ACTUALIZADO sesión 2026-05-16
+
 - `CreatePostModal` — sube video a **Cloudinary** (si configurado) o Supabase Storage como fallback; visibilidad: Público / Seguidores / Amigos
 - `PostCard` — video adaptivo al ratio nativo (horizontal o vertical), sin `aspect-video` fijo
 - Badge de privacidad en PostCard: ícono + label para `followers` y `friends`
-- Botón de **denuncia** (flag) en header del PostCard — visible para quien no es el autor
+- **Menú ⋮ en PostCard para el autor:** "Editar privacidad" (popover inline con los 3 niveles) y "Eliminar" (ConfirmDialog + `router.refresh()`)
+- Botón de **denuncia** (flag) en header del PostCard — visible solo para quien no es el autor
 
-### ✅ Sistema de denuncias (`ReportModal`)
+### ✅ Sistema de denuncias — ACTUALIZADO sesión 2026-05-16
+
 - Modal con 4 razones predefinidas: infracción de derechos de autor, contenido inapropiado, spam, otro
 - Descripción adicional opcional; UNIQUE constraint evita reportes duplicados
 - **Posts:** botón flag en `PostCard` (solo para no-autores)
 - **Clases:** botón "Reportar" en header de `ClassDetailClient` (solo para no-profesores)
-- Reportes guardados en tabla `reports`; estado `pending/reviewed/dismissed` para gestión futura
+- Reportes van por API route (`/api/reports`) — inserta en `reports` + envía `new_report` al superadmin
+- `SUPERADMIN_USER_ID` env var controla quién recibe notificaciones de reporte
+
+### ✅ Panel superadmin (`/admin`) — NUEVO sesión 2026-05-16
+
+- Accesible solo si `user.id === SUPERADMIN_USER_ID`
+- Lista todos los reportes pendientes con: reporter, razón, tipo de contenido, descripción, fecha
+- Botón **"Eliminar contenido"** — elimina el post/clase y marca reporte como `reviewed`
+- Botón **"Descartar"** — marca reporte como `dismissed` sin eliminar contenido
+- API route `POST /api/admin/content-action` con validación de admin (service role)
+- Para obtener el UUID del admin: Supabase → Authentication → Users
 
 ### ✅ Términos de Uso (`/terms`)
 - Página pública en `/terms` — 11 cláusulas en español, sin login requerido
 - Cláusula 2: el usuario **declara ser titular de los derechos** sobre el audio y video que sube
 - DanceClass se posiciona como plataforma intermediaria (safe harbor)
 - **Registro** actualizado: checkbox obligatorio `z.literal(true)` que enlaza a `/terms`; no se puede crear cuenta sin aceptarlo
+
+### ✅ Inscripción 2x (pareja) — NUEVO sesión 2026-05-17
+
+- Campo `price_2x` en crear/editar clase (precio total para dos personas en un comprobante)
+- Campo `price_suelta_2x` para clases periódicas (idem pero por clase suelta)
+- Botón **"Busco 2x"** en detalle de clase → crea `class_2x_requests` (status: looking)
+- Cuando emparejado: botón "Ir a pagar" o "Que pague mi compañer@" (transfiere `payment_assignee`)
+- API route `POST /api/class-2x/match` — crea enrollments para ambos, notifica al solicitante
+- API route `POST /api/class-2x/transfer-payment` — transfiere turno de pago
+- **Dropdown en feed "Siguiendo"** — `FriendsTwoxList` lista amigos buscando 2x con botón "¡Ir juntos!"
+- Badge de precio 2x en `ClassCard`
+- Notificación `2x_match` (emparejamiento) y `2x_payment_turn` (turno de pago)
+
+### ✅ Descuentos espontáneos — NUEVO sesión 2026-05-17
+
+- Botón **"Descuento"** en header de `ClassDetailClient` (solo para profesor)
+- `DiscountModal` — define `discount_price` (suelta/suelta de mensual) y `discount_price_monthly`
+- API route `POST /api/class/discount` — guarda descuento y notifica a todos los seguidores
+- Precio con descuento en `ClassCard`: tachado original + naranja el nuevo
+- Precio con descuento en `ClassDetailClient`: ídem en el CTA de pago
+- Banner naranja "¡Descuento activo!" en detalle de clase
+- Notificación `class_discount` para seguidores
+
+### ✅ Entrenamiento (nuevo tipo de clase) — NUEVO sesión 2026-05-17
+
+- Nuevo tipo `'entrenamiento'` en el selector de tipo de clase
+- Solo precio mensual (sin suelta); fecha de término requerida (o "Indefinido")
+- Toggle **"Requiere postulación"** — habilita etapa de audiciones
+- Botón **"Postularme"** en ClassDetailClient con `AuditionModal` (nombre, edad, teléfono, video)
+- Página `/class/[id]/auditions` — `AuditionsListClient` para el profesor: acepta/rechaza postulantes
+- Botón **"Cerrar postulaciones"** — marca `audition_closed=true`; luego la clase se edita normalmente
+- Al aceptar/rechazar: notificación `audition_accepted` / `audition_rejected` al postulante
+- Bucket `audition-videos` (privado, solo profesor y postulante pueden ver)
+- **Fecha de término en clases periódicas** — campo `ends_at` requerido para toda clase periódica
+- Popup "Las clases sin fecha de término deben ser de tipo Entrenamiento" si se intenta marcar Indefinido en periódica
 
 ### ✅ Planes y suscripciones (`/plans`)
 - Básico: $1.500/mes — 1 clase suelta/mes + 1 foto/video
@@ -205,26 +292,26 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 | `ui/TrustButton.tsx` | Botón de confianza toggle con count |
 | `ui/EndorsementPopup.tsx` | Popup post-clase pidiendo recomendación |
 | `ui/LogoutButton.tsx` | Cerrar sesión; prop `asButton` para renderizar como pill |
-| `ui/ReportModal.tsx` | Modal de denuncia con 4 razones + descripción opcional |
+| `ui/ReportModal.tsx` | Modal de denuncia; llama a `/api/reports` en vez de insertar directo |
 | `feed/ClassCard.tsx` | Card de clase con tono lila, cupos x/y, badge estilo-tipo |
-| `feed/PostCard.tsx` | Card de video con ratio adaptivo, badge de privacidad, botón de denuncia |
+| `feed/PostCard.tsx` | Video adaptivo al ratio nativo; menú ⋮ para autor (editar privacidad/eliminar) |
 | `feed/FeedClient.tsx` | Feed unificado clases+posts con filtros |
 | `feed/ExploreClient.tsx` | Explorar con filtros de usuarios |
 | `feed/UserCard.tsx` | Card de usuario con follow + amistad |
 | `feed/CreatePostModal.tsx` | Modal crear video con visibilidad p/s/amigos |
-| `feed/PostCard.tsx` | Video adaptivo al ratio nativo |
-| `class/ClassDetailClient.tsx` | Detalle con botón "Ver fechas" para clases custom |
+| `class/ClassDetailClient.tsx` | Detalle con carrusel sin crop (object-contain), botón "Ver fechas" |
 | `class/CustomDatesCalendar.tsx` | Calendar modal de solo lectura con fechas destacadas |
 | `class/CreateClassForm.tsx` | Formulario con class_type + límites plan básico |
-| `class/EditClassForm.tsx` | Formulario de edición con class_type |
+| `class/EditClassForm.tsx` | Formulario de edición con class_type + zona peligrosa (eliminar clase) |
 | `class/MyClassesClient.tsx` | Tabs tomo/dicto, deudores, banner eliminación |
-| `notifications/NotificationsClient.tsx` | Lista con `debt_warning` |
+| `notifications/NotificationsClient.tsx` | Lista con `debt_warning` y `new_report` |
 | `payment/PaymentClient.tsx` | Pago con comprobante |
 | `plans/SubscribeButton.tsx` | Mensual (crédito) y anual (cualquier medio) |
 | `publish/PublishChoiceClient.tsx` | Elección Clase vs Video |
 | `profile/EditProfileForm.tsx` | Edición completa del perfil |
-| `profile/TeacherProfileClient.tsx` | Perfil público con trust, stats, amistad |
+| `profile/TeacherProfileClient.tsx` | Perfil público con trust, stats, amistad, posts con filtro de visibilidad |
 | `profile/PaymentInfoForm.tsx` | Datos de transferencia del profesor |
+| `admin/AdminReportsClient.tsx` | Lista de reportes pendientes con acciones delete/dismiss |
 
 ---
 
@@ -239,7 +326,7 @@ type NotificationType =
   | 'friend_request' | 'friend_accepted'
   | 'payment_confirmed' | 'payment_rejected'
   | 'follow' | 'new_class' | 'class_updated' | 'class_cancelled'
-  | 'debt_warning'
+  | 'debt_warning' | 'new_report'
 
 const SUBSCRIPTION_PLANS = [
   { tier: 'basic', price: 1500, name: 'Básico', ... },
@@ -263,6 +350,9 @@ canUploadVideo(tier)    // basic | teacher | pro
 - **`class_type` en clases:** columna TEXT nullable ('coreografía'/'freestyle'/'otro'). Opcional para el profesor. Se muestra junto al estilo: "House - Freestyle".
 - **Cupos en feed:** el select de clases incluye `enrollments(id, status)` y ClassCard computa `confirmedCount` para mostrar `x/y cupos disponibles`.
 - **Video adaptivo:** `<video>` con `w-full h-auto max-h-[85vh]` sin contenedor `aspect-video`. El navegador renderiza el ratio nativo del archivo.
+- **Videos sin crop en clases:** carrusel en `ClassDetailClient` reemplazó `aspect-square` + `object-cover` por contenedor `bg-black min-h-[240px]`; imágenes con `object-contain max-h-[70vh]` (letterbox negro), videos con `max-h-[85vh]`. Elimina cropping sin romper el layout.
+- **ReportModal → API route:** el modal ya no inserta directo en Supabase; llama a `POST /api/reports` que usa el service role para insertar el reporte y notificar al superadmin. Evita que el cliente necesite permisos de escritura especiales.
+- **Superadmin sin rol en DB:** identificado solo por `SUPERADMIN_USER_ID` env var comparado server-side. No requiere columna `is_admin` en profiles.
 - **Soft-delete clases:** `UPDATE classes SET status='cancelled'`, preserva historial.
 - **Cron seguridad:** `CRON_SECRET` validado con `Authorization: Bearer` header que Vercel inyecta automáticamente.
 - **Notificaciones cross-user:** política RLS `notifications_insert_any` con `WITH CHECK (true)`.
@@ -324,10 +414,11 @@ apps/web/src/
 │   │   ├── my-classes/page.tsx
 │   │   ├── notifications/page.tsx
 │   │   ├── payment/[enrollmentId]/page.tsx
-│   │   ├── teacher/[username]/page.tsx
-│   │   ├── profile/page.tsx              # ACTUALIZADO — layout rico
+│   │   ├── teacher/[username]/page.tsx   # ACTUALIZADO — fetch posts con filtro de visibilidad
+│   │   ├── profile/page.tsx              # ACTUALIZADO — fetch + muestra posts propios
 │   │   ├── profile/edit/page.tsx
 │   │   ├── profile/payment-info/page.tsx
+│   │   └── admin/page.tsx                # NUEVA — panel superadmin (requiere SUPERADMIN_USER_ID)
 │   │   └── plans/
 │   │       ├── page.tsx
 │   │       ├── success/page.tsx
@@ -338,7 +429,9 @@ apps/web/src/
 │   │   │   ├── create-preference/route.ts
 │   │   │   └── webhook/route.ts
 │   │   ├── subscriptions/cancel/route.ts
-│   │   └── cron/cleanup-classes/route.ts  # NUEVA — limpieza diaria 03:00 UTC
+│   │   ├── reports/route.ts               # NUEVA — POST: insertar reporte + notificar admin
+│   │   ├── admin/content-action/route.ts  # NUEVA — POST: delete/dismiss desde panel admin
+│   │   └── cron/cleanup-classes/route.ts  # limpieza diaria 03:00 UTC
 │   ├── terms/page.tsx                    # NUEVA — página pública /terms
    └── auth/login/ + auth/register/
 ├── components/
@@ -353,6 +446,7 @@ apps/web/src/
 │   ├── payment/ (PaymentClient)
 │   ├── plans/ (SubscribeButton, CancelSubscriptionButton)
 │   ├── publish/ (PublishChoiceClient)
+│   ├── admin/ (AdminReportsClient)        # NUEVA
 │   └── profile/ (EditProfileForm, TeacherProfileClient, PaymentInfoForm)
 └── lib/
     ├── utils.ts
@@ -373,20 +467,29 @@ supabase/migrations/
 ├── 008_trust_posts.sql                 ✅
 ├── 009_class_type_post_visibility.sql  ✅
 ├── 010_reports_music.sql               ✅ (tabla reports + columnas music_* en posts)
-└── 011_drop_music_columns.sql          ✅ (elimina columnas music_* de posts)
+├── 011_drop_music_columns.sql          ✅ (elimina columnas music_* de posts)
+└── 012_add_new_report_notification.sql ⏳ PENDIENTE — añade 'new_report' al constraint de notificaciones
 ```
 
 ---
 
 ## Pendientes
 
-### ⚠️ Variable de entorno por verificar
+### ⚠️ Acciones pendientes post-sesión 2026-05-17
 
-- `CRON_SECRET` en Vercel → Settings → Environment Variables. Debe ser cualquier string aleatorio (p.ej. `openssl rand -base64 32`). Si no está, el cron de limpieza de archivos retorna 401.
+1. **Aplicar migraciones en Supabase SQL Editor EN ORDEN:**
+   - `supabase/migrations/012_add_new_report_notification.sql`
+   - `supabase/migrations/013_2x_requests.sql`
+   - `supabase/migrations/014_discounts.sql`
+   - `supabase/migrations/015_entrenamiento.sql`
 
-### ⏳ Cloudinary — Setup pendiente
+1. **Agregar `SUPERADMIN_USER_ID` en Vercel → Settings → Environment Variables**
 
-El código ya está integrado en `CreatePostModal`. Solo falta hacer el setup en Cloudinary y agregar las variables en Vercel. Ver instrucciones completas en la sección **Integración Cloudinary** más abajo.
+1. **`CRON_SECRET`** en Vercel si no está configurada (`openssl rand -base64 32`)
+
+### ✅ Cloudinary — Configurado (sesión 2026-05-16)
+
+Las variables `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` y `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` ya deben estar en Vercel. Si no, ver instrucciones en sección **Integración Cloudinary** más abajo.
 
 ---
 

@@ -13,6 +13,7 @@ export type ReportContentType = 'post' | 'class'
 export type NotificationType =
   | '2x_request'
   | '2x_match'
+  | '2x_payment_turn'
   | 'friend_request'
   | 'friend_accepted'
   | 'payment_confirmed'
@@ -21,10 +22,14 @@ export type NotificationType =
   | 'new_class'
   | 'class_updated'
   | 'class_cancelled'
+  | 'class_discount'
   | 'debt_warning'
   | 'new_report'
+  | 'audition_accepted'
+  | 'audition_rejected'
 
-export type ClassType = 'suelta' | 'periodica'
+export type ClassType = 'suelta' | 'periodica' | 'entrenamiento'
+export type AuditionStatus = 'pending' | 'accepted' | 'rejected'
 export type ClassLevel = 'principiante' | 'intermedio' | 'avanzado' | 'todos'
 export type ClassStatus = 'active' | 'cancelled' | 'completed'
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly' | 'custom'
@@ -155,10 +160,32 @@ export interface Class {
   price: number
   price_suelta: number | null
   price_2x: number | null
+  price_suelta_2x: number | null
+  // Discounts
+  discount_price: number | null
+  discount_price_monthly: number | null
+  // Entrenamiento
+  requires_audition: boolean
+  audition_closed: boolean
+  ends_at: string | null
+  ends_indefinitely: boolean
   custom_dates: string[]
   status: ClassStatus
   created_at: string
   updated_at: string
+}
+
+export interface Audition {
+  id: string
+  class_id: string
+  applicant_id: string
+  full_name: string
+  age: number | null
+  phone: string | null
+  video_url: string | null
+  status: AuditionStatus
+  notes: string | null
+  created_at: string
 }
 
 export interface ClassMedia {
@@ -207,9 +234,9 @@ export interface Class2xRequest {
   id: string
   user_id: string
   class_id: string
-  session_id: string | null
   matched_with: string | null
   status: TwoxRequestStatus
+  payment_assignee: string | null
   created_at: string
 }
 
