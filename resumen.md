@@ -86,6 +86,15 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - `ALTER TABLE posts ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'followers', 'friends'))` — reemplaza lógica de `is_public`
 - Backfill: posts con `is_public = false` → `visibility = 'followers'`
 
+### 010_reports_music.sql ✅ APLICADA (sesión 2026-05-15)
+- Tabla `reports` (reporter_id, content_type: post/class, content_id, reason: copyright/inappropriate/spam/other, description, status: pending/reviewed/dismissed)
+- UNIQUE constraint: un usuario no puede reportar el mismo contenido dos veces
+- RLS: INSERT propio; SELECT propio
+- ⚠️ La versión aplicada incluía también columnas `music_*` en posts (feature descartada luego)
+
+### 011_drop_music_columns.sql ✅ APLICADA (sesión 2026-05-15)
+- Elimina columnas `music_id`, `music_title`, `music_artist`, `music_preview_url` de `posts`
+
 ---
 
 ## Estado de implementación — Web (apps/web)
@@ -145,9 +154,23 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - Clases activas publicadas + inscripciones propias
 
 ### ✅ Posts/Videos
-- `CreatePostModal` — sube a bucket `posts-media`, visibilidad: Público / Seguidores / Amigos
+- `CreatePostModal` — sube video a **Cloudinary** (si configurado) o Supabase Storage como fallback; visibilidad: Público / Seguidores / Amigos
 - `PostCard` — video adaptivo al ratio nativo (horizontal o vertical), sin `aspect-video` fijo
 - Badge de privacidad en PostCard: ícono + label para `followers` y `friends`
+- Botón de **denuncia** (flag) en header del PostCard — visible para quien no es el autor
+
+### ✅ Sistema de denuncias (`ReportModal`)
+- Modal con 4 razones predefinidas: infracción de derechos de autor, contenido inapropiado, spam, otro
+- Descripción adicional opcional; UNIQUE constraint evita reportes duplicados
+- **Posts:** botón flag en `PostCard` (solo para no-autores)
+- **Clases:** botón "Reportar" en header de `ClassDetailClient` (solo para no-profesores)
+- Reportes guardados en tabla `reports`; estado `pending/reviewed/dismissed` para gestión futura
+
+### ✅ Términos de Uso (`/terms`)
+- Página pública en `/terms` — 11 cláusulas en español, sin login requerido
+- Cláusula 2: el usuario **declara ser titular de los derechos** sobre el audio y video que sube
+- DanceClass se posiciona como plataforma intermediaria (safe harbor)
+- **Registro** actualizado: checkbox obligatorio `z.literal(true)` que enlaza a `/terms`; no se puede crear cuenta sin aceptarlo
 
 ### ✅ Planes y suscripciones (`/plans`)
 - Básico: $1.500/mes — 1 clase suelta/mes + 1 foto/video
@@ -182,8 +205,9 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 | `ui/TrustButton.tsx` | Botón de confianza toggle con count |
 | `ui/EndorsementPopup.tsx` | Popup post-clase pidiendo recomendación |
 | `ui/LogoutButton.tsx` | Cerrar sesión; prop `asButton` para renderizar como pill |
+| `ui/ReportModal.tsx` | Modal de denuncia con 4 razones + descripción opcional |
 | `feed/ClassCard.tsx` | Card de clase con tono lila, cupos x/y, badge estilo-tipo |
-| `feed/PostCard.tsx` | Card de video con ratio adaptivo, badge de privacidad |
+| `feed/PostCard.tsx` | Card de video con ratio adaptivo, badge de privacidad, botón de denuncia |
 | `feed/FeedClient.tsx` | Feed unificado clases+posts con filtros |
 | `feed/ExploreClient.tsx` | Explorar con filtros de usuarios |
 | `feed/UserCard.tsx` | Card de usuario con follow + amistad |
@@ -315,10 +339,12 @@ apps/web/src/
 │   │   │   └── webhook/route.ts
 │   │   ├── subscriptions/cancel/route.ts
 │   │   └── cron/cleanup-classes/route.ts  # NUEVA — limpieza diaria 03:00 UTC
-│   └── auth/login/ + auth/register/
+│   ├── terms/page.tsx                    # NUEVA — página pública /terms
+   └── auth/login/ + auth/register/
 ├── components/
 │   ├── ui/ (TopBar, BottomNav, Avatar, ConfirmDialog, MonthCalendar,
-│   │        CityCombobox, TrustButton, EndorsementPopup, LogoutButton)
+│   │        CityCombobox, TrustButton, EndorsementPopup, LogoutButton,
+│   │        ReportModal)
 │   ├── feed/ (FeedClient, ClassCard, PostCard, ExploreClient,
 │   │          UserCard, CreatePostModal)
 │   ├── class/ (ClassDetailClient, CustomDatesCalendar, CreateClassForm,
@@ -331,20 +357,23 @@ apps/web/src/
 └── lib/
     ├── utils.ts
     ├── subscription.ts
+    ├── cloudinary.ts                     # NUEVA — helper upload + isCloudinaryConfigured()
     └── supabase/ (client.ts, server.ts, admin.ts)
 ```
 
 ```text
 supabase/migrations/
-├── 001_initial_schema.sql           ✅
-├── 002_subscriptions_friends_2x.sql ✅
-├── 003_profile_dance_styles.sql     ✅
+├── 001_initial_schema.sql              ✅
+├── 002_subscriptions_friends_2x.sql    ✅
+├── 003_profile_dance_styles.sql        ✅
 ├── 004_class_schedule_improvements.sql ✅
-├── 005_storage_policies.sql         ✅
-├── 006_notification_types.sql       ✅
-├── 007_payment_receipts_bucket.sql  ✅
-├── 008_trust_posts.sql              ✅
-└── 009_class_type_post_visibility.sql ✅
+├── 005_storage_policies.sql            ✅
+├── 006_notification_types.sql          ✅
+├── 007_payment_receipts_bucket.sql     ✅
+├── 008_trust_posts.sql                 ✅
+├── 009_class_type_post_visibility.sql  ✅
+├── 010_reports_music.sql               ✅ (tabla reports + columnas music_* en posts)
+└── 011_drop_music_columns.sql          ✅ (elimina columnas music_* de posts)
 ```
 
 ---
@@ -354,6 +383,66 @@ supabase/migrations/
 ### ⚠️ Variable de entorno por verificar
 
 - `CRON_SECRET` en Vercel → Settings → Environment Variables. Debe ser cualquier string aleatorio (p.ej. `openssl rand -base64 32`). Si no está, el cron de limpieza de archivos retorna 401.
+
+### ⏳ Cloudinary — Setup pendiente
+
+El código ya está integrado en `CreatePostModal`. Solo falta hacer el setup en Cloudinary y agregar las variables en Vercel. Ver instrucciones completas en la sección **Integración Cloudinary** más abajo.
+
+---
+
+## Integración Cloudinary — Setup pendiente ⏳
+
+Cloudinary comprime y optimiza los videos automáticamente al subir. El código en `CreatePostModal` detecta si está configurado y usa Cloudinary; si no, hace fallback a Supabase Storage. **No rompe nada si las variables no están.**
+
+### Paso 1 — Crear cuenta en Cloudinary
+
+1. Ir a [cloudinary.com](https://cloudinary.com) → **Sign up free**
+2. El plan gratuito incluye 25 GB storage + 25 GB bandwidth/mes (suficiente para MVP)
+3. Anotar el **Cloud Name** que aparece en el dashboard (esquina superior izquierda)
+
+### Paso 2 — Crear Upload Preset (sin firma)
+
+1. En el dashboard de Cloudinary: **Settings** (ícono engranaje) → **Upload**
+2. Scroll hasta **Upload presets** → **Add upload preset**
+3. Configurar:
+   - **Preset name:** `danceclass_posts` (o cualquier nombre)
+   - **Signing mode:** `Unsigned` ← importante
+   - **Folder:** `posts` (opcional, para organizar)
+4. En la pestaña **Upload manipulations** → **Incoming transformations**:
+   - Agregar transformación: `q_auto,f_auto` — auto-calidad y auto-formato
+   - Esto comprime el video automáticamente al subir
+5. Guardar
+
+### Paso 3 — Agregar variables en Vercel
+
+En **Vercel → Settings → Environment Variables** agregar:
+
+| Variable | Valor |
+|---|---|
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Tu cloud name (ej: `abcde12345`) |
+| `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` | Nombre del preset (ej: `danceclass_posts`) |
+
+Luego hacer un redeploy (push vacío o desde Vercel dashboard).
+
+### Cómo funciona en el código
+
+```typescript
+// lib/cloudinary.ts
+isCloudinaryConfigured()    // true si ambas NEXT_PUBLIC_ están seteadas
+uploadToCloudinary(file, 'video', 'posts')  // sube a Cloudinary, retorna { secure_url }
+
+// CreatePostModal.tsx — lógica de subida:
+if (isCloudinaryConfigured()) {
+  videoUrl = (await uploadToCloudinary(file, 'video', 'posts')).secure_url
+} else {
+  // fallback: Supabase Storage bucket 'posts-media'
+}
+```
+
+### Notas
+- Las imágenes de clases (`class-media`) siguen en Supabase Storage — no se migraron
+- Las URLs de Cloudinary son permanentes y servidas por CDN global
+- Si en el futuro se quiere también comprimir imágenes de clases, se puede extender el mismo helper
 
 ---
 
