@@ -213,7 +213,7 @@ function AuditionCard({
 
   const statusConfig = {
     pending: { color: 'bg-gray-50 border-gray-200', badge: null },
-    accepted: { color: 'bg-green-50 border-green-200', badge: 'Aceptada' },
+    accepted: { color: 'bg-green-100 border-green-200', badge: 'Aceptada' },
     rejected: { color: 'bg-red-50 border-red-200', badge: 'Rechazada' },
   }
   const cfg = statusConfig[effectiveStatus]
