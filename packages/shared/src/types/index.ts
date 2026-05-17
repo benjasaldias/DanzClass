@@ -62,7 +62,15 @@ export function canTeachUnlimited(tier: SubscriptionTier): boolean {
   return tier === 'teacher' || tier === 'pro'
 }
 
-// Helper: si el tier permite subir videos en clases/posts
+// Máximo de video-posts simultáneos para el plan Básico
+export const BASIC_VIDEO_POST_LIMIT = 3
+
+// Helper: si el tier permite publicar videos de coreografías (posts)
+export function canPostVideo(tier: SubscriptionTier): boolean {
+  return tier === 'basic' || tier === 'teacher' || tier === 'pro'
+}
+
+// Helper: si el tier permite subir videos en clases/posts (sin límite)
 export function canUploadVideo(tier: SubscriptionTier): boolean {
   return tier === 'teacher' || tier === 'pro'
 }
@@ -342,6 +350,7 @@ export const SUBSCRIPTION_PLANS = [
       'Inscríbete en cualquier clase',
       'Publica 1 clase suelta por mes',
       'Sube 1 foto o video en esa clase',
+      'Hasta 3 videos de coreografías publicados',
       'Explora profesores',
       'Busca compañero 2x',
     ],
@@ -355,7 +364,7 @@ export const SUBSCRIPTION_PLANS = [
       'Todo lo del plan Básico',
       'Publica clases ilimitadas (sueltas y periódicas)',
       'Sube hasta 5 fotos/videos por clase',
-      'Publica videos de coreografías',
+      'Videos de coreografías ilimitados',
       'Perfil destacado',
     ],
   },
