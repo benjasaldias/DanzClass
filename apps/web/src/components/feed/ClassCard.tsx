@@ -143,56 +143,63 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         </div>
 
         {/* Price + CTA */}
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            <p className="text-xs text-gray-500">
-              {classData.type === 'periodica' || classData.type === 'entrenamiento' ? 'Precio mensual' : 'Precio'}
-            </p>
-            {classData.discount_price_monthly && classData.type !== 'suelta' ? (
-              <div className="flex items-baseline gap-2">
-                <p className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price_monthly)}</p>
-                <p className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</p>
-              </div>
-            ) : classData.discount_price && classData.type === 'suelta' ? (
-              <div className="flex items-baseline gap-2">
-                <p className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price)}</p>
-                <p className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</p>
-              </div>
-            ) : (
-              <p className="text-xl font-bold text-gray-900">{formatCLP(classData.price)}</p>
-            )}
-            {classData.price_suelta && (
-              <p className="text-xs text-gray-500 mt-0.5">
-                Suelta:{' '}
-                {classData.discount_price ? (
+        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-50/60 border-t border-emerald-100">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500">
+                {classData.type === 'periodica' || classData.type === 'entrenamiento' ? 'Precio mensual' : 'Precio'}
+              </p>
+              {/* Main price + 2x inline */}
+              <div className="flex items-baseline gap-2 flex-wrap">
+                {classData.discount_price_monthly && classData.type !== 'suelta' ? (
                   <>
-                    <span className="font-medium text-orange-600">{formatCLP(classData.discount_price)}</span>
-                    <span className="line-through text-gray-400 ml-1">{formatCLP(classData.price_suelta)}</span>
+                    <span className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price_monthly)}</span>
+                    <span className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</span>
+                  </>
+                ) : classData.discount_price && classData.type === 'suelta' ? (
+                  <>
+                    <span className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price)}</span>
+                    <span className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</span>
                   </>
                 ) : (
-                  <span className="font-medium text-gray-700">{formatCLP(classData.price_suelta)}</span>
+                  <span className="text-xl font-bold text-gray-900">{formatCLP(classData.price)}</span>
                 )}
-              </p>
+                {classData.price_2x && (
+                  <span className="text-xs text-brand-600 font-semibold">· 2x {formatCLP(classData.price_2x)}</span>
+                )}
+              </div>
+              {/* Suelta price + suelta 2x inline */}
+              {classData.price_suelta && (
+                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                  <span className="text-xs text-gray-500">Suelta:</span>
+                  {classData.discount_price ? (
+                    <>
+                      <span className="text-xs font-medium text-orange-600">{formatCLP(classData.discount_price)}</span>
+                      <span className="text-xs line-through text-gray-400">{formatCLP(classData.price_suelta)}</span>
+                    </>
+                  ) : (
+                    <span className="text-xs font-medium text-gray-700">{formatCLP(classData.price_suelta)}</span>
+                  )}
+                  {classData.price_suelta_2x && (
+                    <span className="text-xs text-brand-600 font-semibold">· 2x {formatCLP(classData.price_suelta_2x)}</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {!isTeacher && (
+              <Link href={`/class/${classData.id}`} className="btn-primary flex-shrink-0">
+                Ver clase
+                <ChevronRight className="h-4 w-4" />
+              </Link>
             )}
-            {classData.price_2x && (
-              <p className="text-xs text-brand-600 mt-0.5 font-medium">
-                2x: {formatCLP(classData.price_2x)}
-              </p>
+
+            {isTeacher && (
+              <Link href={`/class/${classData.id}/edit`} className="btn-secondary text-xs flex-shrink-0">
+                Editar
+              </Link>
             )}
           </div>
-
-          {!isTeacher && (
-            <Link href={`/class/${classData.id}`} className="btn-primary">
-              Ver clase
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          )}
-
-          {isTeacher && (
-            <Link href={`/class/${classData.id}/edit`} className="btn-secondary text-xs">
-              Editar
-            </Link>
-          )}
         </div>
       </div>
     </article>

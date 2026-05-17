@@ -38,5 +38,16 @@ export default async function PaymentPage({ params }: Props) {
     redirect(`/class/${enrollment.class_id}`)
   }
 
-  return <PaymentClient enrollment={enrollment} currentUserId={user.id} />
+  // If 2x enrollment, fetch the related request to determine who pays
+  const { data: twoxRequest } = (rawEnrollment as any).is_2x
+    ? await (supabase as any)
+        .from('class_2x_requests')
+        .select('*')
+        .eq('class_id', rawEnrollment.class_id)
+        .or(`user_id.eq.${user.id},matched_with.eq.${user.id}`)
+        .eq('status', 'matched')
+        .maybeSingle()
+    : { data: null }
+
+  return <PaymentClient enrollment={enrollment} currentUserId={user.id} twoxRequest={twoxRequest} />
 }

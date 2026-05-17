@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
-import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft } from 'lucide-react'
+import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCLP } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 interface PaymentClientProps {
   enrollment: any
   currentUserId: string
+  twoxRequest?: any
 }
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -20,19 +21,36 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   cuenta_ahorro: 'Cuenta Ahorro',
 }
 
-export default function PaymentClient({ enrollment, currentUserId }: PaymentClientProps) {
+export default function PaymentClient({ enrollment, currentUserId, twoxRequest }: PaymentClientProps) {
   const router = useRouter()
   const cls = enrollment.class
   const teacher = cls.teacher
   const paymentInfo = teacher.payment_info?.[0] ?? teacher.payment_info
+
+  const is2x = !!enrollment.is_2x
+  const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
+  const isMyTurnToPay = !is2x || !twoxRequest || twoxRequest.payment_assignee === currentUserId
 
   const [receipt, setReceipt] = useState<File | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [transferring, setTransferring] = useState(false)
 
   const alreadySubmitted = enrollment.status === 'payment_submitted'
+
+  async function handleTransfer() {
+    if (!twoxRequest) return
+    setTransferring(true)
+    await fetch('/api/class-2x/transfer-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: twoxRequest.id }),
+    })
+    setTransferring(false)
+    router.refresh()
+  }
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
@@ -91,7 +109,7 @@ export default function PaymentClient({ enrollment, currentUserId }: PaymentClie
     } else {
       await supabase.from('payments').insert({
         enrollment_id: enrollment.id,
-        amount: cls.price,
+        amount,
         receipt_url: urlData.publicUrl,
         status: 'pending',
       })
@@ -134,14 +152,33 @@ export default function PaymentClient({ enrollment, currentUserId }: PaymentClie
         <p className="text-sm text-gray-500 mt-0.5">{cls.title}</p>
       </div>
 
-      {/* Amount */}
-      <div className="card p-5 bg-brand-50 border-brand-100">
-        <p className="text-sm text-brand-700 font-medium mb-1">Monto a transferir</p>
-        <p className="text-4xl font-bold text-brand-900">{formatCLP(cls.price)}</p>
-      </div>
+      {/* Partner pays — this user is not the payment assignee */}
+      {is2x && !isMyTurnToPay && (
+        <div className="card p-5 bg-amber-50 border-amber-200 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+              <Users className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Tu compañer@ va a pagar</p>
+              <p className="text-xs text-amber-700 mt-0.5">El monto 2x ({formatCLP(amount)}) está asignado a tu amig@.</p>
+            </div>
+          </div>
+          <p className="text-xs text-amber-600">Si quieres pagar tú, pídele a tu compañer@ que te transfiera el turno desde la página de la clase.</p>
+        </div>
+      )}
 
-      {/* Bank details */}
-      {paymentInfo ? (
+      {/* Amount — shown only when it's this user's turn */}
+      {isMyTurnToPay && (
+        <div className="card p-5 bg-brand-50 border-brand-100">
+          <p className="text-sm text-brand-700 font-medium mb-1">Monto a transferir</p>
+          <p className="text-4xl font-bold text-brand-900">{formatCLP(amount)}</p>
+          {is2x && <p className="text-xs text-brand-600 mt-1">Precio 2x — cubre a ambos</p>}
+        </div>
+      )}
+
+      {/* Bank details + form — only when this user pays */}
+      {isMyTurnToPay && paymentInfo ? (
         <div className="card p-4 space-y-3">
           <h3 className="font-semibold text-sm text-gray-900">Datos de transferencia</h3>
 
@@ -172,73 +209,88 @@ export default function PaymentClient({ enrollment, currentUserId }: PaymentClie
             </div>
           ))}
         </div>
-      ) : (
+      ) : isMyTurnToPay ? (
         <div className="card p-4 text-center text-sm text-gray-500">
           El profesor aún no ha configurado sus datos bancarios. Contáctalo directamente.
         </div>
-      )}
+      ) : null}
 
-      {/* Receipt upload */}
-      <div>
-        <h3 className="font-semibold text-sm text-gray-900 mb-2">
-          {alreadySubmitted ? 'Comprobante enviado' : 'Sube el comprobante de pago'}
-        </h3>
+      {/* Receipt upload + submit — only when this user pays */}
+      {isMyTurnToPay && (
+        <>
+          <div>
+            <h3 className="font-semibold text-sm text-gray-900 mb-2">
+              {alreadySubmitted ? 'Comprobante enviado' : 'Sube el comprobante de pago'}
+            </h3>
 
-        {alreadySubmitted ? (
-          <div className="card p-4 flex items-center gap-3 bg-blue-50 border-blue-100">
-            <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
-            <p className="text-sm text-blue-700">Tu comprobante fue enviado. El profesor lo está revisando.</p>
-          </div>
-        ) : (
-          <div
-            {...getRootProps()}
-            className={cn(
-              'relative rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors',
-              isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 hover:bg-gray-50',
-              receipt && 'border-green-400 bg-green-50'
-            )}
-          >
-            <input {...getInputProps()} />
-
-            {receiptPreview ? (
-              <div className="space-y-2">
-                {receipt?.type.startsWith('image/') ? (
-                  <img src={receiptPreview} alt="Comprobante" className="mx-auto max-h-48 rounded-xl object-contain" />
-                ) : (
-                  <div className="flex items-center gap-3 justify-center">
-                    <FileImage className="h-8 w-8 text-gray-400" />
-                    <p className="text-sm font-medium text-gray-700">{receipt?.name}</p>
-                  </div>
-                )}
-                <p className="text-xs text-green-700 font-medium">✓ Archivo listo para enviar</p>
-                <p className="text-xs text-gray-500">Haz clic para cambiar</p>
+            {alreadySubmitted ? (
+              <div className="card p-4 flex items-center gap-3 bg-blue-50 border-blue-100">
+                <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                <p className="text-sm text-blue-700">Tu comprobante fue enviado. El profesor lo está revisando.</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                <Upload className="h-10 w-10 text-gray-300 mx-auto" />
-                <p className="text-sm font-medium text-gray-700">
-                  {isDragActive ? 'Suelta aquí' : 'Arrastra o haz clic para subir'}
-                </p>
-                <p className="text-xs text-gray-400">JPG, PNG o PDF · Máx 10 MB</p>
+              <div
+                {...getRootProps()}
+                className={cn(
+                  'relative rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors',
+                  isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 hover:bg-gray-50',
+                  receipt && 'border-green-400 bg-green-50'
+                )}
+              >
+                <input {...getInputProps()} />
+
+                {receiptPreview ? (
+                  <div className="space-y-2">
+                    {receipt?.type.startsWith('image/') ? (
+                      <img src={receiptPreview} alt="Comprobante" className="mx-auto max-h-48 rounded-xl object-contain" />
+                    ) : (
+                      <div className="flex items-center gap-3 justify-center">
+                        <FileImage className="h-8 w-8 text-gray-400" />
+                        <p className="text-sm font-medium text-gray-700">{receipt?.name}</p>
+                      </div>
+                    )}
+                    <p className="text-xs text-green-700 font-medium">✓ Archivo listo para enviar</p>
+                    <p className="text-xs text-gray-500">Haz clic para cambiar</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Upload className="h-10 w-10 text-gray-300 mx-auto" />
+                    <p className="text-sm font-medium text-gray-700">
+                      {isDragActive ? 'Suelta aquí' : 'Arrastra o haz clic para subir'}
+                    </p>
+                    <p className="text-xs text-gray-400">JPG, PNG o PDF · Máx 10 MB</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* Submit */}
-      {!alreadySubmitted && (
+          {!alreadySubmitted && (
+            <button
+              onClick={handleSubmit}
+              disabled={!receipt || uploading}
+              className="btn-primary w-full py-3 text-base"
+            >
+              {uploading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando...
+                </span>
+              ) : 'Enviar comprobante'}
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Transfer payment to partner */}
+      {is2x && isMyTurnToPay && !alreadySubmitted && twoxRequest && (
         <button
-          onClick={handleSubmit}
-          disabled={!receipt || uploading}
-          className="btn-primary w-full py-3 text-base"
+          onClick={handleTransfer}
+          disabled={transferring}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
-          {uploading ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Enviando...
-            </span>
-          ) : 'Enviar comprobante'}
+          {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+          Que pague mi compañer@
         </button>
       )}
     </div>

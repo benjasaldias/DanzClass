@@ -7,6 +7,7 @@ import Link from 'next/link'
 import {
   MapPin, Clock, Users, Calendar, ChevronLeft, UserPlus, UserMinus,
   AlertCircle, CheckCircle2, Pencil, Trash2, Flag, Tag, ClipboardList,
+  ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -70,6 +71,7 @@ export default function ClassDetailClient({
     discount_price_monthly: classData.discount_price_monthly ?? null,
   })
   const [friendsTwox, setFriendsTwox] = useState(friendsTwoxRequests)
+  const [friendsOpen, setFriendsOpen] = useState(false)
   const [matchingId, setMatchingId] = useState<string | null>(null)
   const [matchError, setMatchError] = useState<string | null>(null)
 
@@ -173,9 +175,8 @@ export default function ClassDetailClient({
       body: JSON.stringify({ request_id: requestId }),
     })
     if (res.ok) {
-      const json = await res.json()
       setFriendsTwox((prev) => prev.filter((r) => r.id !== requestId))
-      router.push(`/payment/${json.enrollment_id}`)
+      router.refresh()
     } else {
       const json = await res.json().catch(() => ({}))
       if (res.status === 404) {
@@ -392,39 +393,50 @@ export default function ClassDetailClient({
 
         {/* Friends looking for 2x partner in this class */}
         {!isTeacher && friendsTwox.length > 0 && (
-          <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600">
-                <Users className="h-3 w-3 text-white" />
-              </div>
-              <p className="text-xs font-semibold text-brand-800">
-                {friendsTwox.length === 1 ? '1 amig@ busca compañer@ 2x para esta clase' : `${friendsTwox.length} amig@s buscan compañer@ 2x para esta clase`}
-              </p>
-            </div>
-            {matchError && (
-              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2 py-1">{matchError}</p>
-            )}
-            <div className="space-y-2">
-              {friendsTwox.map((entry: any) => (
-                <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-white border border-brand-100 px-3 py-2">
-                  <Avatar src={entry.user?.avatar_url} name={entry.user?.full_name ?? ''} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{entry.user?.full_name}</p>
-                    <p className="text-xs text-gray-500">@{entry.user?.username}</p>
-                  </div>
-                  <button
-                    onClick={() => handleJoin2x(entry.id)}
-                    disabled={matchingId === entry.id}
-                    className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
-                  >
-                    {matchingId === entry.id ? (
-                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    ) : null}
-                    ¡Ir juntos!
-                  </button>
+          <div className="rounded-xl border border-brand-200 bg-brand-50/60 overflow-hidden">
+            <button
+              onClick={() => setFriendsOpen((o) => !o)}
+              className="flex items-center justify-between w-full px-3 py-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 flex-shrink-0">
+                  <Users className="h-3 w-3 text-white" />
                 </div>
-              ))}
-            </div>
+                <span className="text-xs font-semibold text-brand-800">Amigos buscando 2x</span>
+                <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-brand-600 text-white text-[10px] font-bold px-1">
+                  {friendsTwox.length}
+                </span>
+              </div>
+              {friendsOpen
+                ? <ChevronUp className="h-3.5 w-3.5 text-brand-600 flex-shrink-0" />
+                : <ChevronDown className="h-3.5 w-3.5 text-brand-600 flex-shrink-0" />}
+            </button>
+            {friendsOpen && (
+              <div className="px-3 pb-3 space-y-2">
+                {matchError && (
+                  <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2 py-1">{matchError}</p>
+                )}
+                {friendsTwox.map((entry: any) => (
+                  <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-white border border-brand-100 px-3 py-2">
+                    <Avatar src={entry.user?.avatar_url} name={entry.user?.full_name ?? ''} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{entry.user?.full_name}</p>
+                      <p className="text-xs text-gray-500">@{entry.user?.username}</p>
+                    </div>
+                    <button
+                      onClick={() => handleJoin2x(entry.id)}
+                      disabled={matchingId === entry.id}
+                      className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                    >
+                      {matchingId === entry.id && (
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      )}
+                      ¡Ir juntos!
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

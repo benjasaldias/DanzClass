@@ -14,6 +14,7 @@ import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import DateInput from '@/components/ui/DateInput'
 import type { ClassLevel } from '@danceclass/shared'
 
 const schema = z.object({
@@ -21,7 +22,10 @@ const schema = z.object({
   description: z.string().max(500).optional(),
   type: z.enum(['suelta', 'periodica', 'entrenamiento']),
   dance_style: z.string().optional(),
-  class_type: z.enum(['coreografía', 'freestyle', 'otro']).optional(),
+  class_type: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.enum(['coreografía', 'freestyle', 'otro']).optional()
+  ),
   level: z.enum(['principiante', 'intermedio', 'avanzado', 'todos']),
   date: z.string().optional(),
   time: z.string().optional(),
@@ -321,7 +325,11 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha *</label>
-              <input {...register('date')} type="date" className="input" />
+              <DateInput
+                value={watch('date') ?? ''}
+                onChange={(iso) => setValue('date', iso)}
+                className="input"
+              />
               {errors.date && <p className="mt-1 text-xs text-red-600">{errors.date.message}</p>}
             </div>
             <div>
@@ -376,7 +384,11 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
             <div className="rounded-xl border border-gray-200 p-3 space-y-2">
               <label className="block text-sm font-medium text-gray-700">Fecha de término *</label>
               {!endsIndefinitely && (
-                <input {...register('ends_at')} type="date" className="input" />
+                <DateInput
+                  value={watch('ends_at') ?? ''}
+                  onChange={(iso) => setValue('ends_at', iso || undefined)}
+                  className="input"
+                />
               )}
               {errors.ends_at && <p className="mt-1 text-xs text-red-600">{errors.ends_at.message}</p>}
 
@@ -410,13 +422,13 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
                   <label className="block text-sm font-medium text-gray-700">
                     Precio clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
                   </label>
-                  <input {...register('price_suelta')} type="number" min={0} placeholder="ej: 5000" className="input mt-1" />
+                  <input {...register('price_suelta')} type="number" min={0} placeholder="ej: 5000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Precio 2x clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
                   </label>
-                  <input {...register('price_suelta_2x')} type="number" min={0} placeholder="ej: 8000" className="input mt-1" />
+                  <input {...register('price_suelta_2x')} type="number" min={0} placeholder="ej: 8000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
                 </div>
               </div>
             )}
@@ -443,17 +455,17 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Cupos *</label>
-            <input {...register('max_spots')} type="number" min={1} className="input" />
+            <input {...register('max_spots')} type="number" min={1} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Duración (min)</label>
-            <input {...register('duration_minutes')} type="number" min={30} className="input" />
+            <input {...register('duration_minutes')} type="number" min={30} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
               {isPeriodic ? 'Precio mensual ($) *' : 'Precio ($) *'}
             </label>
-            <input {...register('price')} type="number" min={0} className="input" />
+            <input {...register('price')} type="number" min={0} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
             {errors.price && <p className="mt-1 text-xs text-red-600">{errors.price.message}</p>}
           </div>
         </div>
@@ -464,7 +476,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
             Precio 2x <span className="text-gray-400 font-normal">(opcional)</span>
           </label>
           <p className="text-xs text-gray-400">Precio total para dos alumnos que pagan juntos</p>
-          <input {...register('price_2x')} type="number" min={0} placeholder="ej: 18000" className="input mt-1" />
+          <input {...register('price_2x')} type="number" min={0} placeholder="ej: 18000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
         </div>
 
         {/* Media */}
