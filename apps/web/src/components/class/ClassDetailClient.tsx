@@ -29,6 +29,7 @@ interface ClassDetailClientProps {
   spots: any
   isFollowing: boolean
   myAudition?: any
+  friendsTwoxRequests?: any[]
 }
 
 type EnrollmentInsert = { student_id: string; class_id: string; session_id: string | null; status: 'pending_payment' }
@@ -45,6 +46,7 @@ const LEVEL_COLORS = {
 export default function ClassDetailClient({
   classData, currentUser, currentProfile, enrollment: initialEnrollment,
   spots: initialSpots, isFollowing: initialIsFollowing, myAudition,
+  friendsTwoxRequests = [],
 }: ClassDetailClientProps) {
   const router = useRouter()
 
@@ -67,6 +69,9 @@ export default function ClassDetailClient({
     discount_price: classData.discount_price ?? null,
     discount_price_monthly: classData.discount_price_monthly ?? null,
   })
+  const [friendsTwox, setFriendsTwox] = useState(friendsTwoxRequests)
+  const [matchingId, setMatchingId] = useState<string | null>(null)
+  const [matchError, setMatchError] = useState<string | null>(null)
 
   const teacher = classData.teacher
   const media = [...(classData.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
@@ -157,6 +162,30 @@ export default function ClassDetailClient({
   function handleDiscountSaved() {
     setShowDiscount(false)
     router.refresh()
+  }
+
+  async function handleJoin2x(requestId: string) {
+    setMatchingId(requestId)
+    setMatchError(null)
+    const res = await fetch('/api/class-2x/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ request_id: requestId }),
+    })
+    if (res.ok) {
+      const json = await res.json()
+      setFriendsTwox((prev) => prev.filter((r) => r.id !== requestId))
+      router.push(`/payment/${json.enrollment_id}`)
+    } else {
+      const json = await res.json().catch(() => ({}))
+      if (res.status === 404) {
+        setMatchError('Este 2x ya fue tomado por otra persona.')
+        setFriendsTwox((prev) => prev.filter((r) => r.id !== requestId))
+      } else {
+        setMatchError(json.error ?? 'Error al unirse al 2x. Intenta de nuevo.')
+      }
+    }
+    setMatchingId(null)
   }
 
   const alreadyPaid = enrollment?.status === 'confirmed' || enrollment?.status === 'payment_submitted'
@@ -358,6 +387,44 @@ export default function ClassDetailClient({
           <div>
             <h3 className="font-semibold text-sm text-gray-900 mb-2">Descripción</h3>
             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{classData.description}</p>
+          </div>
+        )}
+
+        {/* Friends looking for 2x partner in this class */}
+        {!isTeacher && friendsTwox.length > 0 && (
+          <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600">
+                <Users className="h-3 w-3 text-white" />
+              </div>
+              <p className="text-xs font-semibold text-brand-800">
+                {friendsTwox.length === 1 ? '1 amig@ busca compañer@ 2x para esta clase' : `${friendsTwox.length} amig@s buscan compañer@ 2x para esta clase`}
+              </p>
+            </div>
+            {matchError && (
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2 py-1">{matchError}</p>
+            )}
+            <div className="space-y-2">
+              {friendsTwox.map((entry: any) => (
+                <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-white border border-brand-100 px-3 py-2">
+                  <Avatar src={entry.user?.avatar_url} name={entry.user?.full_name ?? ''} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{entry.user?.full_name}</p>
+                    <p className="text-xs text-gray-500">@{entry.user?.username}</p>
+                  </div>
+                  <button
+                    onClick={() => handleJoin2x(entry.id)}
+                    disabled={matchingId === entry.id}
+                    className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                  >
+                    {matchingId === entry.id ? (
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : null}
+                    ¡Ir juntos!
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

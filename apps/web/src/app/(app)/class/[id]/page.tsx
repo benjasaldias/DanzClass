@@ -71,6 +71,26 @@ export default async function ClassDetailPage({ params }: Props) {
     myAudition = audition
   }
 
+  // Fetch friends' active 2x requests for this class
+  const { data: friendships } = await (supabase as any)
+    .from('friendships')
+    .select('requester_id, addressee_id')
+    .eq('status', 'accepted')
+    .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+
+  const friendIds = ((friendships as any[]) ?? []).map((f: any) =>
+    f.requester_id === user.id ? f.addressee_id : f.requester_id
+  )
+
+  const { data: friendsTwox } = friendIds.length > 0
+    ? await (supabase as any)
+        .from('class_2x_requests')
+        .select('*, user:profiles!user_id(username, full_name, avatar_url)')
+        .in('user_id', friendIds)
+        .eq('class_id', params.id)
+        .eq('status', 'looking')
+    : { data: [] }
+
   return (
     <ClassDetailClient
       classData={classData}
@@ -80,6 +100,7 @@ export default async function ClassDetailPage({ params }: Props) {
       spots={spots}
       isFollowing={!!followData}
       myAudition={myAudition}
+      friendsTwoxRequests={(friendsTwox as any[]) ?? []}
     />
   )
 }

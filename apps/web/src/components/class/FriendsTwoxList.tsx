@@ -22,24 +22,33 @@ interface FriendsTwoxListProps {
 export default function FriendsTwoxList({ requests, currentUserId }: FriendsTwoxListProps) {
   const [open, setOpen] = useState(false)
   const [matching, setMatching] = useState<string | null>(null)
-  const [matched, setMatched] = useState<Set<string>>(new Set())
+  const [gone, setGone] = useState<Set<string>>(new Set())
+  const [errorId, setErrorId] = useState<string | null>(null)
 
   if (requests.length === 0) return null
 
-  async function handleMatch(requestId: string, requestUserId: string) {
+  async function handleMatch(requestId: string) {
     setMatching(requestId)
+    setErrorId(null)
     const res = await fetch('/api/class-2x/match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ request_id: requestId }),
     })
     if (res.ok) {
-      setMatched((prev) => new Set([...prev, requestId]))
+      setGone((prev) => new Set([...prev, requestId]))
+    } else if (res.status === 404) {
+      // Already taken — remove from list with feedback
+      setErrorId(requestId)
+      setTimeout(() => {
+        setGone((prev) => new Set([...prev, requestId]))
+        setErrorId(null)
+      }, 2000)
     }
     setMatching(null)
   }
 
-  const active = requests.filter((r) => !matched.has(r.id))
+  const active = requests.filter((r) => !gone.has(r.id))
 
   return (
     <div className="border-b border-gray-100 bg-gradient-to-r from-brand-50 to-violet-50">
@@ -68,6 +77,7 @@ export default function FriendsTwoxList({ requests, currentUserId }: FriendsTwox
         <div className="px-4 pb-3 space-y-2">
           {active.map((entry) => {
             const price = entry.class.price_2x ?? entry.class.price_suelta_2x
+            const alreadyTaken = errorId === entry.id
             return (
               <div
                 key={entry.id}
@@ -79,23 +89,26 @@ export default function FriendsTwoxList({ requests, currentUserId }: FriendsTwox
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{entry.user.full_name}</p>
                   <p className="text-xs text-gray-500 truncate">{entry.class.title}</p>
-                  {price && (
+                  {price && !alreadyTaken && (
                     <p className="text-xs text-brand-600 font-medium">{formatCLP(price)} en pareja</p>
+                  )}
+                  {alreadyTaken && (
+                    <p className="text-xs text-red-500 font-medium">Ya fue tomado por otra persona</p>
                   )}
                 </div>
                 <button
-                  onClick={() => handleMatch(entry.id, entry.user_id)}
-                  disabled={matching === entry.id}
+                  onClick={() => handleMatch(entry.id)}
+                  disabled={matching === entry.id || alreadyTaken}
                   className={cn(
                     'flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-                    'bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50'
+                    alreadyTaken
+                      ? 'bg-red-100 text-red-500 cursor-not-allowed'
+                      : 'bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50'
                   )}
                 >
                   {matching === entry.id ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    '¡Ir juntos!'
-                  )}
+                  ) : alreadyTaken ? 'Tomado' : '¡Ir juntos!'}
                 </button>
               </div>
             )
