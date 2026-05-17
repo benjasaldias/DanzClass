@@ -95,12 +95,11 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 ### 011_drop_music_columns.sql ✅ APLICADA (sesión 2026-05-15)
 - Elimina columnas `music_id`, `music_title`, `music_artist`, `music_preview_url` de `posts`
 
-### 012_add_new_report_notification.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-16)
+### 012_add_new_report_notification.sql ✅ APLICADA (sesión 2026-05-18)
 
 - Extiende constraint de tipo de notificación para incluir: `new_report`
-- Aplicar en Supabase SQL Editor antes de hacer deploy
 
-### 013_2x_requests.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-17)
+### 013_2x_requests.sql ✅ APLICADA (sesión 2026-05-18)
 
 - Tabla `class_2x_requests` (user_id, class_id, matched_with, status, payment_assignee) con UNIQUE(user_id, class_id)
 - `ALTER TABLE enrollments ADD COLUMN is_2x BOOLEAN DEFAULT FALSE`
@@ -108,13 +107,13 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - `ALTER TABLE classes ADD COLUMN price_suelta_2x INTEGER`
 - Extiende constraint notifications con `2x_payment_turn`
 
-### 014_discounts.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-17)
+### 014_discounts.sql ✅ APLICADA (sesión 2026-05-18)
 
 - `ALTER TABLE classes ADD COLUMN discount_price INTEGER`
 - `ALTER TABLE classes ADD COLUMN discount_price_monthly INTEGER`
 - Extiende constraint notifications con `class_discount`
 
-### 015_entrenamiento.sql ⏳ PENDIENTE APLICAR (sesión 2026-05-17)
+### 015_entrenamiento.sql ✅ APLICADA (sesión 2026-05-18)
 
 - Modifica constraint `classes_type_check` para incluir `'entrenamiento'`
 - `ALTER TABLE classes ADD COLUMN requires_audition BOOLEAN DEFAULT FALSE`
@@ -262,6 +261,17 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - Bucket `audition-videos` (privado, solo profesor y postulante pueden ver)
 - **Fecha de término en clases periódicas** — campo `ends_at` requerido para toda clase periódica
 - Popup "Las clases sin fecha de término deben ser de tipo Entrenamiento" si se intenta marcar Indefinido en periódica
+
+### ✅ QA pass — sesión 2026-05-18
+
+- **PaymentClient:** banner de advertencia cuando `is_2x=true` pero el profesor no configuró `price_2x`
+- **API `POST /api/class/discount`:** validación server-side que `discount_price < precio original` (defense-in-depth; la validación client-side ya existía en `DiscountModal`)
+- **CreateClassForm:** rechaza fechas pasadas en clase suelta; rechaza `ends_at` en el pasado; error explícito cuando se supera el límite de fotos/videos del plan
+- **EditClassForm:** valida que `ends_at` sea posterior a la fecha de inicio
+- **MonthCalendar:** nueva prop `disablePast` — deshabilita días anteriores a hoy (usada en crear clase, no en editar)
+- **ClassCard:** clases `custom` muestran preview de primeras 3 fechas: "15/6, 22/6, 29/6... · 4 clases · 19:00"
+- **TeacherProfileClient:** perfil propio sin estilos muestra placeholder "Sin estilos especificados — añade tus estilos" con link a `/profile/edit`
+- **MyClassesClient:** empty state de "Clases que tomo" apunta a `/explore` en vez de `/feed`
 
 ### ✅ Mejoras de UX en formularios y feed — sesión 2026-05-17b
 
@@ -497,24 +507,22 @@ supabase/migrations/
 ├── 009_class_type_post_visibility.sql  ✅
 ├── 010_reports_music.sql               ✅ (tabla reports + columnas music_* en posts)
 ├── 011_drop_music_columns.sql          ✅ (elimina columnas music_* de posts)
-└── 012_add_new_report_notification.sql ⏳ PENDIENTE — añade 'new_report' al constraint de notificaciones
+├── 012_add_new_report_notification.sql ✅
+├── 013_2x_requests.sql                 ✅
+├── 014_discounts.sql                   ✅
+└── 015_entrenamiento.sql               ✅
 ```
 
 ---
 
 ## Pendientes
 
-### ⚠️ Acciones pendientes post-sesión 2026-05-17
+### ✅ Migraciones 012–015 — APLICADAS (sesión 2026-05-18)
 
-1. **Aplicar migraciones en Supabase SQL Editor EN ORDEN:**
-   - `supabase/migrations/012_add_new_report_notification.sql`
-   - `supabase/migrations/013_2x_requests.sql`
-   - `supabase/migrations/014_discounts.sql`
-   - `supabase/migrations/015_entrenamiento.sql`
+### ⚠️ Acciones pendientes en Vercel (si no se hicieron antes)
 
-1. **Agregar `SUPERADMIN_USER_ID` en Vercel → Settings → Environment Variables**
-
-1. **`CRON_SECRET`** en Vercel si no está configurada (`openssl rand -base64 32`)
+1. **Agregar `SUPERADMIN_USER_ID`** en Vercel → Settings → Environment Variables
+2. **`CRON_SECRET`** en Vercel si no está configurada (`openssl rand -base64 32`)
 
 ### ✅ Cloudinary — Configurado (sesión 2026-05-16)
 
