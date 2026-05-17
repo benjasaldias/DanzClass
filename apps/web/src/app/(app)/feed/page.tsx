@@ -36,11 +36,16 @@ export default async function FeedPage() {
   const twoxQuery = friendIds.length > 0
     ? await (supabase as any)
         .from('class_2x_requests')
-        .select('*, user:profiles!user_id(username, full_name, avatar_url), class:classes!class_id(title, price_2x, price_suelta_2x, type)')
+        .select('*, user:profiles!user_id(username, full_name, avatar_url), class:classes!class_id(title, price_2x, price_suelta_2x, type, teacher_id)')
         .in('user_id', friendIds)
         .eq('status', 'looking')
         .limit(10)
     : { data: [] }
+
+  // Exclude requests for classes the current user teaches
+  const friendsTwox = (twoxQuery.data as any[] ?? []).filter(
+    (r: any) => r.class?.teacher_id !== user!.id
+  )
 
   const [{ data: classes }, { data: posts }] = await Promise.all([classesQuery, postsQuery])
 
@@ -51,7 +56,7 @@ export default async function FeedPage() {
       currentUser={user!}
       currentProfile={profile}
       followingIds={followingIds}
-      friendsTwoxRequests={(twoxQuery.data as any[]) ?? []}
+      friendsTwoxRequests={friendsTwox}
     />
   )
 }
