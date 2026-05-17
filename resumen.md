@@ -169,7 +169,7 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 
 ### ✅ Notificaciones (`/notifications`)
 
-- Tipos: follow, friend_request, friend_accepted, new_class, class_updated, class_cancelled, payment_confirmed, payment_rejected, 2x_request, 2x_match, debt_warning, **new_report**
+- Tipos: follow, friend_request, friend_accepted, new_class, class_updated, class_cancelled, payment_confirmed, payment_rejected, 2x_request, 2x_match, **2x_payment_turn**, debt_warning, new_report, **class_discount**, **audition_accepted**, **audition_rejected**
 
 ### ✅ Perfil público (`/teacher/[username]`) — ACTUALIZADO sesión 2026-05-16
 
@@ -224,16 +224,18 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - DanceClass se posiciona como plataforma intermediaria (safe harbor)
 - **Registro** actualizado: checkbox obligatorio `z.literal(true)` que enlaza a `/terms`; no se puede crear cuenta sin aceptarlo
 
-### ✅ Inscripción 2x (pareja) — NUEVO sesión 2026-05-17
+### ✅ Inscripción 2x (pareja) — NUEVO sesión 2026-05-17 / MEJORADO sesión 2026-05-17b
 
 - Campo `price_2x` en crear/editar clase (precio total para dos personas en un comprobante)
 - Campo `price_suelta_2x` para clases periódicas (idem pero por clase suelta)
 - Botón **"Busco 2x"** en detalle de clase → crea `class_2x_requests` (status: looking)
-- Cuando emparejado: botón "Ir a pagar" o "Que pague mi compañer@" (transfiere `payment_assignee`)
-- API route `POST /api/class-2x/match` — crea enrollments para ambos, notifica al solicitante
-- API route `POST /api/class-2x/transfer-payment` — transfiere turno de pago
-- **Dropdown en feed "Siguiendo"** — `FriendsTwoxList` lista amigos buscando 2x con botón "¡Ir juntos!"
-- Badge de precio 2x en `ClassCard`
+- Cuando emparejado: botón "Ir a pagar" o "Que pague mi compañer@" (transfiere `payment_assignee`) en TwoxRequestButton
+- API route `POST /api/class-2x/match` — crea enrollments para ambos (is_2x=true), notifica al solicitante; maneja race condition devolviendo 404 si ya emparejado
+- API route `POST /api/class-2x/transfer-payment` — solo el `payment_assignee` actual puede transferir; actualiza y notifica
+- **Sección "Amigos buscando 2x"** en detalle de clase — dropdown colapsable con badge de count; muestra amigos con `class_2x_requests.status='looking'` para esa clase; botón "¡Ir juntos!" llama a `/api/class-2x/match`; en caso de race condition muestra error y quita la entrada; tras match exitoso hace `router.refresh()` (no redirige a pago, ya que el pago lo inicia el solicitante)
+- **Sección en feed "Siguiendo"** — `FriendsTwoxList` colapsable con count; al hacer race condition muestra "Ya fue tomado" 2 segundos y quita la entrada
+- Precios 2x en `ClassCard` mostrados inline junto al precio correspondiente: `$15.000 · 2x $18.000`; suelta también: `Suelta: $5.000 · 2x $8.000`
+- **Página de pago** — detecta `enrollment.is_2x`; muestra `price_2x` como monto; si el usuario NO es `payment_assignee`: pantalla "Tu compañer@ va a pagar" sin formulario; si SÍ es assignee: formulario de pago + botón "Que pague mi compañer@" que llama a transfer API y hace `router.refresh()`
 - Notificación `2x_match` (emparejamiento) y `2x_payment_turn` (turno de pago)
 
 ### ✅ Descuentos espontáneos — NUEVO sesión 2026-05-17
@@ -246,18 +248,28 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - Banner naranja "¡Descuento activo!" en detalle de clase
 - Notificación `class_discount` para seguidores
 
-### ✅ Entrenamiento (nuevo tipo de clase) — NUEVO sesión 2026-05-17
+### ✅ Entrenamiento (nuevo tipo de clase) — NUEVO sesión 2026-05-17 / MEJORADO sesión 2026-05-17b
 
 - Nuevo tipo `'entrenamiento'` en el selector de tipo de clase
 - Solo precio mensual (sin suelta); fecha de término requerida (o "Indefinido")
 - Toggle **"Requiere postulación"** — habilita etapa de audiciones
 - Botón **"Postularme"** en ClassDetailClient con `AuditionModal` (nombre, edad, teléfono, video)
-- Página `/class/[id]/auditions` — `AuditionsListClient` para el profesor: acepta/rechaza postulantes
+- Página `/class/[id]/auditions` — `AuditionsListClient` para el profesor:
+  - Acepta/rechaza con botones de decisión **local** (sin escritura inmediata a DB)
+  - Badge "(borrador)" mientras la decisión no está publicada; botón "Deshacer"
+  - Botón sticky **"Publicar resultados (N postulaciones)"** — escribe todas las decisiones a DB y envía notificaciones en batch; los alumnos reciben `audition_accepted` o `audition_rejected`
 - Botón **"Cerrar postulaciones"** — marca `audition_closed=true`; luego la clase se edita normalmente
-- Al aceptar/rechazar: notificación `audition_accepted` / `audition_rejected` al postulante
 - Bucket `audition-videos` (privado, solo profesor y postulante pueden ver)
 - **Fecha de término en clases periódicas** — campo `ends_at` requerido para toda clase periódica
 - Popup "Las clases sin fecha de término deben ser de tipo Entrenamiento" si se intenta marcar Indefinido en periódica
+
+### ✅ Mejoras de UX en formularios y feed — sesión 2026-05-17b
+
+- **Fechas en formato chileno DD/MM/AAAA** — nuevo componente `ui/DateInput.tsx`: recibe `value` YYYY-MM-DD, muestra DD/MM/AAAA; auto-inserta barras al escribir dígitos; reemplaza todos los `<input type="date">` en `CreateClassForm` y `EditClassForm`
+- **Scroll del mouse no modifica campos numéricos** — todos los `<input type="number">` tienen `onWheel={(e) => (e.target as HTMLInputElement).blur()}` en ambos formularios
+- **Campo `class_type` verdaderamente opcional** — schema Zod usa `z.preprocess((v) => v === '' ? undefined : v, z.enum(...).optional())` en ambos formularios; antes rechazaba el string vacío del `<select>`
+- **Sección de precios en ClassCard con fondo verde suave** — `bg-emerald-50/60` con `border-t border-emerald-100` separa visualmente el bloque de precio/CTA del resto del contenido de la card
+- **Dropdown de amigos buscando 2x en ClassDetailClient** — sección colapsable con badge de count; reemplaza lista siempre expandida que no escalaría con muchos amigos
 
 ### ✅ Planes y suscripciones (`/plans`)
 - Básico: $1.500/mes — 1 clase suelta/mes + 1 foto/video
@@ -293,19 +305,25 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 | `ui/EndorsementPopup.tsx` | Popup post-clase pidiendo recomendación |
 | `ui/LogoutButton.tsx` | Cerrar sesión; prop `asButton` para renderizar como pill |
 | `ui/ReportModal.tsx` | Modal de denuncia; llama a `/api/reports` en vez de insertar directo |
-| `feed/ClassCard.tsx` | Card de clase con tono lila, cupos x/y, badge estilo-tipo |
+| `ui/DateInput.tsx` | Input de fecha con formato DD/MM/AAAA; auto-inserta barras; almacena YYYY-MM-DD |
+| `feed/ClassCard.tsx` | Card de clase con tono lila, cupos x/y, badge estilo-tipo; precios 2x inline; fondo emerald en sección precio |
 | `feed/PostCard.tsx` | Video adaptivo al ratio nativo; menú ⋮ para autor (editar privacidad/eliminar) |
 | `feed/FeedClient.tsx` | Feed unificado clases+posts con filtros |
 | `feed/ExploreClient.tsx` | Explorar con filtros de usuarios |
 | `feed/UserCard.tsx` | Card de usuario con follow + amistad |
 | `feed/CreatePostModal.tsx` | Modal crear video con visibilidad p/s/amigos |
-| `class/ClassDetailClient.tsx` | Detalle con carrusel sin crop (object-contain), botón "Ver fechas" |
+| `class/ClassDetailClient.tsx` | Detalle con carrusel sin crop (object-contain), botón "Ver fechas"; dropdown amigos 2x; sección 2x con TwoxRequestButton |
 | `class/CustomDatesCalendar.tsx` | Calendar modal de solo lectura con fechas destacadas |
-| `class/CreateClassForm.tsx` | Formulario con class_type + límites plan básico |
-| `class/EditClassForm.tsx` | Formulario de edición con class_type + zona peligrosa (eliminar clase) |
+| `class/CreateClassForm.tsx` | Formulario con DateInput, class_type opcional, onWheel desactivado en números |
+| `class/EditClassForm.tsx` | Ídem CreateClassForm + zona peligrosa |
+| `class/TwoxRequestButton.tsx` | Botón "Busco 2x" / estado buscando / emparejado con turno de pago |
+| `class/FriendsTwoxList.tsx` | Sección feed: amigos buscando 2x; colapsable; race condition feedback |
+| `class/AuditionsListClient.tsx` | Decisiones locales (borrador) + botón "Publicar resultados" batch |
+| `class/DiscountModal.tsx` | Modal descuento para profesor; llama a `/api/class/discount` |
+| `class/AuditionModal.tsx` | Formulario postulación alumno (nombre, edad, teléfono, video) |
 | `class/MyClassesClient.tsx` | Tabs tomo/dicto, deudores, banner eliminación |
 | `notifications/NotificationsClient.tsx` | Lista con `debt_warning` y `new_report` |
-| `payment/PaymentClient.tsx` | Pago con comprobante |
+| `payment/PaymentClient.tsx` | Pago con comprobante; soporta 2x (muestra price_2x, detecta assignee, botón transferir) |
 | `plans/SubscribeButton.tsx` | Mensual (crédito) y anual (cualquier medio) |
 | `publish/PublishChoiceClient.tsx` | Elección Clase vs Video |
 | `profile/EditProfileForm.tsx` | Edición completa del perfil |
@@ -322,11 +340,12 @@ type SubscriptionTier = 'none' | 'basic' | 'teacher' | 'pro'
 // 'teacher' mantenido solo por compatibilidad DB; eliminado de UI y planes
 
 type NotificationType =
-  | '2x_request' | '2x_match'
+  | '2x_request' | '2x_match' | '2x_payment_turn'
   | 'friend_request' | 'friend_accepted'
   | 'payment_confirmed' | 'payment_rejected'
-  | 'follow' | 'new_class' | 'class_updated' | 'class_cancelled'
+  | 'follow' | 'new_class' | 'class_updated' | 'class_cancelled' | 'class_discount'
   | 'debt_warning' | 'new_report'
+  | 'audition_accepted' | 'audition_rejected'
 
 const SUBSCRIPTION_PLANS = [
   { tier: 'basic', price: 1500, name: 'Básico', ... },
@@ -353,6 +372,9 @@ canUploadVideo(tier)    // basic | teacher | pro
 - **Videos sin crop en clases:** carrusel en `ClassDetailClient` reemplazó `aspect-square` + `object-cover` por contenedor `bg-black min-h-[240px]`; imágenes con `object-contain max-h-[70vh]` (letterbox negro), videos con `max-h-[85vh]`. Elimina cropping sin romper el layout.
 - **ReportModal → API route:** el modal ya no inserta directo en Supabase; llama a `POST /api/reports` que usa el service role para insertar el reporte y notificar al superadmin. Evita que el cliente necesite permisos de escritura especiales.
 - **Superadmin sin rol en DB:** identificado solo por `SUPERADMIN_USER_ID` env var comparado server-side. No requiere columna `is_admin` en profiles.
+- **Flujo de pago 2x:** solo el `payment_assignee` (por defecto el solicitante) paga. El otro usuario ve "Tu compañer@ va a pagar" en PaymentClient sin formulario. La transferencia de turno la hace el assignee actual llamando a `transfer-payment`; usa `.eq('payment_assignee', user.id)` para evitar transferencias no autorizadas.
+- **Race condition en 2x match:** el API route filtra `.eq('status', 'looking')` en la query; si dos usuarios hacen match simultáneo, el segundo recibe 404 y el frontend lo muestra y quita la entrada de la lista.
+- **DateInput:** no usa `type="date"` (Chrome ignora `lang` y muestra formato del OS). En su lugar usa `type="text"` + `inputMode="numeric"` con auto-formateo de barras al escribir dígitos. El estado interno es YYYY-MM-DD para compatibilidad con react-hook-form y Supabase.
 - **Soft-delete clases:** `UPDATE classes SET status='cancelled'`, preserva historial.
 - **Cron seguridad:** `CRON_SECRET` validado con `Authorization: Bearer` header que Vercel inyecta automáticamente.
 - **Notificaciones cross-user:** política RLS `notifications_insert_any` con `WITH CHECK (true)`.
@@ -409,8 +431,9 @@ apps/web/src/
 │   │   ├── explore/page.tsx
 │   │   ├── publish/page.tsx              # NUEVA — elige clase o video
 │   │   ├── create-class/page.tsx
-│   │   ├── class/[id]/page.tsx
+│   │   ├── class/[id]/page.tsx             # + fetch friendships + friends' 2x requests
 │   │   ├── class/[id]/edit/page.tsx
+│   │   ├── class/[id]/auditions/page.tsx   # NUEVA — panel postulaciones para entrenamiento
 │   │   ├── my-classes/page.tsx
 │   │   ├── notifications/page.tsx
 │   │   ├── payment/[enrollmentId]/page.tsx
@@ -429,19 +452,25 @@ apps/web/src/
 │   │   │   ├── create-preference/route.ts
 │   │   │   └── webhook/route.ts
 │   │   ├── subscriptions/cancel/route.ts
-│   │   ├── reports/route.ts               # NUEVA — POST: insertar reporte + notificar admin
-│   │   ├── admin/content-action/route.ts  # NUEVA — POST: delete/dismiss desde panel admin
+│   │   ├── reports/route.ts               # POST: insertar reporte + notificar admin
+│   │   ├── admin/content-action/route.ts  # POST: delete/dismiss desde panel admin
+│   │   ├── class-2x/
+│   │   │   ├── match/route.ts             # POST: emparejar 2x (crea 2 enrollments is_2x=true)
+│   │   │   └── transfer-payment/route.ts  # POST: transferir turno de pago entre pareja
+│   │   ├── class/discount/route.ts        # POST: guardar descuento + notificar seguidores
 │   │   └── cron/cleanup-classes/route.ts  # limpieza diaria 03:00 UTC
 │   ├── terms/page.tsx                    # NUEVA — página pública /terms
    └── auth/login/ + auth/register/
 ├── components/
 │   ├── ui/ (TopBar, BottomNav, Avatar, ConfirmDialog, MonthCalendar,
 │   │        CityCombobox, TrustButton, EndorsementPopup, LogoutButton,
-│   │        ReportModal)
+│   │        ReportModal, DateInput)
 │   ├── feed/ (FeedClient, ClassCard, PostCard, ExploreClient,
 │   │          UserCard, CreatePostModal)
 │   ├── class/ (ClassDetailClient, CustomDatesCalendar, CreateClassForm,
-│   │           EditClassForm, DashboardClient, MyClassesClient)
+│   │           EditClassForm, DashboardClient, MyClassesClient,
+│   │           TwoxRequestButton, FriendsTwoxList, DiscountModal,
+│   │           AuditionModal, AuditionsListClient)
 │   ├── notifications/ (NotificationsClient)
 │   ├── payment/ (PaymentClient)
 │   ├── plans/ (SubscribeButton, CancelSubscriptionButton)
