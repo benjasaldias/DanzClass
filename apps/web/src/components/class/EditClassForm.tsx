@@ -61,6 +61,9 @@ const schema = z.object({
     if (data.type === 'entrenamiento' && !data.ends_at && !data.ends_indefinitely) {
       ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'Indica fecha de término o marca como Indefinido' })
     }
+    if (data.date && data.ends_at && data.ends_at <= data.date) {
+      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'La fecha de término debe ser posterior a la fecha de inicio' })
+    }
   }
 })
 

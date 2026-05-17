@@ -48,8 +48,10 @@ const schema = z.object({
   // Entrenamiento
   requires_audition: z.boolean().optional(),
 }).superRefine((data, ctx) => {
+  const today = new Date().toISOString().split('T')[0]
   if (data.type === 'suelta') {
     if (!data.date) ctx.addIssue({ code: 'custom', path: ['date'], message: 'Requerido para clase suelta' })
+    else if (data.date < today) ctx.addIssue({ code: 'custom', path: ['date'], message: 'La fecha no puede ser en el pasado' })
     if (!data.time) ctx.addIssue({ code: 'custom', path: ['time'], message: 'Requerido para clase suelta' })
   } else {
     if (!data.recurrence) ctx.addIssue({ code: 'custom', path: ['recurrence'], message: 'Requerido' })
@@ -65,6 +67,9 @@ const schema = z.object({
     }
     if (data.type === 'entrenamiento' && !data.ends_at && !data.ends_indefinitely) {
       ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'Indica fecha de término o marca como Indefinido' })
+    }
+    if (data.ends_at && data.ends_at < today) {
+      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'La fecha de término no puede ser en el pasado' })
     }
   }
 })
@@ -112,7 +117,12 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
   const isPeriodic = classType === 'periodica' || isEntrenamiento
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles = acceptedFiles.slice(0, mediaLimit - mediaFiles.length).map((file) => ({
+    const available = mediaLimit - mediaFiles.length
+    if (acceptedFiles.length > available) {
+      setError(`Solo puedes subir ${mediaLimit} archivo${mediaLimit !== 1 ? 's' : ''} en total. Ya tienes ${mediaFiles.length}.`)
+      return
+    }
+    const newFiles = acceptedFiles.slice(0, available).map((file) => ({
       file,
       preview: URL.createObjectURL(file),
       type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
@@ -121,8 +131,9 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       setError('Tu plan no permite subir videos. Solo imágenes.')
       return
     }
+    setError(null)
     setMediaFiles((prev) => [...prev, ...newFiles])
-  }, [mediaFiles.length])
+  }, [mediaFiles.length, mediaLimit, tier])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -412,7 +423,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
             {recurrence === 'custom' && (
               <div className="space-y-3">
-                <MonthCalendar selected={customDates} onChange={setCustomDates} />
+                <MonthCalendar selected={customDates} onChange={setCustomDates} disablePast />
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">Hora de inicio *</label>
                   <input {...register('recurring_time')} type="time" className="input" />

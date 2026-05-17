@@ -32,10 +32,22 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
   const spotsAvailable = (classData.max_spots ?? 0) - confirmedCount
 
   const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
+
+  function customDatesPreview(dates: string[], time: string): string {
+    if (!dates || dates.length === 0) return `0 clases · ${formatTime(time)}`
+    const sorted = [...dates].sort()
+    const preview = sorted.slice(0, 3).map((d) => {
+      const [, m, day] = d.split('-')
+      return `${parseInt(day)}/${parseInt(m)}`
+    }).join(', ')
+    const suffix = sorted.length > 3 ? `... · ${sorted.length} clases` : `· ${sorted.length} clase${sorted.length !== 1 ? 's' : ''}`
+    return `${preview} ${suffix} · ${formatTime(time)}`
+  }
+
   const scheduleText = classData.type === 'suelta'
     ? `${formatDate(classData.date)} · ${formatTime(classData.time)}`
     : classData.recurrence === 'custom'
-      ? `${classData.custom_dates?.length ?? 0} clase${(classData.custom_dates?.length ?? 0) !== 1 ? 's' : ''} · ${formatTime(classData.recurring_time)}`
+      ? customDatesPreview(classData.custom_dates, classData.recurring_time)
       : `${recurrenceLabel[classData.recurrence] ?? ''} · ${DAYS_OF_WEEK[classData.day_of_week]} ${formatTime(classData.recurring_time)}`
 
   const styleBadge = classData.dance_style

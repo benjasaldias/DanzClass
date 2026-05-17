@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 interface MonthCalendarProps {
   selected: string[]
   onChange: (dates: string[]) => void
+  disablePast?: boolean
 }
 
 const MONTH_NAMES = [
@@ -16,8 +17,9 @@ const MONTH_NAMES = [
 
 const DAY_HEADERS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá']
 
-export default function MonthCalendar({ selected, onChange }: MonthCalendarProps) {
+export default function MonthCalendar({ selected, onChange, disablePast = false }: MonthCalendarProps) {
   const today = new Date()
+  const todayISO = today.toISOString().split('T')[0]
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
 
@@ -37,7 +39,16 @@ export default function MonthCalendar({ selected, onChange }: MonthCalendarProps
     onChange(Array.from(next).sort())
   }
 
+  function isPastDay(day: number) {
+    if (!disablePast) return false
+    return toISO(day) < todayISO
+  }
+
   function prevMonth() {
+    if (disablePast) {
+      const prevIsCurrentOrFuture = year > today.getFullYear() || (year === today.getFullYear() && month > today.getMonth())
+      if (!prevIsCurrentOrFuture) return
+    }
     if (month === 0) { setMonth(11); setYear((y) => y - 1) }
     else setMonth((m) => m - 1)
   }
@@ -92,16 +103,20 @@ export default function MonthCalendar({ selected, onChange }: MonthCalendarProps
           if (!day) return <div key={`empty-${i}`} className="py-2" />
           const iso = toISO(day)
           const isSelected = selectedSet.has(iso)
+          const disabled = isPastDay(day)
           return (
             <button
               key={iso}
               type="button"
-              onClick={() => toggleDay(day)}
+              onClick={() => !disabled && toggleDay(day)}
+              disabled={disabled}
               className={cn(
                 'py-2.5 text-sm font-medium transition-colors',
-                isSelected
-                  ? 'bg-brand-600 text-white'
-                  : 'text-gray-700 hover:bg-brand-50 hover:text-brand-700',
+                disabled
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : isSelected
+                    ? 'bg-brand-600 text-white'
+                    : 'text-gray-700 hover:bg-brand-50 hover:text-brand-700',
               )}
             >
               {day}

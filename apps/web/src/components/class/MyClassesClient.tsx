@@ -43,8 +43,8 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
           <BookOpen className="h-8 w-8 text-gray-400" />
         </div>
         <h3 className="font-semibold text-gray-900">Sin clases inscritas</h3>
-        <p className="text-sm text-gray-500 mt-1">Explora el feed para encontrar clases</p>
-        <Link href="/feed" className="mt-4 btn-primary">Ver clases</Link>
+        <p className="text-sm text-gray-500 mt-1">Explora clases disponibles y apúntate</p>
+        <Link href="/explore" className="mt-4 btn-primary">Explorar clases</Link>
       </div>
     )
   }

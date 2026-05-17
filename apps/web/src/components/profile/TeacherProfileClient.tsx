@@ -211,7 +211,7 @@ export default function TeacherProfileClient({
       </div>
 
       {/* Estilos de baile */}
-      {((teacher.styles_dancing?.length ?? 0) > 0 || (teacher.styles_teaching?.length ?? 0) > 0) && (
+      {(((teacher.styles_dancing?.length ?? 0) > 0 || (teacher.styles_teaching?.length ?? 0) > 0) || isOwnProfile) && (
         <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-4">
           {(teacher.styles_dancing?.length ?? 0) > 0 && (
             <div>
@@ -232,6 +232,12 @@ export default function TeacherProfileClient({
                 ))}
               </div>
             </div>
+          )}
+          {isOwnProfile && (teacher.styles_dancing?.length ?? 0) === 0 && (teacher.styles_teaching?.length ?? 0) === 0 && (
+            <p className="text-sm text-gray-400 italic">
+              Sin estilos especificados —{' '}
+              <Link href="/profile/edit" className="text-brand-600 underline underline-offset-2">añade tus estilos</Link>
+            </p>
           )}
         </div>
       )}

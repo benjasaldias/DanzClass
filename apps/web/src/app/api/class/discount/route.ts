@@ -12,15 +12,24 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Verify ownership
+  // Verify ownership and fetch prices
   const { data: cls } = await admin
     .from('classes')
-    .select('id, teacher_id, title, type')
+    .select('id, teacher_id, title, type, price, price_suelta')
     .eq('id', class_id)
     .eq('teacher_id', user.id)
     .single()
 
   if (!cls) return NextResponse.json({ error: 'Class not found or not yours' }, { status: 404 })
+
+  // Server-side price validation
+  const basePrice = (cls as any).price_suelta ?? (cls as any).price
+  if (discount_price != null && discount_price >= basePrice) {
+    return NextResponse.json({ error: 'El descuento debe ser menor al precio original' }, { status: 400 })
+  }
+  if (discount_price_monthly != null && discount_price_monthly >= (cls as any).price) {
+    return NextResponse.json({ error: 'El descuento mensual debe ser menor al precio mensual original' }, { status: 400 })
+  }
 
   // Update discounts
   await (admin as any)

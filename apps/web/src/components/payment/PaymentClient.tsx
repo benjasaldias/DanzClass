@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
-import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft, Users } from 'lucide-react'
+import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft, Users, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCLP } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -28,6 +28,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
   const paymentInfo = teacher.payment_info?.[0] ?? teacher.payment_info
 
   const is2x = !!enrollment.is_2x
+  const missing2xPrice = is2x && !cls.price_2x
   const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
   const isMyTurnToPay = !is2x || !twoxRequest || twoxRequest.payment_assignee === currentUserId
 
@@ -151,6 +152,18 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
         <h1 className="text-xl font-bold text-gray-900">Pagar clase</h1>
         <p className="text-sm text-gray-500 mt-0.5">{cls.title}</p>
       </div>
+
+      {missing2xPrice && (
+        <div className="card p-4 bg-yellow-50 border-yellow-200 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-yellow-900">El profesor no configuró precio 2x</p>
+            <p className="text-xs text-yellow-700 mt-0.5">
+              Contacta al profesor — el monto que se muestra es el precio individual, no el 2x.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Partner pays — this user is not the payment assignee */}
       {is2x && !isMyTurnToPay && (
