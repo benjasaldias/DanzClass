@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, XCircle, Video, Clock, Loader2 } from 'lucide-react'
+import { CheckCircle2, XCircle, Video, Loader2, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -36,23 +36,53 @@ export default function AuditionsListClient({
   const router = useRouter()
   const [auditions, setAuditions] = useState(initialAuditions)
   const [auditionClosed, setAuditionClosed] = useState(initialClosed)
-  const [acting, setActing] = useState<string | null>(null)
+  // Local decisions: only written to DB on "Publicar Resultados"
+  const [localDecisions, setLocalDecisions] = useState<Record<string, 'accepted' | 'rejected'>>({})
+  const [publishing, setPublishing] = useState(false)
   const [closing, setClosing] = useState(false)
 
-  async function handleStatusChange(auditionId: string, status: 'accepted' | 'rejected', applicantId: string) {
-    setActing(auditionId)
-    const supabase = createClient()
-    await (supabase as any).from('auditions').update({ status }).eq('id', auditionId)
+  function setDecision(auditionId: string, decision: 'accepted' | 'rejected') {
+    setLocalDecisions((prev) => ({ ...prev, [auditionId]: decision }))
+  }
 
-    const notifType = status === 'accepted' ? 'audition_accepted' : 'audition_rejected'
-    await (supabase as any).from('notifications').insert({
-      user_id: applicantId,
-      type: notifType,
-      data: { class_id: classId, class_title: classTitle },
+  function clearDecision(auditionId: string) {
+    setLocalDecisions((prev) => {
+      const next = { ...prev }
+      delete next[auditionId]
+      return next
     })
+  }
 
-    setAuditions((prev) => prev.map((a) => a.id === auditionId ? { ...a, status } : a))
-    setActing(null)
+  async function handlePublish() {
+    const pending = auditions.filter((a) => a.status === 'pending')
+    // Only publish decisions for pending auditions
+    const toPublish = pending.filter((a) => localDecisions[a.id])
+    if (toPublish.length === 0) return
+
+    setPublishing(true)
+    const supabase = createClient()
+
+    await Promise.all(
+      toPublish.map((a) =>
+        (supabase as any).from('auditions').update({ status: localDecisions[a.id] }).eq('id', a.id)
+      )
+    )
+
+    await (supabase as any).from('notifications').insert(
+      toPublish.map((a) => ({
+        user_id: a.applicant_id,
+        type: localDecisions[a.id] === 'accepted' ? 'audition_accepted' : 'audition_rejected',
+        data: { class_id: classId, class_title: classTitle },
+      }))
+    )
+
+    setAuditions((prev) =>
+      prev.map((a) =>
+        localDecisions[a.id] ? { ...a, status: localDecisions[a.id] } : a
+      )
+    )
+    setLocalDecisions({})
+    setPublishing(false)
   }
 
   async function handleCloseAuditions() {
@@ -64,11 +94,12 @@ export default function AuditionsListClient({
     router.refresh()
   }
 
-  const pending = auditions.filter((a) => a.status === 'pending')
-  const decided = auditions.filter((a) => a.status !== 'pending')
+  const pendingAuditions = auditions.filter((a) => a.status === 'pending')
+  const decidedAuditions = auditions.filter((a) => a.status !== 'pending')
+  const pendingDecisionsCount = pendingAuditions.filter((a) => localDecisions[a.id]).length
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-4 py-4 pb-32">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Postulaciones</h1>
@@ -98,17 +129,20 @@ export default function AuditionsListClient({
         </div>
       ) : (
         <div className="space-y-4">
-          {pending.length > 0 && (
+          {pendingAuditions.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Pendientes ({pending.length})</h2>
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                Pendientes ({pendingAuditions.length})
+              </h2>
               <div className="space-y-2">
-                {pending.map((a) => (
+                {pendingAuditions.map((a) => (
                   <AuditionCard
                     key={a.id}
                     audition={a}
-                    acting={acting}
-                    onAccept={() => handleStatusChange(a.id, 'accepted', a.applicant_id)}
-                    onReject={() => handleStatusChange(a.id, 'rejected', a.applicant_id)}
+                    localDecision={localDecisions[a.id] ?? null}
+                    onAccept={() => setDecision(a.id, 'accepted')}
+                    onReject={() => setDecision(a.id, 'rejected')}
+                    onClear={() => clearDecision(a.id)}
                     showActions={!auditionClosed}
                   />
                 ))}
@@ -116,23 +150,44 @@ export default function AuditionsListClient({
             </div>
           )}
 
-          {decided.length > 0 && (
+          {decidedAuditions.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Decididas ({decided.length})</h2>
+              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                Publicadas ({decidedAuditions.length})
+              </h2>
               <div className="space-y-2">
-                {decided.map((a) => (
+                {decidedAuditions.map((a) => (
                   <AuditionCard
                     key={a.id}
                     audition={a}
-                    acting={acting}
-                    onAccept={() => handleStatusChange(a.id, 'accepted', a.applicant_id)}
-                    onReject={() => handleStatusChange(a.id, 'rejected', a.applicant_id)}
-                    showActions={!auditionClosed}
+                    localDecision={null}
+                    onAccept={() => {}}
+                    onReject={() => {}}
+                    onClear={() => {}}
+                    showActions={false}
                   />
                 ))}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sticky publish bar */}
+      {!auditionClosed && pendingDecisionsCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white px-4 py-3 shadow-lg">
+          <button
+            onClick={handlePublish}
+            disabled={publishing}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-3 text-sm font-semibold text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+          >
+            {publishing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            Publicar resultados ({pendingDecisionsCount} postulaci{pendingDecisionsCount === 1 ? 'ón' : 'ones'})
+          </button>
         </div>
       )}
     </div>
@@ -141,23 +196,28 @@ export default function AuditionsListClient({
 
 function AuditionCard({
   audition,
-  acting,
+  localDecision,
   onAccept,
   onReject,
+  onClear,
   showActions,
 }: {
   audition: Audition
-  acting: string | null
+  localDecision: 'accepted' | 'rejected' | null
   onAccept: () => void
   onReject: () => void
+  onClear: () => void
   showActions: boolean
 }) {
+  const effectiveStatus = localDecision ?? audition.status
+
   const statusConfig = {
     pending: { color: 'bg-gray-50 border-gray-200', badge: null },
     accepted: { color: 'bg-green-50 border-green-200', badge: 'Aceptada' },
     rejected: { color: 'bg-red-50 border-red-200', badge: 'Rechazada' },
   }
-  const cfg = statusConfig[audition.status]
+  const cfg = statusConfig[effectiveStatus]
+  const isDraft = localDecision !== null
 
   return (
     <div className={cn('rounded-xl border p-3 space-y-2', cfg.color)}>
@@ -166,12 +226,14 @@ function AuditionCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-gray-900 truncate">{audition.full_name}</p>
-            {cfg.badge && (
+            {effectiveStatus !== 'pending' && (
               <span className={cn(
                 'text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0',
-                audition.status === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                effectiveStatus === 'accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700',
+                isDraft && 'opacity-70 ring-1 ring-offset-1',
+                isDraft && effectiveStatus === 'accepted' ? 'ring-green-400' : isDraft ? 'ring-red-400' : ''
               )}>
-                {cfg.badge}
+                {effectiveStatus === 'accepted' ? 'Aceptada' : 'Rechazada'}{isDraft ? ' (borrador)' : ''}
               </span>
             )}
           </div>
@@ -196,22 +258,31 @@ function AuditionCard({
 
       {showActions && audition.status === 'pending' && (
         <div className="flex gap-2">
-          <button
-            onClick={onAccept}
-            disabled={acting === audition.id}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
-          >
-            {acting === audition.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-            Aceptar
-          </button>
-          <button
-            onClick={onReject}
-            disabled={acting === audition.id}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-          >
-            {acting === audition.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
-            Rechazar
-          </button>
+          {localDecision === null ? (
+            <>
+              <button
+                onClick={onAccept}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Aceptar
+              </button>
+              <button
+                onClick={onReject}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Rechazar
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onClear}
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Deshacer
+            </button>
+          )}
         </div>
       )}
     </div>

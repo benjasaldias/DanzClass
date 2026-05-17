@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (!cls) return NextResponse.json({ error: 'Class not found or not yours' }, { status: 404 })
 
   // Update discounts
-  await admin
+  await (admin as any)
     .from('classes')
     .update({
       discount_price: discount_price ?? null,
