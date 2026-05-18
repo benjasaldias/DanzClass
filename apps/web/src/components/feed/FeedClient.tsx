@@ -114,7 +114,7 @@ export default function FeedClient({
   return (
     <div className="flex flex-col">
       {/* Filter bar */}
-      <div className="sticky top-14 z-30 bg-gray-50/80 backdrop-blur-md border-b border-gray-100 px-4">
+      <div className="sticky top-14 z-30 bg-blanco-violeta/80 backdrop-blur-md border-b border-gray-100 px-4">
         <div className="flex items-center gap-2 py-2">
           {/* Location/follow filters */}
           <div className="flex gap-1 flex-1 overflow-x-auto no-scrollbar">

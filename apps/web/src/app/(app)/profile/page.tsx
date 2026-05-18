@@ -165,7 +165,7 @@ export default async function ProfilePage() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Baila</p>
               <div className="flex flex-wrap gap-1.5">
                 {profile.styles_dancing.map((s: string) => (
-                  <span key={s} className="badge bg-gray-100 text-gray-700">{s}</span>
+                  <span key={s} className="badge bg-lavanda-suave text-violeta-oscuro">{s}</span>
                 ))}
               </div>
             </div>

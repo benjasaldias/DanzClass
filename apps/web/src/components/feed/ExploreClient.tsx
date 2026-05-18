@@ -76,7 +76,7 @@ export default function ExploreClient({
   return (
     <div className="flex flex-col">
       {/* Search + tabs */}
-      <div className="sticky top-14 z-30 bg-gray-50/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 space-y-2">
+      <div className="sticky top-14 z-30 bg-blanco-violeta/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
