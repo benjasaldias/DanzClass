@@ -194,6 +194,21 @@ export default function AuditionsListClient({
   )
 }
 
+async function openSignedVideoUrl(videoUrl: string) {
+  const supabase = createClient()
+  // video_url may be a storage path or a legacy full URL — extract the path
+  const path = videoUrl.includes('/audition-videos/')
+    ? videoUrl.split('/audition-videos/')[1]
+    : videoUrl
+  const { data, error } = await supabase.storage.from('audition-videos').createSignedUrl(path, 3600)
+  if (data?.signedUrl) {
+    window.open(data.signedUrl, '_blank')
+  } else {
+    alert('No se pudo generar el enlace al video. Intenta de nuevo.')
+    console.error(error)
+  }
+}
+
 function AuditionCard({
   audition,
   localDecision,
@@ -244,15 +259,13 @@ function AuditionCard({
           </div>
         </div>
         {audition.video_url && (
-          <a
-            href={audition.video_url}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => openSignedVideoUrl(audition.video_url!)}
             className="flex-shrink-0 flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
           >
             <Video className="h-3.5 w-3.5" />
             Ver video
-          </a>
+          </button>
         )}
       </div>
 

@@ -8,11 +8,12 @@ import { createClient } from '@/lib/supabase/client'
 interface AuditionModalProps {
   classId: string
   userId: string
+  teacherId: string
   onClose: () => void
   onSubmitted: () => void
 }
 
-export default function AuditionModal({ classId, userId, onClose, onSubmitted }: AuditionModalProps) {
+export default function AuditionModal({ classId, userId, teacherId, onClose, onSubmitted }: AuditionModalProps) {
   const [fullName, setFullName] = useState('')
   const [age, setAge] = useState('')
   const [phone, setPhone] = useState('')
@@ -54,8 +55,8 @@ export default function AuditionModal({ classId, userId, onClose, onSubmitted }:
         return
       }
 
-      const { data: urlData } = supabase.storage.from('audition-videos').getPublicUrl(uploadData.path)
-      videoUrl = urlData.publicUrl
+      // Store the storage path (not a public URL) — bucket is private, signed URLs used on view
+      videoUrl = uploadData.path
     }
 
     const { error: insertErr } = await (supabase as any).from('auditions').insert({
@@ -71,6 +72,12 @@ export default function AuditionModal({ classId, userId, onClose, onSubmitted }:
     if (insertErr) {
       setError(insertErr.message.includes('unique') ? 'Ya tienes una postulación enviada' : 'Error al enviar. Intenta de nuevo.')
     } else {
+      // Notify the teacher about the new application
+      await (supabase as any).from('notifications').insert({
+        user_id: teacherId,
+        type: 'new_audition',
+        data: { from_user_id: userId, class_id: classId },
+      })
       onSubmitted()
     }
     setSubmitting(false)

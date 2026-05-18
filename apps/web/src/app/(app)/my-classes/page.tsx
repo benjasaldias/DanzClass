@@ -50,7 +50,8 @@ export default async function MyClassesPage() {
           *,
           student:profiles!student_id(*),
           payment:payments(*)
-        )
+        ),
+        auditions(id, status)
       `)
       .eq('teacher_id', user.id)
       .in('status', ['active', 'completed'])

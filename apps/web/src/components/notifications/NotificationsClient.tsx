@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import {
   UserPlus, UserCheck, Bell, Music2, AlertCircle,
-  CheckCircle2, XCircle, Users, Flag,
+  CheckCircle2, XCircle, Users, Flag, ClipboardList,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -153,6 +153,15 @@ const NOTIF_CONFIG: Record<string, {
     color: 'text-red-500 bg-red-50',
     label: (data) => `Tu postulación a "${data.class_title ?? 'el entrenamiento'}" no fue seleccionada`,
     href: () => '/explore',
+  },
+  new_audition: {
+    icon: ClipboardList,
+    color: 'text-brand-600 bg-brand-50',
+    label: (data, { profileMap }) => {
+      const p = profileMap[data.from_user_id]
+      return p ? `@${p.username} se postuló a tu entrenamiento` : 'Recibiste una nueva postulación'
+    },
+    href: (data) => data.class_id ? `/class/${data.class_id}/auditions` : '/my-classes',
   },
 }
 

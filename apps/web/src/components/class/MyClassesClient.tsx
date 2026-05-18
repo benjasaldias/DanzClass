@@ -6,7 +6,7 @@ import Image from 'next/image'
 import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
-  AlertTriangle, ShieldAlert,
+  AlertTriangle, ShieldAlert, ClipboardList,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -268,6 +268,10 @@ function TeachingTab({
           const deletionDate = cls.deletion_date
           const deleted = isDeleted(deletionDate)
 
+          const pendingAuditions = cls.requires_audition
+            ? (cls.auditions ?? []).filter((a: any) => a.status === 'pending').length
+            : 0
+
           return (
             <div key={cls.id} className="card overflow-hidden">
               <button
@@ -293,6 +297,21 @@ function TeachingTab({
                       {enrollments.filter((e: any) => e.status !== 'cancelled').length}/{cls.max_spots} cupos
                     </span>
                   </div>
+                  {cls.requires_audition && (
+                    <Link
+                      href={`/class/${cls.id}/auditions`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+                    >
+                      <ClipboardList className="h-3 w-3" />
+                      Ver postulaciones
+                      {pendingAuditions > 0 && (
+                        <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+                          {pendingAuditions}
+                        </span>
+                      )}
+                    </Link>
+                  )}
 
                   {/* Deletion warning */}
                   {deletionDate && !deleted && (

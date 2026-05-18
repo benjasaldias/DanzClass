@@ -227,6 +227,7 @@ export default function ClassDetailClient({
         <AuditionModal
           classId={classData.id}
           userId={currentUser.id}
+          teacherId={classData.teacher_id}
           onClose={() => setShowAudition(false)}
           onSubmitted={() => { setAuditionSubmitted(true); setShowAudition(false) }}
         />
