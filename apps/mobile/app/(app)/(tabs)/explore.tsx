@@ -39,7 +39,7 @@ export default function ExploreScreen() {
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-blanco-violeta">
       <View className="px-4 py-3 border-b border-gray-100 gap-2">
         <Text className="text-xl font-bold text-gray-900">Explorar</Text>
         <TextInput
@@ -91,7 +91,7 @@ export default function ExploreScreen() {
               </View>
               <View className="flex-1">
                 <Text className="font-semibold text-gray-900">{teacher.full_name}</Text>
-                <Text className="text-xs text-gray-500">@{teacher.username}</Text>
+                <Text className="text-xs text-gris-humo">@{teacher.username}</Text>
                 {teacher.city && <Text className="text-xs text-gray-400">{teacher.city}</Text>}
               </View>
               <Text className="text-gray-300 text-lg">›</Text>

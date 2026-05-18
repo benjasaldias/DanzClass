@@ -43,7 +43,7 @@ export default function ProfileScreen() {
     .toUpperCase()
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-blanco-violeta">
       <ScrollView className="flex-1">
         {/* Profile header */}
         <View className="bg-white px-4 py-6 items-center gap-3 border-b border-gray-100">
@@ -52,7 +52,7 @@ export default function ProfileScreen() {
           </View>
           <View className="items-center">
             <Text className="text-xl font-bold text-gray-900">{profile.full_name}</Text>
-            <Text className="text-gray-500 text-sm">@{profile.username}</Text>
+            <Text className="text-gris-humo text-sm">@{profile.username}</Text>
             <View className="mt-1 bg-brand-50 rounded-full px-3 py-1">
               <Text className="text-brand-700 text-xs font-medium">
                 {profile.role === 'teacher' ? '🎤 Profesor/a' : '🎓 Estudiante'}

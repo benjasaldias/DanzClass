@@ -88,8 +88,8 @@ export default function DiscountModal({
       <div className="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100">
-              <Tag className="h-4 w-4 text-orange-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-coral-fuego/15">
+              <Tag className="h-4 w-4 text-coral-fuego" />
             </div>
             <h2 className="text-base font-bold text-gray-900">Precio con descuento</h2>
           </div>
@@ -145,7 +145,7 @@ export default function DiscountModal({
             </div>
           )}
 
-          <p className="text-xs text-gray-500 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
+          <p className="text-xs text-gris-humo bg-coral-fuego/10 border border-coral-fuego/20 rounded-xl px-3 py-2">
             Al publicar, se notificará a todos tus seguidores sobre el descuento.
           </p>
         </div>
@@ -163,7 +163,7 @@ export default function DiscountModal({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-coral-fuego px-4 py-2.5 text-sm font-semibold text-white hover:bg-coral-fuego/90 transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Publicar descuento

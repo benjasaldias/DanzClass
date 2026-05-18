@@ -25,10 +25,10 @@ export default async function AdminPage() {
     <div className="flex flex-col min-h-screen">
       <div className="px-4 py-5 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <Flag className="h-5 w-5 text-orange-500" />
+          <Flag className="h-5 w-5 text-coral-fuego" />
           <h1 className="text-lg font-bold text-gray-900">Reportes pendientes</h1>
           {(reports ?? []).length > 0 && (
-            <span className="ml-auto badge bg-orange-100 text-orange-700">
+            <span className="ml-auto badge bg-coral-fuego/15 text-coral-fuego">
               {(reports ?? []).length}
             </span>
           )}

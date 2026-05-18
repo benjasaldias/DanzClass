@@ -39,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-blanco-violeta flex flex-col">
       <TopBar profile={profile} unreadCount={unreadCount ?? 0} />
       <main className="flex-1 pb-20 pt-14 max-w-lg mx-auto w-full">
         {children}

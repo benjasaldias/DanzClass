@@ -47,7 +47,7 @@ export default function MyClassesScreen() {
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-blanco-violeta">
       <View className="px-4 py-4 bg-white border-b border-gray-100">
         <Text className="text-xl font-bold text-gray-900">Mis clases</Text>
       </View>
@@ -76,8 +76,8 @@ export default function MyClassesScreen() {
               className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"
             >
               <Text className="font-bold text-gray-900">{cls?.title}</Text>
-              <Text className="text-xs text-gray-500 mt-0.5">{teacher?.full_name}</Text>
-              <Text className="text-xs text-gray-500 mt-1">{schedule}</Text>
+              <Text className="text-xs text-gris-humo mt-0.5">{teacher?.full_name}</Text>
+              <Text className="text-xs text-gris-humo mt-1">{schedule}</Text>
               <Text className={`text-xs font-medium mt-2 ${config.color}`}>{config.label}</Text>
               {item.status === 'pending_payment' && (
                 <TouchableOpacity

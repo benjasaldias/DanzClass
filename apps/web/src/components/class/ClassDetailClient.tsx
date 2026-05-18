@@ -252,7 +252,7 @@ export default function ClassDetailClient({
             )}
             <button
               onClick={() => setShowDiscount(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-medium text-orange-700 hover:bg-orange-100 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-coral-fuego/40 bg-coral-fuego/10 px-3 py-1.5 text-xs font-medium text-coral-fuego hover:bg-coral-fuego/20 transition-colors"
             >
               <Tag className="h-3.5 w-3.5" />
               Descuento
@@ -276,9 +276,9 @@ export default function ClassDetailClient({
 
       {/* Active discount banner */}
       {hasDiscount && (
-        <div className="mx-4 mt-2 rounded-xl bg-orange-50 border border-orange-200 px-3 py-2 flex items-center gap-2">
-          <Tag className="h-4 w-4 text-orange-500 flex-shrink-0" />
-          <p className="text-xs text-orange-700 font-medium">¡Descuento activo en esta clase!</p>
+        <div className="mx-4 mt-2 rounded-xl bg-coral-fuego/10 border border-coral-fuego/30 px-3 py-2 flex items-center gap-2">
+          <Tag className="h-4 w-4 text-coral-fuego flex-shrink-0" />
+          <p className="text-xs text-coral-fuego font-medium">¡Descuento activo en esta clase!</p>
         </div>
       )}
 
@@ -378,7 +378,7 @@ export default function ClassDetailClient({
           )}
           <div className="flex items-center gap-3 text-sm">
             <Users className="h-4 w-4 text-brand-500 flex-shrink-0" />
-            <span className={cn('font-medium', isFull ? 'text-red-600' : spotsAvailable <= 3 ? 'text-orange-600' : 'text-gray-700')}>
+            <span className={cn('font-medium', isFull ? 'text-red-600' : spotsAvailable <= 3 ? 'text-coral-fuego' : 'text-gray-700')}>
               {isFull ? 'Sin cupos disponibles' : `${spotsAvailable} cupo${spotsAvailable !== 1 ? 's' : ''} disponible${spotsAvailable !== 1 ? 's' : ''}`}
             </span>
           </div>
@@ -484,7 +484,7 @@ export default function ClassDetailClient({
               </p>
               {hasDiscount ? (
                 <div className="flex items-baseline gap-2">
-                  <p className="text-2xl font-bold text-orange-600">{formatCLP(activePrice)}</p>
+                  <p className="text-2xl font-bold text-coral-fuego">{formatCLP(activePrice)}</p>
                   <p className="text-base text-gray-400 line-through">{formatCLP(originalPrice)}</p>
                 </div>
               ) : (
@@ -495,7 +495,7 @@ export default function ClassDetailClient({
                   Suelta:{' '}
                   {discountData.discount_price ? (
                     <>
-                      <span className="font-semibold text-orange-600">{formatCLP(discountData.discount_price)}</span>
+                      <span className="font-semibold text-coral-fuego">{formatCLP(discountData.discount_price)}</span>
                       <span className="line-through text-gray-400 ml-1">{formatCLP(classData.price_suelta)}</span>
                     </>
                   ) : (

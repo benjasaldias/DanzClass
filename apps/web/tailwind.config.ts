@@ -22,6 +22,12 @@ const config: Config = {
           900: '#701a75',
           950: '#4a044e',
         },
+        'morado-flow': '#7F77DD',
+        'noche-urbana': '#1A1035',
+        'coral-fuego': '#D85A30',
+        'blanco-violeta': '#F5F3FF',
+        'lavanda-suave': '#EEEDFE',
+        'gris-humo': '#6B6880',
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],

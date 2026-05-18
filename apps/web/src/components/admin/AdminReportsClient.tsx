@@ -101,7 +101,7 @@ export default function AdminReportsClient({ reports: initialReports }: { report
                     <span className="text-sm font-semibold text-gray-900">
                       @{report.reporter?.username ?? 'desconocido'}
                     </span>
-                    <span className="badge bg-orange-100 text-orange-700 capitalize">
+                    <span className="badge bg-coral-fuego/15 text-coral-fuego capitalize">
                       {REASON_LABELS[report.reason] ?? report.reason}
                     </span>
                     <span className={`badge ${report.content_type === 'post' ? 'bg-blue-100 text-blue-700' : 'bg-brand-50 text-brand-700'}`}>

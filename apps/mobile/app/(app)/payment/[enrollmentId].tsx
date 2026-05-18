@@ -100,7 +100,7 @@ export default function PaymentScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-blanco-violeta">
       <ScrollView className="flex-1">
         <View className="bg-white px-4 py-4 border-b border-gray-100 flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>

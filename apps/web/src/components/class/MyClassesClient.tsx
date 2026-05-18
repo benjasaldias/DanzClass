@@ -296,7 +296,7 @@ function TeachingTab({
 
                   {/* Deletion warning */}
                   {deletionDate && !deleted && (
-                    <p className="mt-1.5 text-xs text-orange-600 flex items-center gap-1">
+                    <p className="mt-1.5 text-xs text-coral-fuego flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
                       Archivos eliminados el {formatDeletionDate(deletionDate)}
                     </p>
@@ -317,8 +317,8 @@ function TeachingTab({
                 <div className="border-t border-gray-100">
                   {/* Post-deletion pending list */}
                   {deleted && (
-                    <div className="p-4 bg-orange-50 border-b border-orange-100">
-                      <p className="text-xs text-orange-700 font-medium flex items-center gap-1.5 mb-2">
+                    <div className="p-4 bg-coral-fuego/10 border-b border-coral-fuego/20">
+                      <p className="text-xs text-coral-fuego font-medium flex items-center gap-1.5 mb-2">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         Los archivos de esta clase ya fueron eliminados. Usuarios con pago pendiente:
                       </p>

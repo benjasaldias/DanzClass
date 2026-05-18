@@ -20,7 +20,7 @@ export default function CreateScreen() {
 
   if (role !== 'teacher') {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-blanco-violeta items-center justify-center px-6">
         <Text className="text-4xl mb-4">🎓</Text>
         <Text className="text-lg font-bold text-gray-900 text-center">Solo profesores pueden publicar clases</Text>
         <Text className="text-sm text-gray-500 text-center mt-2">Explora el feed para encontrar clases disponibles</Text>
@@ -29,7 +29,7 @@ export default function CreateScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-blanco-violeta">
       <View className="px-4 py-4 border-b border-gray-100">
         <Text className="text-xl font-bold text-gray-900">Publicar clase</Text>
         <Text className="text-sm text-gray-500 mt-0.5">¿Qué tipo de clase quieres publicar?</Text>

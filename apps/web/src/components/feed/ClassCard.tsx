@@ -57,7 +57,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
     : null
 
   return (
-    <article className="border-b border-gray-100 bg-violet-50/30">
+    <article className="border-b border-gray-100 bg-blanco-violeta/30">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <Link href={`/teacher/${teacher.username}`}>
@@ -67,7 +67,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
           <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-1">
             <span className="font-semibold text-sm text-gray-900 truncate">{teacher.full_name}</span>
           </Link>
-          <p className="text-xs text-gray-500">{timeAgo(classData.created_at)}</p>
+          <p className="text-xs text-gris-humo">{timeAgo(classData.created_at)}</p>
         </div>
         {styleBadge && (
           <span className="badge bg-brand-50 text-brand-700 text-xs">{styleBadge}</span>
@@ -129,21 +129,21 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
 
         {/* Details */}
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gris-humo">
             <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
             <span>{scheduleText}</span>
           </div>
           {classData.location_name && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-gris-humo">
               <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
               <span>{classData.location_name}</span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gris-humo">
             <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
             <span>{classData.duration_minutes} min</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gris-humo">
             <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
             <span>
               <span className={cn('font-medium', spotsAvailable <= 0 ? 'text-red-600' : 'text-green-700')}>
@@ -158,19 +158,19 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-50/60 border-t border-emerald-100">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gris-humo">
                 {classData.type === 'periodica' || classData.type === 'entrenamiento' ? 'Precio mensual' : 'Precio'}
               </p>
               {/* Main price + 2x inline */}
               <div className="flex items-baseline gap-2 flex-wrap">
                 {classData.discount_price_monthly && classData.type !== 'suelta' ? (
                   <>
-                    <span className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price_monthly)}</span>
+                    <span className="text-xl font-bold text-coral-fuego">{formatCLP(classData.discount_price_monthly)}</span>
                     <span className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</span>
                   </>
                 ) : classData.discount_price && classData.type === 'suelta' ? (
                   <>
-                    <span className="text-xl font-bold text-orange-600">{formatCLP(classData.discount_price)}</span>
+                    <span className="text-xl font-bold text-coral-fuego">{formatCLP(classData.discount_price)}</span>
                     <span className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</span>
                   </>
                 ) : (
@@ -183,10 +183,10 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
               {/* Suelta price + suelta 2x inline */}
               {classData.price_suelta && (
                 <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                  <span className="text-xs text-gray-500">Suelta:</span>
+                  <span className="text-xs text-gris-humo">Suelta:</span>
                   {classData.discount_price ? (
                     <>
-                      <span className="text-xs font-medium text-orange-600">{formatCLP(classData.discount_price)}</span>
+                      <span className="text-xs font-medium text-coral-fuego">{formatCLP(classData.discount_price)}</span>
                       <span className="text-xs line-through text-gray-400">{formatCLP(classData.price_suelta)}</span>
                     </>
                   ) : (

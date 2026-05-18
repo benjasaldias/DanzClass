@@ -59,10 +59,10 @@ export default function FeedScreen() {
   useEffect(() => { loadFeed(filter) }, [filter, loadFeed])
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-blanco-violeta">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
-        <Text className="text-xl font-bold text-gray-900">💃 DanceClass</Text>
+      <View className="flex-row items-center justify-between px-4 py-3 bg-morado-flow">
+        <Text className="text-xl font-bold text-white">💃 DanceClass</Text>
       </View>
 
       {/* Filter tabs */}

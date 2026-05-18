@@ -103,13 +103,13 @@ const NOTIF_CONFIG: Record<string, {
   },
   '2x_request': {
     icon: Users,
-    color: 'text-orange-500 bg-orange-50',
+    color: 'text-coral-fuego bg-coral-fuego/10',
     label: () => 'Alguien busca compañer@ para tu clase 2x',
     href: () => '/feed',
   },
   '2x_match': {
     icon: Users,
-    color: 'text-orange-500 bg-orange-50',
+    color: 'text-coral-fuego bg-coral-fuego/10',
     label: () => '¡Encontraste compañer@ para ir 2x!',
     href: () => '/feed',
   },
@@ -121,7 +121,7 @@ const NOTIF_CONFIG: Record<string, {
   },
   new_report: {
     icon: Flag,
-    color: 'text-orange-500 bg-orange-50',
+    color: 'text-coral-fuego bg-coral-fuego/10',
     label: (data) => {
       const type = data.content_type === 'post' ? 'video' : 'clase'
       const reason = data.reason ?? ''
@@ -138,7 +138,7 @@ const NOTIF_CONFIG: Record<string, {
   },
   class_discount: {
     icon: Bell,
-    color: 'text-orange-500 bg-orange-50',
+    color: 'text-coral-fuego bg-coral-fuego/10',
     label: (data) => `🏷️ Descuento en "${data.class_title ?? 'una clase'}"`,
     href: (data) => data.class_id ? `/class/${data.class_id}` : '/feed',
   },

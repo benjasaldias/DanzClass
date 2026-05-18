@@ -56,7 +56,7 @@ export default function MobileClassCard({ classData, currentUserId }: MobileClas
         </View>
         <View className="flex-1">
           <Text className="text-sm font-semibold text-gray-900">{teacher.full_name}</Text>
-          <Text className="text-xs text-gray-500">{timeAgo(classData.created_at)}</Text>
+          <Text className="text-xs text-gris-humo">{timeAgo(classData.created_at)}</Text>
         </View>
         {classData.dance_style && (
           <View className="bg-brand-50 rounded-full px-2.5 py-1">
@@ -98,17 +98,17 @@ export default function MobileClassCard({ classData, currentUserId }: MobileClas
         <View className="gap-1.5">
           <View className="flex-row items-center gap-2">
             <Clock size={14} color="#9ca3af" />
-            <Text className="text-sm text-gray-600">{schedule} · {classData.duration_minutes} min</Text>
+            <Text className="text-sm text-gris-humo">{schedule} · {classData.duration_minutes} min</Text>
           </View>
           {classData.location_name && (
             <View className="flex-row items-center gap-2">
               <MapPin size={14} color="#9ca3af" />
-              <Text className="text-sm text-gray-600">{classData.location_name}</Text>
+              <Text className="text-sm text-gris-humo">{classData.location_name}</Text>
             </View>
           )}
           <View className="flex-row items-center gap-2">
             <Users size={14} color="#9ca3af" />
-            <Text className="text-sm text-gray-600">Cupos: {classData.max_spots}</Text>
+            <Text className="text-sm text-gris-humo">Cupos: {classData.max_spots}</Text>
           </View>
         </View>
 
