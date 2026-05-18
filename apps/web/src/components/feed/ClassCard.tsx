@@ -155,7 +155,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         </div>
 
         {/* Price + CTA */}
-        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-50/60 border-t border-emerald-100">
+        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-100 border-t border-emerald-200">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs text-gris-humo">
