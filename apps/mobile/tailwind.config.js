@@ -24,6 +24,7 @@ module.exports = {
         'blanco-violeta': '#F5F3FF',
         'lavanda-suave': '#EEEDFE',
         'gris-humo': '#6B6880',
+        'violeta-oscuro': '#534AB7',
       },
     },
   },
