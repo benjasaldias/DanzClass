@@ -639,9 +639,9 @@ La app corre en Expo Go SDK 54 en iPhone real vía tunnel ngrok. Login y navegac
 | Explorar | `(tabs)/explore` | ✅ clases + usuarios con sub-filtros Tod@s/Amig@s/Siguiendo; badges amigo/siguiendo |
 | Crear clase | `(tabs)/create` | ✅ elección suelta/periódica/entrenamiento/video; gate canTeach |
 | Perfil propio | `(tabs)/profile` | ✅ stats, estilos baila/enseña, pills de acción, clases activas, mis publicaciones |
-| Mis clases | `(tabs)/my-classes` | ✅ básico |
+| Mis clases | `(tabs)/my-classes` | ✅ tabs tomo/dicto; confirmación de pagos; deudores; banner coral-fuego fecha eliminación |
 | Notificaciones | `notifications` | ✅ todos los tipos con iconos y labels; navegación por tap; profileMap para nombres |
-| Pago comprobante | `payment/[enrollmentId]` | ✅ con expo-clipboard |
+| Pago comprobante | `payment/[enrollmentId]` | ✅ 2x completo: is_2x, price_2x, payment_assignee, transferir turno (Bearer token) |
 | Detalle clase | `class/[id]` | ✅ carrusel sin crop (expo-video para video), info completa, CTA reservar/salir, "Ver fechas" para custom |
 | Perfil ajeno | `teacher/[username]` | ✅ stats (seguidores/clases/trust), follow, amistad, estilos, clases activas, posts filtrados por visibilidad |
 | Crear clase | `class/create` | ✅ formulario completo: tipo/estilo/nivel, fecha DD/MM/AAAA, hora HH:MM, periodicidad, fechas custom, upload media (expo-image-picker → Supabase Storage), precios 2x, notifica seguidores |
@@ -649,7 +649,32 @@ La app corre en Expo Go SDK 54 en iPhone real vía tunnel ngrok. Login y navegac
 | Publicar video | `class/create-post` | ✅ título, video (expo-image-picker), visibilidad pub/seg/amigos, Cloudinary fallback Supabase Storage |
 | Editar perfil | `profile/edit` | ✅ avatar (expo-image-picker → bucket avatars), nombre, @username, bio, ciudad, estilos baila/enseña (chips toggleables), privacidad clases inscritas |
 | Datos transferencia | `profile/payment-info` | ✅ banco, tipo cuenta, número, RUT, titular, email; upsert |
-| Planes | `plans` | Sin implementar |
+| Planes | `plans/index` | ✅ cards Básico/Pro, mensual/anual, expo-web-browser, Bearer token auth |
+| Resultado pago éxito | `plans/success` | ✅ plan activo detectado; deep link danceclass://plans/success |
+| Resultado pago fallo | `plans/failure` | ✅ botón reintentar; deep link danceclass://plans/failure |
+
+#### Pantallas implementadas — sesión 2026-05-18 (sesión 4 — flujo transaccional)
+
+| Pantalla | Ruta mobile | Estado |
+| --- | --- | --- |
+| Mis clases completo | `(tabs)/my-classes` | ✅ reescrito: tabs tomo/dicto, confirmación/rechazo pagos, deudores, fecha eliminación coral-fuego |
+| Pago con 2x | `payment/[enrollmentId]` | ✅ is_2x, price_2x, payment_assignee, transferir turno (Bearer token al API web) |
+| Planes | `plans/index` | ✅ nuevo: cards Básico/Pro, mensual/anual, expo-web-browser checkout |
+| Éxito pago | `plans/success` | ✅ nuevo: deep link, refresca suscripción |
+| Fallo pago | `plans/failure` | ✅ nuevo: deep link, reintentar |
+
+#### Cambios en web (sesión 4)
+
+- **`api/mercadopago/create-preference/route.ts`**: acepta `Authorization: Bearer <token>` para auth mobile (fallback a cookie)
+- **`api/mercadopago/create-subscription/route.ts`**: ídem
+- **`api/class-2x/transfer-payment/route.ts`**: ídem
+
+#### Notas de implementación sesión 4
+
+- **Bearer token auth en web API**: las rutas de MP y 2x ahora detectan `Authorization: Bearer` primero; si está presente, crean un `@supabase/supabase-js` client con el token en `global.headers`. Esto permite que mobile use las mismas API routes sin modificar la infraestructura de cookies del servidor web.
+- **`my-classes` enseñanza**: query incluye `enrollments(*, student:profiles!student_id(...), payment:payments(*))` para acceder a datos del alumno y su comprobante en un solo fetch.
+- **`plans/index` → `_layout.tsx`**: registrado como `plans/index` (no `plans`) porque Expo Router trata las carpetas con `index.tsx` distinto a las screens directas.
+- **Deep linking**: `scheme: "danceclass"` ya estaba en `app.json`; las rutas `plans/success` y `plans/failure` son accesibles vía `danceclass://plans/success` y `danceclass://plans/failure`. Para que MP redirija de vuelta a la app, las web pages de success/failure deben agregar un link/botón con ese scheme (trabajo futuro).
 
 #### Nuevos componentes mobile (sesión 3)
 

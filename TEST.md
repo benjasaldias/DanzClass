@@ -146,6 +146,102 @@
 
 ---
 
+## 13. Mobile — `/my-classes` (tabs tomo/dicto)
+
+> Testear en la app mobile con la cuenta profesor.
+
+- [ ] Tab "Clases que tomo" carga la lista de inscripciones del usuario actual
+- [ ] Cada card muestra: título de clase, nombre del profesor, horario, estado del enrollment
+- [ ] Enrollment `pending_payment` muestra botón "Ir a pagar · $X.XXX" en brand-600
+- [ ] Tap en "Ir a pagar" navega a `/(app)/payment/[enrollmentId]`
+- [ ] Tap en la card navega al detalle de la clase
+- [ ] Tab "Clases que dicto" carga las clases activas del profesor
+- [ ] Cada clase en "Dicto" muestra: título, horario, confirmados/total de cupos, pagos por verificar
+- [ ] Expandir una clase muestra la lista de alumnos inscriptos (no cancelados)
+- [ ] Alumno con `payment_submitted` muestra botones "Confirmar" y "Rechazar"
+- [ ] Confirmar pago → enrollment pasa a `confirmed`, alumno recibe notificación
+- [ ] Rechazar pago → enrollment pasa a `pending_payment`, alumno recibe notificación
+- [ ] Botón eliminar alumno (X) abre Alert de confirmación → al confirmar, enrollment pasa a `cancelled`
+- [ ] Sección de deudores aparece si hay alumnos con `pending_payment` en clases `suelta` pasadas
+- [ ] Botón "Pago confirmado" en deudor → agrega a `dismissed_debts` y lo quita de la lista
+- [ ] Alerta de fecha de eliminación de archivos (coral-fuego) si `deletion_date` es futura
+- [ ] Icono "Archivos eliminados" en gris si `deletion_date` ya pasó
+
+---
+
+## 14. Mobile — `/payment/[enrollmentId]`
+
+> Testear con un enrollment activo en `pending_payment`.
+
+- [ ] Muestra el monto correcto: `price` normal si no es 2x
+- [ ] Si `is_2x = true` y hay `price_2x`: muestra `price_2x` con nota "Precio 2x — cubre a ambos"
+- [ ] Si `is_2x = true` pero `price_2x = null`: muestra banner amarillo de advertencia
+- [ ] Si el usuario NO es el `payment_assignee` del 2x request: muestra banner ámbar "Tu compañer@ va a pagar" en vez del formulario de pago
+- [ ] Si el usuario ES el `payment_assignee`: muestra formulario de datos bancarios + upload de comprobante
+- [ ] Los datos bancarios del profesor se muestran correctamente (banco, tipo, N° cuenta, RUT, titular, email)
+- [ ] Tap en campo con `copyable: true` → copia al portapapeles y muestra Alert
+- [ ] Botón "Seleccionar comprobante" abre el picker de imágenes del dispositivo
+- [ ] La imagen seleccionada se muestra como preview
+- [ ] "Cambiar imagen" permite reseleccionar
+- [ ] Botón "Enviar comprobante" deshabilitado hasta que hay imagen seleccionada
+- [ ] Submit → sube imagen a bucket `payment-receipts`, crea/actualiza `payments`, actualiza enrollment a `payment_submitted`
+- [ ] Pantalla de éxito "¡Comprobante enviado!" aparece tras submit exitoso → navega atrás después de 2 segundos
+- [ ] Si `is_2x` y es el turno del usuario: botón "Que pague mi compañer@" llama al API `/api/class-2x/transfer-payment` con Bearer token
+- [ ] Transferir turno → `payment_assignee` se actualiza, el otro usuario recibe notificación `2x_payment_turn`
+
+---
+
+## 15. Mobile — `/plans`
+
+> Testear con usuario sin plan activo. Usar Mercado Pago sandbox.
+
+- [ ] Pantalla muestra los dos planes: Básico ($1.500/mes) y Pro ($3.500/mes)
+- [ ] Si ya hay plan activo: badge verde "Plan activo: [Nombre]" arriba de la lista
+- [ ] El plan activo muestra "Plan actual" en vez de los botones de suscripción
+- [ ] Cada plan muestra su lista de features con íconos de check (brand-600)
+- [ ] Plan Pro tiene el badge "MÁS POPULAR" en la parte superior de la card
+- [ ] Botón "Mensual · $X.XXX" hace POST a `/api/mercadopago/create-subscription` con Bearer token
+- [ ] Botón "Anual · $X.XXX" hace POST a `/api/mercadopago/create-preference` con `period: 'annual'` y Bearer token
+- [ ] El botón clickeado muestra "Abriendo checkout..." mientras espera la respuesta
+- [ ] Ambos botones se deshabilitan mientras hay un checkout en curso
+- [ ] Al recibir `init_point`: se abre el browser in-app (`WebBrowser.openBrowserAsync`)
+- [ ] El browser muestra el checkout de Mercado Pago sandbox correctamente
+- [ ] Tras cerrar el browser: el estado de la suscripción se refresca
+- [ ] Si la API retorna error: Alert con el mensaje de error
+- [ ] Flujo completo sandbox: abrir checkout → pagar con tarjeta de prueba → cerrar browser → badge de plan activo actualizado
+
+---
+
+## 16. Mobile — `/plans/success` y `/plans/failure`
+
+- [ ] `plans/success`: muestra ícono verde de check, "¡Pago exitoso!", nombre del plan activo si aplica
+- [ ] `plans/success`: botón "Ver mi perfil" navega a la tab de perfil
+- [ ] `plans/success`: link "Ir al feed" navega al feed
+- [ ] `plans/failure`: muestra ícono rojo, "Pago no completado", mensaje explicativo
+- [ ] `plans/failure`: botón "Intentar de nuevo" navega de vuelta a `/plans`
+- [ ] `plans/failure`: link "Volver al perfil" navega al perfil
+- [ ] Deep link `danceclass://plans/success` abre la pantalla correcta (requiere build nativo)
+- [ ] Deep link `danceclass://plans/failure` abre la pantalla correcta (requiere build nativo)
+
+---
+
+## 17. Mobile — Flujo end-to-end inscripción + pago
+
+> Flujo crítico. Testear con cuenta estudiante y cuenta profesor en paralelo.
+
+1. Estudiante: navegar a detalle de clase → "Reservar cupo" → enrollment creado en `pending_payment`
+2. Estudiante: la clase aparece en `/my-classes` tab "Clases que tomo" con estado "Pendiente de pago"
+3. Estudiante: tap "Ir a pagar" → pantalla de pago muestra monto + datos del profesor
+4. Estudiante: seleccionar imagen de comprobante → "Enviar comprobante"
+5. Verificar en Supabase: `payments` tiene nuevo registro; `enrollments.status = 'payment_submitted'`
+6. Profesor: en `/my-classes` tab "Clases que dicto" → la clase muestra el alerta "1 pago por verificar"
+7. Profesor: expandir la clase → ver al estudiante con botones "Confirmar" y "Rechazar"
+8. Profesor: tap "Confirmar" → enrollment pasa a `confirmed`
+9. Estudiante: recibe notificación `payment_confirmed` en `/notifications`
+10. Estudiante: la clase en `/my-classes` ahora muestra "✓ Confirmado"
+
+---
+
 ## Resumen
 
 | Estado            | Cantidad |
@@ -153,6 +249,7 @@
 | PASS `[x]`        | 30       |
 | FAIL `[!]`        | 0        |
 | SKIP/N-A `[~]`    | 28       |
+| PENDIENTE `[ ]`   | 38 (mobile transaccional) |
 
 ### FAILs detectados y corregidos
 

@@ -13,6 +13,9 @@ export default function AppLayout() {
       <Stack.Screen name="profile/payment-info" options={{ presentation: 'card' }} />
       <Stack.Screen name="teacher/[username]" options={{ presentation: 'card' }} />
       <Stack.Screen name="payment/[enrollmentId]" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="plans/index" options={{ presentation: 'card' }} />
+      <Stack.Screen name="plans/success" options={{ presentation: 'card' }} />
+      <Stack.Screen name="plans/failure" options={{ presentation: 'card' }} />
     </Stack>
   )
 }

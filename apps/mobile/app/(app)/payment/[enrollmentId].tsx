@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native'
+import {
+  View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Clipboard from 'expo-clipboard'
+import { Users, AlertTriangle } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import { formatCLP } from '@danceclass/shared'
+
+const WEB_URL = 'https://dc-project-web.vercel.app'
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   cuenta_corriente: 'Cuenta Corriente',
@@ -19,19 +24,42 @@ export default function PaymentScreen() {
   const { enrollmentId } = useLocalSearchParams<{ enrollmentId: string }>()
   const router = useRouter()
   const [enrollment, setEnrollment] = useState<any>(null)
+  const [twoxRequest, setTwoxRequest] = useState<any>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [receipt, setReceipt] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [transferring, setTransferring] = useState(false)
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
     async function load() {
-      const { data } = await (supabase as any)
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!user) return
+      setCurrentUserId(user.id)
+      setAccessToken(session?.access_token ?? null)
+
+      const { data: enrollData } = await (supabase as any)
         .from('enrollments')
         .select('*, class:classes(*, teacher:profiles!teacher_id(*, payment_info:teacher_payment_info(*)))')
         .eq('id', enrollmentId)
         .single()
-      setEnrollment(data)
+      setEnrollment(enrollData)
+
+      // Fetch 2x request if applicable
+      if (enrollData?.is_2x) {
+        const { data: req2x } = await (supabase as any)
+          .from('class_2x_requests')
+          .select('*')
+          .eq('class_id', enrollData.class.id)
+          .in('user_id', [user.id, enrollData.partner_enrollment_id].filter(Boolean))
+          .eq('status', 'matched')
+          .maybeSingle()
+        setTwoxRequest(req2x)
+      }
+
       setLoading(false)
     }
     load()
@@ -51,14 +79,11 @@ export default function PaymentScreen() {
   }
 
   async function submitPayment() {
-    if (!receipt) return
+    if (!receipt || !currentUserId) return
     setUploading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
     const ext = receipt.split('.').pop() ?? 'jpg'
-    const fileName = `${user.id}/${enrollmentId}.${ext}`
+    const fileName = `${currentUserId}/${enrollmentId}.${ext}`
     const base64 = await FileSystem.readAsStringAsync(receipt, { encoding: FileSystem.EncodingType.Base64 })
     const arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
 
@@ -74,18 +99,56 @@ export default function PaymentScreen() {
 
     const { data: urlData } = supabase.storage.from('payment-receipts').getPublicUrl(uploadData.path)
 
-    await supabase.from('payments').insert({
-      enrollment_id: enrollmentId,
-      amount: enrollment.class.price,
-      receipt_url: urlData.publicUrl,
-      status: 'pending',
-    })
+    const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
+
+    // Upsert payment record
+    const existingPayment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
+    if (existingPayment?.id) {
+      await supabase.from('payments').update({
+        receipt_url: urlData.publicUrl,
+        status: 'pending',
+      }).eq('id', existingPayment.id)
+    } else {
+      await supabase.from('payments').insert({
+        enrollment_id: enrollmentId,
+        amount,
+        receipt_url: urlData.publicUrl,
+        status: 'pending',
+      })
+    }
 
     await supabase.from('enrollments').update({ status: 'payment_submitted' }).eq('id', enrollmentId)
 
     setSuccess(true)
     setUploading(false)
     setTimeout(() => router.back(), 2000)
+  }
+
+  async function handleTransfer() {
+    if (!twoxRequest || !accessToken) return
+    setTransferring(true)
+    try {
+      const res = await fetch(`${WEB_URL}/api/class-2x/transfer-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ request_id: twoxRequest.id }),
+      })
+      if (!res.ok) throw new Error('Error al transferir')
+      Alert.alert('Transferido', 'Tu compañer@ recibirá una notificación para pagar.')
+      // Refresh the page
+      const { data: newReq } = await (supabase as any)
+        .from('class_2x_requests')
+        .select('*')
+        .eq('id', twoxRequest.id)
+        .single()
+      setTwoxRequest(newReq)
+    } catch {
+      Alert.alert('Error', 'No se pudo transferir el turno de pago')
+    }
+    setTransferring(false)
   }
 
   if (loading) {
@@ -102,6 +165,12 @@ export default function PaymentScreen() {
     ? cls.teacher.payment_info[0]
     : cls.teacher?.payment_info
 
+  const is2x = !!enrollment.is_2x
+  const missing2xPrice = is2x && !cls.price_2x
+  const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
+  const isMyTurnToPay = !is2x || !twoxRequest || twoxRequest.payment_assignee === currentUserId
+  const alreadySubmitted = enrollment.status === 'payment_submitted'
+
   if (success) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
@@ -115,37 +184,76 @@ export default function PaymentScreen() {
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
       <ScrollView className="flex-1">
+        {/* Header */}
         <View className="bg-white px-4 py-4 border-b border-gray-100 flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <Text className="text-brand-600 text-base">‹ Volver</Text>
           </TouchableOpacity>
-          <Text className="text-lg font-bold text-gray-900">Pagar clase</Text>
+          <View>
+            <Text className="text-lg font-bold text-gray-900">Pagar clase</Text>
+            <Text className="text-xs text-gris-humo">{cls.title}</Text>
+          </View>
         </View>
 
         <View className="p-4 gap-4">
-          {/* Amount */}
-          <View className="bg-brand-50 rounded-2xl p-5 border border-brand-100">
-            <Text className="text-brand-700 font-medium text-sm mb-1">Monto a transferir</Text>
-            <Text className="text-4xl font-bold text-brand-900">{formatCLP(cls.price)}</Text>
-          </View>
+          {/* Missing 2x price warning */}
+          {missing2xPrice && (
+            <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex-row gap-3">
+              <AlertTriangle size={18} stroke="#ca8a04" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-yellow-900">El profesor no configuró precio 2x</Text>
+                <Text className="text-xs text-yellow-700 mt-0.5">Se muestra el precio individual, no el 2x.</Text>
+              </View>
+            </View>
+          )}
 
-          {/* Bank details */}
-          {paymentInfo && (
+          {/* Partner pays banner */}
+          {is2x && !isMyTurnToPay && (
+            <View className="bg-amber-50 border border-amber-200 rounded-2xl p-5 gap-3">
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-full bg-amber-100 items-center justify-center">
+                  <Users size={18} stroke="#d97706" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-amber-900">Tu compañer@ va a pagar</Text>
+                  <Text className="text-xs text-amber-700 mt-0.5">
+                    El monto 2x ({formatCLP(amount)}) está asignado a tu amig@.
+                  </Text>
+                </View>
+              </View>
+              <Text className="text-xs text-amber-600">
+                Si quieres pagar tú, pídele que te transfiera el turno.
+              </Text>
+            </View>
+          )}
+
+          {/* Amount — only when it's this user's turn */}
+          {isMyTurnToPay && (
+            <View className="bg-brand-50 rounded-2xl p-5 border border-brand-100">
+              <Text className="text-brand-700 font-medium text-sm mb-1">Monto a transferir</Text>
+              <Text className="text-4xl font-bold text-brand-900">{formatCLP(amount)}</Text>
+              {is2x && <Text className="text-xs text-brand-600 mt-1">Precio 2x — cubre a ambos</Text>}
+            </View>
+          )}
+
+          {/* Bank details — only when it's this user's turn */}
+          {isMyTurnToPay && paymentInfo && (
             <View className="bg-white rounded-2xl p-4 border border-gray-100 gap-3">
               <Text className="font-bold text-gray-900">Datos de transferencia</Text>
               <Text className="text-xs text-gray-400">Toca un campo para copiar</Text>
               {[
-                { label: 'Banco', value: paymentInfo.bank_name },
-                { label: 'Tipo', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] ?? paymentInfo.account_type },
-                { label: 'N° Cuenta', value: paymentInfo.account_number },
-                { label: 'RUT', value: paymentInfo.rut },
-                { label: 'Titular', value: paymentInfo.account_holder_name },
-                { label: 'Email', value: paymentInfo.email },
-              ].filter(({ value }) => !!value).map(({ label, value }) => (
+                { label: 'Banco', value: paymentInfo.bank_name, copyable: false },
+                { label: 'Tipo', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] ?? paymentInfo.account_type, copyable: false },
+                { label: 'N° Cuenta', value: paymentInfo.account_number, copyable: true },
+                { label: 'RUT', value: paymentInfo.rut, copyable: true },
+                { label: 'Titular', value: paymentInfo.account_holder_name, copyable: false },
+                { label: 'Email', value: paymentInfo.email, copyable: true },
+              ].filter(({ value }) => !!value).map(({ label, value, copyable }) => (
                 <TouchableOpacity
                   key={label}
-                  onPress={() => copyToClipboard(value, label)}
+                  onPress={() => copyable && copyToClipboard(value, label)}
                   className="flex-row justify-between py-1"
+                  disabled={!copyable}
                 >
                   <Text className="text-xs text-gray-500">{label}</Text>
                   <Text className="text-sm font-medium text-gray-900">{value}</Text>
@@ -154,38 +262,70 @@ export default function PaymentScreen() {
             </View>
           )}
 
-          {/* Receipt upload */}
-          <View className="bg-white rounded-2xl p-4 border border-gray-100 gap-3">
-            <Text className="font-bold text-gray-900">Comprobante de pago</Text>
+          {isMyTurnToPay && !paymentInfo && (
+            <View className="bg-white rounded-2xl p-4 border border-gray-100 items-center">
+              <Text className="text-sm text-gray-500">El profesor aún no configuró sus datos bancarios.</Text>
+            </View>
+          )}
 
-            {receipt ? (
-              <View className="gap-2">
-                <Image source={{ uri: receipt }} className="w-full h-48 rounded-xl" resizeMode="contain" />
-                <TouchableOpacity onPress={pickReceipt} className="items-center">
-                  <Text className="text-brand-600 text-sm font-medium">Cambiar imagen</Text>
+          {/* Receipt upload — only when it's this user's turn */}
+          {isMyTurnToPay && (
+            <View className="bg-white rounded-2xl p-4 border border-gray-100 gap-3">
+              <Text className="font-bold text-gray-900">
+                {alreadySubmitted ? 'Comprobante enviado' : 'Comprobante de pago'}
+              </Text>
+
+              {alreadySubmitted ? (
+                <View className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex-row items-center gap-2">
+                  <Text className="text-2xl">✓</Text>
+                  <Text className="text-sm text-blue-700 flex-1">Tu comprobante fue enviado. El profesor lo está revisando.</Text>
+                </View>
+              ) : receipt ? (
+                <View className="gap-2">
+                  <Image source={{ uri: receipt }} className="w-full h-48 rounded-xl" resizeMode="contain" />
+                  <TouchableOpacity onPress={pickReceipt} className="items-center">
+                    <Text className="text-brand-600 text-sm font-medium">Cambiar imagen</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={pickReceipt}
+                  className="border-2 border-dashed border-gray-200 rounded-xl p-8 items-center gap-2"
+                >
+                  <Text className="text-4xl">📎</Text>
+                  <Text className="text-sm font-medium text-gray-700">Seleccionar comprobante</Text>
+                  <Text className="text-xs text-gray-400">JPG o PNG</Text>
                 </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={pickReceipt}
-                className="border-2 border-dashed border-gray-200 rounded-xl p-8 items-center gap-2"
-              >
-                <Text className="text-4xl">📎</Text>
-                <Text className="text-sm font-medium text-gray-700">Seleccionar comprobante</Text>
-                <Text className="text-xs text-gray-400">JPG o PNG</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              )}
+            </View>
+          )}
 
-          <TouchableOpacity
-            onPress={submitPayment}
-            disabled={!receipt || uploading}
-            className={`rounded-2xl py-4 items-center ${receipt && !uploading ? 'bg-brand-600' : 'bg-gray-300'}`}
-          >
-            <Text className="text-white font-bold text-base">
-              {uploading ? 'Enviando...' : 'Enviar comprobante'}
-            </Text>
-          </TouchableOpacity>
+          {/* Submit button */}
+          {isMyTurnToPay && !alreadySubmitted && (
+            <TouchableOpacity
+              onPress={submitPayment}
+              disabled={!receipt || uploading}
+              className={`rounded-2xl py-4 items-center ${receipt && !uploading ? 'bg-brand-600' : 'bg-gray-300'}`}
+            >
+              <Text className="text-white font-bold text-base">
+                {uploading ? 'Enviando...' : 'Enviar comprobante'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Transfer payment turn button */}
+          {is2x && isMyTurnToPay && !alreadySubmitted && twoxRequest && (
+            <TouchableOpacity
+              onPress={handleTransfer}
+              disabled={transferring}
+              className="flex-row items-center justify-center gap-2 border border-gray-200 rounded-2xl py-4"
+            >
+              <Users size={16} stroke="#6b7280" />
+              <Text className="text-gray-600 text-sm font-medium">
+                {transferring ? 'Transfiriendo...' : 'Que pague mi compañer@'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
