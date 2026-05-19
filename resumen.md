@@ -1,4 +1,4 @@
-# DanceClass — Resumen del proyecto y pasos siguientes
+# DanzClass — Resumen del proyecto y pasos siguientes
 
 Este documento es un briefing para continuar el desarrollo en una nueva sesión de Claude.
 
@@ -6,7 +6,7 @@ Este documento es un briefing para continuar el desarrollo en una nueva sesión 
 
 ## Contexto del problema
 
-DanceClass es una plataforma web + móvil para conectar profesores y estudiantes de baile en Chile. El mercado actual es completamente informal: los profesores usan Instagram Stories y WhatsApp para publicar sus clases, los pagos se hacen por transferencia bancaria enviando captura de pantalla al profesor, y hay problemas de sobrecupo y descuentos de último minuto sin alcance.
+DanzClass es una plataforma web + móvil para conectar profesores y estudiantes de baile en Chile. El mercado actual es completamente informal: los profesores usan Instagram Stories y WhatsApp para publicar sus clases, los pagos se hacen por transferencia bancaria enviando captura de pantalla al profesor, y hay problemas de sobrecupo y descuentos de último minuto sin alcance.
 
 ---
 
@@ -220,7 +220,7 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 ### ✅ Términos de Uso (`/terms`)
 - Página pública en `/terms` — 11 cláusulas en español, sin login requerido
 - Cláusula 2: el usuario **declara ser titular de los derechos** sobre el audio y video que sube
-- DanceClass se posiciona como plataforma intermediaria (safe harbor)
+- DanzClass se posiciona como plataforma intermediaria (safe harbor)
 - **Registro** actualizado: checkbox obligatorio `z.literal(true)` que enlaza a `/terms`; no se puede crear cuenta sin aceptarlo
 
 ### ✅ Inscripción 2x (pareja) — NUEVO sesión 2026-05-17 / MEJORADO sesión 2026-05-17b
@@ -830,3 +830,163 @@ Todos los emojis UI reemplazados por íconos vectoriales de `lucide-react-native
 - **Notificaciones push**: Expo Notifications pendiente
 - **Paginación real**: el feed carga con `.limit(20)` pero no hay scroll infinito con cursor
 - **Sin build de producción local**: Node.js v12 en WSL2 impide correr `eas build` localmente; build debe realizarse desde máquina con Node ≥ 18
+
+---
+
+## Preparación deployment mobile — sesión 2026-05-19
+
+### Archivos creados / modificados
+
+| Archivo | Estado | Descripción |
+|---|---|---|
+| `apps/mobile/eas.json` | ✅ CREADO | Configuración EAS con perfiles development, preview, production |
+| `apps/mobile/PRE_BUILD_CHECKLIST.md` | ✅ CREADO | Checklist completo pre-build |
+| `apps/mobile/app.json` | ⏳ PENDIENTE CONFIRMACIÓN | Diff propuesto, no aplicado aún |
+| `apps/web/src/app/privacy/page.tsx` | ⏳ PENDIENTE CONFIRMACIÓN | Draft redactado, no creado aún |
+
+### app.json — cambios propuestos (pendiente confirmación del usuario)
+
+```diff
++ "newArchEnabled": true
++ ios.buildNumber: "1"
++ android.versionCode: 1
++ ios.infoPlist.NSPhotoLibraryUsageDescription
++ ios.infoPlist.NSPhotoLibraryAddUsageDescription
++ android.permissions: [READ_MEDIA_IMAGES, READ_MEDIA_VIDEO, READ_EXTERNAL_STORAGE]
++ plugin "expo-video"
+~ expo-image-picker photosPermission: texto actualizado
+- plugin expo-document-picker (nunca se importa en ninguna pantalla)
+~ extra.eas.projectId: sigue como placeholder hasta que el usuario corra eas init
+```
+
+### EAS build — comandos
+
+```bash
+# Instalar EAS CLI (una vez)
+npm install -g eas-cli
+
+# Autenticar y vincular proyecto
+eas login
+cd apps/mobile && eas init
+
+# Build de development (Expo Dev Client)
+eas build --profile development --platform android
+
+# Build de preview interno (APK directo)
+eas build --profile preview --platform android
+
+# Build de producción (tiendas)
+eas build --profile production --platform all
+```
+
+### Assets — pendiente del usuario
+
+Todos los assets en `apps/mobile/assets/` son placeholders 1×1 px. Specs requeridas:
+
+| Asset | Tamaño | Notas |
+|---|---|---|
+| `icon.png` | 1024×1024 | Sin transparencia, fondo sólido |
+| `adaptive-icon.png` | 1024×1024 | Foreground con transparencia OK; logo en 66% central |
+| `splash.png` | 1284×2778 | Fondo sólido, logo centrado |
+| `favicon.png` | 32×32 | Solo web, no urgente |
+
+### Deep linking Mercado Pago — estado
+
+- `scheme: "danceclass"` configurado en `app.json` ✅
+- Pantallas `plans/success` y `plans/failure` funcionan ✅
+- **Gap UX (no bloqueante):** la página web `/plans/success` no tiene botón "Volver a la app" con `danceclass://plans/success`. El usuario ve la web dentro del in-app browser y cierra manualmente.
+- **Gap timing (no bloqueante):** el webhook de MP es asíncrono — si el usuario reconsulta el plan justo al cerrar el browser puede ver tier `'none'` por unos segundos.
+- Para Supabase Auth en build nativo: agregar `danceclass://**` en Supabase → Authentication → Redirect URLs.
+
+### Política de privacidad — pendiente confirmación
+
+Draft redactado en sesión 2026-05-19 cubre:
+- Datos recolectados (cuenta, actividad, pagos, datos bancarios, videos audición)
+- Servicios terceros: Supabase, Cloudinary, Mercado Pago, Vercel
+- Retención y eliminación (incluye el cron de cleanup)
+- Derechos del usuario
+- Mayores de 14 años
+- Contacto: contacto@danceclass.cl
+
+Pendiente: confirmación del usuario para crear `apps/web/src/app/privacy/page.tsx`.
+
+### Pendiente del lado del usuario
+
+- [ ] Confirmar diff de `app.json` para que se aplique
+- [ ] Confirmar draft de política de privacidad para crear el archivo
+- [ ] Crear cuenta en expo.dev (gratuita)
+- [ ] Correr `eas init` desde `apps/mobile/` para obtener projectId real
+- [ ] Configurar `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY` en Expo dashboard
+- [ ] Proveer assets reales (icon.png, adaptive-icon.png, splash.png)
+- [ ] Agregar `danceclass://**` en Supabase redirect URLs
+- [ ] Apple Developer Account ($99/año) — solo necesaria para builds iOS
+- [ ] Google Play Developer Account ($25 único) — solo para submit a Play Store
+
+---
+
+## Sesión 2026-05-19 (bug fixes + rename)
+
+### ✅ Bug fix: Plan básico no podía crear clase (403 Forbidden)
+
+**Causa raíz:** migración `002_subscriptions_friends_2x.sql` reemplazó la política RLS `classes_insert_teacher` usando `get_user_tier(auth.uid()) IN ('teacher', 'pro')` — omitió `'basic'` aunque `canTeach()` lo incluye. Cualquier usuario básico recibía 403 al intentar INSERT en `classes`.
+
+**Fix:**
+
+- Nueva migración `017_fix_classes_rls_basic.sql`: policy recreada con `IN ('basic', 'teacher', 'pro')`
+- **⚠️ Requiere aplicar la migración en Supabase → SQL Editor** antes de que el fix esté activo en producción
+
+**Mejoras de UX en `CreateClassForm.tsx`:**
+
+- El submit ahora intercepta `basicBlocked` y abre un modal explícito: "Ya publicaste tu clase de este mes. Podrás publicar la siguiente desde el 01/MM/YYYY" (calcula el primer día del próximo mes calendario)
+- El error handler parsea `code === '42501'` y mensajes de RLS para mostrar mensajes contextual en lugar del genérico "Error al crear la clase"
+
+### ✅ Bug fix: Modal de video se croppea y oculta botón Publicar
+
+**Causa:** el contenedor blanco del modal (`CreatePostModal.tsx`) no tenía max-height ni scroll.
+
+**Fix:** `max-h-[50vh]` en el `<video>` (era `60vh`) + `overflow-y-auto max-h-[90vh]` en el div blanco del modal. Solución elegida: límite de altura + scroll como fallback para videos muy verticales.
+
+### ✅ Rename: DanceClass → DanzClass
+
+Renombrado en 14 archivos (36 ocurrencias exactas de `DanceClass` mixed-case):
+
+- **Web:** `apps/web/src/` — todos los componentes, páginas, API routes, layout, términos
+- **Mobile:** `apps/mobile/` — pantallas auth, login, perfil, planes, clases, TopBar, CityPicker
+- **app.json:** solo `expo.name` y `photosPermission` — `slug`, `bundleIdentifier`, `package` y `scheme` permanecen con `danceclass` por compatibilidad
+- **Docs:** `resumen.md`, `CLAUDE.md`, `PRE_BUILD_CHECKLIST.md`
+- **No tocado:** imports npm `@danceclass/shared` (lowercase, identificadores internos)
+
+### ✅ Modo oscuro web — implementado (parcial, ~70% de la app)
+
+**Infraestructura:**
+- `tailwind.config.ts`: `darkMode: 'class'` + tokens nombrados: `dark-bg`, `dark-surface`, `dark-surface2`, `dark-border`, `dark-text`, `dark-text2`
+- `next-themes` instalado como `ThemeProvider` en `src/components/ui/ThemeProvider.tsx`
+- Root `layout.tsx`: `suppressHydrationWarning` + ThemeProvider envuelve toda la app
+- `globals.css`: dark overrides globales para `.input`, `.card`, `.btn-secondary`, `.btn-ghost`, `body`
+
+**Toggle:** `ThemeToggle.tsx` (sun/moon) — esquina superior derecha de `/profile`. Persiste en localStorage automáticamente vía next-themes. Al cargar: respeta preferencia guardada, fallback a `prefers-color-scheme`.
+
+**Paleta dark mode:**
+
+| Token | Hex | Uso |
+|---|---|---|
+| `dark-bg` | `#1A1035` | Fondo principal (noche-urbana) |
+| `dark-surface` | `#241547` | Cards, contenedores (9 unidades sobre dark-bg) |
+| `dark-surface2` | `#2E1B5C` | Superficies elevadas (modales, dropdowns) |
+| `dark-border` | `#3D2870` | Bordes en superficies oscuras |
+| `dark-text` | `#EEEDFE` | Texto primario (lavanda-suave) — contraste 16:1 ✅ WCAG AAA |
+| `dark-text2` | `#A39BBF` | Texto secundario — contraste 6.7:1 ✅ WCAG AA |
+
+**Componentes migrados:**
+- Layout shell: `(app)/layout.tsx`, `TopBar.tsx`, `BottomNav.tsx`
+- Feed: `FeedClient.tsx` (filtros), `ClassCard.tsx`, `PostCard.tsx`
+- Perfil propio: `profile/page.tsx` completo (header, stats, subscription banner, estilos, clases, posts)
+- Auth: `auth/login/page.tsx`
+
+**Componentes NO migrados (siguiente sesión):**
+- `ClassDetailClient.tsx`, `CreateClassForm.tsx`, `EditClassForm.tsx` — forms complejos
+- `MyClassesClient.tsx`, `NotificationsClient.tsx` — pantallas secundarias
+- `PaymentClient.tsx`, `PlansPage`, `AdminReportsClient.tsx`
+- `TeacherProfileClient.tsx`, `EditProfileForm.tsx`, `ExploreClient.tsx`
+- `auth/register/page.tsx`
+- **Mobile**: dark mode requiere implementación separada con NativeWind `useColorScheme`

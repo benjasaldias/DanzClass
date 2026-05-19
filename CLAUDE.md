@@ -1,10 +1,10 @@
-# DanceClass — Prompt de contexto para Claude Code
+# DanzClass — Prompt de contexto para Claude Code
 
 Este archivo es el punto de entrada para cualquier sesión de desarrollo nueva. Léelo completo antes de tocar cualquier archivo del proyecto.
 
 ---
 
-## Qué es DanceClass
+## Qué es DanzClass
 
 Plataforma web + móvil para conectar profesores y estudiantes de baile urbano en Chile. El mercado actual es completamente informal: los profesores usan Instagram Stories y WhatsApp para publicar clases, los pagos van por transferencia bancaria con captura de pantalla, y hay problemas de sobrecupo y descuentos de último minuto sin alcance.
 
@@ -64,7 +64,7 @@ Preferir `#F5F3FF` (Blanco Violeta) o `bg-violet-50` para pantallas interiores e
 ### Referencia visual — pantalla actual
 
 La web app actual (screenshot de referencia) muestra:
-- Header blanco con logo "DanceClass" + ícono de nota musical en `brand-600`
+- Header blanco con logo "DanzClass" + ícono de nota musical en `brand-600`
 - Pills de filtro: "Siguiendo" (sin fondo), "Global" (activo, fondo `brand-600`, texto blanco), "Cerca" (sin fondo)
 - Dropdown "Todos" con borde sutil
 - Avatar del usuario: iniciales "BS" sobre fondo `brand-600/20` con texto `brand-600`
@@ -264,6 +264,16 @@ Política RLS `notifications_insert_any` con `WITH CHECK (true)`.
 
 **Scroll en campos numéricos:**
 Todos los `<input type="number">` tienen `onWheel={(e) => (e.target as HTMLInputElement).blur()}`.
+
+**Modo oscuro (web):**
+
+- Estrategia: `darkMode: 'class'` en `tailwind.config.ts` + `next-themes` (`ThemeProvider` en root layout)
+- Toggle: `ThemeToggle.tsx` (sun/moon), solo en `/profile` — esquina superior derecha
+- Persistencia: `localStorage` automático vía next-themes; fallback a `prefers-color-scheme`
+- Tokens dark en tailwind: `dark-bg` (#1A1035), `dark-surface` (#241547), `dark-surface2` (#2E1B5C), `dark-border` (#3D2870), `dark-text` (#EEEDFE), `dark-text2` (#A39BBF)
+- Overrides globales en `globals.css`: `.dark .input`, `.dark .card`, `.dark .btn-secondary`, `.dark body`
+- Componentes migrados: layout shell, TopBar, BottomNav, FeedClient, ClassCard, PostCard, profile/page, auth/login
+- Componentes pendientes de dark mode: ClassDetailClient, CreateClassForm, EditClassForm, MyClassesClient, NotificationsClient, PaymentClient, PlansPage, TeacherProfileClient, EditProfileForm, ExploreClient, auth/register, y toda la app mobile
 
 ---
 
