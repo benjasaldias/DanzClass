@@ -25,6 +25,7 @@ function isDeleted(deletionDate: string | null): boolean {
   return new Date(deletionDate) <= new Date()
 }
 function classSchedule(cls: any) {
+  if (!cls) return ''
   if (cls.type === 'suelta') return `${formatDate(cls.date)} · ${formatTime(cls.time)}`
   return `${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`
 }
