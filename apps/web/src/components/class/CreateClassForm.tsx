@@ -96,6 +96,13 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showIndefinitePopup, setShowIndefinitePopup] = useState(false)
+  const [showLimitModal, setShowLimitModal] = useState(false)
+
+  const nextMonthDate = (() => {
+    const now = new Date()
+    const d = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    return `01/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  })()
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -157,6 +164,11 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
   }
 
   async function onSubmit(data: FormData) {
+    if (basicBlocked) {
+      setShowLimitModal(true)
+      return
+    }
+
     if (isPeriodic && data.recurrence === 'custom' && customDates.length === 0) {
       setError('Selecciona al menos una fecha en el calendario')
       return
@@ -201,7 +213,17 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       .single()
 
     if (classError || !classRecord) {
-      setError('Error al crear la clase. Intenta de nuevo.')
+      const code = classError?.code
+      const msg = classError?.message ?? ''
+      if (code === '42501' || msg.includes('row-level security') || msg.includes('policy')) {
+        if (isBasic && sueltas_this_month >= 1) {
+          setShowLimitModal(true)
+        } else {
+          setError('No tienes permisos para crear esta clase. Verifica tu plan de suscripción.')
+        }
+      } else {
+        setError('Error al crear la clase. Intenta de nuevo.')
+      }
       setSubmitting(false)
       return
     }
@@ -241,6 +263,30 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
     <div className="px-4 py-4">
       <h1 className="text-xl font-bold text-gray-900 mb-1">Publicar clase</h1>
       <p className="text-sm text-gray-500 mb-5">Comparte los detalles de tu clase</p>
+
+      {/* Monthly limit modal */}
+      {showLimitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-6">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-base font-bold text-gray-900 mb-2">Límite mensual alcanzado</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Ya publicaste tu clase de este mes. Podrás publicar la siguiente desde el{' '}
+              <strong>{nextMonthDate}</strong>.
+            </p>
+            <p className="text-xs text-gray-500 mb-4">
+              Actualiza al plan <strong>Pro</strong> para publicar clases sin límite.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowLimitModal(false)} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Cerrar
+              </button>
+              <a href="/plans" className="flex-1 btn-primary py-2.5 text-sm text-center">
+                Ver planes
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Indefinite popup for periodica */}
       {showIndefinitePopup && (
@@ -599,7 +645,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
           )}
         </div>
 
-        <button type="submit" disabled={submitting || basicBlocked} className="btn-primary w-full py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed">
+        <button type="submit" disabled={submitting} className="btn-primary w-full py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed">
           {submitting ? (
             <span className="flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />

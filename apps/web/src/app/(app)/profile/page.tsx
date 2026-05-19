@@ -7,6 +7,7 @@ import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
 import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, ShieldCheck, Instagram, Music2, Video } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import PostCard from '@/components/feed/PostCard'
 import { formatCLP, formatDate, formatTime } from '@/lib/utils'
 
@@ -71,44 +72,49 @@ export default async function ProfilePage() {
 
   return (
     <div className="flex flex-col">
+      {/* Theme toggle — top-right */}
+      <div className="flex justify-end px-4 pt-3">
+        <ThemeToggle />
+      </div>
+
       {/* Header */}
-      <div className="px-4 py-6 flex flex-col items-center text-center gap-3">
+      <div className="px-4 py-4 flex flex-col items-center text-center gap-3">
         <Avatar src={profile?.avatar_url} name={profile?.full_name ?? '?'} size="xl" />
 
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{profile?.full_name ?? 'Usuario'}</h1>
-          <p className="text-sm text-gray-500">@{profile?.username ?? 'sin-usuario'}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">{profile?.full_name ?? 'Usuario'}</h1>
+          <p className="text-sm text-gray-500 dark:text-dark-text2">@{profile?.username ?? 'sin-usuario'}</p>
         </div>
 
         {profile?.bio && (
-          <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{profile.bio}</p>
+          <p className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed max-w-xs">{profile.bio}</p>
         )}
 
-        <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap justify-center">
+        <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-dark-text2 flex-wrap justify-center">
           {profile?.city && (
             <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{profile.city}</span>
           )}
           <span className="flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
-            <strong className="text-gray-900">{followersCount ?? 0}</strong> seguidores
+            <strong className="text-gray-900 dark:text-dark-text">{followersCount ?? 0}</strong> seguidores
           </span>
         </div>
 
         {/* Stats row */}
         <div className="flex items-center gap-4 flex-wrap justify-center mt-1">
           <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-gray-900">{classesCount ?? 0}</span>
-            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
+            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesCount ?? 0}</span>
+            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
           </div>
-          <div className="h-7 w-px bg-gray-200" />
+          <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
           <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-gray-900">{paidSpotsCount ?? 0}</span>
-            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
+            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{paidSpotsCount ?? 0}</span>
+            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
           </div>
-          <div className="h-7 w-px bg-gray-200" />
+          <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
           <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-green-700">{trustCount ?? 0}</span>
-            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
+            <span className="text-base font-bold text-green-700 dark:text-emerald-400">{trustCount ?? 0}</span>
+            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
           </div>
         </div>
 
@@ -123,7 +129,7 @@ export default async function ProfilePage() {
         <div className="flex gap-2 flex-wrap justify-center">
           <Link
             href="/profile/edit"
-            className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 text-gray-700 hover:border-brand-400 hover:text-brand-700 transition-colors"
+            className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
           >
             <Settings className="h-4 w-4" />
             Editar perfil
@@ -132,7 +138,7 @@ export default async function ProfilePage() {
           {canTeach(tier) && (
             <Link
               href="/profile/payment-info"
-              className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 text-gray-700 hover:border-brand-400 hover:text-brand-700 transition-colors"
+              className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
             >
               <CreditCard className="h-4 w-4" />
               Datos Transferencia
@@ -144,22 +150,22 @@ export default async function ProfilePage() {
       </div>
 
       {/* Subscription banner */}
-      <div className="mx-4 mb-4 rounded-xl border border-gray-200 bg-white px-4 py-3 flex items-center justify-between">
+      <div className="mx-4 mb-4 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Crown className="h-5 w-5 text-brand-500" />
+          <Crown className="h-5 w-5 text-brand-500 dark:text-brand-300" />
           <div>
-            <p className="text-sm font-medium text-gray-900">{TIER_LABELS[tier] ?? 'Sin plan'}</p>
-            {planInfo && <p className="text-xs text-gray-500">{planInfo.description}</p>}
+            <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{TIER_LABELS[tier] ?? 'Sin plan'}</p>
+            {planInfo && <p className="text-xs text-gray-500 dark:text-dark-text2">{planInfo.description}</p>}
           </div>
         </div>
-        <Link href="/plans" className="text-xs font-semibold text-brand-600 hover:text-brand-700">
+        <Link href="/plans" className="text-xs font-semibold text-brand-600 dark:text-brand-300 hover:text-brand-700">
           {tier === 'none' ? 'Suscribirse' : 'Cambiar'}
         </Link>
       </div>
 
       {/* Estilos de baile */}
       {((profile?.styles_dancing?.length ?? 0) > 0 || (profile?.styles_teaching?.length ?? 0) > 0) && (
-        <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-4">
+        <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-dark-border pt-4">
           {(profile?.styles_dancing?.length ?? 0) > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Baila</p>
@@ -185,8 +191,8 @@ export default async function ProfilePage() {
 
       {/* Clases publicadas */}
       {(classes ?? []).length > 0 && (
-        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
-          <h2 className="font-bold text-gray-900 mb-3">Mis clases activas</h2>
+        <div className="px-4 pb-6 border-t border-gray-100 dark:border-dark-border pt-4">
+          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">Mis clases activas</h2>
           <div className="space-y-3">
             {(classes ?? []).map((cls: any) => <ClassMiniCard key={cls.id} cls={cls} />)}
           </div>
@@ -195,8 +201,8 @@ export default async function ProfilePage() {
 
       {/* Inscripciones */}
       {enrolledClasses.length > 0 && (
-        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
-          <h2 className="font-bold text-gray-900 mb-3">Mis inscripciones</h2>
+        <div className="px-4 pb-6 border-t border-gray-100 dark:border-dark-border pt-4">
+          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">Mis inscripciones</h2>
           <div className="space-y-3">
             {enrolledClasses.map((e: any) => e.class && <ClassMiniCard key={e.id} cls={e.class} />)}
           </div>
@@ -205,9 +211,9 @@ export default async function ProfilePage() {
 
       {/* Publicaciones propias */}
       {ownPosts.length > 0 && (
-        <div className="border-t border-gray-100 pt-4 pb-2">
-          <h2 className="font-bold text-gray-900 mb-1 px-4 flex items-center gap-2">
-            <Video className="h-4 w-4 text-brand-500" />
+        <div className="border-t border-gray-100 dark:border-dark-border pt-4 pb-2">
+          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-1 px-4 flex items-center gap-2">
+            <Video className="h-4 w-4 text-brand-500 dark:text-brand-300" />
             Mis publicaciones
           </h2>
           <div>
@@ -219,8 +225,8 @@ export default async function ProfilePage() {
       )}
 
       {(classes ?? []).length === 0 && enrolledClasses.length === 0 && ownPosts.length === 0 && (
-        <div className="flex flex-col items-center py-10 text-center text-gray-500 border-t border-gray-100">
-          <Music2 className="h-10 w-10 text-gray-300 mb-3" />
+        <div className="flex flex-col items-center py-10 text-center text-gray-500 dark:text-dark-text2 border-t border-gray-100 dark:border-dark-border">
+          <Music2 className="h-10 w-10 text-gray-300 dark:text-dark-border mb-3" />
           <p className="text-sm">Sin actividad pública aún</p>
         </div>
       )}
@@ -238,29 +244,29 @@ function ClassMiniCard({ cls }: { cls: any }) {
       : `${recurrenceLabel[cls.recurrence] ?? ''} · ${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`
 
   return (
-    <Link href={`/class/${cls.id}`} className="card flex gap-3 p-3 hover:shadow-md transition-shadow">
+    <Link href={`/class/${cls.id}`} className="card dark:bg-dark-surface dark:border-dark-border flex gap-3 p-3 hover:shadow-md transition-shadow">
       {firstMedia ? (
-        <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
+        <div className="relative h-20 w-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-surface2">
           {firstMedia.type === 'image'
             ? <Image src={firstMedia.url} alt={cls.title} fill className="object-cover" sizes="80px" />
             : <video src={firstMedia.url} className="h-full w-full object-cover" />}
         </div>
       ) : (
-        <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
-          <Music2 className="h-8 w-8 text-brand-400" />
+        <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50 dark:bg-dark-surface2">
+          <Music2 className="h-8 w-8 text-brand-400 dark:text-brand-300" />
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-gray-900 truncate">{cls.title}</p>
+        <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls.title}</p>
         {cls.dance_style && (
-          <p className="text-xs text-brand-600">
+          <p className="text-xs text-brand-600 dark:text-brand-300">
             {cls.dance_style}{cls.class_type ? ` - ${cls.class_type}` : ''}
           </p>
         )}
-        <p className="text-xs text-gray-500 mt-1">{schedule}</p>
-        <p className="mt-1 text-sm font-bold text-gray-900">{formatCLP(cls.price)}</p>
+        <p className="text-xs text-gray-500 dark:text-dark-text2 mt-1">{schedule}</p>
+        <p className="mt-1 text-sm font-bold text-gray-900 dark:text-dark-text">{formatCLP(cls.price)}</p>
         {cls.price_suelta && (
-          <p className="text-xs text-gray-400">Suelta: {formatCLP(cls.price_suelta)}</p>
+          <p className="text-xs text-gray-400 dark:text-dark-text2">Suelta: {formatCLP(cls.price_suelta)}</p>
         )}
       </div>
     </Link>

@@ -57,7 +57,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
     : null
 
   return (
-    <article className="border-b border-gray-100 bg-blanco-violeta/30">
+    <article className="border-b border-gray-100 dark:border-dark-border bg-blanco-violeta/30 dark:bg-dark-surface">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <Link href={`/teacher/${teacher.username}`}>
@@ -65,18 +65,18 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         </Link>
         <div className="flex-1 min-w-0">
           <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-1">
-            <span className="font-semibold text-sm text-gray-900 truncate">{teacher.full_name}</span>
+            <span className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{teacher.full_name}</span>
           </Link>
-          <p className="text-xs text-gris-humo">{timeAgo(classData.created_at)}</p>
+          <p className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</p>
         </div>
         {styleBadge && (
-          <span className="badge bg-brand-50 text-brand-700 text-xs">{styleBadge}</span>
+          <span className="badge bg-brand-50 dark:bg-dark-surface2 text-brand-700 dark:text-brand-300 text-xs">{styleBadge}</span>
         )}
       </div>
 
       {/* Media carousel */}
       {sortedMedia.length > 0 && (
-        <div className="relative aspect-square bg-gray-100">
+        <div className="relative aspect-square bg-gray-100 dark:bg-dark-surface2">
           {sortedMedia[currentMediaIndex].type === 'image' ? (
             <Image
               src={sortedMedia[currentMediaIndex].url}
@@ -116,7 +116,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
       <div className="px-4 pb-4 pt-3 space-y-3">
         {/* Title + level */}
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-gray-900 leading-snug">{classData.title}</h3>
+          <h3 className="font-bold text-gray-900 dark:text-dark-text leading-snug">{classData.title}</h3>
           <span className={cn('badge flex-shrink-0', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600')}>
             {classData.level}
           </span>
@@ -124,29 +124,29 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
 
         {/* Description */}
         {classData.description && (
-          <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">{classData.description}</p>
+          <p className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed line-clamp-3">{classData.description}</p>
         )}
 
         {/* Details */}
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-sm text-gris-humo">
-            <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
+            <Calendar className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
             <span>{scheduleText}</span>
           </div>
           {classData.location_name && (
-            <div className="flex items-center gap-2 text-sm text-gris-humo">
-              <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+            <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
+              <MapPin className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
               <span>{classData.location_name}</span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-sm text-gris-humo">
-            <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
+            <Clock className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
             <span>{classData.duration_minutes} min</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gris-humo">
-            <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
+            <Users className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
             <span>
-              <span className={cn('font-medium', spotsAvailable <= 0 ? 'text-red-600' : 'text-green-700')}>
+              <span className={cn('font-medium', spotsAvailable <= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-emerald-400')}>
                 {Math.max(0, spotsAvailable)}
               </span>
               /{classData.max_spots} cupos disponibles
@@ -155,7 +155,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         </div>
 
         {/* Price + CTA */}
-        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-100 border-t border-emerald-200">
+        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-100 dark:bg-emerald-950/50 border-t border-emerald-200 dark:border-emerald-900">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs text-gris-humo">
@@ -174,10 +174,10 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
                     <span className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</span>
                   </>
                 ) : (
-                  <span className="text-xl font-bold text-gray-900">{formatCLP(classData.price)}</span>
+                  <span className="text-xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(classData.price)}</span>
                 )}
                 {classData.price_2x && (
-                  <span className="text-xs text-brand-600 font-semibold">· 2x {formatCLP(classData.price_2x)}</span>
+                  <span className="text-xs text-brand-600 dark:text-brand-300 font-semibold">· 2x {formatCLP(classData.price_2x)}</span>
                 )}
               </div>
               {/* Suelta price + suelta 2x inline */}

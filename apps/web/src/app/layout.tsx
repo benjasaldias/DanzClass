@@ -1,14 +1,15 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import ThemeProvider from '@/components/ui/ThemeProvider'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'DanceClass',
+  title: 'DanzClass',
   description: 'Conectando profesores y estudiantes de baile en Chile',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'DanceClass' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'DanzClass' },
 }
 
 export const viewport: Viewport = {
@@ -20,8 +21,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={inter.variable}>
-      <body className="min-h-screen">{children}</body>
+    <html lang="es" className={inter.variable} suppressHydrationWarning>
+      <body className="min-h-screen">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   )
 }

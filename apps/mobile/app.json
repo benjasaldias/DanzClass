@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "DanceClass",
+    "name": "DanzClass",
     "slug": "danceclass",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -27,7 +27,7 @@
       "expo-secure-store",
       [
         "expo-image-picker",
-        { "photosPermission": "DanceClass necesita acceso a tus fotos para subir comprobantes de pago." }
+        { "photosPermission": "DanzClass necesita acceso a tus fotos para subir comprobantes de pago." }
       ],
       [
         "expo-document-picker",

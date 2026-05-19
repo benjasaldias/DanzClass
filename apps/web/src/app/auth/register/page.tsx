@@ -97,7 +97,7 @@ export default function RegisterPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 border border-white/20">
               <Music2 className="h-6 w-6 text-brand-300" />
             </div>
-            <span className="text-xl font-bold text-white">DanceClass</span>
+            <span className="text-xl font-bold text-white">DanzClass</span>
           </div>
         </div>
 

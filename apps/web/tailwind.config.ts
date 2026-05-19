@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -42,6 +43,13 @@ const config: Config = {
         'lavanda-suave': '#EEEDFE',
         'gris-humo': '#6B6880',
         'violeta-oscuro': '#534AB7',
+        // Dark mode surface tokens
+        'dark-bg': '#1A1035',
+        'dark-surface': '#241547',
+        'dark-surface2': '#2E1B5C',
+        'dark-border': '#3D2870',
+        'dark-text': '#EEEDFE',
+        'dark-text2': '#A39BBF',
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],

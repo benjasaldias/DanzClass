@@ -35,7 +35,7 @@ export default function BottomNav({ tier }: BottomNavProps) {
   const links = canTeach(tier) ? teacherLinks : studentLinks
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md border-t border-gray-100 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-dark-bg/95 backdrop-blur-md border-t border-gray-100 dark:border-dark-border safe-area-pb">
       <div className="mx-auto max-w-lg">
         <div className="flex items-center justify-around h-16">
           {links.map(({ href, icon: Icon, label }) => {
@@ -46,7 +46,7 @@ export default function BottomNav({ tier }: BottomNavProps) {
                 href={href}
                 className={cn(
                   'flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors',
-                  isActive ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'
+                  isActive ? 'text-brand-600 dark:text-brand-300' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
                 )}
               >
                 <Icon className={cn('h-5 w-5', isActive && 'fill-brand-100')} strokeWidth={isActive ? 2.5 : 1.5} />

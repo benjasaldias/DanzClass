@@ -107,16 +107,16 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
         />
       )}
 
-      <div className="border-b border-gray-100 bg-white px-4 py-4">
+      <div className="border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-4">
         <div className="flex items-center gap-3 mb-3">
           <Link href={`/teacher/${user.username}`}>
             <Avatar src={user.avatar_url} name={user.full_name} size="md" />
           </Link>
           <div className="flex-1 min-w-0">
-            <Link href={`/teacher/${user.username}`} className="text-sm font-semibold text-gray-900 hover:text-brand-600">
+            <Link href={`/teacher/${user.username}`} className="text-sm font-semibold text-gray-900 dark:text-dark-text hover:text-brand-600 dark:hover:text-brand-300">
               {user.full_name}
             </Link>
-            <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
+            <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-dark-text2 flex-wrap">
               <span>@{user.username}</span>
               <span>·</span>
               <span>{formatDate(post.created_at)}</span>
@@ -133,23 +133,23 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
             <div className="relative flex-shrink-0" ref={menuRef}>
               <button
                 onClick={() => setShowOptions(!showOptions)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                className="text-gray-400 dark:text-dark-text2 hover:text-gray-600 dark:hover:text-dark-text transition-colors p-1"
                 aria-label="Opciones"
               >
                 <MoreVertical className="h-4 w-4" />
               </button>
               {showOptions && !showEditVisibility && (
-                <div className="absolute right-0 top-7 z-20 w-48 rounded-xl border border-gray-200 bg-white shadow-lg py-1">
+                <div className="absolute right-0 top-7 z-20 w-48 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2 shadow-lg py-1">
                   <button
                     onClick={() => setShowEditVisibility(true)}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
                   >
-                    <Pencil className="h-4 w-4 text-gray-400" />
+                    <Pencil className="h-4 w-4 text-gray-400 dark:text-dark-text2" />
                     Editar privacidad
                   </button>
                   <button
                     onClick={() => { setShowOptions(false); setShowDeleteConfirm(true) }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                     Eliminar
@@ -157,8 +157,8 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
                 </div>
               )}
               {showOptions && showEditVisibility && (
-                <div className="absolute right-0 top-7 z-20 w-52 rounded-xl border border-gray-200 bg-white shadow-lg p-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-2 px-1">Visibilidad</p>
+                <div className="absolute right-0 top-7 z-20 w-52 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2 shadow-lg p-3">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-dark-text2 mb-2 px-1">Visibilidad</p>
                   <div className="space-y-1">
                     {VISIBILITY_OPTIONS.map(({ value, label, icon: Icon }) => (
                       <button
@@ -167,8 +167,8 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
                         disabled={savingVisibility}
                         className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-colors ${
                           visibility === value
-                            ? 'bg-brand-50 text-brand-700 font-medium'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-brand-50 dark:bg-dark-surface text-brand-700 dark:text-brand-300 font-medium'
+                            : 'text-gray-700 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface'
                         }`}
                       >
                         {savingVisibility && visibility !== value ? (
@@ -202,7 +202,7 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
           )}
         </div>
 
-        <p className="text-sm font-semibold text-gray-900 mb-3">{post.title}</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-dark-text mb-3">{post.title}</p>
 
         {post.video_url && (
           <div className="rounded-xl overflow-hidden bg-black">

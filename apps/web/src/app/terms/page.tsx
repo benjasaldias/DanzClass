@@ -2,8 +2,8 @@ import Link from 'next/link'
 import { Music2 } from 'lucide-react'
 
 export const metadata = {
-  title: 'Términos de Uso — DanceClass',
-  description: 'T��rminos y condiciones de uso de la plataforma DanceClass',
+  title: 'Términos de Uso — DanzClass',
+  description: 'T��rminos y condiciones de uso de la plataforma DanzClass',
 }
 
 const LAST_UPDATED = '15 de mayo de 2026'
@@ -19,7 +19,7 @@ export default function TermsPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600">
               <Music2 className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-gray-900">DanceClass</span>
+            <span className="font-bold text-gray-900">DanzClass</span>
           </Link>
           <Link href="/auth/register" className="text-sm text-brand-600 hover:text-brand-700 font-medium">
             Crear cuenta
@@ -35,19 +35,19 @@ export default function TermsPage() {
 
           <Section title="1. Aceptación de los términos">
             <p>
-              Al crear una cuenta o utilizar DanceClass (en adelante, "la Plataforma"), aceptas íntegramente
+              Al crear una cuenta o utilizar DanzClass (en adelante, "la Plataforma"), aceptas íntegramente
               estos Términos de Uso. Si no estás de acuerdo con alguno de sus términos, no debes usar la
               Plataforma.
             </p>
             <p>
-              DanceClass es una plataforma intermediaria que conecta profesores y estudiantes de baile en Chile.
+              DanzClass es una plataforma intermediaria que conecta profesores y estudiantes de baile en Chile.
               No somos parte de las transacciones ni contratos que se generan entre los usuarios.
             </p>
           </Section>
 
           <Section title="2. Responsabilidad sobre el contenido publicado">
             <p>
-              <strong>Eres el único responsable de todo el contenido que publicas en DanceClass</strong>,
+              <strong>Eres el único responsable de todo el contenido que publicas en DanzClass</strong>,
               incluyendo, sin limitación, videos, fotografías, texto, música de fondo y cualquier otro material
               audiovisual.
             </p>
@@ -65,7 +65,7 @@ export default function TermsPage() {
                 incluyendo derechos de autor sobre música, imágenes, coreografías u obras protegidas.
               </li>
               <li>
-                Dispones de los derechos, licencias y autorizaciones necesarias para otorgar a DanceClass el
+                Dispones de los derechos, licencias y autorizaciones necesarias para otorgar a DanzClass el
                 uso no exclusivo del contenido con el único fin de mostrarlo dentro de la Plataforma.
               </li>
               <li>
@@ -74,7 +74,7 @@ export default function TermsPage() {
               </li>
             </ul>
             <p>
-              DanceClass actúa como <strong>plataforma intermediaria de alojamiento de contenido</strong>.
+              DanzClass actúa como <strong>plataforma intermediaria de alojamiento de contenido</strong>.
               De acuerdo con la legislación chilena (Ley N° 17.336 de Propiedad Intelectual y sus modificaciones)
               y los principios del derecho comparado aplicables a proveedores de servicios en línea, la
               Plataforma no es responsable por contenido generado por usuarios que infrinja derechos de terceros,
@@ -83,7 +83,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="3. Contenido prohibido">
-            <p>Está estrictamente prohibido publicar en DanceClass:</p>
+            <p>Está estrictamente prohibido publicar en DanzClass:</p>
             <ul>
               <li>Videos o audios que infrinjan derechos de autor sin la correspondiente licencia o autorización</li>
               <li>Contenido que muestre violencia, desnudez, pornografía o material sexual explícito</li>
@@ -96,7 +96,7 @@ export default function TermsPage() {
 
           <Section title="4. Sistema de denuncias y moderación">
             <p>
-              DanceClass pone a disposición de sus usuarios un sistema de denuncias para reportar contenido que
+              DanzClass pone a disposición de sus usuarios un sistema de denuncias para reportar contenido que
               infrinja estos términos. Al recibir una denuncia, la Plataforma se compromete a:
             </p>
             <ul>
@@ -112,7 +112,7 @@ export default function TermsPage() {
 
           <Section title="5. Licencia de uso del contenido">
             <p>
-              Al publicar contenido en DanceClass, otorgas a la Plataforma una licencia no exclusiva, gratuita,
+              Al publicar contenido en DanzClass, otorgas a la Plataforma una licencia no exclusiva, gratuita,
               mundial y sublicenciable para reproducir, mostrar, distribuir y adaptar dicho contenido
               exclusivamente dentro de la Plataforma y con el fin de prestar el servicio.
             </p>
@@ -125,7 +125,7 @@ export default function TermsPage() {
           <Section title="6. Pagos y transacciones">
             <p>
               Los pagos entre estudiantes y profesores se realizan directamente mediante transferencia bancaria.
-              DanceClass actúa solo como intermediario de comunicación y no procesa ni garantiza los pagos.
+              DanzClass actúa solo como intermediario de comunicación y no procesa ni garantiza los pagos.
               Las suscripciones a los planes de la Plataforma se procesan a través de Mercado Pago, sujetos a
               sus propios términos y condiciones.
             </p>
@@ -133,7 +133,7 @@ export default function TermsPage() {
 
           <Section title="7. Limitaci��n de responsabilidad">
             <p>
-              En la máxima medida permitida por la ley, DanceClass no será responsable por:
+              En la máxima medida permitida por la ley, DanzClass no será responsable por:
             </p>
             <ul>
               <li>Daños derivados del contenido publicado por los usuarios</li>
@@ -145,7 +145,7 @@ export default function TermsPage() {
 
           <Section title="8. Suspensión y eliminación de cuentas">
             <p>
-              DanceClass se reserva el derecho de suspender o eliminar, sin previo aviso, cualquier cuenta que
+              DanzClass se reserva el derecho de suspender o eliminar, sin previo aviso, cualquier cuenta que
               infrinja estos términos, publique contenido ilegal o cause daño a otros usuarios o a la Plataforma.
             </p>
           </Section>
@@ -182,7 +182,7 @@ export default function TermsPage() {
 
         <div className="mt-12 pt-8 border-t border-gray-200 text-center">
           <Link href="/auth/register" className="btn-primary px-8 py-3 inline-block">
-            Crear cuenta en DanceClass
+            Crear cuenta en DanzClass
           </Link>
           <p className="mt-3 text-xs text-gray-400">
             Al registrarte declaras haber leído y aceptado estos Términos de Uso.

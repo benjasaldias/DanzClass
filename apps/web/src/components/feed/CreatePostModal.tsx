@@ -101,7 +101,7 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-gray-900">Nueva coreografía</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -123,7 +123,7 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
 
           {videoFile ? (
             <div className="relative rounded-xl overflow-hidden bg-black">
-              <video src={videoFile.preview} controls className="w-full h-auto max-h-[60vh]" />
+              <video src={videoFile.preview} controls className="w-full h-auto max-h-[50vh]" />
               <button
                 type="button"
                 onClick={() => setVideoFile(null)}

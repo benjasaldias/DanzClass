@@ -114,7 +114,7 @@ export default function FeedClient({
   return (
     <div className="flex flex-col">
       {/* Filter bar */}
-      <div className="sticky top-14 z-30 bg-blanco-violeta/80 backdrop-blur-md border-b border-gray-100 px-4">
+      <div className="sticky top-14 z-30 bg-blanco-violeta/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border px-4">
         <div className="flex items-center gap-2 py-2">
           {/* Location/follow filters */}
           <div className="flex gap-1 flex-1 overflow-x-auto no-scrollbar">
@@ -124,7 +124,7 @@ export default function FeedClient({
                 onClick={() => handleFilterChange(key)}
                 className={cn(
                   'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors whitespace-nowrap',
-                  activeFilter === key ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-gray-200'
+                  activeFilter === key ? 'bg-brand-600 text-white' : 'text-gray-600 dark:text-dark-text2 hover:bg-gray-200 dark:hover:bg-dark-surface'
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -137,20 +137,20 @@ export default function FeedClient({
           <div ref={dropdownRef} className="relative flex-shrink-0">
             <button
               onClick={() => setDropdownOpen((o) => !o)}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface text-gray-700 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2 transition-colors"
             >
               {CONTENT_LABELS[contentType]}
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
             {dropdownOpen && (
-              <div className="absolute right-0 mt-1 w-32 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden z-40">
+              <div className="absolute right-0 mt-1 w-32 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2 shadow-lg overflow-hidden z-40">
                 {(Object.keys(CONTENT_LABELS) as ContentType[]).map((ct) => (
                   <button
                     key={ct}
                     onClick={() => { setContentType(ct); setDropdownOpen(false) }}
                     className={cn(
-                      'w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors',
-                      contentType === ct && 'font-semibold text-brand-600'
+                      'w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors dark:text-dark-text2',
+                      contentType === ct && 'font-semibold text-brand-600 dark:text-brand-300'
                     )}
                   >
                     {CONTENT_LABELS[ct]}

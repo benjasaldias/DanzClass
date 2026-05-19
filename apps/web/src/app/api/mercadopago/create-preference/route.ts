@@ -4,8 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 const PLAN_CONFIG: Record<string, { name: string; price: number }> = {
-  basic: { name: 'DanceClass Básico', price: 1500 },
-  pro:   { name: 'DanceClass Pro',    price: 3500 },
+  basic: { name: 'DanzClass Básico', price: 1500 },
+  pro:   { name: 'DanzClass Pro',    price: 3500 },
 }
 
 export async function POST(request: Request) {

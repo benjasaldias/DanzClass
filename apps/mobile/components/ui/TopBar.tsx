@@ -39,7 +39,7 @@ export default function TopBar({ title }: TopBarProps) {
       {/* Logo */}
       <View className="flex-row items-center gap-1.5">
         <Music size={20} stroke="#c026d3" />
-        <Text className="text-lg font-bold text-gray-900">{title ?? 'DanceClass'}</Text>
+        <Text className="text-lg font-bold text-gray-900">{title ?? 'DanzClass'}</Text>
       </View>
 
       {/* Actions */}

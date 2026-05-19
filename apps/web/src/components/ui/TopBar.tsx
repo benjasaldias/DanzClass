@@ -10,16 +10,16 @@ interface TopBarProps {
 
 export default function TopBar({ profile, unreadCount }: TopBarProps) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border">
       <div className="mx-auto max-w-lg px-4 h-14 flex items-center justify-between">
         <Link href="/feed" className="flex items-center gap-2">
-          <Music2 className="h-6 w-6 text-brand-600" />
-          <span className="text-lg font-bold text-gray-900">DanceClass</span>
+          <Music2 className="h-6 w-6 text-brand-600 dark:text-brand-300" />
+          <span className="text-lg font-bold text-gray-900 dark:text-dark-text">DanzClass</span>
         </Link>
 
         <div className="flex items-center gap-2">
-          <Link href="/notifications" className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors">
-            <Bell className="h-5 w-5 text-gray-600" />
+          <Link href="/notifications" className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors">
+            <Bell className="h-5 w-5 text-gray-600 dark:text-dark-text2" />
             {unreadCount > 0 && (
               <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
                 {unreadCount > 9 ? '9+' : unreadCount}

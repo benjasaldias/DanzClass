@@ -64,7 +64,7 @@ export default function RegisterScreen() {
             <View className="w-16 h-16 bg-white/10 rounded-2xl items-center justify-center">
               <Icon icon={Music2} size={28} variant="active" />
             </View>
-            <Text className="text-white text-3xl font-bold">DanceClass</Text>
+            <Text className="text-white text-3xl font-bold">DanzClass</Text>
           </View>
 
           {/* Form */}
@@ -193,7 +193,7 @@ export default function RegisterScreen() {
                   <Text className="text-sm text-gray-600 flex-1">
                     Acepto los{' '}
                     <Text className="text-brand-600 font-medium">Términos de Uso</Text>
-                    {' '}de DanceClass *
+                    {' '}de DanzClass *
                   </Text>
                 </TouchableOpacity>
               )}

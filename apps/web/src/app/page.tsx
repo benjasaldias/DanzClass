@@ -18,7 +18,7 @@ export default async function LandingPage() {
             <Music2 className="h-8 w-8 text-brand-300" />
           </div>
           <div className="text-left">
-            <h1 className="text-2xl font-bold tracking-tight">DanceClass</h1>
+            <h1 className="text-2xl font-bold tracking-tight">DanzClass</h1>
             <p className="text-sm text-brand-300">Chile</p>
           </div>
         </div>
