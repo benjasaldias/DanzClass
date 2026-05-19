@@ -20,23 +20,23 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="feed"
-        options={{ title: 'Inicio', tabBarIcon: ({ color }) => <Home size={22} color={color} /> }}
+        options={{ title: 'Inicio', tabBarIcon: ({ color }) => <Home size={22} stroke={color} /> }}
       />
       <Tabs.Screen
         name="explore"
-        options={{ title: 'Explorar', tabBarIcon: ({ color }) => <Search size={22} color={color} /> }}
+        options={{ title: 'Explorar', tabBarIcon: ({ color }) => <Search size={22} stroke={color} /> }}
       />
       <Tabs.Screen
         name="create"
-        options={{ title: 'Publicar', tabBarIcon: ({ color }) => <PlusSquare size={22} color={color} /> }}
+        options={{ title: 'Publicar', tabBarIcon: ({ color }) => <PlusSquare size={22} stroke={color} /> }}
       />
       <Tabs.Screen
         name="my-classes"
-        options={{ title: 'Mis clases', tabBarIcon: ({ color }) => <BookOpen size={22} color={color} /> }}
+        options={{ title: 'Mis clases', tabBarIcon: ({ color }) => <BookOpen size={22} stroke={color} /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: 'Perfil', tabBarIcon: ({ color }) => <User size={22} color={color} /> }}
+        options={{ title: 'Perfil', tabBarIcon: ({ color }) => <User size={22} stroke={color} /> }}
       />
     </Tabs>
   )

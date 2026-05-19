@@ -27,6 +27,7 @@ export type NotificationType =
   | 'new_report'
   | 'audition_accepted'
   | 'audition_rejected'
+  | 'new_audition'
 
 export type ClassType = 'suelta' | 'periodica' | 'entrenamiento'
 export type AuditionStatus = 'pending' | 'accepted' | 'rejected'

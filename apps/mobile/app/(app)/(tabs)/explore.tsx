@@ -1,66 +1,128 @@
 import { useState, useEffect } from 'react'
-import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
-import type { Profile } from '@danceclass/shared'
+
+type UserTab = 'all' | 'friends' | 'following'
+const USER_TABS: { key: UserTab; label: string }[] = [
+  { key: 'all', label: 'Tod@s' },
+  { key: 'friends', label: 'Amig@s' },
+  { key: 'following', label: 'Siguiendo' },
+]
 
 export default function ExploreScreen() {
   const router = useRouter()
-  const [tab, setTab] = useState<'classes' | 'teachers'>('classes')
+  const [tab, setTab] = useState<'classes' | 'users'>('classes')
+  const [userTab, setUserTab] = useState<UserTab>('all')
   const [query, setQuery] = useState('')
   const [classes, setClasses] = useState<any[]>([])
-  const [teachers, setTeachers] = useState<Profile[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [friendIds, setFriendIds] = useState<string[]>([])
+  const [followingIds, setFollowingIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState('')
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      setUserId(user?.id ?? '')
+      const uid = user?.id ?? ''
+      setUserId(uid)
 
-      const [classRes, teacherRes] = await Promise.all([
-        supabase.from('classes').select('*, teacher:profiles!teacher_id(*), media:class_media(*)').eq('status', 'active').order('created_at', { ascending: false }).limit(30),
-        supabase.from('profiles').select('*').eq('role', 'teacher').order('created_at', { ascending: false }),
+      const [classRes, userRes, friendsRes, followsRes] = await Promise.all([
+        (supabase as any)
+          .from('classes')
+          .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, city, styles_teaching')
+          .order('created_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('friendships')
+          .select('requester_id, addressee_id')
+          .or(`requester_id.eq.${uid},addressee_id.eq.${uid}`)
+          .eq('status', 'accepted'),
+        supabase.from('follows').select('following_id').eq('follower_id', uid),
       ])
+
       setClasses(classRes.data ?? [])
-      setTeachers(teacherRes.data ?? [])
+      setUsers(userRes.data ?? [])
+      const fids = (friendsRes.data ?? []).map((f) =>
+        f.requester_id === uid ? f.addressee_id : f.requester_id
+      )
+      setFriendIds(fids)
+      setFollowingIds(followsRes.data?.map((f) => f.following_id) ?? [])
       setLoading(false)
     }
     load()
   }, [])
 
   const filteredClasses = classes.filter((c) =>
-    !query || c.title.toLowerCase().includes(query.toLowerCase()) || c.dance_style?.toLowerCase().includes(query.toLowerCase())
-  )
-  const filteredTeachers = teachers.filter((t) =>
-    !query || t.full_name.toLowerCase().includes(query.toLowerCase()) || t.username.toLowerCase().includes(query.toLowerCase())
+    !query ||
+    c.title.toLowerCase().includes(query.toLowerCase()) ||
+    c.dance_style?.toLowerCase().includes(query.toLowerCase())
   )
 
+  const baseUsers = users.filter((u) => u.id !== userId)
+  const filteredUsers = baseUsers
+    .filter((u) => {
+      if (userTab === 'friends') return friendIds.includes(u.id)
+      if (userTab === 'following') return followingIds.includes(u.id)
+      return true
+    })
+    .filter((u) =>
+      !query ||
+      u.full_name?.toLowerCase().includes(query.toLowerCase()) ||
+      u.username?.toLowerCase().includes(query.toLowerCase())
+    )
+
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta">
-      <View className="px-4 py-3 border-b border-gray-100 gap-2">
+    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+      <View className="px-4 pt-4 pb-2 bg-white border-b border-gray-100 gap-3">
         <Text className="text-xl font-bold text-gray-900">Explorar</Text>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Buscar clases o profesores..."
-          className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm"
+          placeholder={tab === 'classes' ? 'Buscar clases...' : 'Buscar usuarios...'}
+          className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50"
+          placeholderTextColor="#9ca3af"
         />
+        {/* Main tab: Clases / Usuarios */}
         <View className="flex-row gap-2">
-          {(['classes', 'teachers'] as const).map((t) => (
+          {(['classes', 'users'] as const).map((t) => (
             <TouchableOpacity
               key={t}
               onPress={() => setTab(t)}
               className={`flex-1 rounded-full py-1.5 items-center ${tab === t ? 'bg-brand-600' : 'bg-gray-100'}`}
             >
               <Text className={`text-sm font-medium ${tab === t ? 'text-white' : 'text-gray-600'}`}>
-                {t === 'classes' ? 'Clases' : 'Profesores'}
+                {t === 'classes' ? 'Clases' : 'Usuarios'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* User sub-tabs */}
+        {tab === 'users' && (
+          <View className="flex-row gap-2">
+            {USER_TABS.map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setUserTab(key)}
+                className={`rounded-full px-3 py-1 ${userTab === key ? 'bg-morado-flow' : 'bg-gray-100'}`}
+              >
+                <Text className={`text-xs font-medium ${userTab === key ? 'text-white' : 'text-gray-600'}`}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       {loading ? (
@@ -72,31 +134,77 @@ export default function ExploreScreen() {
           data={filteredClasses}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <MobileClassCard classData={item} currentUserId={userId} />}
-          ListEmptyComponent={<View className="py-12 items-center"><Text className="text-gray-500 text-sm">Sin resultados</Text></View>}
+          ListEmptyComponent={
+            <View className="py-12 items-center">
+              <Text className="text-gray-500 text-sm">Sin resultados</Text>
+            </View>
+          }
         />
       ) : (
         <FlatList
-          data={filteredTeachers}
+          data={filteredUsers}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
-          renderItem={({ item: teacher }) => (
-            <TouchableOpacity
-              onPress={() => router.push(`/(app)/teacher/${teacher.username}` as any)}
-              className="flex-row items-center gap-3 bg-white rounded-2xl p-4 border border-gray-100"
-            >
-              <View className="w-12 h-12 rounded-full bg-brand-100 items-center justify-center">
-                <Text className="text-brand-700 font-bold">
-                  {teacher.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-                </Text>
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold text-gray-900">{teacher.full_name}</Text>
-                <Text className="text-xs text-gris-humo">@{teacher.username}</Text>
-                {teacher.city && <Text className="text-xs text-gray-400">{teacher.city}</Text>}
-              </View>
-              <Text className="text-gray-300 text-lg">›</Text>
-            </TouchableOpacity>
-          )}
+          contentContainerStyle={{ padding: 16, gap: 10 }}
+          ListEmptyComponent={
+            <View className="py-12 items-center">
+              <Text className="text-gray-500 text-sm">
+                {userTab === 'friends' ? 'Aún no tienes amigos' :
+                 userTab === 'following' ? 'No sigues a nadie aún' :
+                 'Sin resultados'}
+              </Text>
+            </View>
+          }
+          renderItem={({ item: u }) => {
+            const initials = (u.full_name ?? '')
+              .split(' ')
+              .map((n: string) => n[0])
+              .slice(0, 2)
+              .join('')
+              .toUpperCase()
+            const isFriend = friendIds.includes(u.id)
+            const isFollowing = followingIds.includes(u.id)
+            return (
+              <TouchableOpacity
+                onPress={() => router.push(`/(app)/teacher/${u.username}` as any)}
+                className="flex-row items-center gap-3 bg-white rounded-2xl p-4 border border-gray-100"
+              >
+                {u.avatar_url ? (
+                  <Image source={{ uri: u.avatar_url }} className="w-12 h-12 rounded-full" />
+                ) : (
+                  <View className="w-12 h-12 rounded-full bg-brand-100 items-center justify-center">
+                    <Text className="text-brand-700 font-bold">{initials}</Text>
+                  </View>
+                )}
+                <View className="flex-1 gap-0.5">
+                  <Text className="font-semibold text-gray-900">{u.full_name}</Text>
+                  <Text className="text-xs text-gris-humo">@{u.username}</Text>
+                  {u.city && <Text className="text-xs text-gray-400">{u.city}</Text>}
+                  {u.styles_teaching?.length > 0 && (
+                    <View className="flex-row flex-wrap gap-1 mt-1">
+                      {u.styles_teaching.slice(0, 3).map((s: string) => (
+                        <View key={s} className="bg-lavanda-suave rounded-full px-2 py-0.5">
+                          <Text className="text-xs" style={{ color: '#534AB7' }}>{s}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+                <View className="items-end gap-1">
+                  {isFriend && (
+                    <View className="bg-green-50 rounded-full px-2 py-0.5">
+                      <Text className="text-xs text-green-700">Amig@</Text>
+                    </View>
+                  )}
+                  {isFollowing && !isFriend && (
+                    <View className="bg-brand-50 rounded-full px-2 py-0.5">
+                      <Text className="text-xs text-brand-700">Siguiendo</Text>
+                    </View>
+                  )}
+                  <Text className="text-gray-300 text-lg">›</Text>
+                </View>
+              </TouchableOpacity>
+            )
+          }}
         />
       )}
     </SafeAreaView>

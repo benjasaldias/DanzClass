@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { ElementType } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  MapPin, Clock, Users, Calendar, ChevronLeft, UserPlus, UserMinus,
+  MapPin, Clock, Users, Calendar, ChevronLeft, ChevronRight, UserPlus, UserMinus,
   AlertCircle, CheckCircle2, Pencil, Trash2, Flag, Tag, ClipboardList,
   ChevronDown, ChevronUp,
 } from 'lucide-react'
@@ -57,6 +57,7 @@ export default function ClassDetailClient({
   const [enrolling, setEnrolling] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
+  const dragStartX = useRef<number | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
@@ -285,17 +286,56 @@ export default function ClassDetailClient({
 
       {/* Media carousel */}
       {media.length > 0 && (
-        <div className="relative w-full bg-black mt-2" style={{ minHeight: '240px' }}>
+        <div
+          className="relative w-full bg-black mt-2 select-none"
+          style={{ minHeight: '240px', cursor: media.length > 1 ? 'grab' : 'default' }}
+          onPointerDown={(e) => { if (media.length > 1) dragStartX.current = e.clientX }}
+          onPointerUp={(e) => {
+            if (dragStartX.current === null || media.length <= 1) return
+            const delta = e.clientX - dragStartX.current
+            if (delta > 50) setCurrentMediaIndex((i) => Math.max(0, i - 1))
+            else if (delta < -50) setCurrentMediaIndex((i) => Math.min(media.length - 1, i + 1))
+            dragStartX.current = null
+          }}
+          onPointerLeave={() => { dragStartX.current = null }}
+        >
           {media[currentMediaIndex].type === 'image' ? (
-            <img src={media[currentMediaIndex].url} alt={classData.title} className="w-full h-auto max-h-[70vh] object-contain mx-auto block" />
+            <img
+              src={media[currentMediaIndex].url}
+              alt={classData.title}
+              className="w-full h-auto max-h-[70vh] object-contain mx-auto block pointer-events-none"
+            />
           ) : (
-            <video src={media[currentMediaIndex].url} className="w-full h-auto max-h-[85vh] block" controls playsInline />
+            <video
+              src={media[currentMediaIndex].url}
+              className="w-full h-auto max-h-[85vh] block"
+              controls
+              playsInline
+            />
           )}
           {media.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
+              <button
+                onClick={() => setCurrentMediaIndex((i) => Math.max(0, i - 1))}
+                disabled={currentMediaIndex === 0}
+                className="text-white/70 hover:text-white disabled:text-white/25 transition-colors p-1"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
               {media.map((_: any, index: number) => (
-                <button key={index} onClick={() => setCurrentMediaIndex(index)} className={cn('h-1.5 rounded-full transition-all', index === currentMediaIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60')} />
+                <button
+                  key={index}
+                  onClick={() => setCurrentMediaIndex(index)}
+                  className={cn('h-1.5 rounded-full transition-all', index === currentMediaIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60 hover:bg-white/90')}
+                />
               ))}
+              <button
+                onClick={() => setCurrentMediaIndex((i) => Math.min(media.length - 1, i + 1))}
+                disabled={currentMediaIndex === media.length - 1}
+                className="text-white/70 hover:text-white disabled:text-white/25 transition-colors p-1"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
           )}
         </div>

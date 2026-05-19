@@ -1,0 +1,115 @@
+import { useState } from 'react'
+import { View, Text, Image, TouchableOpacity } from 'react-native'
+import { useRouter } from 'expo-router'
+import { useVideoPlayer, VideoView } from 'expo-video'
+import { Play, Eye, Users, Lock } from 'lucide-react-native'
+
+interface MobilePostCardProps {
+  post: any
+  currentUserId: string
+}
+
+function timeAgo(date: string): string {
+  const diff = Date.now() - new Date(date).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `hace ${mins}m`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `hace ${hours}h`
+  return `hace ${Math.floor(hours / 24)}d`
+}
+
+const VISIBILITY_ICON: Record<string, { icon: typeof Eye; label: string }> = {
+  followers: { icon: Eye, label: 'Seguidores' },
+  friends: { icon: Lock, label: 'Amigos' },
+}
+
+export default function MobilePostCard({ post, currentUserId }: MobilePostCardProps) {
+  const router = useRouter()
+  const [playing, setPlaying] = useState(false)
+  const author = post.author ?? post.profiles
+  const visibilityInfo = VISIBILITY_ICON[post.visibility]
+
+  const player = useVideoPlayer(post.video_url ?? '', (p) => {
+    p.loop = false
+  })
+
+  const initials = (author?.full_name ?? '')
+    .split(' ')
+    .map((n: string) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+
+  return (
+    <View className="border-b border-gray-100 bg-white">
+      {/* Author header */}
+      <TouchableOpacity
+        onPress={() => author?.username && router.push(`/(app)/teacher/${author.username}` as any)}
+        className="flex-row items-center gap-3 px-4 py-3"
+      >
+        {author?.avatar_url ? (
+          <Image source={{ uri: author.avatar_url }} className="w-10 h-10 rounded-full" />
+        ) : (
+          <View className="w-10 h-10 rounded-full bg-brand-100 items-center justify-center">
+            <Text className="text-brand-700 font-bold text-sm">{initials}</Text>
+          </View>
+        )}
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-gray-900">{author?.full_name}</Text>
+          <Text className="text-xs text-gris-humo">{timeAgo(post.created_at)}</Text>
+        </View>
+        {visibilityInfo && (
+          <View className="flex-row items-center gap-1 bg-lavanda-suave rounded-full px-2 py-1">
+            <visibilityInfo.icon size={11} stroke="#534AB7" />
+            <Text className="text-xs" style={{ color: '#534AB7' }}>{visibilityInfo.label}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* Video / thumbnail */}
+      {post.video_url ? (
+        <View className="bg-black" style={{ minHeight: 200 }}>
+          {playing ? (
+            <VideoView
+              player={player}
+              style={{ width: '100%', aspectRatio: undefined, minHeight: 200, maxHeight: 600 }}
+              contentFit="contain"
+              allowsFullscreen
+              allowsPictureInPicture={false}
+            />
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => { setPlaying(true); player.play() }}
+              style={{ minHeight: 200 }}
+              className="items-center justify-center"
+            >
+              {post.thumbnail_url ? (
+                <Image
+                  source={{ uri: post.thumbnail_url }}
+                  className="w-full"
+                  style={{ minHeight: 200, maxHeight: 500 }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View className="w-full bg-gray-900" style={{ minHeight: 200 }} />
+              )}
+              <View className="absolute inset-0 items-center justify-center">
+                <View className="w-16 h-16 rounded-full bg-black/50 items-center justify-center">
+                  <Play size={28} stroke="white" />
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : null}
+
+      {/* Title */}
+      {post.title && (
+        <View className="px-4 pt-3 pb-4">
+          <Text className="font-semibold text-gray-900 text-sm">{post.title}</Text>
+        </View>
+      )}
+    </View>
+  )
+}

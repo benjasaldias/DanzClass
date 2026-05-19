@@ -14,7 +14,7 @@ DanceClass es una plataforma web + móvil para conectar profesores y estudiantes
 
 - **Monorepo:** npm workspaces (`apps/*`, `packages/*`), sin Turborepo
 - **Web:** Next.js 14 (App Router) + TypeScript + Tailwind CSS — `apps/web/`
-- **Mobile:** Expo SDK 51 (Expo Router) + React Native + NativeWind — `apps/mobile/`
+- **Mobile:** Expo SDK 54 (Expo Router v6) + React Native 0.81.5 + React 19.1.0 + NativeWind 4.2.x — `apps/mobile/`
 - **Backend:** Supabase — PostgreSQL + Auth + Storage + Realtime
 - **Shared:** `packages/shared/` — tipos TypeScript compartidos y cliente Supabase base
 - **Color de marca:** `#c026d3` (Tailwind `brand-600`, escala morada en ambas apps)
@@ -261,6 +261,14 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - Bucket `audition-videos` (privado, solo profesor y postulante pueden ver)
 - **Fecha de término en clases periódicas** — campo `ends_at` requerido para toda clase periódica
 - Popup "Las clases sin fecha de término deben ser de tipo Entrenamiento" si se intenta marcar Indefinido en periódica
+
+### ✅ Bugfix postulaciones (auditions) — sesión 2026-05-18
+
+- **Notificación al profesor:** `AuditionModal` ahora envía `new_audition` al profesor tras insertar la postulación. Requiere `teacherId` prop (pasado desde `ClassDetailClient` con `classData.teacher_id`).
+- **Nueva migración `016_new_audition_notification.sql`:** extiende constraint de `notification_type` con `'new_audition'`.
+- **Videos de postulación:** bucket `audition-videos` es privado. `AuditionModal` ahora guarda el **path** del storage (no la URL pública) en `video_url`. `AuditionsListClient` genera una **URL firmada** al hacer clic en "Ver video" con `createSignedUrl` (válida 1h).
+- **"Mis clases" muestra postulaciones:** query en `my-classes/page.tsx` incluye `auditions(id, status)`. `TeachingTab` en `MyClassesClient` muestra link "Ver postulaciones" con badge de count pendientes para clases `requires_audition=true`.
+- **Notificaciones:** `NotificationsClient` incluye `new_audition` con ícono `ClipboardList`, muestra `@username se postuló a tu entrenamiento`, navega a `/class/${class_id}/auditions`.
 
 ### ✅ QA pass — sesión 2026-05-18
 
@@ -586,43 +594,122 @@ if (isCloudinaryConfigured()) {
 
 ---
 
-## Próximos pasos — Conversión Mobile (PRIORIDAD)
+## Estado Mobile — `apps/mobile/`
 
-La web está completa. El siguiente gran bloque es convertir/implementar todas las pantallas en la app mobile Expo.
+### Infraestructura ✅ — SDK 54 funcionando en iPhone (sesión 2026-05-18)
 
-### Antes de empezar
-1. Explorar `apps/mobile/` para ver qué pantallas ya existen y en qué estado están.
-2. Identificar qué lógica de `apps/web/src/` puede reutilizarse directamente vs qué necesita adaptación para React Native.
+La app corre en Expo Go SDK 54 en iPhone real vía tunnel ngrok. Login y navegación funcionales.
 
-### Pantallas a implementar en mobile (basado en web)
-| Pantalla | Ruta web | Notas |
+#### Stack mobile actual
+- Expo SDK 54, Expo Router v6, React Native 0.81.5, React 19.1.0 (New Architecture / Fabric)
+- NativeWind 4.2.x + react-native-css-interop 0.2.3
+- Tunnel: `npx expo start --tunnel` (requiere `NGROK_AUTHTOKEN`)
+
+#### Problemas resueltos en el upgrade SDK 51 → 54
+
+| Problema | Causa | Fix |
 |---|---|---|
-| Feed | `/feed` | ClassCard + PostCard adaptados a RN; video nativo |
-| Explorar | `/explore` | Search + UserCard en RN |
-| Publicar | `/publish` | ChoiceSheet + CreateClassForm + video upload |
-| Detalle clase | `/class/[id]` | Carrusel, inscripción, calendario custom |
-| Mis clases | `/my-classes` | Tabs, deudores, banner eliminación |
-| Perfil propio | `/profile` | Stats, botones, plan, estilos, clases |
-| Perfil ajeno | `/teacher/[username]` | Follow, amistad, trust, endorsement |
-| Notificaciones | `/notifications` | Lista tipos |
-| Planes | `/plans` | MP checkout (usar `expo-web-browser` para abrir checkout) |
-| Pago | `/payment/[id]` | Subir comprobante (ImagePicker) |
-| Editar perfil | `/profile/edit` | Avatar, estilos, ciudad |
-| Datos transferencia | `/profile/payment-info` | Datos bancarios del profesor |
-| Crear/editar clase | `/create-class`, `/class/[id]/edit` | Form complejo con calendario |
-| Auth | `/auth/login`, `/auth/register` | Ya puede existir |
+| `react-native-worklets/plugin` not found | NativeWind's babel requiere este plugin; no estaba en root node_modules | Agregar `react-native-worklets: "0.5.1"` al root `package.json` devDependencies |
+| `react-native-css-interop/jsx-runtime` not found | NativeWind babel transform usa `importSource: "react-native-css-interop"` | Agregar `react-native-css-interop: "^0.2.3"` en `apps/mobile/package.json` |
+| `React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE` crash | `react-native@0.81.5` usa API de React 19; root hoistea React 18 para web | `resolveRequest` custom en `metro.config.js` fuerza todas las resoluciones de `react` a `apps/mobile/node_modules` (React 19) |
+| "Unmatched Route" en iPhone | No existía `app/index.tsx`; Expo Router v6 arranca en `/` | Crear `app/index.tsx` como pantalla de carga |
+| Auth redirect bug | `_layout.tsx` condición `session && inAuthGroup` no cubría la ruta raíz `/` | Cambiar a `session && !inAppGroup` |
+| `expo-file-system` `EncodingType` not found | En v19, API legacy se movió a subpath | `import * as FileSystem from 'expo-file-system/legacy'` |
+| lucide TypeScript errors con React 19 | `LucideProps` roto por cambios de tipos React 19 | `types/lucide.d.ts` con module augmentation; `color` → `stroke` en todos los íconos |
+| Assets not found | Directorio `assets/` no existía | Crear placeholders PNG 1×1 |
 
-### Consideraciones técnicas mobile
-- **Pagos MP:** usar `expo-web-browser` para abrir el checkout de MP (no hay SDK nativo oficial)
-- **Videos:** `expo-video` o `expo-av` para reproducción; `expo-image-picker` para selección
-- **Storage uploads:** `supabase.storage.from(...).upload()` funciona igual que en web
-- **Notificaciones push:** `expo-notifications` con Expo Push Notifications (pendiente MVP)
-- **NativeWind:** ya configurado; la mayor parte de las clases Tailwind funcionan igual
+#### Paleta de colores — sesión 2026-05-18
+`tailwind.config.js` actualizado para coincidir exactamente con `apps/web/tailwind.config.ts`:
+- **`brand`**: escala púrpura oscura (`brand-600: #2D1B69`) — igual que web
+- **`morado-flow`**: `#7F77DD` — acento principal en componentes nuevos
+- **`noche-urbana`**: `#1A1035` — fondos oscuros
+- **`coral-fuego`**: `#D85A30` — alertas/urgencia
+- **`blanco-violeta`**: `#F5F3FF` — fondos de pantallas interiores
+- **`lavanda-suave`**: `#EEEDFE` — tarjetas secundarias, chips
+- **`gris-humo`**: `#6B6880` — texto secundario, metadata
+- **`violeta-oscuro`**: `#534AB7` — texto sobre lavanda suave
+
+#### Pantallas implementadas — sesión 2026-05-18 (sesión 2)
+
+| Pantalla | Ruta mobile | Estado |
+|---|---|---|
+| Auth login | `(auth)/login` | ✅ react-hook-form + zod |
+| Auth register | `(auth)/register` | ✅ sin selector de roles, checkbox términos |
+| Feed | `(tabs)/feed` | ✅ tabs Siguiendo/Global/Cerca + dropdown Todos/Clases/Videos + ClassCard + PostCard (expo-video) |
+| Explorar | `(tabs)/explore` | ✅ clases + usuarios con sub-filtros Tod@s/Amig@s/Siguiendo; badges amigo/siguiendo |
+| Crear clase | `(tabs)/create` | ✅ elección suelta/periódica/entrenamiento/video; gate canTeach |
+| Perfil propio | `(tabs)/profile` | ✅ stats, estilos baila/enseña, pills de acción, clases activas, mis publicaciones |
+| Mis clases | `(tabs)/my-classes` | ✅ básico |
+| Notificaciones | `notifications` | ✅ todos los tipos con iconos y labels; navegación por tap; profileMap para nombres |
+| Pago comprobante | `payment/[enrollmentId]` | ✅ con expo-clipboard |
+| Detalle clase | `class/[id]` | ✅ carrusel sin crop (expo-video para video), info completa, CTA reservar/salir, "Ver fechas" para custom |
+| Perfil ajeno | `teacher/[username]` | ✅ stats (seguidores/clases/trust), follow, amistad, estilos, clases activas, posts filtrados por visibilidad |
+| Crear clase | `class/create` | ✅ formulario completo: tipo/estilo/nivel, fecha DD/MM/AAAA, hora HH:MM, periodicidad, fechas custom, upload media (expo-image-picker → Supabase Storage), precios 2x, notifica seguidores |
+| Editar clase | `class/[id]/edit` | ✅ mismos campos pre-rellenados + media existente/nueva + zona peligrosa con eliminar (soft-delete, notifica inscritos) |
+| Publicar video | `class/create-post` | ✅ título, video (expo-image-picker), visibilidad pub/seg/amigos, Cloudinary fallback Supabase Storage |
+| Editar perfil | `profile/edit` | ✅ avatar (expo-image-picker → bucket avatars), nombre, @username, bio, ciudad, estilos baila/enseña (chips toggleables), privacidad clases inscritas |
+| Datos transferencia | `profile/payment-info` | ✅ banco, tipo cuenta, número, RUT, titular, email; upsert |
+| Planes | `plans` | Sin implementar |
+
+#### Nuevos componentes mobile (sesión 3)
+
+| Componente | Descripción |
+| --- | --- |
+| `components/ui/MobileSelect.tsx` | Selector Modal-based: muestra valor actual + abre lista con FlatList; soporte nullable |
+| `components/ui/MobileDateInput.tsx` | TextInput con auto-formato DD/MM/AAAA; almacena YYYY-MM-DD |
+| `components/ui/MobileMonthCalendar.tsx` | Calendario mensual con navegación mes/año; toggle de fechas; prop `disablePast` |
+| `components/ui/MobileCityPicker.tsx` | TextInput con dropdown de CHILEAN_CITIES filtradas; acepta texto libre |
+
+#### Nuevos componentes mobile (sesión 2)
+
+| Componente | Descripción |
+| --- | --- |
+| `components/feed/MobilePostCard.tsx` | Post card con video expo-video (ratio nativo, thumbnail + botón play), badge de visibilidad, navega al perfil del autor |
+| `components/feed/MobileClassCard.tsx` | Ya existía — carrusel de medios, schedule, cupos, precio, CTA "Ver clase" |
+
+#### Notas de implementación sesión 3
+
+- **`class/[id].tsx` → `class/[id]/index.tsx`**: renombrado para permitir anidación con `edit.tsx`; import de supabase actualizado a `'../../../../lib/supabase'`
+- **`_layout.tsx` (app)**: actualizado con Stack.Screen para todos los nuevos routes (create, create-post, `[id]/edit`, profile/edit, profile/payment-info)
+- **Media upload en mobile**: `fetch(uri)` → `blob` → `supabase.storage.upload(blob)` — no se puede usar `File` en RN; se usa `Blob` directamente
+- **Cloudinary desde RN**: `FormData` con `{ uri, type, name }` en el campo `file`; funciona igual que en web con fetch
+- **Expo Router stack name**: para `[id]/index.tsx` se registra como `class/[id]/index` en el Stack (no `class/[id]`)
+- **MobileSelect**: abre un `Modal` con `presentationStyle="pageSheet"` y `FlatList`; opción `nullable` agrega "Sin especificar"
+- **StylesPicker en perfil**: chips toggleables inline sin Modal; usa todos los estilos de `DANCE_STYLES`
+
+#### Notas de implementación sesión 2
+
+- **expo-video ~2.0.0** instalado con `--legacy-peer-deps` (conflicto de pares en expo 54)
+- **trust_endorsements**: tabla no tipada en el cliente Supabase → castear con `(supabase as any).from('trust_endorsements')`
+- **Posts visibility filter en teacher profile**: calculado client-side según si el viewer es amigo, seguidor, o ninguno
+- **Notifications profileMap**: se hace un segundo fetch de perfiles para mostrar nombres/avatares en notificaciones sociales
+- **Lucide `fill` prop**: no soportado en lucide-react-native — usar solo `stroke`; para el ícono de Play sin relleno es aceptable
+
+#### Consideraciones técnicas mobile
+
+- **`(supabase as any).from(...)`** para joins anidados o tablas sin tipo en el cliente
+- **`expo-clipboard`**: `Clipboard.setStringAsync(value)` — `import * as Clipboard from 'expo-clipboard'`
+- **`expo-web-browser`**: `WebBrowser.openBrowserAsync(url)` para checkout MP
+- **`expo-video`**: `useVideoPlayer(url, cb)` + `<VideoView player={...} contentFit="contain" />` — no forzar aspectRatio para respetar el ratio nativo
+- **NativeWind + SafeAreaView**: usar `edges={['top']}` en pantallas con TopBar para evitar doble padding
+- **Env vars**: `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` en `apps/mobile/.env.local`
+- **Lucide íconos**: usar prop `stroke` (no `color`) — ver `types/lucide.d.ts`
+
+#### Cómo correr en WSL2
+
+```bash
+source ~/.nvm/nvm.sh && nvm use 20
+cd apps/mobile
+export NGROK_AUTHTOKEN=<token>
+npx expo start --tunnel
+```
+
+Escanear QR desde Expo Go → "Scan QR Code".
 
 ### Funcionalidades futuras (no prioritarias para MVP)
 - Notificaciones push Expo
-- Sistema 2x (buscar compañer@ de baile)
-- Descuentos de último minuto
+- Sistema 2x en mobile
+- Descuentos de último minuto en mobile
 - OCR de comprobantes
-- Dashboard de analytics para profesores
+- Dashboard de analytics
 - Renovación anual automática

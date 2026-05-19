@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Ima
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-import * as FileSystem from 'expo-file-system'
-import Clipboard from '@react-native-clipboard/clipboard'
+import * as FileSystem from 'expo-file-system/legacy'
+import * as Clipboard from 'expo-clipboard'
 import { supabase } from '../../../lib/supabase'
 import { formatCLP } from '@danceclass/shared'
 
@@ -26,7 +26,7 @@ export default function PaymentScreen() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('enrollments')
         .select('*, class:classes(*, teacher:profiles!teacher_id(*, payment_info:teacher_payment_info(*)))')
         .eq('id', enrollmentId)
@@ -43,6 +43,11 @@ export default function PaymentScreen() {
       quality: 0.8,
     })
     if (!result.canceled) setReceipt(result.assets[0].uri)
+  }
+
+  async function copyToClipboard(value: string, label: string) {
+    await Clipboard.setStringAsync(value)
+    Alert.alert('Copiado', `${label} copiado al portapapeles`)
   }
 
   async function submitPayment() {
@@ -83,11 +88,19 @@ export default function PaymentScreen() {
     setTimeout(() => router.back(), 2000)
   }
 
-  if (loading) return <SafeAreaView className="flex-1 items-center justify-center"><ActivityIndicator color="#c026d3" /></SafeAreaView>
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta">
+        <ActivityIndicator color="#c026d3" />
+      </SafeAreaView>
+    )
+  }
   if (!enrollment) return null
 
   const cls = enrollment.class
-  const paymentInfo = cls.teacher?.payment_info?.[0] ?? cls.teacher?.payment_info
+  const paymentInfo = Array.isArray(cls.teacher?.payment_info)
+    ? cls.teacher.payment_info[0]
+    : cls.teacher?.payment_info
 
   if (success) {
     return (
@@ -100,7 +113,7 @@ export default function PaymentScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta">
+    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
       <ScrollView className="flex-1">
         <View className="bg-white px-4 py-4 border-b border-gray-100 flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
@@ -120,27 +133,24 @@ export default function PaymentScreen() {
           {paymentInfo && (
             <View className="bg-white rounded-2xl p-4 border border-gray-100 gap-3">
               <Text className="font-bold text-gray-900">Datos de transferencia</Text>
+              <Text className="text-xs text-gray-400">Toca un campo para copiar</Text>
               {[
                 { label: 'Banco', value: paymentInfo.bank_name },
-                { label: 'Tipo', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] },
+                { label: 'Tipo', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] ?? paymentInfo.account_type },
                 { label: 'N° Cuenta', value: paymentInfo.account_number },
                 { label: 'RUT', value: paymentInfo.rut },
                 { label: 'Titular', value: paymentInfo.account_holder_name },
                 { label: 'Email', value: paymentInfo.email },
-              ].map(({ label, value }) => (
+              ].filter(({ value }) => !!value).map(({ label, value }) => (
                 <TouchableOpacity
                   key={label}
-                  onLongPress={() => {
-                    Clipboard.setString(value)
-                    Alert.alert('Copiado', `${label} copiado`)
-                  }}
-                  className="flex-row justify-between"
+                  onPress={() => copyToClipboard(value, label)}
+                  className="flex-row justify-between py-1"
                 >
                   <Text className="text-xs text-gray-500">{label}</Text>
                   <Text className="text-sm font-medium text-gray-900">{value}</Text>
                 </TouchableOpacity>
               ))}
-              <Text className="text-xs text-gray-400 text-center">Mantén presionado para copiar</Text>
             </View>
           )}
 

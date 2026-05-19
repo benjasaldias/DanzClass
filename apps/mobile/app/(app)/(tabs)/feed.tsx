@@ -1,24 +1,37 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ChevronDown } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
+import MobilePostCard from '../../../components/feed/MobilePostCard'
+import TopBar from '../../../components/ui/TopBar'
 import type { FeedFilter } from '@danceclass/shared'
 
-const FILTERS: { key: FeedFilter; label: string }[] = [
+const FEED_FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'following', label: 'Siguiendo' },
   { key: 'global', label: 'Global' },
   { key: 'nearby', label: 'Cerca' },
 ]
 
+type ContentFilter = 'all' | 'classes' | 'posts'
+const CONTENT_FILTERS: { key: ContentFilter; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'classes', label: 'Clases' },
+  { key: 'posts', label: 'Videos' },
+]
+
 export default function FeedScreen() {
-  const [filter, setFilter] = useState<FeedFilter>('global')
-  const [classes, setClasses] = useState<any[]>([])
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>('global')
+  const [contentFilter, setContentFilter] = useState<ContentFilter>('all')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [userCity, setUserCity] = useState<string | null>(null)
+  const [friendIds, setFriendIds] = useState<string[]>([])
 
   useEffect(() => {
     async function init() {
@@ -26,57 +39,136 @@ export default function FeedScreen() {
       if (!user) return
       setUserId(user.id)
 
-      const { data: profile } = await supabase.from('profiles').select('city').eq('id', user.id).single()
-      setUserCity(profile?.city ?? null)
+      const [profileRes, followsRes, friendsRes] = await Promise.all([
+        supabase.from('profiles').select('city').eq('id', user.id).single(),
+        supabase.from('follows').select('following_id').eq('follower_id', user.id),
+        supabase.from('friendships').select('requester_id, addressee_id').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`).eq('status', 'accepted'),
+      ])
 
-      const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
-      setFollowingIds(follows?.map((f) => f.following_id) ?? [])
+      setUserCity(profileRes.data?.city ?? null)
+      setFollowingIds(followsRes.data?.map((f) => f.following_id) ?? [])
+      const fids = (friendsRes.data ?? []).map((f) =>
+        f.requester_id === user.id ? f.addressee_id : f.requester_id
+      )
+      setFriendIds(fids)
     }
     init()
   }, [])
 
-  const loadFeed = useCallback(async (activeFilter: FeedFilter) => {
-    let query = supabase
-      .from('classes')
-      .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(20)
+  const loadFeed = useCallback(async (ff: FeedFilter, cf: ContentFilter) => {
+    const uid = userId
+    if (!uid) return
+    const allItems: any[] = []
 
-    if (activeFilter === 'following') {
-      if (followingIds.length === 0) { setClasses([]); setLoading(false); return }
-      query = query.in('teacher_id', followingIds)
-    } else if (activeFilter === 'nearby' && userCity) {
-      query = query.eq('city', userCity)
+    // Fetch classes (if not posts-only)
+    if (cf !== 'posts') {
+      let q = (supabase as any)
+        .from('classes')
+        .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (ff === 'following') {
+        if (followingIds.length === 0) {
+          // No follows → skip query, show nothing
+        } else {
+          const { data } = await q.in('teacher_id', followingIds)
+          ;(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
+        }
+      } else {
+        if (ff === 'nearby' && userCity) q = q.eq('city', userCity)
+        const { data } = await q
+        ;(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
+      }
     }
 
-    const { data } = await query
-    setClasses(data ?? [])
+    // Fetch posts (if not classes-only)
+    if (cf !== 'classes') {
+      let q = (supabase as any)
+        .from('posts')
+        .select('*, author:profiles!user_id(id, username, full_name, avatar_url)')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (ff === 'following') {
+        if (followingIds.length === 0) {
+          // No follows → skip, show nothing
+        } else {
+          const { data } = await q.in('user_id', followingIds)
+          ;(data ?? []).forEach((p: any) => allItems.push({ _type: 'post', ...p }))
+        }
+      } else {
+        // Global/nearby: only public posts
+        q = q.eq('visibility', 'public')
+        if (ff === 'nearby' && userCity) q = q.eq('city', userCity)
+        const { data } = await q
+        ;(data ?? []).forEach((p: any) => allItems.push({ _type: 'post', ...p }))
+      }
+    }
+
+    // Sort mixed feed by created_at descending
+    allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    setItems(allItems)
     setLoading(false)
     setRefreshing(false)
-  }, [followingIds, userCity])
+  }, [followingIds, userCity, userId])
 
-  useEffect(() => { loadFeed(filter) }, [filter, loadFeed])
+  useEffect(() => {
+    if (userId !== null) loadFeed(feedFilter, contentFilter)
+  }, [feedFilter, contentFilter, loadFeed, userId])
+
+  const currentLabel = CONTENT_FILTERS.find((f) => f.key === contentFilter)?.label ?? 'Todos'
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-morado-flow">
-        <Text className="text-xl font-bold text-white">💃 DanceClass</Text>
-      </View>
+    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+      <TopBar />
 
-      {/* Filter tabs */}
-      <View className="flex-row gap-2 px-4 py-2 border-b border-gray-100">
-        {FILTERS.map(({ key, label }) => (
+      {/* Filters row */}
+      <View className="flex-row items-center gap-2 px-4 py-2 bg-white border-b border-gray-100">
+        {FEED_FILTERS.map(({ key, label }) => (
           <TouchableOpacity
             key={key}
-            onPress={() => setFilter(key)}
-            className={`rounded-full px-4 py-1.5 ${filter === key ? 'bg-brand-600' : 'bg-gray-100'}`}
+            onPress={() => setFeedFilter(key)}
+            className={`rounded-full px-4 py-1.5 ${feedFilter === key ? 'bg-brand-600' : 'bg-gray-100'}`}
           >
-            <Text className={`text-sm font-medium ${filter === key ? 'text-white' : 'text-gray-600'}`}>{label}</Text>
+            <Text className={`text-sm font-medium ${feedFilter === key ? 'text-white' : 'text-gray-600'}`}>
+              {label}
+            </Text>
           </TouchableOpacity>
         ))}
+
+        {/* Spacer */}
+        <View className="flex-1" />
+
+        {/* Content dropdown */}
+        <TouchableOpacity
+          onPress={() => setShowDropdown(true)}
+          className="flex-row items-center gap-1 border border-gray-200 rounded-xl px-3 py-1.5 bg-white"
+        >
+          <Text className="text-sm text-gray-700">{currentLabel}</Text>
+          <ChevronDown size={14} stroke="#374151" />
+        </TouchableOpacity>
       </View>
+
+      {/* Dropdown modal */}
+      <Modal transparent visible={showDropdown} animationType="fade" onRequestClose={() => setShowDropdown(false)}>
+        <Pressable className="flex-1" onPress={() => setShowDropdown(false)}>
+          <View className="absolute top-28 right-4 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden" style={{ minWidth: 120, elevation: 8 }}>
+            {CONTENT_FILTERS.map(({ key, label }) => (
+              <TouchableOpacity
+                key={key}
+                onPress={() => { setContentFilter(key); setShowDropdown(false) }}
+                className={`px-4 py-3 ${contentFilter === key ? 'bg-brand-50' : ''}`}
+              >
+                <Text className={`text-sm ${contentFilter === key ? 'text-brand-700 font-semibold' : 'text-gray-700'}`}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
@@ -84,21 +176,24 @@ export default function FeedScreen() {
         </View>
       ) : (
         <FlatList
-          data={classes}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MobileClassCard classData={item} currentUserId={userId ?? ''} />
-          )}
+          data={items}
+          keyExtractor={(item) => `${item._type}-${item.id}`}
+          renderItem={({ item }) =>
+            item._type === 'class'
+              ? <MobileClassCard classData={item} currentUserId={userId ?? ''} />
+              : <MobilePostCard post={item} currentUserId={userId ?? ''} />
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); loadFeed(filter) }}
+              onRefresh={() => { setRefreshing(true); loadFeed(feedFilter, contentFilter) }}
               tintColor="#c026d3"
             />
           }
           ListEmptyComponent={
             <View className="items-center py-16">
-              <Text className="text-gray-500 text-sm">No hay clases disponibles</Text>
+              <Text className="text-4xl mb-3">💃</Text>
+              <Text className="text-gray-500 text-sm">No hay contenido disponible</Text>
             </View>
           }
         />

@@ -1,25 +1,43 @@
-import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
-import { Link } from 'expo-router'
+import { Link, useRouter } from 'expo-router'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+const schema = z.object({
+  email: z.string().email('Email inválido'),
+  password: z.string().min(1, 'Contraseña requerida'),
+})
 
-  async function handleLogin() {
-    if (!email || !password) return
-    setLoading(true)
-    setError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError('Email o contraseña incorrectos')
-    setLoading(false)
+type FormData = z.infer<typeof schema>
+
+export default function LoginScreen() {
+  const router = useRouter()
+  const {
+    control,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: '', password: '' },
+  })
+
+  async function onSubmit(data: FormData) {
+    const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
+    if (error) {
+      setError('root', { message: 'Email o contraseña incorrectos' })
+    } else {
+      router.replace('/(app)/(tabs)/feed')
+    }
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 bg-purple-950">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      className="flex-1 bg-noche-urbana"
+    >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="flex-1 px-6">
         <View className="flex-1 justify-center py-12 gap-8">
           {/* Logo */}
@@ -37,44 +55,56 @@ export default function LoginScreen() {
               <Text className="text-gray-500 text-sm mt-1">Ingresa a tu cuenta</Text>
             </View>
 
-            {error && (
+            {errors.root && (
               <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                <Text className="text-red-700 text-sm">{error}</Text>
+                <Text className="text-red-700 text-sm">{errors.root.message}</Text>
               </View>
             )}
 
-            <View className="gap-3">
-              <View>
-                <Text className="text-sm font-medium text-gray-700 mb-1.5">Email</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="tu@email.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  className="border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900"
-                />
-              </View>
+            <View>
+              <Text className="text-sm font-medium text-gray-700 mb-1.5">Email</Text>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="tu@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900"
+                  />
+                )}
+              />
+              {errors.email && <Text className="text-red-500 text-xs mt-1">{errors.email.message}</Text>}
+            </View>
 
-              <View>
-                <Text className="text-sm font-medium text-gray-700 mb-1.5">Contraseña</Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                  secureTextEntry
-                  className="border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900"
-                />
-              </View>
+            <View>
+              <Text className="text-sm font-medium text-gray-700 mb-1.5">Contraseña</Text>
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="••••••••"
+                    secureTextEntry
+                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900"
+                  />
+                )}
+              />
+              {errors.password && <Text className="text-red-500 text-xs mt-1">{errors.password.message}</Text>}
             </View>
 
             <TouchableOpacity
-              onPress={handleLogin}
-              disabled={loading}
-              className="bg-brand-600 rounded-xl py-3 items-center"
+              onPress={handleSubmit(onSubmit)}
+              disabled={isSubmitting}
+              className={`rounded-xl py-3 items-center ${isSubmitting ? 'bg-gray-300' : 'bg-brand-600'}`}
             >
               <Text className="text-white font-semibold text-base">
-                {loading ? 'Ingresando...' : 'Iniciar sesión'}
+                {isSubmitting ? 'Ingresando...' : 'Iniciar sesión'}
               </Text>
             </TouchableOpacity>
 

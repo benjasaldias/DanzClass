@@ -12,8 +12,13 @@ export default function RootLayout() {
   const segments = useSegments()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Refresh token invalid/expired — clear stored tokens and force re-login
+        supabase.auth.signOut().finally(() => setSession(null))
+      } else {
+        setSession(session)
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -27,9 +32,10 @@ export default function RootLayout() {
     if (session === undefined) return // still loading
 
     const inAuthGroup = segments[0] === '(auth)'
+    const inAppGroup = segments[0] === '(app)'
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/login')
-    } else if (session && inAuthGroup) {
+    } else if (session && !inAppGroup) {
       router.replace('/(app)/(tabs)/feed')
     }
   }, [session, segments])
