@@ -242,14 +242,140 @@
 
 ---
 
+---
+
+## 18. Mobile — Feed (`(tabs)/feed.tsx`)
+
+> Testear en Expo Go con cuenta profesor y cuenta estudiante.
+
+- [ ] Feed carga en modo Global con clases y posts mezclados, ordenados por fecha desc
+- [ ] Filtro "Siguiendo" muestra solo contenido de usuarios seguidos
+- [ ] Filtro "Siguiendo" con 0 follows muestra lista vacía (no muestra contenido global)
+- [ ] Filtro "Cerca" muestra solo contenido de la misma ciudad del perfil
+- [ ] Filtro de contenido "Clases" oculta posts; "Videos" oculta clases; "Todos" muestra ambos
+- [ ] El filtro activo tiene fondo `brand-600` con texto blanco; los inactivos tienen fondo gris claro
+- [ ] Pull-to-refresh recarga el contenido
+- [ ] `MobileClassCard` muestra: avatar profesor, nombre, tiempo relativo, badge estilo, carrusel de media, título, horario, ubicación, cupos, precio, botón "Ver clase"
+- [ ] Botón "Ver clase" en `MobileClassCard` navega a `/(app)/class/[id]`
+- [ ] `MobilePostCard` muestra video con expo-video; tap en el card navega al perfil del autor
+- [ ] Si el contenido falla al cargar (sin red), el feed queda vacío sin crash
+
+---
+
+## 19. Mobile — Explorar (`(tabs)/explore.tsx`)
+
+- [ ] Tab "Clases" muestra hasta 30 clases activas por defecto
+- [ ] Buscar por texto filtra clases por título y estilo de baile (case-insensitive)
+- [ ] Tab "Usuarios" muestra hasta 100 perfiles
+- [ ] Sub-tab "Amig@s" muestra solo usuarios con amistad aceptada
+- [ ] Sub-tab "Siguiendo" muestra solo usuarios que el viewer sigue
+- [ ] Buscar por texto filtra usuarios por nombre y username
+- [ ] Tap en un usuario navega a `/(app)/teacher/[username]`
+- [ ] Si no hay resultados de clases para la búsqueda: texto "No se encontraron clases"
+- [ ] Si no hay resultados de usuarios: texto "No se encontraron usuarios"
+- [ ] Estado vacío en sub-tab "Amig@s" sin amigos: muestra mensaje apropiado
+
+---
+
+## 20. Mobile — Perfil propio (`(tabs)/profile.tsx`)
+
+- [ ] Muestra nombre completo, username (@), bio, ciudad, instagram
+- [ ] Muestra stats: N seguidores, N endorsements
+- [ ] Badge de plan activo visible si tiene suscripción (básico/pro)
+- [ ] Pills visibles: "Editar perfil", "Ver planes", "Cerrar sesión"
+- [ ] Si `canTeach(tier)`: pill "Datos transferencia" presente
+- [ ] Sección "Mis clases activas (N)" lista hasta 5 clases
+- [ ] Si hay más de 5 clases: botón "Ver todas (N)" carga el resto
+- [ ] Sección "Mis publicaciones (N)" lista hasta 5 posts
+- [ ] Si hay más de 5 posts: botón "Ver todas (N)" carga el resto
+- [ ] Pull-to-refresh recarga perfil + stats + listas
+- [ ] "Cerrar sesión" muestra Alert de confirmación → al confirmar, navega a `/(auth)/login`
+- [ ] Si el fetch falla (sin red), la pantalla no crashea (muestra perfil vacío)
+
+---
+
+## 21. Mobile — Perfil ajeno (`teacher/[username].tsx`)
+
+- [ ] Muestra nombre, username, bio, ciudad, estilos que enseña/baila
+- [ ] Muestra stats: seguidores, endorsements, clases activas
+- [ ] Botón "Seguir" → cambia a "Siguiendo"; tap de nuevo → vuelve a "Seguir"
+- [ ] Botones de amistad: "Agregar amig@" → "Solicitud enviada" → el otro acepta → "Amig@s"
+- [ ] Si `isOwnProfile = true`: no muestra botones de follow/amistad
+- [ ] Sección clases activas muestra hasta 5; botón "Ver todas (N)" si hay más
+- [ ] Si no hay clases: muestra "No hay clases publicadas"
+- [ ] Sección posts muestra hasta 5; botón "Ver todas (N)" si hay más
+- [ ] Si no hay posts: muestra "No hay publicaciones"
+- [ ] Posts con `visibility = 'followers'` visibles solo si el viewer sigue al autor
+- [ ] Posts con `visibility = 'friends'` visibles solo si hay amistad aceptada
+- [ ] Si el perfil no existe (username inválido): pantalla vacía sin crash
+
+---
+
+## 22. Mobile — Notificaciones (`notifications.tsx`)
+
+- [ ] Lista carga con todas las notificaciones del usuario, ordenadas por fecha desc
+- [ ] Notificaciones no leídas tienen indicador visual (punto o fondo diferente)
+- [ ] Al entrar a la pantalla, las notificaciones se marcan como leídas
+- [ ] El badge en el TopBar desaparece tras marcar como leídas
+- [ ] Tipo `follow`: muestra avatar + "te empezó a seguir" → tap navega al perfil del seguidor
+- [ ] Tipo `new_class`: muestra "publicó una nueva clase" → tap navega al detalle de la clase
+- [ ] Tipo `payment_confirmed`: muestra "confirmó tu pago" → tap navega al detalle de la clase
+- [ ] Tipo `payment_rejected`: muestra "rechazó tu comprobante"
+- [ ] Tipo `class_discount`: muestra "aplicó un descuento" → tap navega al detalle
+- [ ] Tipo `friend_request`: muestra "te envió solicitud de amistad"
+- [ ] Tipo `friend_accepted`: muestra "aceptó tu solicitud"
+- [ ] Si no hay notificaciones: texto "No tienes notificaciones"
+
+---
+
+## 23. Mobile — Crear clase (`class/create.tsx`)
+
+- [ ] Solo accesible para usuarios con plan activo (`canTeach(tier)`)
+- [ ] Tipo "Suelta": muestra campo de fecha (DD/MM/AAAA) y hora
+- [ ] Tipo "Periódica": muestra selector de día de la semana y hora recurrente
+- [ ] Tipo "Entrenamiento": muestra toggle de audición requerida + fecha de cierre
+- [ ] Selector de estilo de baile muestra todos los estilos de `DANCE_STYLES`
+- [ ] Nivel: Principiante / Intermedio / Avanzado / Todos los niveles
+- [ ] Upload de hasta 5 medios (imagen o video) desde galería del dispositivo
+- [ ] Preview de medios seleccionados visible antes de enviar
+- [ ] Si un archivo falla al subir: muestra mensaje de advertencia pero completa la creación de la clase
+- [ ] Submit exitoso: navega al detalle de la clase recién creada
+- [ ] Seguidores del profesor reciben notificación `new_class`
+
+---
+
+## 24. Mobile — Detalle de clase (`class/[id]/index.tsx`)
+
+- [ ] Carrusel de medios funciona con swipe y con las flechas ‹ ›
+- [ ] Puntos indicadores muestran el slide activo como más ancho
+- [ ] Videos en el carrusel se reproducen con expo-video
+- [ ] Muestra: título, estilo, tipo de clase, nivel, horario, duración, ubicación, cupos, precio
+- [ ] Si hay cupos disponibles y el usuario no está inscrito: botón "Reservar cupo" sticky abajo
+- [ ] Si el usuario ya está inscrito: muestra el estado del enrollment (confirmado, pendiente, etc.)
+- [ ] Tap en "Reservar cupo" crea enrollment y navega a `/(app)/payment/[id]`
+- [ ] Si el autor es el usuario actual: botones "Editar" y "Eliminar" visibles
+- [ ] No-autores ven botón de denuncia
+
+---
+
+## 25. Mobile — Error handling (regresión)
+
+- [ ] `feed.tsx`: apagar red → refresh → feed muestra estado vacío sin crash
+- [ ] `explore.tsx`: apagar red → abrir pantalla → listas vacías sin crash
+- [ ] `profile.tsx`: apagar red → pull-to-refresh → no crash, pantalla muestra estado anterior o vacío
+- [ ] `class/create.tsx`: subir archivo con red cortada a mitad → muestra "Clase creada, pero hubo un error al subir algunos archivos"
+- [ ] `profile/edit.tsx`: guardar con red cortada durante upload de avatar → muestra "Error al subir la foto de perfil"
+
+---
+
 ## Resumen
 
-| Estado            | Cantidad |
-|-------------------|----------|
-| PASS `[x]`        | 30       |
-| FAIL `[!]`        | 0        |
-| SKIP/N-A `[~]`    | 28       |
-| PENDIENTE `[ ]`   | 38 (mobile transaccional) |
+| Estado          | Cantidad                                                                       |
+|-----------------|--------------------------------------------------------------------------------|
+| PASS `[x]`      | 30                                                                             |
+| FAIL `[!]`      | 0                                                                              |
+| SKIP/N-A `[~]`  | 28                                                                             |
+| PENDIENTE `[ ]` | 38 (mobile transaccional, sesiones 3-4) + 84 (mobile pantallas, sesión cierre) |
 
 ### FAILs detectados y corregidos
 

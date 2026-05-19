@@ -23,6 +23,8 @@ export default function TeacherProfileScreen() {
   const [classesCount, setClassesCount] = useState(0)
   const [classes, setClasses] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
+  const [showAllClasses, setShowAllClasses] = useState(false)
+  const [showAllPosts, setShowAllPosts] = useState(false)
 
   // Social
   const [isFollowing, setIsFollowing] = useState(false)
@@ -32,6 +34,7 @@ export default function TeacherProfileScreen() {
 
   useEffect(() => {
     async function load() {
+      try {
       const { data: { user } } = await supabase.auth.getUser()
       const uid = user?.id ?? null
       setCurrentUserId(uid)
@@ -92,6 +95,9 @@ export default function TeacherProfileScreen() {
       setPosts(filteredPosts)
 
       setLoading(false)
+      } catch {
+        setLoading(false)
+      }
     }
     load()
   }, [username])
@@ -292,28 +298,52 @@ export default function TeacherProfileScreen() {
         </View>
 
         {/* Active classes */}
-        {classes.length > 0 && (
-          <View className="mt-2">
-            <Text className="px-4 py-3 text-sm font-bold text-gray-700">
-              Clases activas ({classes.length})
-            </Text>
-            {classes.map((c: any) => (
-              <MobileClassCard key={c.id} classData={c} currentUserId={currentUserId ?? ''} />
-            ))}
-          </View>
-        )}
+        <View className="mt-2">
+          <Text className="px-4 py-3 text-sm font-bold text-gray-700">
+            Clases activas ({classes.length})
+          </Text>
+          {classes.length === 0 ? (
+            <Text className="px-4 pb-4 text-sm text-gris-humo">No hay clases publicadas</Text>
+          ) : (
+            <>
+              {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
+                <MobileClassCard key={c.id} classData={c} currentUserId={currentUserId ?? ''} />
+              ))}
+              {classes.length > 5 && !showAllClasses && (
+                <TouchableOpacity
+                  onPress={() => setShowAllClasses(true)}
+                  className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+                >
+                  <Text className="text-sm text-brand-600 font-semibold">Ver todas ({classes.length})</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
 
         {/* Posts */}
-        {posts.length > 0 && (
-          <View className="mt-2">
-            <Text className="px-4 py-3 text-sm font-bold text-gray-700">
-              Publicaciones ({posts.length})
-            </Text>
-            {posts.map((p: any) => (
-              <MobilePostCard key={p.id} post={p} currentUserId={currentUserId ?? ''} />
-            ))}
-          </View>
-        )}
+        <View className="mt-2">
+          <Text className="px-4 py-3 text-sm font-bold text-gray-700">
+            Publicaciones ({posts.length})
+          </Text>
+          {posts.length === 0 ? (
+            <Text className="px-4 pb-4 text-sm text-gris-humo">No hay publicaciones</Text>
+          ) : (
+            <>
+              {(showAllPosts ? posts : posts.slice(0, 5)).map((p: any) => (
+                <MobilePostCard key={p.id} post={p} currentUserId={currentUserId ?? ''} />
+              ))}
+              {posts.length > 5 && !showAllPosts && (
+                <TouchableOpacity
+                  onPress={() => setShowAllPosts(true)}
+                  className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+                >
+                  <Text className="text-sm text-brand-600 font-semibold">Ver todas ({posts.length})</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   )

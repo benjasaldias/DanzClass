@@ -26,38 +26,43 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      const uid = user?.id ?? ''
-      setUserId(uid)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        const uid = user?.id ?? ''
+        setUserId(uid)
 
-      const [classRes, userRes, friendsRes, followsRes] = await Promise.all([
-        (supabase as any)
-          .from('classes')
-          .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(30),
-        supabase
-          .from('profiles')
-          .select('id, username, full_name, avatar_url, city, styles_teaching')
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('friendships')
-          .select('requester_id, addressee_id')
-          .or(`requester_id.eq.${uid},addressee_id.eq.${uid}`)
-          .eq('status', 'accepted'),
-        supabase.from('follows').select('following_id').eq('follower_id', uid),
-      ])
+        const [classRes, userRes, friendsRes, followsRes] = await Promise.all([
+          (supabase as any)
+            .from('classes')
+            .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(30),
+          supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url, city, styles_teaching')
+            .order('created_at', { ascending: false })
+            .limit(100),
+          supabase
+            .from('friendships')
+            .select('requester_id, addressee_id')
+            .or(`requester_id.eq.${uid},addressee_id.eq.${uid}`)
+            .eq('status', 'accepted'),
+          supabase.from('follows').select('following_id').eq('follower_id', uid),
+        ])
 
-      setClasses(classRes.data ?? [])
-      setUsers(userRes.data ?? [])
-      const fids = (friendsRes.data ?? []).map((f) =>
-        f.requester_id === uid ? f.addressee_id : f.requester_id
-      )
-      setFriendIds(fids)
-      setFollowingIds(followsRes.data?.map((f) => f.following_id) ?? [])
-      setLoading(false)
+        setClasses(classRes.data ?? [])
+        setUsers(userRes.data ?? [])
+        const fids = (friendsRes.data ?? []).map((f) =>
+          f.requester_id === uid ? f.addressee_id : f.requester_id
+        )
+        setFriendIds(fids)
+        setFollowingIds(followsRes.data?.map((f) => f.following_id) ?? [])
+      } catch {
+        // show empty lists on error
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
@@ -132,8 +137,8 @@ export default function ExploreScreen() {
       ) : tab === 'classes' ? (
         <FlatList
           data={filteredClasses}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <MobileClassCard classData={item} currentUserId={userId} />}
+          keyExtractor={(item: any) => item.id}
+          renderItem={({ item }: { item: any }) => <MobileClassCard classData={item} currentUserId={userId} />}
           ListEmptyComponent={
             <View className="py-12 items-center">
               <Text className="text-gray-500 text-sm">Sin resultados</Text>
@@ -143,7 +148,7 @@ export default function ExploreScreen() {
       ) : (
         <FlatList
           data={filteredUsers}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           contentContainerStyle={{ padding: 16, gap: 10 }}
           ListEmptyComponent={
             <View className="py-12 items-center">
@@ -154,7 +159,7 @@ export default function ExploreScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item: u }) => {
+          renderItem={({ item: u }: { item: any }) => {
             const initials = (u.full_name ?? '')
               .split(' ')
               .map((n: string) => n[0])

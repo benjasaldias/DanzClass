@@ -1,7 +1,8 @@
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCircle2, XCircle, Flag, Bell, ClipboardList } from 'lucide-react-native'
+import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCircle2, XCircle, Flag, Tag, Bell, ClipboardList } from 'lucide-react-native'
+import type { LucideIcon } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
@@ -17,7 +18,7 @@ function timeAgo(date: string): string {
 }
 
 type NotifConfig = {
-  icon: typeof Bell
+  icon: LucideIcon
   bgColor: string
   iconColor: string
   label: (data: Record<string, any>, profileMap: Record<string, any>) => string
@@ -82,7 +83,7 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
   },
   debt_warning: {
     icon: AlertCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
-    label: (data) => `⚠️ ${data.student_name ?? 'Un alumno'} que te debe un pago se inscribió en tu clase`,
+    label: (data) => `${data.student_name ?? 'Un alumno'} que te debe un pago se inscribió en tu clase`,
     route: () => '/(app)/(tabs)/my-classes',
   },
   new_report: {
@@ -95,8 +96,8 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
     route: () => '/(app)/(tabs)/feed',
   },
   class_discount: {
-    icon: Bell, bgColor: '#fff7ed', iconColor: '#D85A30',
-    label: (data) => `🏷️ Descuento en "${data.class_title ?? 'una clase'}"`,
+    icon: Tag, bgColor: '#fff7ed', iconColor: '#D85A30',
+    label: (data) => `Descuento en "${data.class_title ?? 'una clase'}"`,
     route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed',
   },
   audition_accepted: {
@@ -193,14 +194,14 @@ export default function NotificationsScreen() {
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           ListEmptyComponent={
             <View className="items-center py-16 gap-3">
               <Bell size={40} stroke="#d1d5db" />
               <Text className="text-gray-500 text-sm">Sin notificaciones por ahora</Text>
             </View>
           }
-          renderItem={({ item }) => {
+          renderItem={({ item }: { item: any }) => {
             const config = NOTIF_CONFIG[item.type]
             if (!config) return null
             const Icon = config.icon

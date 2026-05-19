@@ -25,27 +25,33 @@ export default function ProfileScreen() {
   const [trustCount, setTrustCount] = useState(0)
   const [classes, setClasses] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
+  const [showAllClasses, setShowAllClasses] = useState(false)
+  const [showAllPosts, setShowAllPosts] = useState(false)
 
   const load = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    setUserId(user.id)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setUserId(user.id)
 
-    const [profileRes, subRes, followersRes, trustRes, classesRes, postsRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').single(),
-      supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', user.id),
-      (supabase as any).from('trust_endorsements').select('endorser_id', { count: 'exact', head: true }).eq('endorsed_id', user.id),
-      (supabase as any).from('classes').select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id,status)').eq('teacher_id', user.id).eq('status', 'active'),
-      (supabase as any).from('posts').select('*, author:profiles!user_id(id, username, full_name, avatar_url)').eq('user_id', user.id).order('created_at', { ascending: false }),
-    ])
+      const [profileRes, subRes, followersRes, trustRes, classesRes, postsRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').single(),
+        supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', user.id),
+        (supabase as any).from('trust_endorsements').select('endorser_id', { count: 'exact', head: true }).eq('endorsed_id', user.id),
+        (supabase as any).from('classes').select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id,status)').eq('teacher_id', user.id).eq('status', 'active'),
+        (supabase as any).from('posts').select('*, author:profiles!user_id(id, username, full_name, avatar_url)').eq('user_id', user.id).order('created_at', { ascending: false }),
+      ])
 
-    setProfile(profileRes.data)
-    setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
-    setFollowers(followersRes.count ?? 0)
-    setTrustCount(trustRes.count ?? 0)
-    setClasses(classesRes.data ?? [])
-    setPosts(postsRes.data ?? [])
+      setProfile(profileRes.data)
+      setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
+      setFollowers(followersRes.count ?? 0)
+      setTrustCount(trustRes.count ?? 0)
+      setClasses(classesRes.data ?? [])
+      setPosts(postsRes.data ?? [])
+    } catch {
+      // profile fails silently; user sees empty screen with retry via pull-to-refresh
+    }
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -207,9 +213,17 @@ export default function ProfileScreen() {
             <Text className="px-4 pb-2 text-sm font-bold text-gray-700">
               Mis clases activas ({classes.length})
             </Text>
-            {classes.map((c: any) => (
+            {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
               <MobileClassCard key={c.id} classData={c} currentUserId={userId ?? ''} />
             ))}
+            {classes.length > 5 && !showAllClasses && (
+              <TouchableOpacity
+                onPress={() => setShowAllClasses(true)}
+                className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+              >
+                <Text className="text-sm text-brand-600 font-semibold">Ver todas ({classes.length})</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -219,9 +233,17 @@ export default function ProfileScreen() {
             <Text className="px-4 pb-2 text-sm font-bold text-gray-700">
               Mis publicaciones ({posts.length})
             </Text>
-            {posts.map((p: any) => (
+            {(showAllPosts ? posts : posts.slice(0, 5)).map((p: any) => (
               <MobilePostCard key={p.id} post={p} currentUserId={userId ?? ''} />
             ))}
+            {posts.length > 5 && !showAllPosts && (
+              <TouchableOpacity
+                onPress={() => setShowAllPosts(true)}
+                className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+              >
+                <Text className="text-sm text-brand-600 font-semibold">Ver todas ({posts.length})</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 

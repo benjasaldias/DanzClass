@@ -207,25 +207,29 @@ export default function CreateClassScreen() {
     let mediaError = false
     for (let i = 0; i < mediaItems.length; i++) {
       const item = mediaItems[i]
-      const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
-      const path = `${classRecord.id}/${i}.${ext}`
+      try {
+        const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
+        const path = `${classRecord.id}/${i}.${ext}`
 
-      const response = await fetch(item.uri)
-      const blob = await response.blob()
+        const response = await fetch(item.uri)
+        const blob = await response.blob()
 
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from('class-media')
-        .upload(path, blob, { contentType: item.mimeType })
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('class-media')
+          .upload(path, blob, { contentType: item.mimeType })
 
-      if (uploadErr || !uploadData) { mediaError = true; continue }
+        if (uploadErr || !uploadData) { mediaError = true; continue }
 
-      const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
-      await supabase.from('class_media').insert({
-        class_id: classRecord.id,
-        type: item.type,
-        url: urlData.publicUrl,
-        order_index: i,
-      })
+        const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+        await supabase.from('class_media').insert({
+          class_id: classRecord.id,
+          type: item.type,
+          url: urlData.publicUrl,
+          order_index: i,
+        })
+      } catch {
+        mediaError = true
+      }
     }
 
     // Notify followers

@@ -7,7 +7,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Clipboard from 'expo-clipboard'
-import { Users, AlertTriangle } from 'lucide-react-native'
+import { Users, AlertTriangle, CheckCircle2, Check, Paperclip } from 'lucide-react-native'
+import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
 import { formatCLP } from '@danceclass/shared'
 
@@ -174,7 +175,9 @@ export default function PaymentScreen() {
   if (success) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
-        <Text className="text-6xl mb-4">✅</Text>
+        <View className="mb-4">
+          <Icon icon={CheckCircle2} size={56} stroke="#16a34a" />
+        </View>
         <Text className="text-xl font-bold text-gray-900">¡Comprobante enviado!</Text>
         <Text className="text-sm text-gray-500 text-center mt-2">El profesor verificará tu pago pronto</Text>
       </SafeAreaView>
@@ -277,7 +280,7 @@ export default function PaymentScreen() {
 
               {alreadySubmitted ? (
                 <View className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex-row items-center gap-2">
-                  <Text className="text-2xl">✓</Text>
+                  <Check size={16} stroke="#1d4ed8" />
                   <Text className="text-sm text-blue-700 flex-1">Tu comprobante fue enviado. El profesor lo está revisando.</Text>
                 </View>
               ) : receipt ? (
@@ -292,7 +295,7 @@ export default function PaymentScreen() {
                   onPress={pickReceipt}
                   className="border-2 border-dashed border-gray-200 rounded-xl p-8 items-center gap-2"
                 >
-                  <Text className="text-4xl">📎</Text>
+                  <Icon icon={Paperclip} size={32} />
                   <Text className="text-sm font-medium text-gray-700">Seleccionar comprobante</Text>
                   <Text className="text-xs text-gray-400">JPG o PNG</Text>
                 </TouchableOpacity>

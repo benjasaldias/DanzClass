@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ChevronDown } from 'lucide-react-native'
+import { ChevronDown, Music2 } from 'lucide-react-native'
+import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
@@ -35,27 +36,32 @@ export default function FeedScreen() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      setUserId(user.id)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        setUserId(user.id)
 
-      const [profileRes, followsRes, friendsRes] = await Promise.all([
-        supabase.from('profiles').select('city').eq('id', user.id).single(),
-        supabase.from('follows').select('following_id').eq('follower_id', user.id),
-        supabase.from('friendships').select('requester_id, addressee_id').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`).eq('status', 'accepted'),
-      ])
+        const [profileRes, followsRes, friendsRes] = await Promise.all([
+          supabase.from('profiles').select('city').eq('id', user.id).single(),
+          supabase.from('follows').select('following_id').eq('follower_id', user.id),
+          supabase.from('friendships').select('requester_id, addressee_id').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`).eq('status', 'accepted'),
+        ])
 
-      setUserCity(profileRes.data?.city ?? null)
-      setFollowingIds(followsRes.data?.map((f) => f.following_id) ?? [])
-      const fids = (friendsRes.data ?? []).map((f) =>
-        f.requester_id === user.id ? f.addressee_id : f.requester_id
-      )
-      setFriendIds(fids)
+        setUserCity(profileRes.data?.city ?? null)
+        setFollowingIds(followsRes.data?.map((f) => f.following_id) ?? [])
+        const fids = (friendsRes.data ?? []).map((f) =>
+          f.requester_id === user.id ? f.addressee_id : f.requester_id
+        )
+        setFriendIds(fids)
+      } catch {
+        // init errors are non-blocking; feed will show empty state
+      }
     }
     init()
   }, [])
 
   const loadFeed = useCallback(async (ff: FeedFilter, cf: ContentFilter) => {
+    try {
     const uid = userId
     if (!uid) return
     const allItems: any[] = []
@@ -110,8 +116,12 @@ export default function FeedScreen() {
     // Sort mixed feed by created_at descending
     allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setItems(allItems)
+  } catch {
+    // keep whatever was already in items; user sees stale data or empty state
+  } finally {
     setLoading(false)
     setRefreshing(false)
+  }
   }, [followingIds, userCity, userId])
 
   useEffect(() => {
@@ -177,8 +187,8 @@ export default function FeedScreen() {
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(item) => `${item._type}-${item.id}`}
-          renderItem={({ item }) =>
+          keyExtractor={(item: any) => `${item._type}-${item.id}`}
+          renderItem={({ item }: { item: any }) =>
             item._type === 'class'
               ? <MobileClassCard classData={item} currentUserId={userId ?? ''} />
               : <MobilePostCard post={item} currentUserId={userId ?? ''} />
@@ -192,7 +202,9 @@ export default function FeedScreen() {
           }
           ListEmptyComponent={
             <View className="items-center py-16">
-              <Text className="text-4xl mb-3">💃</Text>
+              <View className="mb-3">
+                <Icon icon={Music2} size={32} />
+              </View>
               <Text className="text-gray-500 text-sm">No hay contenido disponible</Text>
             </View>
           }

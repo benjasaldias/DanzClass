@@ -738,3 +738,95 @@ Escanear QR desde Expo Go → "Scan QR Code".
 - OCR de comprobantes
 - Dashboard de analytics
 - Renovación anual automática
+
+---
+
+## Conversión mobile completada (sesión de cierre)
+
+### Pantallas implementadas en `apps/mobile/`
+
+| Pantalla | Ruta | Estado |
+| --- | --- | --- |
+| Feed | `(tabs)/feed.tsx` | ✅ Completo — clases + posts, filtros siguiendo/global/cerca, refresh |
+| Explorar | `(tabs)/explore.tsx` | ✅ Completo — búsqueda clases y usuarios, filtros amigos/siguiendo |
+| Publicar | `(tabs)/publish.tsx` | ✅ Completo — elección clase/video; video sube a Cloudinary o Storage |
+| Perfil propio | `(tabs)/profile.tsx` | ✅ Completo — stats, plan, estilos, clases/posts paginados, logout |
+| Crear clase | `class/create.tsx` | ✅ Completo — suelta/periódica/entrenamiento, media, notifica seguidores |
+| Detalle clase | `class/[id]/index.tsx` | ✅ Completo — carrusel, inscripción, pago comprobante |
+| Mis clases | `my-classes.tsx` | ✅ Completo — tabs tomo/dicto, deudores, paginación por clase |
+| Perfil ajeno | `teacher/[username].tsx` | ✅ Completo — follow, amistad, trust, posts filtrados por visibilidad |
+| Notificaciones | `notifications.tsx` | ✅ Completo — todos los tipos excepto audición |
+| Planes | `plans.tsx` | ✅ Completo — básico/pro, checkout via expo-web-browser |
+| Pago | `payment/[id].tsx` | ✅ Completo — comprobante, detecta 2x, turno transferir |
+| Editar perfil | `profile/edit.tsx` | ✅ Completo — avatar, estilos, ciudad, instagram, privacidad |
+| Datos transferencia | `profile/payment-info.tsx` | ✅ Completo — formulario banco/cuenta/RUT |
+| Login | `(auth)/login.tsx` | ✅ Completo |
+| Registro | `(auth)/register.tsx` | ✅ Completo — con aceptación de términos |
+
+### Componentes UI creados
+
+| Componente | Descripción |
+| --- | --- |
+| `components/ui/MobileSelect.tsx` | Dropdown con modal pageSheet y FlatList; soporte nullable |
+| `components/ui/TopBar.tsx` | Barra superior con badge de notificaciones |
+| `components/feed/MobileClassCard.tsx` | Card de clase con carrusel de media y navegación |
+| `components/feed/MobilePostCard.tsx` | Card de video/post con expo-video inline |
+
+### Decisiones técnicas sesión de cierre
+
+**TypeScript 0 errores:**
+
+- `skipLibCheck: true` en `apps/mobile/tsconfig.json`
+- `apps/mobile/types/react-component-compat.d.ts`: augmenta `NativeMethods`, `ScrollResponderMixin`, `TimerMixin`, `Modal`, `FlatListComponent`, `KeyboardAvoidingView` (react-native) y `VideoView` (expo-video) con `props/context/state/setState/forceUpdate/render` para resolver incompatibilidad React 19 + React Native 0.81
+
+**Paginación en perfiles:**
+
+- Primeras 5 clases/posts visibles con botón "Ver todas (N)" para cargar el resto
+- Evita listas interminables en ScrollView sin virtualización
+
+**Empty states:**
+
+- `teacher/[username].tsx`: "No hay clases publicadas" / "No hay publicaciones" cuando listas vacías
+
+**Error handling:**
+
+- `feed.tsx` (init + loadFeed), `explore.tsx` (load), `profile.tsx` (load), `teacher/[username].tsx` (load): try/catch en todas las funciones async de carga
+- `class/create.tsx`, `profile/edit.tsx`: try/catch en loops de upload de archivos con `fetch()`
+
+### Iconografía mobile — lucide-react-native (sesión 2026-05-19)
+
+Todos los emojis UI reemplazados por íconos vectoriales de `lucide-react-native@1.16.0`:
+
+| Antes | Pantalla | Ícono Lucide |
+| --- | --- | --- |
+| 🎓 | create.tsx (gate sin plan) | `GraduationCap` 32px gris-humo |
+| 📅 | create.tsx (card clase suelta) | `CalendarDays` 28px brand-600 |
+| 🔄 | create.tsx (card periódica) | `Repeat` 28px morado-flow |
+| 🏋️ | create.tsx (card entrenamiento) | `Dumbbell` 28px gris-humo |
+| 🎬🎬 | create.tsx (card video activo/off) | `Film` 28px brand-600 / gris-humo |
+| 💃 | feed.tsx (empty state) | `Music2` 32px gris-humo |
+| 📚 | my-classes.tsx (empty enrolled) | `BookOpen` 32px gris-humo |
+| 🎓 | my-classes.tsx (empty teaching) | `GraduationCap` 32px gris-humo |
+| 💃 | login.tsx / register.tsx (logo header) | `Music2` 28px brand-600 |
+| ✅ | payment (comprobante enviado) | `CheckCircle2` 56px green-600 |
+| ✓ | payment (review inline) | `Check` 16px blue-700 |
+| 📎 | payment (subir comprobante) | `Paperclip` 32px gris-humo |
+| 💃 | class/[id] (sin media) | `Music2` 40px gris-humo |
+| ⚠️ 🏷️ | notifications labels | Eliminados de strings (íconos de fila ya los cubren) |
+
+**Wrapper `components/ui/Icon.tsx`:** centraliza defaults (size=20, secondary=gris-humo, active=brand-600). Props: `icon`, `size`, `variant`, `stroke`.
+
+**BottomNav:** `tabBarInactiveTintColor` corregido de `#9ca3af` → `#6B6880` (gris-humo). Activo sigue en `#c026d3` (brand-600).
+
+**`class_discount` notif:** ícono cambiado de `Bell` → `Tag` (más semántico para descuento).
+
+**Tipo `NotifConfig`:** `icon: typeof Bell` → `icon: LucideIcon` (más genérico, no acoplado a un ícono específico).
+
+### Limitaciones conocidas (post-MVP)
+
+- **Sistema 2x**: no implementado en mobile (web sí)
+- **Descuentos espontáneos**: no implementado en mobile
+- **Audiciones**: notificaciones `audition_accepted`/`audition_rejected` sin pantalla dedicada
+- **Notificaciones push**: Expo Notifications pendiente
+- **Paginación real**: el feed carga con `.limit(20)` pero no hay scroll infinito con cursor
+- **Sin build de producción local**: Node.js v12 en WSL2 impide correr `eas build` localmente; build debe realizarse desde máquina con Node ≥ 18

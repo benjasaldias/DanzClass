@@ -8,8 +8,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import {
   ChevronLeft, MapPin, Clock, Users, Calendar, ChevronDown,
-  ChevronRight, AlertCircle, CheckCircle2, Tag,
+  ChevronRight, AlertCircle, CheckCircle2, Tag, Music2,
 } from 'lucide-react-native'
+import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
 import { formatCLP, DAYS_OF_WEEK, canEnroll } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
@@ -223,7 +224,7 @@ export default function ClassDetailScreen() {
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               scrollEventThrottle={16}
-              onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+              onMomentumScrollEnd={(e: any) => {
                 const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
                 setMediaIndex(index)
               }}
@@ -287,7 +288,7 @@ export default function ClassDetailScreen() {
           </View>
         ) : (
           <View className="items-center justify-center bg-gray-100" style={{ height: 160 }}>
-            <Text className="text-5xl">💃</Text>
+            <Icon icon={Music2} size={40} />
           </View>
         )}
 

@@ -4,6 +4,8 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
+import { Music2 } from 'lucide-react-native'
+import { Icon } from '../../components/ui/Icon'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -43,7 +45,7 @@ export default function LoginScreen() {
           {/* Logo */}
           <View className="items-center gap-3">
             <View className="w-16 h-16 bg-white/10 rounded-2xl items-center justify-center">
-              <Text className="text-3xl">💃</Text>
+              <Icon icon={Music2} size={28} variant="active" />
             </View>
             <Text className="text-white text-3xl font-bold">DanceClass</Text>
           </View>

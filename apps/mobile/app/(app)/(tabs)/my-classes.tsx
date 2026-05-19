@@ -5,7 +5,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert } from 'lucide-react-native'
+import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap } from 'lucide-react-native'
+import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
 
@@ -43,7 +44,9 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
   if (enrollments.length === 0) {
     return (
       <View className="items-center py-16">
-        <Text className="text-4xl mb-3">📚</Text>
+        <View className="mb-3">
+          <Icon icon={BookOpen} size={32} />
+        </View>
         <Text className="text-gray-500 text-sm font-medium">Sin clases inscritas</Text>
         <Text className="text-gray-400 text-xs mt-1">Explora clases y apúntate</Text>
       </View>
@@ -191,7 +194,9 @@ function TeachingTab({
   if (classData.length === 0) {
     return (
       <View className="items-center py-16">
-        <Text className="text-4xl mb-3">🎓</Text>
+        <View className="mb-3">
+          <Icon icon={GraduationCap} size={32} />
+        </View>
         <Text className="text-gray-500 text-sm font-medium">Sin clases publicadas</Text>
         <Text className="text-gray-400 text-xs mt-1">Publica tu primera clase</Text>
       </View>

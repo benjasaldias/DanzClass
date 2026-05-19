@@ -97,7 +97,7 @@ export default function MobileClassCard({ classData, currentUserId }: MobileClas
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             scrollEventThrottle={16}
-            onMomentumScrollEnd={(e) => {
+            onMomentumScrollEnd={(e: any) => {
               const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH)
               setMediaIndex(index)
             }}

@@ -4,6 +4,8 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
+import { Music2 } from 'lucide-react-native'
+import { Icon } from '../../components/ui/Icon'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Mínimo 2 caracteres'),
@@ -60,7 +62,7 @@ export default function RegisterScreen() {
           {/* Logo */}
           <View className="items-center gap-3">
             <View className="w-16 h-16 bg-white/10 rounded-2xl items-center justify-center">
-              <Text className="text-3xl">💃</Text>
+              <Icon icon={Music2} size={28} variant="active" />
             </View>
             <Text className="text-white text-3xl font-bold">DanceClass</Text>
           </View>
@@ -105,7 +107,7 @@ export default function RegisterScreen() {
                 render={({ field: { onChange, value } }) => (
                   <TextInput
                     value={value}
-                    onChangeText={(t) => onChange(t.toLowerCase())}
+                    onChangeText={(t: string) => onChange(t.toLowerCase())}
                     placeholder="tuusuario"
                     autoCapitalize="none"
                     className="border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900"

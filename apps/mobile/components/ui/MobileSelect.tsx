@@ -56,8 +56,8 @@ export default function MobileSelect({ label, value, options, onSelect, placehol
           )}
           <FlatList
             data={options}
-            keyExtractor={(item) => item.value}
-            renderItem={({ item }) => (
+            keyExtractor={(item: SelectOption) => item.value}
+            renderItem={({ item }: { item: SelectOption }) => (
               <TouchableOpacity
                 onPress={() => { onSelect(item.value); setOpen(false) }}
                 className="flex-row items-center justify-between px-4 py-3.5 border-b border-gray-50"

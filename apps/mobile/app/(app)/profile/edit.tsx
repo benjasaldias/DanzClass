@@ -107,21 +107,27 @@ export default function EditProfileScreen() {
     let avatarUrl = profile.avatar_url
 
     if (avatarChanged && avatarUri) {
-      const ext = avatarUri.split('.').pop() ?? 'jpg'
-      const path = `${profile.id}/avatar.${ext}`
-      const response = await fetch(avatarUri)
-      const blob = await response.blob()
-      const { data: uploadData, error: uploadErr } = await supabase.storage
-        .from('avatars')
-        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      try {
+        const ext = avatarUri.split('.').pop() ?? 'jpg'
+        const path = `${profile.id}/avatar.${ext}`
+        const response = await fetch(avatarUri)
+        const blob = await response.blob()
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('avatars')
+          .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
 
-      if (uploadErr) {
+        if (uploadErr) {
+          setError('Error al subir la foto de perfil')
+          setSaving(false)
+          return
+        }
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
+        avatarUrl = urlData.publicUrl
+      } catch {
         setError('Error al subir la foto de perfil')
         setSaving(false)
         return
       }
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
-      avatarUrl = urlData.publicUrl
     }
 
     const { error: updateError } = await supabase
@@ -220,7 +226,7 @@ export default function EditProfileScreen() {
               <Text className="text-gray-400 text-sm mr-0.5">@</Text>
               <TextInput
                 value={username}
-                onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                onChangeText={(t: string) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                 className="flex-1 text-sm text-gray-900"
                 autoCapitalize="none"
               />
