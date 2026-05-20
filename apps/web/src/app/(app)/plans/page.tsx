@@ -18,8 +18,8 @@ export default async function PlansPage() {
     <div className="px-4 py-6">
       <div className="mb-6 text-center">
         <Crown className="h-8 w-8 text-brand-500 mx-auto mb-2" />
-        <h1 className="text-2xl font-bold text-gray-900">Elige tu plan</h1>
-        <p className="text-sm text-gray-500 mt-1">Cancela cuando quieras</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-dark-text">Elige tu plan</h1>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">Cancela cuando quieras</p>
       </div>
 
       <div className="space-y-4">
@@ -35,22 +35,22 @@ export default async function PlansPage() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-gray-900">{plan.name}</h2>
+                    <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">{plan.name}</h2>
                     {isActive && (
                       <span className="badge bg-brand-100 text-brand-700 text-xs">Activo</span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500">{plan.description}</p>
+                  <p className="text-sm text-gray-500 dark:text-dark-text2">{plan.description}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-gray-900">{formatCLP(plan.price)}</p>
-                  <p className="text-xs text-gray-400">/mes</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-dark-text">{formatCLP(plan.price)}</p>
+                  <p className="text-xs text-gray-400 dark:text-dark-text2/60">/mes</p>
                 </div>
               </div>
 
               <ul className="space-y-1.5 mb-4">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-gray-600">
+                  <li key={feature} className="flex items-center gap-2 text-sm text-gray-600 dark:text-dark-text2">
                     <Check className="h-4 w-4 text-brand-500 flex-shrink-0" />
                     {feature}
                   </li>
@@ -61,7 +61,7 @@ export default async function PlansPage() {
 
               {isActive && activeSub && (
                 <div className="mt-3 flex flex-col items-center gap-1">
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-400 dark:text-dark-text2/60">
                     Vence el{' '}
                     {new Date(activeSub.expires_at).toLocaleDateString('es-CL', {
                       day: 'numeric',
@@ -77,7 +77,7 @@ export default async function PlansPage() {
         })}
       </div>
 
-      <p className="mt-6 text-center text-xs text-gray-400">
+      <p className="mt-6 text-center text-xs text-gray-400 dark:text-dark-text2/60">
         Los pagos son procesados por Mercado Pago. Al cancelar, tu plan
         sigue activo hasta la fecha de vencimiento.
       </p>

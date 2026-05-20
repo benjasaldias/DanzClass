@@ -131,18 +131,18 @@ export default function FeedScreen() {
   const currentLabel = CONTENT_FILTERS.find((f) => f.key === contentFilter)?.label ?? 'Todos'
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <TopBar />
 
       {/* Filters row */}
-      <View className="flex-row items-center gap-2 px-4 py-2 bg-white border-b border-gray-100">
+      <View className="flex-row items-center gap-2 px-4 py-2 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         {FEED_FILTERS.map(({ key, label }) => (
           <TouchableOpacity
             key={key}
             onPress={() => setFeedFilter(key)}
-            className={`rounded-full px-4 py-1.5 ${feedFilter === key ? 'bg-brand-600' : 'bg-gray-100'}`}
+            className={`rounded-full px-4 py-1.5 ${feedFilter === key ? 'bg-brand-600' : 'bg-gray-100 dark:bg-dark-surface2'}`}
           >
-            <Text className={`text-sm font-medium ${feedFilter === key ? 'text-white' : 'text-gray-600'}`}>
+            <Text className={`text-sm font-medium ${feedFilter === key ? 'text-white' : 'text-gray-600 dark:text-dark-text2'}`}>
               {label}
             </Text>
           </TouchableOpacity>
@@ -154,9 +154,9 @@ export default function FeedScreen() {
         {/* Content dropdown */}
         <TouchableOpacity
           onPress={() => setShowDropdown(true)}
-          className="flex-row items-center gap-1 border border-gray-200 rounded-xl px-3 py-1.5 bg-white"
+          className="flex-row items-center gap-1 border border-gray-200 dark:border-dark-border rounded-xl px-3 py-1.5 bg-white dark:bg-dark-surface2"
         >
-          <Text className="text-sm text-gray-700">{currentLabel}</Text>
+          <Text className="text-sm text-gray-700 dark:text-dark-text2">{currentLabel}</Text>
           <ChevronDown size={14} stroke="#374151" />
         </TouchableOpacity>
       </View>
@@ -164,14 +164,14 @@ export default function FeedScreen() {
       {/* Dropdown modal */}
       <Modal transparent visible={showDropdown} animationType="fade" onRequestClose={() => setShowDropdown(false)}>
         <Pressable className="flex-1" onPress={() => setShowDropdown(false)}>
-          <View className="absolute top-28 right-4 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden" style={{ minWidth: 120, elevation: 8 }}>
+          <View className="absolute top-28 right-4 bg-white dark:bg-dark-surface rounded-2xl shadow-lg border border-gray-100 dark:border-dark-border overflow-hidden" style={{ minWidth: 120, elevation: 8 }}>
             {CONTENT_FILTERS.map(({ key, label }) => (
               <TouchableOpacity
                 key={key}
                 onPress={() => { setContentFilter(key); setShowDropdown(false) }}
-                className={`px-4 py-3 ${contentFilter === key ? 'bg-brand-50' : ''}`}
+                className={`px-4 py-3 ${contentFilter === key ? 'bg-brand-50 dark:bg-brand-950/30' : ''}`}
               >
-                <Text className={`text-sm ${contentFilter === key ? 'text-brand-700 font-semibold' : 'text-gray-700'}`}>
+                <Text className={`text-sm ${contentFilter === key ? 'text-brand-700 dark:text-brand-300 font-semibold' : 'text-gray-700 dark:text-dark-text2'}`}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -205,7 +205,7 @@ export default function FeedScreen() {
               <View className="mb-3">
                 <Icon icon={Music2} size={32} />
               </View>
-              <Text className="text-gray-500 text-sm">No hay contenido disponible</Text>
+              <Text className="text-gray-500 dark:text-dark-text2 text-sm">No hay contenido disponible</Text>
             </View>
           }
         />

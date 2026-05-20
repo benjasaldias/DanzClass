@@ -179,12 +179,12 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
-      <View className="flex-row items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900">Notificaciones</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Notificaciones</Text>
       </View>
 
       {loading ? (
@@ -198,7 +198,7 @@ export default function NotificationsScreen() {
           ListEmptyComponent={
             <View className="items-center py-16 gap-3">
               <Bell size={40} stroke="#d1d5db" />
-              <Text className="text-gray-500 text-sm">Sin notificaciones por ahora</Text>
+              <Text className="text-gray-500 dark:text-dark-text2 text-sm">Sin notificaciones por ahora</Text>
             </View>
           }
           renderItem={({ item }: { item: any }) => {
@@ -218,7 +218,7 @@ export default function NotificationsScreen() {
             return (
               <TouchableOpacity
                 onPress={() => handlePress(item)}
-                className={`flex-row items-start gap-3 px-4 py-4 border-b border-gray-100 ${!item.read ? 'bg-brand-50/30' : 'bg-white'}`}
+                className={`flex-row items-start gap-3 px-4 py-4 border-b border-gray-100 dark:border-dark-border ${!item.read ? 'bg-brand-50/30 dark:bg-brand-950/30' : 'bg-white dark:bg-dark-surface'}`}
               >
                 {/* Avatar or icon */}
                 <View className="relative">
@@ -247,10 +247,10 @@ export default function NotificationsScreen() {
 
                 {/* Content */}
                 <View className="flex-1">
-                  <Text className={`text-sm leading-snug ${!item.read ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                  <Text className={`text-sm leading-snug ${!item.read ? 'font-semibold text-gray-900 dark:text-dark-text' : 'text-gray-700 dark:text-dark-text2'}`}>
                     {label}
                   </Text>
-                  <Text className="text-xs text-gray-400 mt-1">{timeAgo(item.created_at)}</Text>
+                  <Text className="text-xs text-gray-400 dark:text-dark-text2/60 mt-1">{timeAgo(item.created_at)}</Text>
                 </View>
 
                 {/* Unread dot */}

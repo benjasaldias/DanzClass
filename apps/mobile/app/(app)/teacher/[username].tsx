@@ -158,7 +158,7 @@ export default function TeacherProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta">
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
         <ActivityIndicator color="#c026d3" />
       </SafeAreaView>
     )
@@ -166,7 +166,7 @@ export default function TeacherProfileScreen() {
 
   if (!profile) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta">
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
         <Text className="text-gray-500">Usuario no encontrado</Text>
       </SafeAreaView>
     )
@@ -180,18 +180,18 @@ export default function TeacherProfileScreen() {
     .toUpperCase()
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
+      <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
-        <Text className="text-base font-bold text-gray-900">@{profile.username}</Text>
+        <Text className="text-base font-bold text-gray-900 dark:text-dark-text">@{profile.username}</Text>
       </View>
 
       <ScrollView className="flex-1">
         {/* Profile card */}
-        <View className="bg-white px-4 py-6 gap-4 border-b border-gray-100">
+        <View className="bg-white dark:bg-dark-surface px-4 py-6 gap-4 border-b border-gray-100 dark:border-dark-border">
           <View className="items-center gap-2">
             {profile.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} className="w-20 h-20 rounded-full" />
@@ -200,40 +200,40 @@ export default function TeacherProfileScreen() {
                 <Text className="text-brand-700 text-2xl font-bold">{initials}</Text>
               </View>
             )}
-            <Text className="text-xl font-bold text-gray-900">{profile.full_name}</Text>
-            <Text className="text-gris-humo text-sm">@{profile.username}</Text>
+            <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">{profile.full_name}</Text>
+            <Text className="text-gris-humo dark:text-dark-text2 text-sm">@{profile.username}</Text>
             {profile.city && (
               <View className="flex-row items-center gap-1">
                 <MapPin size={12} stroke="#6B6880" />
-                <Text className="text-xs text-gray-400">{profile.city}</Text>
+                <Text className="text-xs text-gray-400 dark:text-dark-text2/60">{profile.city}</Text>
               </View>
             )}
-            {profile.bio && <Text className="text-sm text-gray-600 text-center">{profile.bio}</Text>}
+            {profile.bio && <Text className="text-sm text-gray-600 dark:text-dark-text2 text-center">{profile.bio}</Text>}
           </View>
 
           {/* Stats */}
           <View className="flex-row justify-around">
             <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900">{followers}</Text>
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{followers}</Text>
               <View className="flex-row items-center gap-1">
                 <Users size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo">seguidores</Text>
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">seguidores</Text>
               </View>
             </View>
-            <View className="w-px bg-gray-100" />
+            <View className="w-px bg-gray-100 dark:bg-dark-border" />
             <View className="items-center">
               <Text className="text-lg font-bold text-gray-900">{classesCount}</Text>
               <View className="flex-row items-center gap-1">
                 <Music2 size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo">clases</Text>
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">clases</Text>
               </View>
             </View>
-            <View className="w-px bg-gray-100" />
+            <View className="w-px bg-gray-100 dark:bg-dark-border" />
             <View className="items-center">
               <Text className="text-lg font-bold text-gray-900">{trustCount}</Text>
               <View className="flex-row items-center gap-1">
                 <ShieldCheck size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo">confían</Text>
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">confían</Text>
               </View>
             </View>
           </View>
@@ -256,13 +256,13 @@ export default function TeacherProfileScreen() {
                 className={`flex-1 rounded-xl py-2.5 items-center border ${
                   friendStatus === 'accepted' ? 'border-green-300 bg-green-50' :
                   friendStatus === 'pending_received' ? 'border-morado-flow bg-morado-flow' :
-                  'border-gray-200 bg-white'
+                  'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
                 }`}
               >
                 <Text className={`text-sm font-semibold ${
                   friendStatus === 'accepted' ? 'text-green-700' :
                   friendStatus === 'pending_received' ? 'text-white' :
-                  'text-gray-700'
+                  'text-gray-700 dark:text-dark-text2'
                 }`}>
                   {loadingFriend ? '...' : friendButtonLabel()}
                 </Text>
@@ -273,7 +273,7 @@ export default function TeacherProfileScreen() {
           {/* Dance styles */}
           {profile.styles_teaching?.length > 0 && (
             <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-gris-humo uppercase tracking-wide">Enseña</Text>
+              <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Enseña</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_teaching.map((s: string) => (
                   <View key={s} className="bg-brand-50 rounded-full px-3 py-1">
@@ -285,7 +285,7 @@ export default function TeacherProfileScreen() {
           )}
           {profile.styles_dancing?.length > 0 && (
             <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-gris-humo uppercase tracking-wide">Baila</Text>
+              <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Baila</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_dancing.map((s: string) => (
                   <View key={s} className="bg-lavanda-suave rounded-full px-3 py-1">
@@ -299,11 +299,11 @@ export default function TeacherProfileScreen() {
 
         {/* Active classes */}
         <View className="mt-2">
-          <Text className="px-4 py-3 text-sm font-bold text-gray-700">
+          <Text className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-dark-text">
             Clases activas ({classes.length})
           </Text>
           {classes.length === 0 ? (
-            <Text className="px-4 pb-4 text-sm text-gris-humo">No hay clases publicadas</Text>
+            <Text className="px-4 pb-4 text-sm text-gris-humo dark:text-dark-text2">No hay clases publicadas</Text>
           ) : (
             <>
               {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
@@ -312,7 +312,7 @@ export default function TeacherProfileScreen() {
               {classes.length > 5 && !showAllClasses && (
                 <TouchableOpacity
                   onPress={() => setShowAllClasses(true)}
-                  className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+                  className="mx-4 mt-2 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl items-center"
                 >
                   <Text className="text-sm text-brand-600 font-semibold">Ver todas ({classes.length})</Text>
                 </TouchableOpacity>
@@ -323,11 +323,11 @@ export default function TeacherProfileScreen() {
 
         {/* Posts */}
         <View className="mt-2">
-          <Text className="px-4 py-3 text-sm font-bold text-gray-700">
+          <Text className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-dark-text">
             Publicaciones ({posts.length})
           </Text>
           {posts.length === 0 ? (
-            <Text className="px-4 pb-4 text-sm text-gris-humo">No hay publicaciones</Text>
+            <Text className="px-4 pb-4 text-sm text-gris-humo dark:text-dark-text2">No hay publicaciones</Text>
           ) : (
             <>
               {(showAllPosts ? posts : posts.slice(0, 5)).map((p: any) => (
@@ -336,7 +336,7 @@ export default function TeacherProfileScreen() {
               {posts.length > 5 && !showAllPosts && (
                 <TouchableOpacity
                   onPress={() => setShowAllPosts(true)}
-                  className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+                  className="mx-4 mt-2 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl items-center"
                 >
                   <Text className="text-sm text-brand-600 font-semibold">Ver todas ({posts.length})</Text>
                 </TouchableOpacity>

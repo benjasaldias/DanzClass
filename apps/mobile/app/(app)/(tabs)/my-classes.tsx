@@ -48,8 +48,8 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
         <View className="mb-3">
           <Icon icon={BookOpen} size={32} />
         </View>
-        <Text className="text-gray-500 text-sm font-medium">Sin clases inscritas</Text>
-        <Text className="text-gray-400 text-xs mt-1">Explora clases y apúntate</Text>
+        <Text className="text-gray-500 dark:text-dark-text2 text-sm font-medium">Sin clases inscritas</Text>
+        <Text className="text-gray-400 dark:text-dark-text2/60 text-xs mt-1">Explora clases y apúntate</Text>
       </View>
     )
   }
@@ -65,11 +65,11 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
           <TouchableOpacity
             key={enrollment.id}
             onPress={() => router.push(`/(app)/class/${cls?.id}` as any)}
-            className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"
+            className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border shadow-sm"
           >
-            <Text className="font-bold text-gray-900 text-sm">{cls?.title}</Text>
-            <Text className="text-xs text-gris-humo mt-0.5">{teacher?.full_name}</Text>
-            <Text className="text-xs text-gris-humo mt-1">{classSchedule(cls)}</Text>
+            <Text className="font-bold text-gray-900 dark:text-dark-text text-sm">{cls?.title}</Text>
+            <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">{teacher?.full_name}</Text>
+            <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-1">{classSchedule(cls)}</Text>
             <Text className={`text-xs font-medium mt-2 ${config.color}`}>{config.label}</Text>
 
             {enrollment.status === 'pending_payment' && (
@@ -198,8 +198,8 @@ function TeachingTab({
         <View className="mb-3">
           <Icon icon={GraduationCap} size={32} />
         </View>
-        <Text className="text-gray-500 text-sm font-medium">Sin clases publicadas</Text>
-        <Text className="text-gray-400 text-xs mt-1">Publica tu primera clase</Text>
+        <Text className="text-gray-500 dark:text-dark-text2 text-sm font-medium">Sin clases publicadas</Text>
+        <Text className="text-gray-400 dark:text-dark-text2/60 text-xs mt-1">Publica tu primera clase</Text>
       </View>
     )
   }
@@ -229,15 +229,15 @@ function TeachingTab({
           <Text className="text-red-600 text-xs">Resuelve estos pagos directamente con el alumno.</Text>
           <View className="gap-2">
             {debtors.map((d) => (
-              <View key={d.enrollmentId} className="bg-white border border-red-100 rounded-xl p-3 flex-row items-center gap-3">
+              <View key={d.enrollmentId} className="bg-white dark:bg-dark-surface border border-red-100 dark:border-red-900/40 rounded-xl p-3 flex-row items-center gap-3">
                 <View className="w-8 h-8 rounded-full bg-red-100 items-center justify-center">
                   <Text className="text-red-600 text-xs font-bold">
                     {d.student?.full_name?.charAt(0) ?? '?'}
                   </Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-semibold text-gray-900">{d.student?.full_name}</Text>
-                  <Text className="text-xs text-gray-500">@{d.student?.username} · {d.classTitle}</Text>
+                  <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{d.student?.full_name}</Text>
+                  <Text className="text-xs text-gray-500 dark:text-dark-text2">@{d.student?.username} · {d.classTitle}</Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => handleDebtConfirmed(d.studentId)}
@@ -261,15 +261,15 @@ function TeachingTab({
         const deleted = isDeleted(cls.deletion_date)
 
         return (
-          <View key={cls.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <View key={cls.id} className="bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-dark-border shadow-sm overflow-hidden">
             <TouchableOpacity
               onPress={() => setExpandedClass(isExpanded ? null : cls.id)}
               className="p-4"
             >
               <View className="flex-row items-start">
                 <View className="flex-1">
-                  <Text className="font-bold text-gray-900 text-sm">{cls.title}</Text>
-                  <Text className="text-xs text-gris-humo mt-0.5">{classSchedule(cls)}</Text>
+                  <Text className="font-bold text-gray-900 dark:text-dark-text text-sm">{cls.title}</Text>
+                  <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">{classSchedule(cls)}</Text>
                   <View className="flex-row gap-3 mt-1.5 flex-wrap">
                     <Text className="text-xs text-green-700 font-medium">{confirmed} confirmados</Text>
                     {pending > 0 && (
@@ -304,9 +304,9 @@ function TeachingTab({
             </TouchableOpacity>
 
             {isExpanded && (
-              <View className="border-t border-gray-100">
+              <View className="border-t border-gray-100 dark:border-dark-border">
                 {total === 0 ? (
-                  <Text className="text-center text-sm text-gray-400 py-6">Sin inscripciones aún</Text>
+                  <Text className="text-center text-sm text-gray-400 dark:text-dark-text2/60 py-6">Sin inscripciones aún</Text>
                 ) : (
                   <View>
                     {enrollments.filter((e: any) => e.status !== 'cancelled').map((enrollment: any) => {
@@ -317,7 +317,7 @@ function TeachingTab({
                       const isLoading = loadingEnrollment === enrollment.id
 
                       return (
-                        <View key={enrollment.id} className="p-4 border-t border-gray-50">
+                        <View key={enrollment.id} className="p-4 border-t border-gray-50 dark:border-dark-border/40">
                           <View className="flex-row items-center gap-3">
                             <View className="w-8 h-8 rounded-full bg-lavanda-suave items-center justify-center">
                               <Text className="text-xs font-bold" style={{ color: '#534AB7' }}>
@@ -325,8 +325,8 @@ function TeachingTab({
                               </Text>
                             </View>
                             <View className="flex-1">
-                              <Text className="text-sm font-semibold text-gray-900">{student?.full_name}</Text>
-                              <Text className="text-xs text-gris-humo">@{student?.username}</Text>
+                              <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{student?.full_name}</Text>
+                              <Text className="text-xs text-gris-humo dark:text-dark-text2">@{student?.username}</Text>
                             </View>
                             <TouchableOpacity
                               onPress={() => handleRemoveStudent(enrollment.id, student?.full_name ?? 'este alumno')}
@@ -337,7 +337,7 @@ function TeachingTab({
                           </View>
 
                           <View className="mt-2 ml-11">
-                            <Text className="text-xs text-gris-humo">
+                            <Text className="text-xs text-gris-humo dark:text-dark-text2">
                               {ENROLL_STATUS[enrollment.status]?.label ?? enrollment.status}
                             </Text>
                           </View>
@@ -350,7 +350,7 @@ function TeachingTab({
                                   <Text className="text-xs text-brand-600 font-medium">Ver comprobante ↗</Text>
                                 </TouchableOpacity>
                               )}
-                              <Text className="text-xs text-gris-humo">Monto: {formatCLP(payment.amount)}</Text>
+                              <Text className="text-xs text-gris-humo dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</Text>
                               <View className="flex-row gap-2">
                                 <TouchableOpacity
                                   onPress={() => handlePaymentAction(enrollment.id, payment.id, 'verified')}
@@ -363,7 +363,7 @@ function TeachingTab({
                                 <TouchableOpacity
                                   onPress={() => handlePaymentAction(enrollment.id, payment.id, 'rejected')}
                                   disabled={!!isLoading}
-                                  className={`flex-row items-center gap-1.5 border border-red-200 rounded-lg px-3 py-2 ${isLoading ? 'opacity-50' : ''}`}
+                                  className={`flex-row items-center gap-1.5 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 ${isLoading ? 'opacity-50' : ''}`}
                                 >
                                   <XCircle size={13} stroke="#ef4444" />
                                   <Text className="text-red-600 text-xs font-semibold">Rechazar</Text>
@@ -428,34 +428,34 @@ export default function MyClassesScreen() {
   useEffect(() => { load() }, [load])
 
   if (loading) return (
-    <SafeAreaView className="flex-1 items-center justify-center">
+    <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
       <ActivityIndicator color="#c026d3" />
     </SafeAreaView>
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta">
-      <View className="px-4 py-4 bg-white border-b border-gray-100">
-        <Text className="text-xl font-bold text-gray-900">Mis clases</Text>
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg">
+      <View className="px-4 py-4 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
+        <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">Mis clases</Text>
       </View>
 
       {/* Tab toggle */}
       <View className="px-4 pt-4 pb-0">
-        <View className="flex-row bg-gray-100 rounded-xl p-1 gap-1">
+        <View className="flex-row bg-gray-100 dark:bg-dark-surface2 rounded-xl p-1 gap-1">
           <TouchableOpacity
             onPress={() => setTab('enrolled')}
-            className={`flex-1 rounded-lg py-2 items-center ${tab === 'enrolled' ? 'bg-white shadow-sm' : ''}`}
+            className={`flex-1 rounded-lg py-2 items-center ${tab === 'enrolled' ? 'bg-white dark:bg-dark-surface shadow-sm' : ''}`}
           >
-            <Text className={`text-sm font-semibold ${tab === 'enrolled' ? 'text-gray-900' : 'text-gray-500'}`}>
+            <Text className={`text-sm font-semibold ${tab === 'enrolled' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
               Clases que tomo
               {enrollments.length > 0 ? ` (${enrollments.length})` : ''}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setTab('teaching')}
-            className={`flex-1 rounded-lg py-2 items-center ${tab === 'teaching' ? 'bg-white shadow-sm' : ''}`}
+            className={`flex-1 rounded-lg py-2 items-center ${tab === 'teaching' ? 'bg-white dark:bg-dark-surface shadow-sm' : ''}`}
           >
-            <Text className={`text-sm font-semibold ${tab === 'teaching' ? 'text-gray-900' : 'text-gray-500'}`}>
+            <Text className={`text-sm font-semibold ${tab === 'teaching' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
               Clases que dicto
               {teachingClasses.length > 0 ? ` (${teachingClasses.length})` : ''}
             </Text>

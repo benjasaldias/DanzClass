@@ -24,7 +24,7 @@ function StylesPicker({
 
   return (
     <View className="gap-2">
-      <Text className="text-sm font-medium text-gray-700">{label}</Text>
+      <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">{label}</Text>
       <View className="flex-row flex-wrap gap-1.5">
         {DANCE_STYLE_LIST.map((s) => {
           const active = selected.includes(s)
@@ -32,9 +32,9 @@ function StylesPicker({
             <TouchableOpacity
               key={s}
               onPress={() => toggle(s)}
-              className={`rounded-full px-3 py-1.5 border ${active ? 'bg-brand-600 border-brand-600' : 'bg-white border-gray-200'}`}
+              className={`rounded-full px-3 py-1.5 border ${active ? 'bg-brand-600 border-brand-600' : 'bg-white dark:bg-dark-surface2 border-gray-200 dark:border-dark-border'}`}
             >
-              <Text className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-600'}`}>{s}</Text>
+              <Text className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-600 dark:text-dark-text2'}`}>{s}</Text>
             </TouchableOpacity>
           )
         })}
@@ -161,7 +161,7 @@ export default function EditProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-blanco-violeta items-center justify-center" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg items-center justify-center" edges={['top']}>
         <ActivityIndicator color="#c026d3" />
       </SafeAreaView>
     )
@@ -175,12 +175,12 @@ export default function EditProfileScreen() {
     .toUpperCase() || 'U'
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900">Editar perfil</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Editar perfil</Text>
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
@@ -211,29 +211,29 @@ export default function EditProfileScreen() {
         )}
 
         {/* Basic info */}
-        <View className="bg-white border border-gray-100 rounded-xl p-4 gap-4">
+        <View className="bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl p-4 gap-4">
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Nombre completo</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Nombre completo</Text>
             <TextInput
               value={fullName}
               onChangeText={setFullName}
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900"
+              className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text dark:bg-dark-surface2"
             />
           </View>
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Usuario</Text>
-            <View className="flex-row items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-white">
-              <Text className="text-gray-400 text-sm mr-0.5">@</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Usuario</Text>
+            <View className="flex-row items-center border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 bg-white dark:bg-dark-surface2">
+              <Text className="text-gray-400 dark:text-dark-text2/60 text-sm mr-0.5">@</Text>
               <TextInput
                 value={username}
                 onChangeText={(t: string) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                className="flex-1 text-sm text-gray-900"
+                className="flex-1 text-sm text-gray-900 dark:text-dark-text"
                 autoCapitalize="none"
               />
             </View>
           </View>
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Bio</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Bio</Text>
             <TextInput
               value={bio}
               onChangeText={setBio}
@@ -243,13 +243,13 @@ export default function EditProfileScreen() {
               placeholder="Cuéntanos sobre ti..."
               placeholderTextColor="#9CA3AF"
               textAlignVertical="top"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900"
+              className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text dark:bg-dark-surface2"
               style={{ minHeight: 72 }}
             />
-            <Text className="text-right text-xs text-gray-400">{bio.length}/300</Text>
+            <Text className="text-right text-xs text-gray-400 dark:text-dark-text2/60">{bio.length}/300</Text>
           </View>
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Ciudad</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</Text>
             <MobileSelect
               value={city}
               options={CITY_OPTIONS}
@@ -259,15 +259,15 @@ export default function EditProfileScreen() {
             />
           </View>
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Instagram</Text>
-            <View className="flex-row items-center border border-gray-200 rounded-xl px-3 py-2.5 bg-white">
-              <Text className="text-gray-400 text-sm mr-0.5">@</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Instagram</Text>
+            <View className="flex-row items-center border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 bg-white dark:bg-dark-surface2">
+              <Text className="text-gray-400 dark:text-dark-text2/60 text-sm mr-0.5">@</Text>
               <TextInput
                 value={instagram}
                 onChangeText={setInstagram}
                 placeholder="tuusuario"
                 placeholderTextColor="#9CA3AF"
-                className="flex-1 text-sm text-gray-900"
+                className="flex-1 text-sm text-gray-900 dark:text-dark-text"
                 autoCapitalize="none"
               />
             </View>
@@ -275,24 +275,24 @@ export default function EditProfileScreen() {
         </View>
 
         {/* Dance styles */}
-        <View className="bg-white border border-gray-100 rounded-xl p-4 gap-5">
+        <View className="bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl p-4 gap-5">
           <StylesPicker label="Estilos que bailo" selected={stylesDancing} onChange={setStylesDancing} />
-          <View className="border-t border-gray-100 pt-4">
+          <View className="border-t border-gray-100 dark:border-dark-border pt-4">
             <StylesPicker label="Estilos que enseño" selected={stylesTeaching} onChange={setStylesTeaching} />
-            <Text className="text-xs text-gray-400 mt-2">Solo si enseñas — aparecerá en tu perfil público</Text>
+            <Text className="text-xs text-gray-400 dark:text-dark-text2/60 mt-2">Solo si enseñas — aparecerá en tu perfil público</Text>
           </View>
         </View>
 
         {/* Privacy */}
-        <View className="bg-white border border-gray-100 rounded-xl p-4 flex-row items-center justify-between gap-4">
+        <View className="bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-xl p-4 flex-row items-center justify-between gap-4">
           <View className="flex-1">
-            <Text className="text-sm font-medium text-gray-900">Clases inscritas públicas</Text>
-            <Text className="text-xs text-gray-500 mt-0.5">Otros usuarios pueden ver en qué clases estás inscrito</Text>
+            <Text className="text-sm font-medium text-gray-900 dark:text-dark-text">Clases inscritas públicas</Text>
+            <Text className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">Otros usuarios pueden ver en qué clases estás inscrito</Text>
           </View>
           <TouchableOpacity
             onPress={() => setEnrolledPublic(!enrolledPublic)}
             className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border ${
-              enrolledPublic ? 'bg-brand-50 border-brand-200' : 'bg-gray-100 border-gray-200'
+              enrolledPublic ? 'bg-brand-50 border-brand-200' : 'bg-gray-100 dark:bg-dark-surface2 border-gray-200 dark:border-dark-border'
             }`}
           >
             {enrolledPublic

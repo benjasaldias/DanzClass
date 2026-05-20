@@ -133,8 +133,8 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mb-5">
           <CheckCircle2 className="h-10 w-10 text-green-600" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">¡Comprobante enviado!</h2>
-        <p className="text-gray-500 text-sm">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">¡Comprobante enviado!</h2>
+        <p className="text-gray-500 dark:text-dark-text2 text-sm">
           El profesor verificará tu pago pronto. Te avisaremos cuando confirme tu inscripción.
         </p>
       </div>
@@ -143,14 +143,14 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
 
   return (
     <div className="px-4 py-4 space-y-5">
-      <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+      <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text">
         <ChevronLeft className="h-4 w-4" />
         Volver
       </button>
 
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Pagar clase</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{cls.title}</p>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">Pagar clase</h1>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-0.5">{cls.title}</p>
       </div>
 
       {missing2xPrice && (
@@ -193,7 +193,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
       {/* Bank details + form — only when this user pays */}
       {isMyTurnToPay && paymentInfo ? (
         <div className="card p-4 space-y-3">
-          <h3 className="font-semibold text-sm text-gray-900">Datos de transferencia</h3>
+          <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text">Datos de transferencia</h3>
 
           {[
             { label: 'Banco', value: paymentInfo.bank_name },
@@ -205,13 +205,13 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
           ].map(({ label, value, copyable }) => (
             <div key={label} className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-xs text-gray-500">{label}</p>
-                <p className="text-sm font-medium text-gray-900">{value}</p>
+                <p className="text-xs text-gray-500 dark:text-dark-text2">{label}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{value}</p>
               </div>
               {copyable && (
                 <button
                   onClick={() => copyToClipboard(value, label)}
-                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 flex-shrink-0"
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface2 text-gray-500 dark:text-dark-text2 flex-shrink-0"
                 >
                   {copiedField === label
                     ? <Check className="h-4 w-4 text-green-600" />
@@ -232,7 +232,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
       {isMyTurnToPay && (
         <>
           <div>
-            <h3 className="font-semibold text-sm text-gray-900 mb-2">
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text mb-2">
               {alreadySubmitted ? 'Comprobante enviado' : 'Sube el comprobante de pago'}
             </h3>
 
@@ -259,7 +259,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
                     ) : (
                       <div className="flex items-center gap-3 justify-center">
                         <FileImage className="h-8 w-8 text-gray-400" />
-                        <p className="text-sm font-medium text-gray-700">{receipt?.name}</p>
+                        <p className="text-sm font-medium text-gray-700 dark:text-dark-text2">{receipt?.name}</p>
                       </div>
                     )}
                     <p className="text-xs text-green-700 font-medium">✓ Archivo listo para enviar</p>

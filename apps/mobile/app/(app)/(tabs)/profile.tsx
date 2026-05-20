@@ -2,12 +2,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { MapPin, Users, Music2, ShieldCheck, AtSign } from 'lucide-react-native'
+import { MapPin, Users, Music2, ShieldCheck, AtSign, Sun, Moon } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import { canTeach } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
+import { useTheme } from '../../../context/ThemeContext'
 
 const TIER_LABELS: Record<string, string> = {
   none: 'Sin plan activo',
@@ -18,6 +19,7 @@ const TIER_LABELS: Record<string, string> = {
 
 export default function ProfileScreen() {
   const router = useRouter()
+  const { isDark, toggleTheme } = useTheme()
   const [profile, setProfile] = useState<any>(null)
   const [tier, setTier] = useState<SubscriptionTier>('none')
   const [userId, setUserId] = useState<string | null>(null)
@@ -85,10 +87,21 @@ export default function ProfileScreen() {
     : { bg: 'bg-brand-50', text: 'text-brand-700', border: 'border-brand-200' }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <ScrollView className="flex-1">
         {/* Profile header */}
-        <View className="bg-white px-4 py-6 gap-4 border-b border-gray-100">
+        <View className="bg-white dark:bg-dark-surface px-4 py-6 gap-4 border-b border-gray-100 dark:border-dark-border">
+          {/* Theme toggle */}
+          <View className="absolute top-4 right-4 z-10">
+            <TouchableOpacity
+              onPress={toggleTheme}
+              className="h-8 w-8 rounded-full bg-gray-100 dark:bg-dark-surface2 items-center justify-center"
+            >
+              {isDark
+                ? <Sun size={16} stroke="#A39BBF" />
+                : <Moon size={16} stroke="#6B6880" />}
+            </TouchableOpacity>
+          </View>
           {/* Avatar + name */}
           <View className="items-center gap-2">
             {profile.avatar_url ? (
@@ -98,46 +111,46 @@ export default function ProfileScreen() {
                 <Text className="text-brand-700 text-2xl font-bold">{initials}</Text>
               </View>
             )}
-            <Text className="text-xl font-bold text-gray-900">{profile.full_name}</Text>
-            <Text className="text-gris-humo text-sm">@{profile.username}</Text>
+            <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">{profile.full_name}</Text>
+            <Text className="text-gris-humo dark:text-dark-text2 text-sm">@{profile.username}</Text>
             {profile.city && (
               <View className="flex-row items-center gap-1">
                 <MapPin size={12} stroke="#6B6880" />
-                <Text className="text-xs text-gray-400">{profile.city}</Text>
+                <Text className="text-xs text-gray-400 dark:text-dark-text2">{profile.city}</Text>
               </View>
             )}
             {profile.instagram_handle && (
               <View className="flex-row items-center gap-1">
                 <AtSign size={12} stroke="#6B6880" />
-                <Text className="text-xs text-gray-400">@{profile.instagram_handle}</Text>
+                <Text className="text-xs text-gray-400 dark:text-dark-text2">@{profile.instagram_handle}</Text>
               </View>
             )}
-            {profile.bio && <Text className="text-sm text-gray-600 text-center">{profile.bio}</Text>}
+            {profile.bio && <Text className="text-sm text-gray-600 dark:text-dark-text2 text-center">{profile.bio}</Text>}
           </View>
 
           {/* Stats */}
           <View className="flex-row justify-around">
             <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900">{followers}</Text>
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{followers}</Text>
               <View className="flex-row items-center gap-1">
                 <Users size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo">seguidores</Text>
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">seguidores</Text>
               </View>
             </View>
-            <View className="w-px bg-gray-100" />
+            <View className="w-px bg-gray-100 dark:bg-dark-border" />
             <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900">{classes.length}</Text>
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{classes.length}</Text>
               <View className="flex-row items-center gap-1">
                 <Music2 size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo">clases</Text>
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">clases</Text>
               </View>
             </View>
-            <View className="w-px bg-gray-100" />
+            <View className="w-px bg-gray-100 dark:bg-dark-border" />
             <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900">{trustCount}</Text>
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{trustCount}</Text>
               <View className="flex-row items-center gap-1">
                 <ShieldCheck size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo">confían</Text>
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">confían</Text>
               </View>
             </View>
           </View>
@@ -150,7 +163,7 @@ export default function ProfileScreen() {
           {/* Dance styles */}
           {profile.styles_teaching?.length > 0 && (
             <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-gris-humo uppercase tracking-wide">Enseña</Text>
+              <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Enseña</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_teaching.map((s: string) => (
                   <View key={s} className="bg-brand-50 rounded-full px-3 py-1">
@@ -162,7 +175,7 @@ export default function ProfileScreen() {
           )}
           {profile.styles_dancing?.length > 0 && (
             <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-gris-humo uppercase tracking-wide">Baila</Text>
+              <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Baila</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_dancing.map((s: string) => (
                   <View key={s} className="bg-lavanda-suave rounded-full px-3 py-1">
@@ -178,17 +191,17 @@ export default function ProfileScreen() {
         <View className="mx-4 mt-4 flex-row flex-wrap gap-2">
           <TouchableOpacity
             onPress={() => router.push('/(app)/profile/edit' as any)}
-            className="border border-gray-200 rounded-full px-4 py-2 bg-white"
+            className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
           >
-            <Text className="text-sm font-semibold text-gray-700">Editar perfil</Text>
+            <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Editar perfil</Text>
           </TouchableOpacity>
 
           {canTeach(tier) && (
             <TouchableOpacity
               onPress={() => router.push('/(app)/profile/payment-info' as any)}
-              className="border border-gray-200 rounded-full px-4 py-2 bg-white"
+              className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
             >
-              <Text className="text-sm font-semibold text-gray-700">Datos transferencia</Text>
+              <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Datos transferencia</Text>
             </TouchableOpacity>
           )}
 
@@ -210,7 +223,7 @@ export default function ProfileScreen() {
         {/* Active classes */}
         {classes.length > 0 && (
           <View className="mt-4">
-            <Text className="px-4 pb-2 text-sm font-bold text-gray-700">
+            <Text className="px-4 pb-2 text-sm font-bold text-gray-700 dark:text-dark-text2">
               Mis clases activas ({classes.length})
             </Text>
             {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
@@ -219,9 +232,9 @@ export default function ProfileScreen() {
             {classes.length > 5 && !showAllClasses && (
               <TouchableOpacity
                 onPress={() => setShowAllClasses(true)}
-                className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+                className="mx-4 mt-2 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl items-center bg-white dark:bg-dark-surface"
               >
-                <Text className="text-sm text-brand-600 font-semibold">Ver todas ({classes.length})</Text>
+                <Text className="text-sm text-brand-600 dark:text-brand-300 font-semibold">Ver todas ({classes.length})</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -230,7 +243,7 @@ export default function ProfileScreen() {
         {/* Posts */}
         {posts.length > 0 && (
           <View className="mt-4">
-            <Text className="px-4 pb-2 text-sm font-bold text-gray-700">
+            <Text className="px-4 pb-2 text-sm font-bold text-gray-700 dark:text-dark-text2">
               Mis publicaciones ({posts.length})
             </Text>
             {(showAllPosts ? posts : posts.slice(0, 5)).map((p: any) => (
@@ -239,9 +252,9 @@ export default function ProfileScreen() {
             {posts.length > 5 && !showAllPosts && (
               <TouchableOpacity
                 onPress={() => setShowAllPosts(true)}
-                className="mx-4 mt-2 py-2.5 border border-gray-200 rounded-xl items-center"
+                className="mx-4 mt-2 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl items-center bg-white dark:bg-dark-surface"
               >
-                <Text className="text-sm text-brand-600 font-semibold">Ver todas ({posts.length})</Text>
+                <Text className="text-sm text-brand-600 dark:text-brand-300 font-semibold">Ver todas ({posts.length})</Text>
               </TouchableOpacity>
             )}
           </View>

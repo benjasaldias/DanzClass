@@ -105,23 +105,23 @@ export default function PaymentInfoScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-blanco-violeta items-center justify-center" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg items-center justify-center" edges={['top']}>
         <ActivityIndicator color="#c026d3" />
       </SafeAreaView>
     )
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900">Datos Transferencia</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Datos Transferencia</Text>
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
-        <Text className="text-sm text-gray-500">Los estudiantes usarán estos datos para transferirte</Text>
+        <Text className="text-sm text-gray-500 dark:text-dark-text2">Los estudiantes usarán estos datos para transferirte</Text>
 
         {saved && (
           <View className="bg-green-50 border border-green-200 rounded-xl p-3 flex-row items-center gap-2">
@@ -147,44 +147,44 @@ export default function PaymentInfoScreen() {
         />
 
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">Número de cuenta *</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Número de cuenta *</Text>
           <TextInput
             value={accountNumber}
             onChangeText={setAccountNumber}
             placeholder="000000000"
             placeholderTextColor="#9CA3AF"
             keyboardType="numeric"
-            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.accountNumber ? 'border-red-300' : 'border-gray-200'}`}
+            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.accountNumber ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
           />
           {errors.accountNumber && <Text className="text-xs text-red-600">{errors.accountNumber}</Text>}
         </View>
 
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">RUT *</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">RUT *</Text>
           <TextInput
             value={rut}
             onChangeText={setRut}
             placeholder="12.345.678-9"
             placeholderTextColor="#9CA3AF"
-            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.rut ? 'border-red-300' : 'border-gray-200'}`}
+            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.rut ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
           />
           {errors.rut && <Text className="text-xs text-red-600">{errors.rut}</Text>}
         </View>
 
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">Nombre titular *</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Nombre titular *</Text>
           <TextInput
             value={holderName}
             onChangeText={setHolderName}
             placeholder="Nombre completo del titular"
             placeholderTextColor="#9CA3AF"
-            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.holderName ? 'border-red-300' : 'border-gray-200'}`}
+            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.holderName ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
           />
           {errors.holderName && <Text className="text-xs text-red-600">{errors.holderName}</Text>}
         </View>
 
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">Email para transferencia *</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Email para transferencia *</Text>
           <TextInput
             value={email}
             onChangeText={setEmail}
@@ -192,7 +192,7 @@ export default function PaymentInfoScreen() {
             placeholderTextColor="#9CA3AF"
             keyboardType="email-address"
             autoCapitalize="none"
-            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.email ? 'border-red-300' : 'border-gray-200'}`}
+            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.email ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
           />
           {errors.email && <Text className="text-xs text-red-600">{errors.email}</Text>}
         </View>

@@ -39,11 +39,11 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
   if (enrollments.length === 0) {
     return (
       <div className="flex flex-col items-center py-16 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 mb-4">
-          <BookOpen className="h-8 w-8 text-gray-400" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-surface mb-4">
+          <BookOpen className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
         </div>
-        <h3 className="font-semibold text-gray-900">Sin clases inscritas</h3>
-        <p className="text-sm text-gray-500 mt-1">Explora clases disponibles y apúntate</p>
+        <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin clases inscritas</h3>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">Explora clases disponibles y apúntate</p>
         <Link href="/explore" className="mt-4 btn-primary">Explorar clases</Link>
       </div>
     )
@@ -65,7 +65,7 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
           <Link key={enrollment.id} href={`/class/${cls?.id}`} className="card p-4 flex gap-3 hover:shadow-md transition-shadow">
             <Avatar src={teacher?.avatar_url} name={teacher?.full_name ?? '?'} size="md" />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-gray-900 truncate">{cls?.title}</p>
+              <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls?.title}</p>
               <p className="text-xs text-gray-500">{teacher?.full_name}</p>
               <p className="text-xs text-gray-500 mt-0.5">{schedule}</p>
               <div className={cn('mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium', config.color)}>
@@ -199,11 +199,11 @@ function TeachingTab({
   if (classData.length === 0) {
     return (
       <div className="flex flex-col items-center py-16 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 mb-4">
-          <Users className="h-8 w-8 text-gray-400" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-surface mb-4">
+          <Users className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
         </div>
-        <h3 className="font-semibold text-gray-900">Sin clases publicadas</h3>
-        <p className="text-sm text-gray-500 mt-1">Publica tu primera clase</p>
+        <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin clases publicadas</h3>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">Publica tu primera clase</p>
         <Link href="/create-class" className="mt-4 btn-primary">Publicar clase</Link>
       </div>
     )
@@ -241,7 +241,7 @@ function TeachingTab({
           </p>
           <div className="space-y-2">
             {debtors.map((d: any) => (
-              <div key={d.enrollmentId} className="flex items-center gap-3 rounded-lg bg-white border border-red-100 p-3">
+              <div key={d.enrollmentId} className="flex items-center gap-3 rounded-lg bg-white dark:bg-dark-surface border border-red-100 dark:border-red-900/40 p-3">
                 <Avatar src={d.student?.avatar_url} name={d.student?.full_name ?? '?'} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{d.student?.full_name}</p>
@@ -276,10 +276,10 @@ function TeachingTab({
             <div key={cls.id} className="card overflow-hidden">
               <button
                 onClick={() => setExpandedClass(isExpanded ? null : cls.id)}
-                className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
+                className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-gray-900 truncate">{cls.title}</p>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls.title}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {cls.type === 'suelta'
                       ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
@@ -333,7 +333,7 @@ function TeachingTab({
               </button>
 
               {isExpanded && (
-                <div className="border-t border-gray-100">
+                <div className="border-t border-gray-100 dark:border-dark-border">
                   {/* Post-deletion pending list */}
                   {deleted && (
                     <div className="p-4 bg-coral-fuego/10 border-b border-coral-fuego/20">
@@ -352,7 +352,7 @@ function TeachingTab({
                             .map((e: any) => (
                               <div key={e.id} className="flex items-center gap-2">
                                 <Avatar src={e.student?.avatar_url} name={e.student?.full_name ?? '?'} size="sm" />
-                                <span className="text-xs text-gray-700 flex-1">{e.student?.full_name}</span>
+                                <span className="text-xs text-gray-700 dark:text-dark-text2 flex-1">{e.student?.full_name}</span>
                                 <button
                                   onClick={() => handleDebtConfirmed(e.student?.id ?? e.student_id)}
                                   className="text-xs rounded-lg bg-green-600 text-white px-2.5 py-1 hover:bg-green-700 transition-colors"
@@ -369,7 +369,7 @@ function TeachingTab({
                   {enrollments.filter((e: any) => e.status !== 'cancelled').length === 0 ? (
                     <p className="text-center text-sm text-gray-400 py-6">Sin inscripciones aún</p>
                   ) : (
-                    <div className="divide-y divide-gray-50">
+                    <div className="divide-y divide-gray-50 dark:divide-dark-border">
                       {enrollments
                         .filter((e: any) => e.status !== 'cancelled')
                         .map((enrollment: any) => {
@@ -384,7 +384,7 @@ function TeachingTab({
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2">
-                                    <p className="text-sm font-semibold text-gray-900">{student?.full_name}</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">{student?.full_name}</p>
                                     <span className={cn('flex items-center gap-1 text-xs font-medium', config?.color)}>
                                       <span className={cn('h-1.5 w-1.5 rounded-full', config?.dot)} />
                                       {config?.label}
@@ -473,21 +473,21 @@ export default function MyClassesClient({
 
   return (
     <div className="px-4 py-4">
-      <h1 className="text-xl font-bold text-gray-900 mb-4">Mis clases</h1>
+      <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-4">Mis clases</h1>
 
       {/* Tab toggle */}
-      <div className="flex gap-1 mb-5 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 mb-5 bg-gray-100 dark:bg-dark-surface rounded-xl p-1">
         <button
           onClick={() => setTab('enrolled')}
           className={cn(
             'flex-1 rounded-lg py-2 text-sm font-semibold transition-colors',
-            tab === 'enrolled' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            tab === 'enrolled' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
           )}
         >
           Clases que tomo
           {enrollments.length > 0 && (
             <span className={cn('ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
-              tab === 'enrolled' ? 'bg-brand-100 text-brand-700' : 'bg-gray-300 text-gray-600'
+              tab === 'enrolled' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
             )}>
               {enrollments.length}
             </span>
@@ -497,13 +497,13 @@ export default function MyClassesClient({
           onClick={() => setTab('teaching')}
           className={cn(
             'flex-1 rounded-lg py-2 text-sm font-semibold transition-colors',
-            tab === 'teaching' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            tab === 'teaching' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
           )}
         >
           Clases que dicto
           {teachingClasses.length > 0 && (
             <span className={cn('ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
-              tab === 'teaching' ? 'bg-brand-100 text-brand-700' : 'bg-gray-300 text-gray-600'
+              tab === 'teaching' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
             )}>
               {teachingClasses.length}
             </span>

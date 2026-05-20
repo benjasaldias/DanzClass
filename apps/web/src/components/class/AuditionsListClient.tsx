@@ -102,8 +102,8 @@ export default function AuditionsListClient({
     <div className="px-4 py-4 pb-32">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Postulaciones</h1>
-          <p className="text-sm text-gray-500">{classTitle}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">Postulaciones</h1>
+          <p className="text-sm text-gray-500 dark:text-dark-text2">{classTitle}</p>
         </div>
         {!auditionClosed && (
           <button
@@ -118,20 +118,20 @@ export default function AuditionsListClient({
       </div>
 
       {auditionClosed && (
-        <div className="mb-4 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-600">
+        <div className="mb-4 rounded-xl bg-gray-50 dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border px-4 py-3 text-sm text-gray-600 dark:text-dark-text2">
           Las postulaciones están cerradas. Ahora puedes editar la clase normalmente.
         </div>
       )}
 
       {auditions.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-dark-text2">
           <p className="text-sm">Aún no hay postulaciones</p>
         </div>
       ) : (
         <div className="space-y-4">
           {pendingAuditions.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              <h2 className="text-xs font-semibold text-gray-400 dark:text-dark-text2/60 uppercase tracking-wider mb-2">
                 Pendientes ({pendingAuditions.length})
               </h2>
               <div className="space-y-2">
@@ -152,7 +152,7 @@ export default function AuditionsListClient({
 
           {decidedAuditions.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              <h2 className="text-xs font-semibold text-gray-400 dark:text-dark-text2/60 uppercase tracking-wider mb-2">
                 Publicadas ({decidedAuditions.length})
               </h2>
               <div className="space-y-2">
@@ -175,7 +175,7 @@ export default function AuditionsListClient({
 
       {/* Sticky publish bar */}
       {!auditionClosed && pendingDecisionsCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white px-4 py-3 shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-3 shadow-lg">
           <button
             onClick={handlePublish}
             disabled={publishing}
@@ -227,7 +227,7 @@ function AuditionCard({
   const effectiveStatus = localDecision ?? audition.status
 
   const statusConfig = {
-    pending: { color: 'bg-gray-50 border-gray-200', badge: null },
+    pending: { color: 'bg-gray-50 dark:bg-dark-surface border-gray-200 dark:border-dark-border', badge: null },
     accepted: { color: 'bg-green-100 border-green-200', badge: 'Aceptada' },
     rejected: { color: 'bg-red-50 border-red-200', badge: 'Rechazada' },
   }
@@ -240,7 +240,7 @@ function AuditionCard({
         <Avatar src={audition.applicant?.avatar_url} name={audition.full_name} size="sm" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-gray-900 truncate">{audition.full_name}</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-dark-text truncate">{audition.full_name}</p>
             {effectiveStatus !== 'pending' && (
               <span className={cn(
                 'text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0',
@@ -252,10 +252,10 @@ function AuditionCard({
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500">@{audition.applicant?.username}</p>
+          <p className="text-xs text-gray-500 dark:text-dark-text2">@{audition.applicant?.username}</p>
           <div className="flex items-center gap-3 mt-0.5">
-            {audition.age && <span className="text-xs text-gray-400">{audition.age} años</span>}
-            {audition.phone && <span className="text-xs text-gray-400">{audition.phone}</span>}
+            {audition.age && <span className="text-xs text-gray-400 dark:text-dark-text2/60">{audition.age} años</span>}
+            {audition.phone && <span className="text-xs text-gray-400 dark:text-dark-text2/60">{audition.phone}</span>}
           </div>
         </div>
         {audition.video_url && (
@@ -291,7 +291,7 @@ function AuditionCard({
           ) : (
             <button
               onClick={onClear}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-2 text-xs font-medium text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2 transition-colors"
             >
               Deshacer
             </button>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native'
+import { View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { SlidersHorizontal, X } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
+import { DANCE_STYLES } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 
 type UserTab = 'all' | 'friends' | 'following'
@@ -17,6 +19,8 @@ export default function ExploreScreen() {
   const [tab, setTab] = useState<'classes' | 'users'>('classes')
   const [userTab, setUserTab] = useState<UserTab>('all')
   const [query, setQuery] = useState('')
+  const [selectedStyle, setSelectedStyle] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
   const [classes, setClasses] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [friendIds, setFriendIds] = useState<string[]>([])
@@ -57,7 +61,7 @@ export default function ExploreScreen() {
           f.requester_id === uid ? f.addressee_id : f.requester_id
         )
         setFriendIds(fids)
-        setFollowingIds(followsRes.data?.map((f) => f.following_id) ?? [])
+        setFollowingIds(followsRes.data?.map((f: any) => f.following_id) ?? [])
       } catch {
         // show empty lists on error
       } finally {
@@ -67,11 +71,13 @@ export default function ExploreScreen() {
     load()
   }, [])
 
-  const filteredClasses = classes.filter((c) =>
-    !query ||
-    c.title.toLowerCase().includes(query.toLowerCase()) ||
-    c.dance_style?.toLowerCase().includes(query.toLowerCase())
-  )
+  const filteredClasses = classes.filter((c) => {
+    const matchQuery = !query ||
+      c.title.toLowerCase().includes(query.toLowerCase()) ||
+      c.dance_style?.toLowerCase().includes(query.toLowerCase())
+    const matchStyle = !selectedStyle || c.dance_style === selectedStyle
+    return matchQuery && matchStyle
+  })
 
   const baseUsers = users.filter((u) => u.id !== userId)
   const filteredUsers = baseUsers
@@ -86,31 +92,95 @@ export default function ExploreScreen() {
       u.username?.toLowerCase().includes(query.toLowerCase())
     )
 
+  const activeFilterCount = selectedStyle ? 1 : 0
+  const hasActiveFilters = activeFilterCount > 0
+
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
-      <View className="px-4 pt-4 pb-2 bg-white border-b border-gray-100 gap-3">
-        <Text className="text-xl font-bold text-gray-900">Explorar</Text>
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={tab === 'classes' ? 'Buscar clases...' : 'Buscar usuarios...'}
-          className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50"
-          placeholderTextColor="#9ca3af"
-        />
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      <View className="px-4 pt-4 pb-2 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border gap-3">
+        <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">Explorar</Text>
+
+        {/* Search bar + filter toggle */}
+        <View className="flex-row gap-2 items-center">
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={tab === 'classes' ? 'Buscar clases...' : 'Buscar usuarios...'}
+            className="flex-1 border border-gray-200 dark:border-dark-border rounded-xl px-4 py-2.5 text-sm bg-gray-50 dark:bg-dark-surface2 text-gray-900 dark:text-dark-text"
+            placeholderTextColor="#9ca3af"
+          />
+          {tab === 'classes' && (
+            <TouchableOpacity
+              onPress={() => setShowFilters((v) => !v)}
+              className={`flex-row items-center gap-1 rounded-xl border px-3 py-2.5 ${
+                hasActiveFilters
+                  ? 'border-morado-flow bg-morado-flow/10'
+                  : 'border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-surface2'
+              }`}
+            >
+              <SlidersHorizontal
+                size={16}
+                stroke={hasActiveFilters ? '#7F77DD' : '#6B6880'}
+              />
+              {activeFilterCount > 0 && (
+                <View className="h-4 w-4 rounded-full bg-morado-flow items-center justify-center">
+                  <Text className="text-white text-[10px] font-bold">{activeFilterCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Main tab: Clases / Usuarios */}
         <View className="flex-row gap-2">
           {(['classes', 'users'] as const).map((t) => (
             <TouchableOpacity
               key={t}
               onPress={() => setTab(t)}
-              className={`flex-1 rounded-full py-1.5 items-center ${tab === t ? 'bg-brand-600' : 'bg-gray-100'}`}
+              className={`flex-1 rounded-full py-1.5 items-center ${tab === t ? 'bg-brand-600' : 'bg-gray-100 dark:bg-dark-surface2'}`}
             >
-              <Text className={`text-sm font-medium ${tab === t ? 'text-white' : 'text-gray-600'}`}>
+              <Text className={`text-sm font-medium ${tab === t ? 'text-white' : 'text-gray-600 dark:text-dark-text2'}`}>
                 {t === 'classes' ? 'Clases' : 'Usuarios'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Collapsible genre filter (classes tab only) */}
+        {tab === 'classes' && showFilters && (
+          <View className="gap-2">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-1">
+              <View className="flex-row gap-2 px-1">
+                {DANCE_STYLES.map((style) => (
+                  <TouchableOpacity
+                    key={style}
+                    onPress={() => setSelectedStyle(selectedStyle === style ? '' : style)}
+                    className={`rounded-full px-3 py-1.5 border ${
+                      selectedStyle === style
+                        ? 'bg-morado-flow border-morado-flow'
+                        : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
+                    }`}
+                  >
+                    <Text className={`text-xs font-medium ${
+                      selectedStyle === style ? 'text-white' : 'text-gray-600 dark:text-dark-text2'
+                    }`}>
+                      {style}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            {hasActiveFilters && (
+              <TouchableOpacity
+                onPress={() => setSelectedStyle('')}
+                className="flex-row items-center gap-1 self-start"
+              >
+                <X size={12} stroke="#7F77DD" />
+                <Text className="text-xs text-morado-flow font-medium">Limpiar filtros</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* User sub-tabs */}
         {tab === 'users' && (
@@ -119,9 +189,9 @@ export default function ExploreScreen() {
               <TouchableOpacity
                 key={key}
                 onPress={() => setUserTab(key)}
-                className={`rounded-full px-3 py-1 ${userTab === key ? 'bg-morado-flow' : 'bg-gray-100'}`}
+                className={`rounded-full px-3 py-1 ${userTab === key ? 'bg-morado-flow' : 'bg-gray-100 dark:bg-dark-surface2'}`}
               >
-                <Text className={`text-xs font-medium ${userTab === key ? 'text-white' : 'text-gray-600'}`}>
+                <Text className={`text-xs font-medium ${userTab === key ? 'text-white' : 'text-gray-600 dark:text-dark-text2'}`}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -141,7 +211,7 @@ export default function ExploreScreen() {
           renderItem={({ item }: { item: any }) => <MobileClassCard classData={item} currentUserId={userId} />}
           ListEmptyComponent={
             <View className="py-12 items-center">
-              <Text className="text-gray-500 text-sm">Sin resultados</Text>
+              <Text className="text-gray-500 dark:text-dark-text2 text-sm">Sin resultados</Text>
             </View>
           }
         />
@@ -152,7 +222,7 @@ export default function ExploreScreen() {
           contentContainerStyle={{ padding: 16, gap: 10 }}
           ListEmptyComponent={
             <View className="py-12 items-center">
-              <Text className="text-gray-500 text-sm">
+              <Text className="text-gray-500 dark:text-dark-text2 text-sm">
                 {userTab === 'friends' ? 'Aún no tienes amigos' :
                  userTab === 'following' ? 'No sigues a nadie aún' :
                  'Sin resultados'}
@@ -171,7 +241,7 @@ export default function ExploreScreen() {
             return (
               <TouchableOpacity
                 onPress={() => router.push(`/(app)/teacher/${u.username}` as any)}
-                className="flex-row items-center gap-3 bg-white rounded-2xl p-4 border border-gray-100"
+                className="flex-row items-center gap-3 bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border"
               >
                 {u.avatar_url ? (
                   <Image source={{ uri: u.avatar_url }} className="w-12 h-12 rounded-full" />
@@ -181,9 +251,9 @@ export default function ExploreScreen() {
                   </View>
                 )}
                 <View className="flex-1 gap-0.5">
-                  <Text className="font-semibold text-gray-900">{u.full_name}</Text>
-                  <Text className="text-xs text-gris-humo">@{u.username}</Text>
-                  {u.city && <Text className="text-xs text-gray-400">{u.city}</Text>}
+                  <Text className="font-semibold text-gray-900 dark:text-dark-text">{u.full_name}</Text>
+                  <Text className="text-xs text-gris-humo dark:text-dark-text2">@{u.username}</Text>
+                  {u.city && <Text className="text-xs text-gray-400 dark:text-dark-text2">{u.city}</Text>}
                   {u.styles_teaching?.length > 0 && (
                     <View className="flex-row flex-wrap gap-1 mt-1">
                       {u.styles_teaching.slice(0, 3).map((s: string) => (
@@ -205,7 +275,7 @@ export default function ExploreScreen() {
                       <Text className="text-xs text-brand-700">Siguiendo</Text>
                     </View>
                   )}
-                  <Text className="text-gray-300 text-lg">›</Text>
+                  <Text className="text-gray-300 dark:text-dark-text2 text-lg">›</Text>
                 </View>
               </TouchableOpacity>
             )

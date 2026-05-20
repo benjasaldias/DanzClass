@@ -51,7 +51,7 @@ export default function FriendsTwoxList({ requests, currentUserId }: FriendsTwox
   const active = requests.filter((r) => !gone.has(r.id))
 
   return (
-    <div className="border-b border-gray-100 bg-gradient-to-r from-brand-50 to-violet-50">
+    <div className="border-b border-gray-100 dark:border-dark-border bg-gradient-to-r from-brand-50 to-violet-50 dark:from-brand-950/20 dark:to-violet-950/20">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center justify-between w-full px-4 py-3"
@@ -60,16 +60,16 @@ export default function FriendsTwoxList({ requests, currentUserId }: FriendsTwox
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-600">
             <Users className="h-3.5 w-3.5 text-white" />
           </div>
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-gray-900 dark:text-dark-text">
             {active.length === 1
               ? '1 amig@ busca compañer@ 2x'
               : `${active.length} amig@s buscan compañer@ 2x`}
           </span>
         </div>
         {open ? (
-          <ChevronUp className="h-4 w-4 text-gray-500" />
+          <ChevronUp className="h-4 w-4 text-gray-500 dark:text-dark-text2" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-gray-500" />
+          <ChevronDown className="h-4 w-4 text-gray-500 dark:text-dark-text2" />
         )}
       </button>
 
@@ -81,14 +81,14 @@ export default function FriendsTwoxList({ requests, currentUserId }: FriendsTwox
             return (
               <div
                 key={entry.id}
-                className="flex items-center gap-3 rounded-xl bg-white border border-gray-100 px-3 py-2.5"
+                className="flex items-center gap-3 rounded-xl bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border px-3 py-2.5"
               >
                 <Link href={`/teacher/${entry.user.username}`} className="flex-shrink-0">
                   <Avatar src={entry.user.avatar_url} name={entry.user.full_name} size="sm" />
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{entry.user.full_name}</p>
-                  <p className="text-xs text-gray-500 truncate">{entry.class.title}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-dark-text truncate">{entry.user.full_name}</p>
+                  <p className="text-xs text-gray-500 dark:text-dark-text2 truncate">{entry.class.title}</p>
                   {price && !alreadyTaken && (
                     <p className="text-xs text-brand-600 font-medium">{formatCLP(price)} en pareja</p>
                   )}

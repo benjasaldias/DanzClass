@@ -4,9 +4,10 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import type { Session } from '@supabase/supabase-js'
+import { ThemeProvider } from '../context/ThemeContext'
 import '../global.css'
 
-export default function RootLayout() {
+function AppContent() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const router = useRouter()
   const segments = useSegments()
@@ -14,7 +15,6 @@ export default function RootLayout() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        // Refresh token invalid/expired — clear stored tokens and force re-login
         supabase.auth.signOut().finally(() => setSession(null))
       } else {
         setSession(session)
@@ -29,7 +29,7 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
-    if (session === undefined) return // still loading
+    if (session === undefined) return
 
     const inAuthGroup = segments[0] === '(auth)'
     const inAppGroup = segments[0] === '(app)'
@@ -41,9 +41,19 @@ export default function RootLayout() {
   }, [session, segments])
 
   return (
-    <SafeAreaProvider>
+    <>
       <StatusBar style="auto" />
       <Slot />
+    </>
+  )
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   )
 }

@@ -73,8 +73,8 @@ export default function RegisterPage() {
                 <MailCheck className="h-8 w-8 text-brand-600" />
               </div>
             </div>
-            <h1 className="text-xl font-bold text-gray-900">Revisa tu correo</h1>
-            <p className="text-sm text-gray-500 leading-relaxed">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">Revisa tu correo</h1>
+            <p className="text-sm text-gray-500 dark:text-dark-text2 leading-relaxed">
               Te enviamos un enlace de confirmación. Haz clic en él para activar tu cuenta y luego inicia sesión.
             </p>
             <Link
@@ -102,44 +102,44 @@ export default function RegisterPage() {
         </div>
 
         <div className="card p-6">
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Crear cuenta</h1>
-          <p className="text-sm text-gray-500 mb-6">Únete a la comunidad de baile</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-1">Crear cuenta</h1>
+          <p className="text-sm text-gray-500 dark:text-dark-text2 mb-6">Únete a la comunidad de baile</p>
 
           {error && (
-            <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre completo</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Nombre completo</label>
               <input {...register('full_name')} placeholder="Tu nombre" className="input" />
               {errors.full_name && <p className="mt-1 text-xs text-red-600">{errors.full_name.message}</p>}
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Usuario</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Usuario</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-text2 text-sm">@</span>
                 <input {...register('username')} placeholder="tuusuario" className="input pl-7" />
               </div>
               {errors.username && <p className="mt-1 text-xs text-red-600">{errors.username.message}</p>}
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Email</label>
               <input {...register('email')} type="email" placeholder="tu@email.com" className="input" autoComplete="email" />
               {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</label>
               <input {...register('city')} placeholder="Santiago, Valparaíso..." className="input" />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Contraseña</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Contraseña</label>
               <div className="relative">
                 <input
                   {...register('password')}
@@ -167,7 +167,7 @@ export default function RegisterPage() {
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
                 />
-                <span className="text-sm text-gray-600 leading-snug">
+                <span className="text-sm text-gray-600 dark:text-dark-text2 leading-snug">
                   He leído y acepto los{' '}
                   <Link
                     href="/terms"
@@ -190,9 +190,9 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-gray-500">
+          <p className="mt-4 text-center text-sm text-gray-500 dark:text-dark-text2">
             ¿Ya tienes cuenta?{' '}
-            <Link href="/auth/login" className="font-semibold text-brand-600 hover:text-brand-700">
+            <Link href="/auth/login" className="font-semibold text-brand-600 dark:text-brand-300 hover:text-brand-700">
               Inicia sesión
             </Link>
           </p>

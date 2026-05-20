@@ -265,15 +265,34 @@ Política RLS `notifications_insert_any` con `WITH CHECK (true)`.
 **Scroll en campos numéricos:**
 Todos los `<input type="number">` tienen `onWheel={(e) => (e.target as HTMLInputElement).blur()}`.
 
-**Modo oscuro (web):**
+**Modo oscuro (web):** ✅ Completo (sesión 2026-05-19)
 
 - Estrategia: `darkMode: 'class'` en `tailwind.config.ts` + `next-themes` (`ThemeProvider` en root layout)
 - Toggle: `ThemeToggle.tsx` (sun/moon), solo en `/profile` — esquina superior derecha
 - Persistencia: `localStorage` automático vía next-themes; fallback a `prefers-color-scheme`
 - Tokens dark en tailwind: `dark-bg` (#1A1035), `dark-surface` (#241547), `dark-surface2` (#2E1B5C), `dark-border` (#3D2870), `dark-text` (#EEEDFE), `dark-text2` (#A39BBF)
 - Overrides globales en `globals.css`: `.dark .input`, `.dark .card`, `.dark .btn-secondary`, `.dark body`
-- Componentes migrados: layout shell, TopBar, BottomNav, FeedClient, ClassCard, PostCard, profile/page, auth/login
-- Componentes pendientes de dark mode: ClassDetailClient, CreateClassForm, EditClassForm, MyClassesClient, NotificationsClient, PaymentClient, PlansPage, TeacherProfileClient, EditProfileForm, ExploreClient, auth/register, y toda la app mobile
+- Todos los componentes migrados ✅
+
+**Modo oscuro (mobile):** ✅ Completo (sesión 2026-05-19)
+
+- Estrategia: NativeWind `useColorScheme` + `setColorScheme` con clase `dark` en root view
+- Context: `apps/mobile/context/ThemeContext.tsx` — `useTheme()` expone `theme`, `toggleTheme`; persiste con `AsyncStorage` (clave `'app_theme'`)
+- Toggle: pantalla de perfil propio (`(tabs)/profile.tsx`)
+- Mismos tokens dark que web: `dark-bg`, `dark-surface`, `dark-surface2`, `dark-border`, `dark-text`, `dark-text2`
+- Todas las pantallas mobile migradas ✅
+
+**Explore web — filtros colapsables (sesión 2026-05-19):**
+
+- Ícono `SlidersHorizontal` con badge de count de filtros activos; panel expandible/colapsable
+- Estado activo en morado-flow (`#7F77DD`); inactivo en gris
+- Eliminado el tab "Profesores" — solo "Clases" y "Personas" con sus subfiltros
+
+**Explore mobile — filtro por género (sesión 2026-05-19):**
+
+- Panel de filtros colapsable con `SlidersHorizontal` + badge count
+- Chips de estilos de baile (`DANCE_STYLES` de `@danceclass/shared`) filtran clases y usuarios en tiempo real
+- Estado activo en morado-flow
 
 ---
 
@@ -303,63 +322,50 @@ Todos los `<input type="number">` tienen `onWheel={(e) => (e.target as HTMLInput
 
 ---
 
-## Próximos pasos — Conversión mobile (prioridad actual)
+## Estado actual — Conversión mobile ✅ COMPLETA
 
-La web está completa. El siguiente bloque es implementar todas las pantallas en `apps/mobile/` (Expo SDK 51, Expo Router, NativeWind).
+Todas las pantallas mobile han sido implementadas. Web y mobile están en paridad funcional.
 
-### Antes de empezar cualquier pantalla mobile:
-1. Explorar `apps/mobile/` para ver qué ya existe y en qué estado.
-2. Identificar qué lógica de `apps/web/src/` puede reutilizarse vs qué necesita adaptación.
+### Pantallas mobile implementadas
 
-### Pantallas a implementar
-
-| Pantalla | Ruta web equivalente | Notas clave |
+| Pantalla | Ruta mobile | Estado |
 |---|---|---|
-| Feed | `/feed` | `ClassCard` + `PostCard` adaptados a RN; `expo-video` para video |
-| Explorar | `/explore` | Search + `UserCard` en RN |
-| Publicar | `/publish` | ChoiceSheet + `CreateClassForm` + video upload con `expo-image-picker` |
-| Detalle clase | `/class/[id]` | Carrusel, inscripción, calendario custom |
-| Mis clases | `/my-classes` | Tabs, deudores, banner eliminación |
-| Perfil propio | `/profile` | Stats, botones, plan, estilos, clases |
-| Perfil ajeno | `/teacher/[username]` | Follow, amistad, trust, endorsement |
-| Notificaciones | `/notifications` | Lista con todos los tipos |
-| Planes | `/plans` | `expo-web-browser` para abrir checkout de MP |
-| Pago | `/payment/[id]` | `expo-image-picker` para subir comprobante |
-| Editar perfil | `/profile/edit` | Avatar, estilos, ciudad |
-| Datos transferencia | `/profile/payment-info` | Datos bancarios del profesor |
-| Crear/editar clase | `/create-class`, `/class/[id]/edit` | Form complejo con calendario |
-| Auth | `/auth/login`, `/auth/register` | Puede ya existir — verificar |
+| Feed | `(tabs)/feed.tsx` | ✅ |
+| Explorar | `(tabs)/explore.tsx` | ✅ filtros colapsables + filtro por género |
+| Publicar | `(tabs)/create.tsx` | ✅ |
+| Perfil propio | `(tabs)/profile.tsx` | ✅ toggle dark mode |
+| Mis clases | `(tabs)/my-classes.tsx` | ✅ |
+| Detalle clase | `class/[id]/index.tsx` | ✅ |
+| Crear clase | `class/create.tsx` | ✅ |
+| Editar clase | `class/[id]/edit.tsx` | ✅ |
+| Publicar video | `class/create-post.tsx` | ✅ |
+| Perfil ajeno | `teacher/[username].tsx` | ✅ |
+| Notificaciones | `notifications.tsx` | ✅ |
+| Planes | `plans/index.tsx` | ✅ |
+| Pago | `payment/[enrollmentId].tsx` | ✅ |
+| Editar perfil | `profile/edit.tsx` | ✅ |
+| Datos transferencia | `profile/payment-info.tsx` | ✅ |
+| Login | `(auth)/login.tsx` | ✅ |
+| Registro | `(auth)/register.tsx` | ✅ |
+
+### Funcionalidades futuras (post-MVP)
+
+- Notificaciones push (Expo Notifications)
+- Sistema 2x en mobile
+- Descuentos espontáneos en mobile
+- OCR de comprobantes
+- Dashboard analytics
+- Renovación anual automática
 
 ### Consideraciones técnicas mobile
 
-- **Pagos MP:** `expo-web-browser` para abrir el checkout (sin SDK nativo oficial)
-- **Videos:** `expo-video` o `expo-av` para reproducción; `expo-image-picker` para selección
-- **Storage uploads:** `supabase.storage.from(...).upload()` funciona igual que en web
-- **NativeWind:** ya configurado; la mayoría de clases Tailwind funcionan igual en RN
-- **Notificaciones push:** `expo-notifications` — pendiente post-MVP
-
-### Colores en NativeWind (mobile)
-
-Usar los mismos tokens de color que en web. En NativeWind/Tailwind, los colores custom de `brand-*` deben estar definidos en `tailwind.config.js` de `apps/mobile/`. Si no están, agregarlos:
-
-```javascript
-// tailwind.config.js (mobile)
-theme: {
-  extend: {
-    colors: {
-      brand: {
-        600: '#c026d3',  // color de marca principal
-      },
-      'morado-flow': '#7F77DD',
-      'noche-urbana': '#1A1035',
-      'coral-fuego': '#D85A30',
-      'lavanda-suave': '#EEEDFE',
-      'blanco-violeta': '#F5F3FF',
-      'gris-humo': '#6B6880',
-    }
-  }
-}
-```
+- **`(supabase as any).from(...)`** para joins anidados o tablas sin tipo
+- **`expo-web-browser`**: `WebBrowser.openBrowserAsync(url)` para checkout MP
+- **`expo-video`**: `useVideoPlayer(url, cb)` + `<VideoView contentFit="contain" />`
+- **`expo-clipboard`**: `Clipboard.setStringAsync(value)`
+- **NativeWind + SafeAreaView**: `edges={['top']}` en pantallas con header propio
+- **Lucide íconos**: usar prop `stroke` (no `color`) — ver `apps/mobile/types/lucide.d.ts`
+- **Dark mode**: `useColorScheme` de NativeWind + `ThemeContext` en `context/ThemeContext.tsx`
 
 ---
 

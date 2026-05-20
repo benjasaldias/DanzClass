@@ -249,9 +249,9 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
 
       {showIndefinitePopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-6">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="text-base font-bold text-gray-900 mb-2">Usa el tipo "Entrenamiento"</h3>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-dark-surface p-5 shadow-xl">
+            <h3 className="text-base font-bold text-gray-900 dark:text-dark-text mb-2">Usa el tipo "Entrenamiento"</h3>
+            <p className="text-sm text-gray-600 dark:text-dark-text2 mb-4">
               Las clases sin fecha de término deben ser de tipo <strong>Entrenamiento</strong>.
               Las clases periódicas regulares requieren una fecha de cierre.
             </p>
@@ -260,17 +260,17 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         </div>
       )}
 
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Editar clase</h1>
-      <p className="text-sm text-gray-500 mb-5">Los inscritos serán notificados de los cambios</p>
+      <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-1">Editar clase</h1>
+      <p className="text-sm text-gray-500 dark:text-dark-text2 mb-5">Los inscritos serán notificados de los cambios</p>
 
-      {error && <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">{error}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Type (read-only display for entrenamiento with closed auditions) */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo de clase</label>
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-            <p className="text-sm font-semibold text-gray-700 capitalize">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-dark-text2">Tipo de clase</label>
+          <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-surface2 px-3 py-2.5">
+            <p className="text-sm font-semibold text-gray-700 dark:text-dark-text capitalize">
               {classData.type === 'suelta' ? 'Clase suelta' : classData.type === 'periodica' ? 'Periódica' : 'Entrenamiento'}
             </p>
           </div>
@@ -278,28 +278,28 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
 
         {/* Title */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Título *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Título *</label>
           <input {...register('title')} className="input" />
           {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title.message}</p>}
         </div>
 
         {/* Description */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Descripción</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Descripción</label>
           <textarea {...register('description')} rows={4} className="input resize-none" />
         </div>
 
         {/* Style + Level */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Estilo</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Estilo</label>
             <select {...register('dance_style')} className="input">
               <option value="">Seleccionar</option>
               {DANCE_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nivel</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Nivel</label>
             <select {...register('level')} className="input">
               {(['todos', 'principiante', 'intermedio', 'avanzado'] as ClassLevel[]).map((l) => (
                 <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
@@ -311,8 +311,8 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         {/* Class type */}
         {!isEntrenamiento && (
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Categoría <span className="text-gray-400 font-normal">(opcional)</span>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+              Categoría <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
             </label>
             <select {...register('class_type')} className="input">
               <option value="">Sin especificar</option>
@@ -327,7 +327,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         {classData.type === 'suelta' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha *</label>
               <DateInput
                 value={watch('date') ?? ''}
                 onChange={(iso) => setValue('date', iso)}
@@ -336,7 +336,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
               {errors.date && <p className="mt-1 text-xs text-red-600">{errors.date.message}</p>}
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Hora *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Hora *</label>
               <input {...register('time')} type="time" className="input" />
               {errors.time && <p className="mt-1 text-xs text-red-600">{errors.time.message}</p>}
             </div>
@@ -347,7 +347,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         {isPeriodic && (
           <div className="space-y-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Periodicidad *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Periodicidad *</label>
               <select {...register('recurrence')} className="input">
                 <option value="">Seleccionar</option>
                 <option value="weekly">Semanal</option>
@@ -360,14 +360,14 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
             {recurrence && recurrence !== 'custom' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Día *</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Día *</label>
                   <select {...register('day_of_week')} className="input">
                     <option value="">Seleccionar</option>
                     {DAYS_OF_WEEK.map((d, i) => <option key={i} value={i}>{d}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Hora *</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Hora *</label>
                   <input {...register('recurring_time')} type="time" className="input" />
                 </div>
               </div>
@@ -377,15 +377,15 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
               <div className="space-y-3">
                 <MonthCalendar selected={customDates} onChange={setCustomDates} />
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Hora de inicio *</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Hora de inicio *</label>
                   <input {...register('recurring_time')} type="time" className="input" />
                 </div>
               </div>
             )}
 
             {/* End date */}
-            <div className="rounded-xl border border-gray-200 p-3 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Fecha de término *</label>
+            <div className="rounded-xl border border-gray-200 dark:border-dark-border p-3 space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha de término *</label>
               {!endsIndefinitely && (
                 <DateInput
                   value={watch('ends_at') ?? ''}
@@ -403,7 +403,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
                     onChange={(e) => handleIndefiniteChange(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-brand-600"
                   />
-                  <span className="text-sm text-gray-700">Indefinido</span>
+                  <span className="text-sm text-gray-700 dark:text-dark-text2">Indefinido</span>
                   {endsIndefinitely && (
                     <span className="text-xs text-amber-600">— Recuerda avisar a tus alumnos cuándo dejar de pagar</span>
                   )}
@@ -420,16 +420,16 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
 
             {/* Price suelta */}
             {classData.type === 'periodica' && (
-              <div className="rounded-xl border border-gray-200 p-3 space-y-2">
+              <div className="rounded-xl border border-gray-200 dark:border-dark-border p-3 space-y-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Precio clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                    Precio clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                   </label>
                   <input {...register('price_suelta')} type="number" min={0} placeholder="ej: 5000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Precio 2x clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                    Precio 2x clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                   </label>
                   <input {...register('price_suelta_2x')} type="number" min={0} placeholder="ej: 8000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
                 </div>
@@ -441,15 +441,15 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         {/* Location */}
         <div className="space-y-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Lugar</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Lugar</label>
             <input {...register('location_name')} className="input" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Dirección</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Dirección</label>
             <input {...register('location_address')} className="input" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</label>
             <CityCombobox value={cityValue} onChange={setCityValue} />
           </div>
         </div>
@@ -457,15 +457,15 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         {/* Spots + Duration + Price */}
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Cupos *</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Cupos *</label>
             <input {...register('max_spots')} type="number" min={1} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Duración (min)</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Duración (min)</label>
             <input {...register('duration_minutes')} type="number" min={30} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
               {isPeriodic ? 'Precio mensual ($) *' : 'Precio ($) *'}
             </label>
             <input {...register('price')} type="number" min={0} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
@@ -474,23 +474,23 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         </div>
 
         {/* Price 2x */}
-        <div className="rounded-xl border border-brand-100 bg-brand-50/30 p-3 space-y-1">
-          <label className="block text-sm font-medium text-gray-700">
-            Precio 2x <span className="text-gray-400 font-normal">(opcional)</span>
+        <div className="rounded-xl border border-brand-100 dark:border-brand-900/40 bg-brand-50/30 dark:bg-brand-950/20 p-3 space-y-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
+            Precio 2x <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
           </label>
-          <p className="text-xs text-gray-400">Precio total para dos alumnos que pagan juntos</p>
+          <p className="text-xs text-gray-400 dark:text-dark-text2/60">Precio total para dos alumnos que pagan juntos</p>
           <input {...register('price_2x')} type="number" min={0} placeholder="ej: 18000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
         </div>
 
         {/* Media */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
-            Fotos/Videos <span className="text-gray-400 font-normal">(máx. 5)</span>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+            Fotos/Videos <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(máx. 5)</span>
           </label>
           {existingMedia.length > 0 && (
             <div className="mb-3 grid grid-cols-3 gap-2">
               {existingMedia.map((m) => (
-                <div key={m.id} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
+                <div key={m.id} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-surface2">
                   {m.type === 'image'
                     ? <Image src={m.url} alt="" fill className="object-cover" sizes="120px" />
                     : <video src={m.url} className="w-full h-full object-cover" />}
@@ -504,7 +504,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           {newMediaFiles.length > 0 && (
             <div className="mb-3 grid grid-cols-3 gap-2">
               {newMediaFiles.map((m, i) => (
-                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 ring-2 ring-brand-400">
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-surface2 ring-2 ring-brand-400">
                   {m.type === 'image'
                     ? <img src={m.preview} className="w-full h-full object-cover" alt="" />
                     : <video src={m.preview} className="w-full h-full object-cover" />}
@@ -519,11 +519,11 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
             <div
               {...getRootProps()}
               className={cn('rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors',
-                isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300')}
+                isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 dark:border-dark-border hover:border-brand-300')}
             >
               <input {...getInputProps()} />
-              <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Arrastra o selecciona fotos/videos nuevos</p>
+              <Upload className="h-8 w-8 text-gray-300 dark:text-dark-text2/40 mx-auto mb-2" />
+              <p className="text-sm text-gray-600 dark:text-dark-text2">Arrastra o selecciona fotos/videos nuevos</p>
             </div>
           )}
         </div>
@@ -535,8 +535,8 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         </button>
       </form>
 
-      <div className="mt-8 border-t border-gray-100 pt-6">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Zona peligrosa</p>
+      <div className="mt-8 border-t border-gray-100 dark:border-dark-border pt-6">
+        <p className="text-xs font-semibold text-gray-400 dark:text-dark-text2/60 uppercase tracking-wider mb-3">Zona peligrosa</p>
         <div className="flex flex-col gap-2">
           {isEntrenamiento && !classData.audition_closed && (
             <a
@@ -549,7 +549,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           <button
             type="button"
             onClick={() => setShowDeleteConfirm(true)}
-            className="flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-800 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
           >
             <Trash2 className="h-4 w-4" />
             Eliminar esta clase

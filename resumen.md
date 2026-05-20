@@ -983,10 +983,75 @@ Renombrado en 14 archivos (36 ocurrencias exactas de `DanceClass` mixed-case):
 - Perfil propio: `profile/page.tsx` completo (header, stats, subscription banner, estilos, clases, posts)
 - Auth: `auth/login/page.tsx`
 
-**Componentes NO migrados (siguiente sesión):**
-- `ClassDetailClient.tsx`, `CreateClassForm.tsx`, `EditClassForm.tsx` — forms complejos
-- `MyClassesClient.tsx`, `NotificationsClient.tsx` — pantallas secundarias
-- `PaymentClient.tsx`, `PlansPage`, `AdminReportsClient.tsx`
-- `TeacherProfileClient.tsx`, `EditProfileForm.tsx`, `ExploreClient.tsx`
-- `auth/register/page.tsx`
-- **Mobile**: dark mode requiere implementación separada con NativeWind `useColorScheme`
+**Todos los componentes web migrados** ✅ — ver sesión 2026-05-19 (2).
+
+---
+
+## Sesión 2026-05-19 (2) — Dark mode completo + filtros explore
+
+### ✅ T2: Dark mode web — COMPLETO
+
+Todos los componentes web restantes migrados con tokens `dark:`:
+
+| Componente | Archivo |
+|---|---|
+| AdminReportsClient | `components/admin/AdminReportsClient.tsx` |
+| ClassDetailClient | `components/class/ClassDetailClient.tsx` |
+| CreateClassForm | `components/class/CreateClassForm.tsx` |
+| EditClassForm | `components/class/EditClassForm.tsx` |
+| MyClassesClient | `components/class/MyClassesClient.tsx` |
+| NotificationsClient | `components/notifications/NotificationsClient.tsx` |
+| PaymentClient | `components/payment/PaymentClient.tsx` |
+| PlansPage | `app/(app)/plans/page.tsx` |
+| TeacherProfileClient | `components/profile/TeacherProfileClient.tsx` |
+| EditProfileForm | `components/profile/EditProfileForm.tsx` |
+| ExploreClient | `components/feed/ExploreClient.tsx` |
+| auth/register | `app/auth/register/page.tsx` |
+
+### ✅ T3: Dark mode mobile — COMPLETO
+
+`ThemeContext` creado en `apps/mobile/context/ThemeContext.tsx` con:
+
+- `useColorScheme` + `setColorScheme` de NativeWind
+- Persistencia en `AsyncStorage` (clave `'app_theme'`)
+- Toggle en `(tabs)/profile.tsx`
+
+Pantallas migradas (todos los tokens `dark:bg-dark-*`, `dark:text-dark-*`, `dark:border-dark-border`):
+
+| Pantalla | Archivo |
+|---|---|
+| Mis clases | `(tabs)/my-classes.tsx` |
+| Crear (choice) | `(tabs)/create.tsx` |
+| Notificaciones | `notifications.tsx` |
+| Perfil ajeno | `teacher/[username].tsx` |
+| Detalle clase | `class/[id]/index.tsx` |
+| Editar perfil | `profile/edit.tsx` |
+| Datos transferencia | `profile/payment-info.tsx` |
+| Planes | `plans/index.tsx` |
+| Pago | `payment/[enrollmentId].tsx` |
+| Publicar video | `class/create-post.tsx` |
+| Crear clase | `class/create.tsx` |
+| Editar clase | `class/[id]/edit.tsx` |
+
+### ✅ T4: Filtro por género en explore mobile
+
+`(tabs)/explore.tsx` reescrito con:
+
+- Panel de filtros colapsable (ícono `SlidersHorizontal` + badge de count)
+- Chips de estilos de baile (`DANCE_STYLES` de `@danceclass/shared`) para filtrar clases y usuarios
+- Estado activo en morado-flow (`#7F77DD`)
+
+### ✅ T5: Eliminar tab "Profesores" de ExploreClient web
+
+`components/feed/ExploreClient.tsx`: eliminado el tab "Profesores", solo quedan "Clases" y "Personas" con sus subfiltros respectivos.
+
+### ✅ T6: Filtros colapsables en explorar (web + mobile)
+
+**Web (`ExploreClient.tsx`):** panel expandible/colapsable con `SlidersHorizontal`, badge de count de filtros activos, estado activo en morado-flow.
+
+**Mobile (`(tabs)/explore.tsx`):** mismo patrón; chips de estilos como filtro adicional.
+
+### ✅ T1: Scripts de limpieza de datos de prueba
+
+- `supabase/scripts/reset_test_data.sql` — DELETE en orden FK-safe, preserva cuentas de producción
+- `supabase/scripts/clean_storage.mjs` — limpia buckets de Supabase Storage recursivamente

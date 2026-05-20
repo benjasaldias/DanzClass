@@ -116,27 +116,27 @@ export default function PlansScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center">
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
         <ActivityIndicator color="#c026d3" />
       </SafeAreaView>
     )
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <ScrollView className="flex-1">
         {/* Header */}
-        <View className="bg-white px-4 py-4 border-b border-gray-100 flex-row items-center gap-3">
+        <View className="bg-white dark:bg-dark-surface px-4 py-4 border-b border-gray-100 dark:border-dark-border flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <Text className="text-brand-600 text-base">‹ Volver</Text>
           </TouchableOpacity>
-          <Text className="text-lg font-bold text-gray-900">Planes</Text>
+          <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Planes</Text>
         </View>
 
         <View className="p-4 gap-4">
           <View className="items-center pt-2 pb-4">
-            <Text className="text-2xl font-bold text-gray-900">Elige tu plan</Text>
-            <Text className="text-sm text-gris-humo mt-1 text-center">
+            <Text className="text-2xl font-bold text-gray-900 dark:text-dark-text">Elige tu plan</Text>
+            <Text className="text-sm text-gris-humo dark:text-dark-text2 mt-1 text-center">
               Accede a todas las funciones para enseñar y aprender baile
             </Text>
           </View>
@@ -160,8 +160,8 @@ export default function PlansScreen() {
                 key={plan.id}
                 className={`rounded-2xl border overflow-hidden ${
                   plan.highlight
-                    ? 'border-brand-300 bg-white shadow-sm'
-                    : 'border-gray-200 bg-white'
+                    ? 'border-brand-300 bg-white dark:bg-dark-surface shadow-sm'
+                    : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface'
                 }`}
               >
                 {plan.highlight && (
@@ -172,10 +172,10 @@ export default function PlansScreen() {
 
                 <View className="p-5">
                   <View className="flex-row items-center justify-between mb-1">
-                    <Text className="text-xl font-bold text-gray-900">{plan.name}</Text>
+                    <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">{plan.name}</Text>
                     <View className="flex-row items-baseline gap-0.5">
-                      <Text className="text-2xl font-bold text-gray-900">{formatCLP(plan.price)}</Text>
-                      <Text className="text-xs text-gris-humo">/mes</Text>
+                      <Text className="text-2xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(plan.price)}</Text>
+                      <Text className="text-xs text-gris-humo dark:text-dark-text2">/mes</Text>
                     </View>
                   </View>
 
@@ -183,7 +183,7 @@ export default function PlansScreen() {
                     {plan.features.map((f) => (
                       <View key={f} className="flex-row items-start gap-2">
                         <CheckCircle2 size={14} stroke="#c026d3" />
-                        <Text className="text-sm text-gray-700 flex-1">{f}</Text>
+                        <Text className="text-sm text-gray-700 dark:text-dark-text2 flex-1">{f}</Text>
                       </View>
                     ))}
                   </View>
@@ -238,7 +238,7 @@ export default function PlansScreen() {
 
           {/* Footer note */}
           <View className="items-center pb-4">
-            <Text className="text-xs text-gris-humo text-center">
+            <Text className="text-xs text-gris-humo dark:text-dark-text2 text-center">
               Los pagos son procesados de forma segura por Mercado Pago.{'\n'}
               Podés cancelar en cualquier momento.
             </Text>

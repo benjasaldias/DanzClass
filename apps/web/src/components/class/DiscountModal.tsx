@@ -85,29 +85,29 @@ export default function DiscountModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-xl">
+      <div className="w-full max-w-lg rounded-t-2xl bg-white dark:bg-dark-surface p-5 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-coral-fuego/15">
               <Tag className="h-4 w-4 text-coral-fuego" />
             </div>
-            <h2 className="text-base font-bold text-gray-900">Precio con descuento</h2>
+            <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Precio con descuento</h2>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 transition-colors">
-            <X className="h-4 w-4 text-gray-500" />
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
+            <X className="h-4 w-4 text-gray-500 dark:text-dark-text2" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{error}</div>
+          <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-3 py-2 text-xs text-red-700 dark:text-red-400">{error}</div>
         )}
 
         <div className="space-y-4">
           {/* Suelta or suelta-within-periodica */}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
               {isPeriodica ? 'Precio clase suelta con descuento' : 'Precio con descuento'}
-              <span className="ml-2 text-xs text-gray-400 font-normal">
+              <span className="ml-2 text-xs text-gray-400 dark:text-dark-text2/60 font-normal">
                 (original: {formatCLP(currentPriceSuelta ?? currentPrice)})
               </span>
             </label>
@@ -119,7 +119,7 @@ export default function DiscountModal({
               placeholder="ej: 8000"
               className="input"
             />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2/60">
               Deja vacío para no aplicar descuento{isPeriodica ? ' en suelta' : ''}
             </p>
           </div>
@@ -127,9 +127,9 @@ export default function DiscountModal({
           {/* Monthly price discount (only for periodica/entrenamiento) */}
           {isPeriodica && (
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
                 Precio mensual con descuento
-                <span className="ml-2 text-xs text-gray-400 font-normal">
+                <span className="ml-2 text-xs text-gray-400 dark:text-dark-text2/60 font-normal">
                   (original: {formatCLP(currentPrice)})
                 </span>
               </label>
@@ -141,7 +141,7 @@ export default function DiscountModal({
                 placeholder="ej: 12000"
                 className="input"
               />
-              <p className="mt-1 text-xs text-gray-400">Deja vacío para no aplicar descuento mensual</p>
+              <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2/60">Deja vacío para no aplicar descuento mensual</p>
             </div>
           )}
 
@@ -155,7 +155,7 @@ export default function DiscountModal({
             <button
               onClick={handleClear}
               disabled={saving}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="rounded-xl border border-gray-200 dark:border-dark-border px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2 transition-colors disabled:opacity-50"
             >
               Quitar descuento
             </button>

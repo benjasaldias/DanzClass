@@ -115,12 +115,12 @@ export default function TwoxRequestButton({
   const isMyTurnToPay = request?.payment_assignee === userId
 
   return (
-    <div className="mt-3 rounded-xl border border-brand-200 bg-brand-50/40 p-3 space-y-2">
+    <div className="mt-3 rounded-xl border border-brand-200 dark:border-brand-800/40 bg-brand-50/40 dark:bg-brand-950/20 p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold text-brand-700">Precio pareja (2x)</p>
-          <p className="text-lg font-bold text-brand-900">{formatCLP(price2x)}</p>
-          <p className="text-xs text-brand-600">{price2xLabel}</p>
+          <p className="text-xs font-semibold text-brand-700 dark:text-brand-300">Precio pareja (2x)</p>
+          <p className="text-lg font-bold text-brand-900 dark:text-brand-200">{formatCLP(price2x)}</p>
+          <p className="text-xs text-brand-600 dark:text-brand-300">{price2xLabel}</p>
         </div>
 
         {state === 'idle' && (
@@ -168,14 +168,14 @@ export default function TwoxRequestButton({
               <button
                 onClick={handleTransferPayment}
                 disabled={acting}
-                className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2 transition-colors disabled:opacity-50"
               >
                 {acting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Que pague mi compañer@
               </button>
             </div>
           ) : (
-            <p className="text-xs text-gray-500">Tu compañer@ tiene el turno de pago</p>
+            <p className="text-xs text-gray-500 dark:text-dark-text2">Tu compañer@ tiene el turno de pago</p>
           )}
         </div>
       )}

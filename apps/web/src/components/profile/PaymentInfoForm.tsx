@@ -50,13 +50,13 @@ export default function PaymentInfoForm({ teacherId, existingInfo }: PaymentInfo
 
   return (
     <div className="px-4 py-4">
-      <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
+      <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text mb-4">
         <ChevronLeft className="h-4 w-4" />
         Volver
       </button>
 
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Datos Transferencia</h1>
-      <p className="text-sm text-gray-500 mb-5">Los estudiantes usarán estos datos para transferirte</p>
+      <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-1">Datos Transferencia</h1>
+      <p className="text-sm text-gray-500 dark:text-dark-text2 mb-5">Los estudiantes usarán estos datos para transferirte</p>
 
       {saved && (
         <div className="mb-4 rounded-xl bg-green-50 border border-green-200 p-4 flex items-center gap-2 text-green-700">
@@ -67,7 +67,7 @@ export default function PaymentInfoForm({ teacherId, existingInfo }: PaymentInfo
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Banco *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Banco *</label>
           <select {...register('bank_name')} className="input">
             <option value="">Seleccionar banco</option>
             {CHILEAN_BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
@@ -76,7 +76,7 @@ export default function PaymentInfoForm({ teacherId, existingInfo }: PaymentInfo
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Tipo de cuenta *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Tipo de cuenta *</label>
           <select {...register('account_type')} className="input">
             <option value="cuenta_corriente">Cuenta Corriente</option>
             <option value="cuenta_vista">Cuenta Vista</option>
@@ -86,25 +86,25 @@ export default function PaymentInfoForm({ teacherId, existingInfo }: PaymentInfo
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Número de cuenta *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Número de cuenta *</label>
           <input {...register('account_number')} placeholder="000000000" className="input" />
           {errors.account_number && <p className="mt-1 text-xs text-red-600">{errors.account_number.message}</p>}
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">RUT *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">RUT *</label>
           <input {...register('rut')} placeholder="12.345.678-9" className="input" />
           {errors.rut && <p className="mt-1 text-xs text-red-600">{errors.rut.message}</p>}
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre titular *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Nombre titular *</label>
           <input {...register('account_holder_name')} placeholder="Nombre completo del titular" className="input" />
           {errors.account_holder_name && <p className="mt-1 text-xs text-red-600">{errors.account_holder_name.message}</p>}
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Email para transferencia *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Email para transferencia *</label>
           <input {...register('email')} type="email" placeholder="tu@email.com" className="input" />
           {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
         </div>

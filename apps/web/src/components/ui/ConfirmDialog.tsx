@@ -32,18 +32,18 @@ export default function ConfirmDialog({
       />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+      <div className="relative bg-white dark:bg-dark-surface rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
         {title && (
-          <h3 className="font-bold text-gray-900">{title}</h3>
+          <h3 className="font-bold text-gray-900 dark:text-dark-text">{title}</h3>
         )}
-        <p className="text-sm text-gray-600 leading-relaxed">{message}</p>
+        <p className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed">{message}</p>
 
         <div className="flex gap-3 pt-1">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="flex-1 rounded-xl border border-gray-200 dark:border-dark-border py-2.5 text-sm font-medium text-gray-700 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2 transition-colors disabled:opacity-50"
           >
             {cancelLabel}
           </button>

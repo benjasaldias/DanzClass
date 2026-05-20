@@ -95,7 +95,7 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
 
   return (
     <div className="px-4 py-6 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold text-gray-900 mb-6">Editar perfil</h1>
+      <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-6">Editar perfil</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Avatar */}
@@ -122,12 +122,12 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
             onChange={handleAvatarChange}
           />
           {avatarFile && (
-            <p className="text-xs text-gray-500">{avatarFile.name}</p>
+            <p className="text-xs text-gray-500 dark:text-dark-text2">{avatarFile.name}</p>
           )}
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
             {error}
           </div>
         )}
@@ -135,13 +135,13 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
         {/* Basic fields */}
         <div className="card p-4 space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre completo</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Nombre completo</label>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} className="input" required />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Usuario</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Usuario</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-text2 text-sm">@</span>
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
@@ -151,7 +151,7 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
             </div>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Bio</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Bio</label>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
@@ -160,16 +160,16 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
               placeholder="Cuéntanos sobre ti..."
               className="input resize-none"
             />
-            <p className="mt-1 text-right text-xs text-gray-400">{bio.length}/300</p>
+            <p className="mt-1 text-right text-xs text-gray-400 dark:text-dark-text2/60">{bio.length}/300</p>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</label>
             <CityCombobox value={city} onChange={setCity} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Instagram</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Instagram</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-text2 text-sm">@</span>
               <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="tuusuario" className="input pl-7" />
             </div>
           </div>
@@ -182,13 +182,13 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
             selected={stylesDancing}
             onChange={setStylesDancing}
           />
-          <div className="border-t border-gray-100 pt-5">
+          <div className="border-t border-gray-100 dark:border-dark-border pt-5">
             <StylesPicker
               label="Estilos que enseño"
               selected={stylesTaching}
               onChange={setStylesTeaching}
             />
-            <p className="mt-2 text-xs text-gray-400">Solo si enseñas — aparecerá en tu perfil público</p>
+            <p className="mt-2 text-xs text-gray-400 dark:text-dark-text2/60">Solo si enseñas — aparecerá en tu perfil público</p>
           </div>
         </div>
 
@@ -196,8 +196,8 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
         <div className="card p-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-gray-900">Clases inscritas públicas</p>
-              <p className="text-xs text-gray-500 mt-0.5">Otros usuarios pueden ver en qué clases estás inscrito</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-dark-text">Clases inscritas públicas</p>
+              <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">Otros usuarios pueden ver en qué clases estás inscrito</p>
             </div>
             <button
               type="button"
@@ -205,7 +205,7 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
               className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border ${
                 enrolledPublic
                   ? 'bg-brand-50 text-brand-700 border-brand-200'
-                  : 'bg-gray-100 text-gray-500 border-gray-200'
+                  : 'bg-gray-100 dark:bg-dark-surface2 text-gray-500 dark:text-dark-text2 border-gray-200 dark:border-dark-border'
               }`}
             >
               {enrolledPublic ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}

@@ -155,7 +155,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         </div>
 
         {/* Price + CTA */}
-        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-100 dark:bg-emerald-950/50 border-t border-emerald-200 dark:border-emerald-900">
+        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-100 dark:bg-emerald-900/30 border-t border-emerald-200 dark:border-emerald-900/50">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs text-gris-humo">
@@ -190,10 +190,10 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
                       <span className="text-xs line-through text-gray-400">{formatCLP(classData.price_suelta)}</span>
                     </>
                   ) : (
-                    <span className="text-xs font-medium text-gray-700">{formatCLP(classData.price_suelta)}</span>
+                    <span className="text-xs font-medium text-gray-700 dark:text-dark-text">{formatCLP(classData.price_suelta)}</span>
                   )}
                   {classData.price_suelta_2x && (
-                    <span className="text-xs text-brand-600 font-semibold">· 2x {formatCLP(classData.price_suelta_2x)}</span>
+                    <span className="text-xs text-brand-600 dark:text-brand-300 font-semibold">· 2x {formatCLP(classData.price_suelta_2x)}</span>
                   )}
                 </div>
               )}

@@ -62,7 +62,7 @@ export default function MobileClassCard({ classData, currentUserId }: MobileClas
   }
 
   return (
-    <View className="border-b border-gray-100 bg-white">
+    <View className="border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface">
       {/* Header */}
       <TouchableOpacity
         onPress={() => router.push(`/(app)/teacher/${teacher.username}`)}
@@ -78,8 +78,8 @@ export default function MobileClassCard({ classData, currentUserId }: MobileClas
           )}
         </View>
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-gray-900">{teacher.full_name}</Text>
-          <Text className="text-xs text-gris-humo">{timeAgo(classData.created_at)}</Text>
+          <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{teacher.full_name}</Text>
+          <Text className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</Text>
         </View>
         {classData.dance_style && (
           <View className="bg-brand-50 rounded-full px-2.5 py-1">
@@ -148,10 +148,10 @@ export default function MobileClassCard({ classData, currentUserId }: MobileClas
 
       {/* Content */}
       <View className="px-4 pb-4 pt-3 gap-2">
-        <Text className="font-bold text-gray-900 text-base">{classData.title}</Text>
+        <Text className="font-bold text-gray-900 dark:text-dark-text text-base">{classData.title}</Text>
 
         {classData.description && (
-          <Text className="text-sm text-gray-600 leading-relaxed" numberOfLines={3}>
+          <Text className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed" numberOfLines={3}>
             {classData.description}
           </Text>
         )}
@@ -159,22 +159,22 @@ export default function MobileClassCard({ classData, currentUserId }: MobileClas
         <View className="gap-1.5">
           <View className="flex-row items-center gap-2">
             <Clock size={14} stroke="#9ca3af" />
-            <Text className="text-sm text-gris-humo">{schedule} · {classData.duration_minutes} min</Text>
+            <Text className="text-sm text-gris-humo dark:text-dark-text2">{schedule} · {classData.duration_minutes} min</Text>
           </View>
           {classData.location_name && (
             <View className="flex-row items-center gap-2">
               <MapPin size={14} stroke="#9ca3af" />
-              <Text className="text-sm text-gris-humo">{classData.location_name}</Text>
+              <Text className="text-sm text-gris-humo dark:text-dark-text2">{classData.location_name}</Text>
             </View>
           )}
           <View className="flex-row items-center gap-2">
             <Users size={14} stroke="#9ca3af" />
-            <Text className="text-sm text-gris-humo">Cupos: {classData.max_spots}</Text>
+            <Text className="text-sm text-gris-humo dark:text-dark-text2">Cupos: {classData.max_spots}</Text>
           </View>
         </View>
 
         <View className="flex-row items-center justify-between mt-1">
-          <Text className="text-2xl font-bold text-gray-900">{formatCLP(classData.price)}</Text>
+          <Text className="text-2xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(classData.price)}</Text>
           {classData.teacher_id !== currentUserId && (
             <TouchableOpacity
               onPress={() => router.push(`/(app)/class/${classData.id}`)}

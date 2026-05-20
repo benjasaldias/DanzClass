@@ -123,7 +123,7 @@ export default function ClassDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta">
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
         <ActivityIndicator color="#c026d3" />
       </SafeAreaView>
     )
@@ -131,7 +131,7 @@ export default function ClassDetailScreen() {
 
   if (!cls) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta">
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
         <Text className="text-gray-500">Clase no encontrada</Text>
       </SafeAreaView>
     )
@@ -200,13 +200,13 @@ export default function ClassDetailScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
+      <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
-        <Text className="text-base font-bold text-gray-900 flex-1" numberOfLines={1}>{cls.title}</Text>
+        <Text className="text-base font-bold text-gray-900 dark:text-dark-text flex-1" numberOfLines={1}>{cls.title}</Text>
         {isTeacher && (
           <TouchableOpacity onPress={() => router.push(`/(app)/class/${cls.id}/edit` as any)}>
             <Text className="text-brand-600 text-sm font-semibold">Editar</Text>
@@ -287,7 +287,7 @@ export default function ClassDetailScreen() {
             )}
           </View>
         ) : (
-          <View className="items-center justify-center bg-gray-100" style={{ height: 160 }}>
+          <View className="items-center justify-center bg-gray-100 dark:bg-dark-surface2" style={{ height: 160 }}>
             <Icon icon={Music2} size={40} />
           </View>
         )}
@@ -316,15 +316,15 @@ export default function ClassDetailScreen() {
               </View>
             )}
             <View>
-              <Text className="font-semibold text-gray-900 text-sm">{teacher?.full_name}</Text>
-              <Text className="text-xs text-gris-humo">@{teacher?.username}</Text>
+              <Text className="font-semibold text-gray-900 dark:text-dark-text text-sm">{teacher?.full_name}</Text>
+              <Text className="text-xs text-gris-humo dark:text-dark-text2">@{teacher?.username}</Text>
             </View>
             <ChevronRight size={16} stroke="#9ca3af" />
           </TouchableOpacity>
 
           {/* Title + badges */}
           <View>
-            <Text className="text-xl font-bold text-gray-900">{cls.title}</Text>
+            <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">{cls.title}</Text>
             <View className="flex-row flex-wrap gap-2 mt-2">
               {cls.dance_style && (
                 <View className="bg-brand-50 rounded-full px-3 py-1">
@@ -344,16 +344,16 @@ export default function ClassDetailScreen() {
 
           {/* Description */}
           {cls.description && (
-            <Text className="text-sm text-gray-600 leading-relaxed">{cls.description}</Text>
+            <Text className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed">{cls.description}</Text>
           )}
 
           {/* Info rows */}
-          <View className="bg-white rounded-2xl p-4 border border-gray-100 gap-3">
+          <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border gap-3">
             <View className="flex-row items-center gap-3">
               <Clock size={16} stroke="#6B6880" />
               <View className="flex-1">
-                <Text className="text-sm text-gray-800">{scheduleText}</Text>
-                <Text className="text-xs text-gris-humo">{cls.duration_minutes} minutos</Text>
+                <Text className="text-sm text-gray-800 dark:text-dark-text">{scheduleText}</Text>
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">{cls.duration_minutes} minutos</Text>
               </View>
               {isCustom && (
                 <TouchableOpacity
@@ -369,14 +369,14 @@ export default function ClassDetailScreen() {
               <View className="flex-row items-center gap-3">
                 <MapPin size={16} stroke="#6B6880" />
                 <View className="flex-1">
-                  <Text className="text-sm text-gray-800">{cls.location_name}</Text>
-                  {cls.location_address && <Text className="text-xs text-gris-humo">{cls.location_address}</Text>}
+                  <Text className="text-sm text-gray-800 dark:text-dark-text">{cls.location_name}</Text>
+                  {cls.location_address && <Text className="text-xs text-gris-humo dark:text-dark-text2">{cls.location_address}</Text>}
                 </View>
               </View>
             )}
             <View className="flex-row items-center gap-3">
               <Users size={16} stroke="#6B6880" />
-              <Text className={`text-sm ${isFull ? 'text-red-600' : spotsAvailable <= 3 ? 'text-orange-600' : 'text-gray-800'}`}>
+              <Text className={`text-sm ${isFull ? 'text-red-600' : spotsAvailable <= 3 ? 'text-orange-600' : 'text-gray-800 dark:text-dark-text'}`}>
                 {isFull ? 'Sin cupos disponibles' : `${spotsAvailable} de ${cls.max_spots} cupos disponibles`}
               </Text>
             </View>
@@ -385,14 +385,14 @@ export default function ClassDetailScreen() {
           {/* Price section */}
           <View className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 gap-2">
             <View className="flex-row items-end gap-3">
-              <Text className="text-2xl font-bold text-gray-900">{formatCLP(activePrice)}</Text>
+              <Text className="text-2xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(activePrice)}</Text>
               {hasDiscount && (
-                <Text className="text-sm text-gray-400 line-through mb-0.5">{formatCLP(cls.price)}</Text>
+                <Text className="text-sm text-gray-400 dark:text-dark-text2/50 line-through mb-0.5">{formatCLP(cls.price)}</Text>
               )}
-              {isPeriodic && <Text className="text-sm text-gray-500 mb-0.5">/mes</Text>}
+              {isPeriodic && <Text className="text-sm text-gray-500 dark:text-dark-text2 mb-0.5">/mes</Text>}
             </View>
             {isPeriodic && cls.price_suelta && (
-              <Text className="text-sm text-gray-600">
+              <Text className="text-sm text-gray-600 dark:text-dark-text2">
                 Suelta: {formatCLP(cls.discount_price ?? cls.price_suelta)}
                 {cls.discount_price && cls.discount_price < cls.price_suelta && (
                   <Text className="text-gray-400 line-through"> {formatCLP(cls.price_suelta)}</Text>

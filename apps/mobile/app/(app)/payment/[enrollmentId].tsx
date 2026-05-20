@@ -154,7 +154,7 @@ export default function PaymentScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta">
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
         <ActivityIndicator color="#c026d3" />
       </SafeAreaView>
     )
@@ -174,27 +174,27 @@ export default function PaymentScreen() {
 
   if (success) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
+      <SafeAreaView className="flex-1 bg-white dark:bg-dark-bg items-center justify-center px-6">
         <View className="mb-4">
           <Icon icon={CheckCircle2} size={56} stroke="#16a34a" />
         </View>
-        <Text className="text-xl font-bold text-gray-900">¡Comprobante enviado!</Text>
-        <Text className="text-sm text-gray-500 text-center mt-2">El profesor verificará tu pago pronto</Text>
+        <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">¡Comprobante enviado!</Text>
+        <Text className="text-sm text-gray-500 dark:text-dark-text2 text-center mt-2">El profesor verificará tu pago pronto</Text>
       </SafeAreaView>
     )
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <ScrollView className="flex-1">
         {/* Header */}
-        <View className="bg-white px-4 py-4 border-b border-gray-100 flex-row items-center gap-3">
+        <View className="bg-white dark:bg-dark-surface px-4 py-4 border-b border-gray-100 dark:border-dark-border flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <Text className="text-brand-600 text-base">‹ Volver</Text>
           </TouchableOpacity>
           <View>
-            <Text className="text-lg font-bold text-gray-900">Pagar clase</Text>
-            <Text className="text-xs text-gris-humo">{cls.title}</Text>
+            <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Pagar clase</Text>
+            <Text className="text-xs text-gris-humo dark:text-dark-text2">{cls.title}</Text>
           </View>
         </View>
 
@@ -241,9 +241,9 @@ export default function PaymentScreen() {
 
           {/* Bank details — only when it's this user's turn */}
           {isMyTurnToPay && paymentInfo && (
-            <View className="bg-white rounded-2xl p-4 border border-gray-100 gap-3">
-              <Text className="font-bold text-gray-900">Datos de transferencia</Text>
-              <Text className="text-xs text-gray-400">Toca un campo para copiar</Text>
+            <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border gap-3">
+              <Text className="font-bold text-gray-900 dark:text-dark-text">Datos de transferencia</Text>
+              <Text className="text-xs text-gray-400 dark:text-dark-text2/60">Toca un campo para copiar</Text>
               {[
                 { label: 'Banco', value: paymentInfo.bank_name, copyable: false },
                 { label: 'Tipo', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] ?? paymentInfo.account_type, copyable: false },
@@ -258,8 +258,8 @@ export default function PaymentScreen() {
                   className="flex-row justify-between py-1"
                   disabled={!copyable}
                 >
-                  <Text className="text-xs text-gray-500">{label}</Text>
-                  <Text className="text-sm font-medium text-gray-900">{value}</Text>
+                  <Text className="text-xs text-gray-500 dark:text-dark-text2">{label}</Text>
+                  <Text className="text-sm font-medium text-gray-900 dark:text-dark-text">{value}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -267,14 +267,14 @@ export default function PaymentScreen() {
 
           {isMyTurnToPay && !paymentInfo && (
             <View className="bg-white rounded-2xl p-4 border border-gray-100 items-center">
-              <Text className="text-sm text-gray-500">El profesor aún no configuró sus datos bancarios.</Text>
+              <Text className="text-sm text-gray-500 dark:text-dark-text2">El profesor aún no configuró sus datos bancarios.</Text>
             </View>
           )}
 
           {/* Receipt upload — only when it's this user's turn */}
           {isMyTurnToPay && (
-            <View className="bg-white rounded-2xl p-4 border border-gray-100 gap-3">
-              <Text className="font-bold text-gray-900">
+            <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border gap-3">
+              <Text className="font-bold text-gray-900 dark:text-dark-text">
                 {alreadySubmitted ? 'Comprobante enviado' : 'Comprobante de pago'}
               </Text>
 
@@ -293,11 +293,11 @@ export default function PaymentScreen() {
               ) : (
                 <TouchableOpacity
                   onPress={pickReceipt}
-                  className="border-2 border-dashed border-gray-200 rounded-xl p-8 items-center gap-2"
+                  className="border-2 border-dashed border-gray-200 dark:border-dark-border rounded-xl p-8 items-center gap-2"
                 >
                   <Icon icon={Paperclip} size={32} />
-                  <Text className="text-sm font-medium text-gray-700">Seleccionar comprobante</Text>
-                  <Text className="text-xs text-gray-400">JPG o PNG</Text>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Seleccionar comprobante</Text>
+                  <Text className="text-xs text-gray-400 dark:text-dark-text2/60">JPG o PNG</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -321,10 +321,10 @@ export default function PaymentScreen() {
             <TouchableOpacity
               onPress={handleTransfer}
               disabled={transferring}
-              className="flex-row items-center justify-center gap-2 border border-gray-200 rounded-2xl py-4"
+              className="flex-row items-center justify-center gap-2 border border-gray-200 dark:border-dark-border rounded-2xl py-4"
             >
               <Users size={16} stroke="#6b7280" />
-              <Text className="text-gray-600 text-sm font-medium">
+              <Text className="text-gray-600 dark:text-dark-text2 text-sm font-medium">
                 {transferring ? 'Transfiriendo...' : 'Que pague mi compañer@'}
               </Text>
             </TouchableOpacity>

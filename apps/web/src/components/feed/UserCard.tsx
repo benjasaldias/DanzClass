@@ -125,9 +125,9 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
         <Avatar src={user.avatar_url} name={user.full_name} size="md" />
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-gray-900 truncate">{user.full_name}</p>
-          <p className="text-xs text-gray-500">@{user.username}</p>
-          {user.city && <p className="text-xs text-gray-400 mt-0.5">{user.city}</p>}
+          <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{user.full_name}</p>
+          <p className="text-xs text-gray-500 dark:text-dark-text2">@{user.username}</p>
+          {user.city && <p className="text-xs text-gray-400 dark:text-dark-text2/70 mt-0.5">{user.city}</p>}
         </div>
 
         <div className="flex flex-col gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -137,7 +137,7 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
             disabled={loadingFollow}
             className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
               following
-                ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-gray-100 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2 hover:bg-gray-200 dark:hover:bg-dark-border'
                 : 'bg-brand-600 text-white hover:bg-brand-700'
             }`}
           >

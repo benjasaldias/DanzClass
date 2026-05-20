@@ -116,7 +116,7 @@ export default function EditClassScreen() {
 
   if (loading || !classData) {
     return (
-      <SafeAreaView className="flex-1 bg-blanco-violeta items-center justify-center" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg items-center justify-center" edges={['top']}>
         <ActivityIndicator color="#c026d3" />
       </SafeAreaView>
     )
@@ -282,22 +282,22 @@ export default function EditClassScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900">Editar clase</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Editar clase</Text>
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
         <View className="flex-row">
-          <View className="bg-gray-100 border border-gray-200 rounded-full px-3 py-1">
-            <Text className="text-xs font-semibold text-gray-700">{typeLabel}</Text>
+          <View className="bg-gray-100 dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border rounded-full px-3 py-1">
+            <Text className="text-xs font-semibold text-gray-700 dark:text-dark-text2">{typeLabel}</Text>
           </View>
         </View>
 
-        <Text className="text-xs text-gray-500">Los inscritos serán notificados de los cambios</Text>
+        <Text className="text-xs text-gray-500 dark:text-dark-text2">Los inscritos serán notificados de los cambios</Text>
 
         {globalError && (
           <View className="bg-red-50 border border-red-200 rounded-xl p-3">
@@ -307,19 +307,19 @@ export default function EditClassScreen() {
 
         {/* Title */}
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">Título *</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Título *</Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
             maxLength={80}
-            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.title ? 'border-red-300' : 'border-gray-200'}`}
+            className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.title ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
           />
           {errors.title && <Text className="text-xs text-red-600">{errors.title}</Text>}
         </View>
 
         {/* Description */}
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">Descripción</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Descripción</Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
@@ -327,7 +327,7 @@ export default function EditClassScreen() {
             numberOfLines={4}
             maxLength={500}
             textAlignVertical="top"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white"
+            className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
             style={{ minHeight: 90 }}
           />
         </View>
@@ -359,7 +359,7 @@ export default function EditClassScreen() {
               <MobileDateInput label="Fecha *" value={date} onChange={setDate} error={errors.date} />
             </View>
             <View className="flex-1 gap-1.5">
-              <Text className="text-sm font-medium text-gray-700">Hora * (HH:MM)</Text>
+              <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Hora * (HH:MM)</Text>
               <TextInput
                 value={time}
                 onChangeText={setTime}
@@ -367,7 +367,7 @@ export default function EditClassScreen() {
                 placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
                 maxLength={5}
-                className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.time ? 'border-red-300' : 'border-gray-200'}`}
+                className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.time ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
               />
               {errors.time && <Text className="text-xs text-red-600 mt-1">{errors.time}</Text>}
             </View>
@@ -385,7 +385,7 @@ export default function EditClassScreen() {
                   <MobileSelect label="Día *" value={dayOfWeek} options={DAY_OPTIONS} onSelect={setDayOfWeek} error={errors.dayOfWeek} />
                 </View>
                 <View className="flex-1 gap-1.5">
-                  <Text className="text-sm font-medium text-gray-700">Hora * (HH:MM)</Text>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Hora * (HH:MM)</Text>
                   <TextInput
                     value={recurringTime}
                     onChangeText={setRecurringTime}
@@ -393,7 +393,7 @@ export default function EditClassScreen() {
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
                     maxLength={5}
-                    className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.recurringTime ? 'border-red-300' : 'border-gray-200'}`}
+                    className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.recurringTime ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
                   />
                 </View>
               </View>
@@ -404,7 +404,7 @@ export default function EditClassScreen() {
                 <MobileMonthCalendar selected={customDates} onChange={setCustomDates} />
                 {errors.customDates && <Text className="text-xs text-red-600">{errors.customDates}</Text>}
                 <View className="gap-1.5">
-                  <Text className="text-sm font-medium text-gray-700">Hora de inicio * (HH:MM)</Text>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Hora de inicio * (HH:MM)</Text>
                   <TextInput
                     value={recurringTime}
                     onChangeText={setRecurringTime}
@@ -412,15 +412,15 @@ export default function EditClassScreen() {
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
                     maxLength={5}
-                    className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.recurringTime ? 'border-red-300' : 'border-gray-200'}`}
+                    className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.recurringTime ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
                   />
                 </View>
               </View>
             )}
 
             {/* End date */}
-            <View className="border border-gray-200 rounded-xl p-3 gap-2 bg-white">
-              <Text className="text-sm font-medium text-gray-700">Fecha de término *</Text>
+            <View className="border border-gray-200 dark:border-dark-border rounded-xl p-3 gap-2 bg-white dark:bg-dark-surface">
+              <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha de término *</Text>
               {!endsIndefinitely && (
                 <MobileDateInput value={endsAt} onChange={setEndsAt} error={errors.endsAt} />
               )}
@@ -429,20 +429,20 @@ export default function EditClassScreen() {
                   onPress={() => { setEndsIndefinitely(!endsIndefinitely); if (!endsIndefinitely) setEndsAt('') }}
                   className="flex-row items-center gap-2"
                 >
-                  <View className={`w-5 h-5 rounded border-2 items-center justify-center ${endsIndefinitely ? 'bg-brand-600 border-brand-600' : 'border-gray-300 bg-white'}`}>
+                  <View className={`w-5 h-5 rounded border-2 items-center justify-center ${endsIndefinitely ? 'bg-brand-600 border-brand-600' : 'border-gray-300 bg-white dark:bg-dark-surface2 dark:border-dark-border'}`}>
                     {endsIndefinitely && <Text className="text-white text-xs font-bold">✓</Text>}
                   </View>
-                  <Text className="text-sm text-gray-700">Indefinido</Text>
+                  <Text className="text-sm text-gray-700 dark:text-dark-text2">Indefinido</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             {classType === 'periodica' && (
-              <View className="border border-gray-200 rounded-xl p-3 gap-2 bg-white">
-                <Text className="text-sm font-medium text-gray-700">Precio clase suelta <Text className="text-gray-400 font-normal">(opcional)</Text></Text>
-                <TextInput value={priceSuelta} onChangeText={setPriceSuelta} placeholder="ej: 5000" placeholderTextColor="#9CA3AF" keyboardType="numeric" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-gray-50" />
-                <Text className="text-sm font-medium text-gray-700">Precio 2x clase suelta <Text className="text-gray-400 font-normal">(opcional)</Text></Text>
-                <TextInput value={priceSuelta2x} onChangeText={setPriceSuelta2x} placeholder="ej: 8000" placeholderTextColor="#9CA3AF" keyboardType="numeric" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-gray-50" />
+              <View className="border border-gray-200 dark:border-dark-border rounded-xl p-3 gap-2 bg-white dark:bg-dark-surface">
+                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Precio clase suelta <Text className="text-gray-400 font-normal">(opcional)</Text></Text>
+                <TextInput value={priceSuelta} onChangeText={setPriceSuelta} placeholder="ej: 5000" placeholderTextColor="#9CA3AF" keyboardType="numeric" className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-gray-50 dark:bg-dark-surface2" />
+                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Precio 2x clase suelta <Text className="text-gray-400 font-normal">(opcional)</Text></Text>
+                <TextInput value={priceSuelta2x} onChangeText={setPriceSuelta2x} placeholder="ej: 8000" placeholderTextColor="#9CA3AF" keyboardType="numeric" className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-gray-50 dark:bg-dark-surface2" />
               </View>
             )}
           </View>
@@ -451,12 +451,12 @@ export default function EditClassScreen() {
         {/* Location */}
         <View className="gap-3">
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Lugar</Text>
-            <TextInput value={locationName} onChangeText={setLocationName} placeholder="ej: Estudio Dance House" placeholderTextColor="#9CA3AF" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white" />
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Lugar</Text>
+            <TextInput value={locationName} onChangeText={setLocationName} placeholder="ej: Estudio Dance House" placeholderTextColor="#9CA3AF" className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2" />
           </View>
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Dirección</Text>
-            <TextInput value={locationAddress} onChangeText={setLocationAddress} placeholder="ej: Av. Providencia 1234" placeholderTextColor="#9CA3AF" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white" />
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Dirección</Text>
+            <TextInput value={locationAddress} onChangeText={setLocationAddress} placeholder="ej: Av. Providencia 1234" placeholderTextColor="#9CA3AF" className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2" />
           </View>
           <MobileCityPicker label="Ciudad" value={city} onChange={setCity} />
         </View>
@@ -464,34 +464,34 @@ export default function EditClassScreen() {
         {/* Spots / Duration / Price */}
         <View className="flex-row gap-3">
           <View className="flex-1 gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Cupos *</Text>
-            <TextInput value={maxSpots} onChangeText={setMaxSpots} keyboardType="numeric" className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.maxSpots ? 'border-red-300' : 'border-gray-200'}`} />
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Cupos *</Text>
+            <TextInput value={maxSpots} onChangeText={setMaxSpots} keyboardType="numeric" className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.maxSpots ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`} />
             {errors.maxSpots && <Text className="text-xs text-red-600">{errors.maxSpots}</Text>}
           </View>
           <View className="flex-1 gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">Duración (min)</Text>
-            <TextInput value={durationMinutes} onChangeText={setDurationMinutes} keyboardType="numeric" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white" />
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Duración (min)</Text>
+            <TextInput value={durationMinutes} onChangeText={setDurationMinutes} keyboardType="numeric" className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2" />
           </View>
           <View className="flex-1 gap-1.5">
-            <Text className="text-sm font-medium text-gray-700">{isPeriodic ? 'Precio/mes *' : 'Precio *'}</Text>
-            <TextInput value={price} onChangeText={setPrice} keyboardType="numeric" className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${errors.price ? 'border-red-300' : 'border-gray-200'}`} />
+            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">{isPeriodic ? 'Precio/mes *' : 'Precio *'}</Text>
+            <TextInput value={price} onChangeText={setPrice} keyboardType="numeric" className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.price ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`} />
             {errors.price && <Text className="text-xs text-red-600">{errors.price}</Text>}
           </View>
         </View>
 
         {/* Price 2x */}
         <View className="border border-brand-100 bg-brand-50/30 rounded-xl p-3 gap-1">
-          <Text className="text-sm font-medium text-gray-700">Precio 2x <Text className="text-gray-400 font-normal">(opcional)</Text></Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Precio 2x <Text className="text-gray-400 font-normal">(opcional)</Text></Text>
           <TextInput value={price2x} onChangeText={setPrice2x} placeholder="ej: 18000" placeholderTextColor="#9CA3AF" keyboardType="numeric" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white mt-1" />
         </View>
 
         {/* Media */}
         <View className="gap-2">
-          <Text className="text-sm font-medium text-gray-700">Fotos/Videos <Text className="text-gray-400 font-normal">(máx. 5)</Text></Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Fotos/Videos <Text className="text-gray-400 font-normal">(máx. 5)</Text></Text>
           {existingMedia.length > 0 && (
             <View className="flex-row flex-wrap gap-2">
               {existingMedia.map((item) => (
-                <View key={item.id} style={{ width: 90, height: 90 }} className="rounded-xl overflow-hidden bg-gray-100">
+                <View key={item.id} style={{ width: 90, height: 90 }} className="rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-surface2">
                   <Image source={{ uri: item.url }} style={{ width: 90, height: 90 }} />
                   <TouchableOpacity
                     onPress={() => removeExistingMedia(item)}
@@ -506,7 +506,7 @@ export default function EditClassScreen() {
           {newMediaItems.length > 0 && (
             <View className="flex-row flex-wrap gap-2">
               {newMediaItems.map((item, i) => (
-                <View key={i} style={{ width: 90, height: 90 }} className="rounded-xl overflow-hidden bg-gray-100 border-2 border-brand-400">
+                <View key={i} style={{ width: 90, height: 90 }} className="rounded-xl overflow-hidden bg-gray-100 dark:bg-dark-surface2 border-2 border-brand-400">
                   <Image source={{ uri: item.uri }} style={{ width: 90, height: 90 }} />
                   <TouchableOpacity
                     onPress={() => setNewMediaItems((prev) => prev.filter((_, idx) => idx !== i))}
@@ -519,9 +519,9 @@ export default function EditClassScreen() {
             </View>
           )}
           {totalMedia < 5 && (
-            <TouchableOpacity onPress={pickMedia} className="border-2 border-dashed border-gray-200 rounded-xl p-6 items-center gap-2">
+            <TouchableOpacity onPress={pickMedia} className="border-2 border-dashed border-gray-200 dark:border-dark-border rounded-xl p-6 items-center gap-2">
               <ImagePlus size={24} stroke="#9CA3AF" />
-              <Text className="text-sm text-gray-500">Agregar foto o video</Text>
+              <Text className="text-sm text-gray-500 dark:text-dark-text2">Agregar foto o video</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -537,8 +537,8 @@ export default function EditClassScreen() {
         </TouchableOpacity>
 
         {/* Danger zone */}
-        <View className="border-t border-gray-100 pt-4 mt-2 gap-3">
-          <Text className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Zona peligrosa</Text>
+        <View className="border-t border-gray-100 dark:border-dark-border pt-4 mt-2 gap-3">
+          <Text className="text-xs font-semibold text-gray-400 dark:text-dark-text2/60 uppercase tracking-wider">Zona peligrosa</Text>
           {isEntrenamiento && !classData.audition_closed && (
             <TouchableOpacity
               onPress={() => router.push(`/(app)/class/${id}/auditions` as any)}
@@ -550,10 +550,10 @@ export default function EditClassScreen() {
           <TouchableOpacity
             onPress={handleDelete}
             disabled={deleting}
-            className="border border-red-200 rounded-xl px-4 py-2.5 flex-row items-center gap-2"
+            className="border border-red-200 dark:border-red-800 rounded-xl px-4 py-2.5 flex-row items-center gap-2"
           >
             <Trash2 size={16} stroke="#dc2626" />
-            <Text className="text-sm font-medium text-red-600">
+            <Text className="text-sm font-medium text-red-600 dark:text-red-400">
               {deleting ? 'Eliminando...' : 'Eliminar esta clase'}
             </Text>
           </TouchableOpacity>

@@ -131,37 +131,37 @@ export default function TeacherProfileClient({
       <div className="px-4 py-6 flex flex-col items-center text-center gap-3">
         <Avatar src={teacher.avatar_url} name={teacher.full_name} size="xl" />
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{teacher.full_name}</h1>
-          <p className="text-sm text-gray-500">@{teacher.username}</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">{teacher.full_name}</h1>
+          <p className="text-sm text-gray-500 dark:text-dark-text2">@{teacher.username}</p>
         </div>
 
-        {teacher.bio && <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{teacher.bio}</p>}
+        {teacher.bio && <p className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed max-w-xs">{teacher.bio}</p>}
 
-        <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap justify-center">
+        <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-dark-text2 flex-wrap justify-center">
           {teacher.city && (
             <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{teacher.city}</span>
           )}
           <span className="flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
-            <strong className="text-gray-900">{followers}</strong> seguidores
+            <strong className="text-gray-900 dark:text-dark-text">{followers}</strong> seguidores
           </span>
         </div>
 
         {/* Stats row */}
         <div className="flex items-center gap-4 flex-wrap justify-center mt-1">
           <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-gray-900">{classesCount}</span>
-            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
+            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesCount}</span>
+            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
           </div>
           <div className="h-7 w-px bg-gray-200" />
           <div className="flex flex-col items-center">
             <span className="text-base font-bold text-gray-900">{paidSpotsCount}</span>
-            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
+            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
           </div>
           <div className="h-7 w-px bg-gray-200" />
           <div className="flex flex-col items-center">
             <span className="text-base font-bold text-green-700">{trustCount}</span>
-            <span className="text-[11px] text-gray-500 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
+            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
           </div>
         </div>
 
@@ -177,7 +177,7 @@ export default function TeacherProfileClient({
             <button onClick={handleFollowToggle} disabled={loadingFollow}
               className={cn('flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border transition-colors',
                 isFollowing
-                  ? 'border-gray-200 text-gray-700 hover:border-red-200 hover:text-red-600'
+                  ? 'border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-red-200 hover:text-red-600'
                   : 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700'
               )}>
               {isFollowing ? <UserMinus className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
@@ -188,9 +188,9 @@ export default function TeacherProfileClient({
               disabled={loadingFriend || friendStatus === 'pending_sent'}
               className={cn('flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border transition-colors',
                 friendStatus === 'accepted' ? 'border-green-200 bg-green-50 text-green-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600' :
-                friendStatus === 'pending_sent' ? 'border-gray-200 text-gray-400 cursor-default' :
+                friendStatus === 'pending_sent' ? 'border-gray-200 dark:border-dark-border text-gray-400 dark:text-dark-text2/50 cursor-default' :
                 friendStatus === 'pending_received' ? 'bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200' :
-                'border-gray-200 text-gray-700 hover:border-brand-400 hover:text-brand-700'
+                'border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 hover:text-brand-700'
               )}>
               <FriendIcon className="h-4 w-4" />
               {friendBtnLabel}
@@ -212,10 +212,10 @@ export default function TeacherProfileClient({
 
       {/* Estilos de baile */}
       {(((teacher.styles_dancing?.length ?? 0) > 0 || (teacher.styles_teaching?.length ?? 0) > 0) || isOwnProfile) && (
-        <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-4">
+        <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-dark-border pt-4">
           {(teacher.styles_dancing?.length ?? 0) > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Baila</p>
+              <p className="text-xs font-semibold text-gray-500 dark:text-dark-text2 uppercase tracking-wider mb-2">Baila</p>
               <div className="flex flex-wrap gap-1.5">
                 {teacher.styles_dancing.map((s) => (
                   <span key={s} className="badge bg-lavanda-suave text-violeta-oscuro">{s}</span>
@@ -225,7 +225,7 @@ export default function TeacherProfileClient({
           )}
           {(teacher.styles_teaching?.length ?? 0) > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Enseña</p>
+              <p className="text-xs font-semibold text-gray-500 dark:text-dark-text2 uppercase tracking-wider mb-2">Enseña</p>
               <div className="flex flex-wrap gap-1.5">
                 {teacher.styles_teaching.map((s) => (
                   <span key={s} className="badge bg-brand-50 text-brand-700">{s}</span>
@@ -244,8 +244,8 @@ export default function TeacherProfileClient({
 
       {/* Clases publicadas */}
       {classes.length > 0 && (
-        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
-          <h2 className="font-bold text-gray-900 mb-3">Clases activas</h2>
+        <div className="px-4 pb-6 border-t border-gray-100 dark:border-dark-border pt-4">
+          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">Clases activas</h2>
           <div className="space-y-3">
             {classes.map((cls) => <ClassMiniCard key={cls.id} cls={cls} />)}
           </div>
@@ -254,8 +254,8 @@ export default function TeacherProfileClient({
 
       {/* Clases inscritas */}
       {enrolledClasses.length > 0 && (
-        <div className="px-4 pb-6 border-t border-gray-100 pt-4">
-          <h2 className="font-bold text-gray-900 mb-3">
+        <div className="px-4 pb-6 border-t border-gray-100 dark:border-dark-border pt-4">
+          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">
             {isOwnProfile ? 'Mis inscripciones' : 'Inscrito/a en'}
           </h2>
           <div className="space-y-3">
@@ -267,7 +267,7 @@ export default function TeacherProfileClient({
       {/* Publicaciones (videos) */}
       {posts.length > 0 && (
         <div className="border-t border-gray-100 pt-4 pb-2">
-          <h2 className="font-bold text-gray-900 mb-1 px-4 flex items-center gap-2">
+          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-1 px-4 flex items-center gap-2">
             <Video className="h-4 w-4 text-brand-500" />
             {isOwnProfile ? 'Mis publicaciones' : 'Publicaciones'}
           </h2>
@@ -312,14 +312,14 @@ function ClassMiniCard({ cls }: { cls: any }) {
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-gray-900 truncate">{cls.title}</p>
+        <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls.title}</p>
         {cls.dance_style && (
           <p className="text-xs text-brand-600">
             {cls.dance_style}{cls.class_type ? ` - ${cls.class_type}` : ''}
           </p>
         )}
-        <p className="text-xs text-gray-500 mt-1">{schedule}</p>
-        <p className="mt-1 text-sm font-bold text-gray-900">{formatCLP(cls.price)}</p>
+        <p className="text-xs text-gray-500 dark:text-dark-text2 mt-1">{schedule}</p>
+        <p className="mt-1 text-sm font-bold text-gray-900 dark:text-dark-text">{formatCLP(cls.price)}</p>
         {cls.price_suelta && (
           <p className="text-xs text-gray-400">Suelta: {formatCLP(cls.price_suelta)}</p>
         )}

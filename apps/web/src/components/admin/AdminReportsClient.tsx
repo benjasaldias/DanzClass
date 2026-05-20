@@ -82,7 +82,7 @@ export default function AdminReportsClient({ reports: initialReports }: { report
         />
       )}
 
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-dark-border">
         {reports.map((report) => {
           const contentHref = report.content_type === 'class'
             ? `/class/${report.content_id}`
@@ -98,7 +98,7 @@ export default function AdminReportsClient({ reports: initialReports }: { report
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-dark-text">
                       @{report.reporter?.username ?? 'desconocido'}
                     </span>
                     <span className="badge bg-coral-fuego/15 text-coral-fuego capitalize">
@@ -109,7 +109,7 @@ export default function AdminReportsClient({ reports: initialReports }: { report
                     </span>
                   </div>
                   {report.description && (
-                    <p className="text-sm text-gray-600 mt-1 leading-snug">{report.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-dark-text2 mt-1 leading-snug">{report.description}</p>
                   )}
                   <div className="flex items-center gap-3 mt-2 flex-wrap">
                     <span className="text-xs text-gray-400">{timeAgo(report.created_at)}</span>
@@ -138,7 +138,7 @@ export default function AdminReportsClient({ reports: initialReports }: { report
                 </button>
                 <button
                   onClick={() => setConfirm({ action: 'dismiss_report', report })}
-                  className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2 transition-colors"
                 >
                   <XCircle className="h-3.5 w-3.5" />
                   Descartar

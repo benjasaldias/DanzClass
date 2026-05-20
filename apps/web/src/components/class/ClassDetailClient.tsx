@@ -236,7 +236,7 @@ export default function ClassDetailClient({
 
       {/* Header */}
       <div className="px-4 pt-3 pb-1 flex items-center justify-between">
-        <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+        <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text">
           <ChevronLeft className="h-4 w-4" />
           Volver
         </button>
@@ -259,17 +259,17 @@ export default function ClassDetailClient({
               <Tag className="h-3.5 w-3.5" />
               Descuento
             </button>
-            <Link href={`/class/${classData.id}/edit`} className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <Link href={`/class/${classData.id}/edit`} className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors">
               <Pencil className="h-3.5 w-3.5" />
               Editar
             </Link>
-            <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors">
+            <button onClick={() => setShowDeleteConfirm(true)} className="flex items-center gap-1.5 rounded-xl border border-red-200 dark:border-red-800 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
               <Trash2 className="h-3.5 w-3.5" />
               Eliminar
             </button>
           </div>
         ) : (
-          <button onClick={() => setShowReport(true)} className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-red-500 hover:border-red-200 transition-colors">
+          <button onClick={() => setShowReport(true)} className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-dark-text2 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-colors">
             <Flag className="h-3.5 w-3.5" />
             Reportar
           </button>
@@ -344,7 +344,7 @@ export default function ClassDetailClient({
       <div className="px-4 py-4 space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{classData.title}</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">{classData.title}</h1>
             {classData.dance_style && (
               <span className="text-sm text-brand-600 font-medium">
                 {classData.dance_style}
@@ -362,8 +362,8 @@ export default function ClassDetailClient({
           <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-3">
             <Avatar src={teacher.avatar_url} name={teacher.full_name} size="md" />
             <div>
-              <p className="font-semibold text-sm text-gray-900">{teacher.full_name}</p>
-              <p className="text-xs text-gray-500">@{teacher.username}</p>
+              <p className="font-semibold text-sm text-gray-900 dark:text-dark-text">{teacher.full_name}</p>
+              <p className="text-xs text-gray-500 dark:text-dark-text2">@{teacher.username}</p>
             </div>
           </Link>
           {!isTeacher && (
@@ -371,7 +371,7 @@ export default function ClassDetailClient({
               onClick={handleFollowToggle}
               disabled={followLoading}
               className={cn('flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors',
-                isFollowing ? 'border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-600' : 'border-brand-500 text-brand-600 bg-brand-50 hover:bg-brand-100'
+                isFollowing ? 'border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text2 hover:border-red-200 hover:text-red-600' : 'border-brand-500 text-brand-600 bg-brand-50 dark:bg-brand-950/30 dark:text-brand-300 hover:bg-brand-100'
               )}
             >
               {isFollowing ? <UserMinus className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
@@ -382,22 +382,22 @@ export default function ClassDetailClient({
 
         {/* End date badge for entrenamiento/periodica */}
         {isPeriodic && classData.ends_at && (
-          <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
-            <Calendar className="h-4 w-4 text-gray-400" />
-            <span className="text-xs text-gray-600">Hasta: <strong>{formatDate(classData.ends_at)}</strong></span>
+          <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-dark-surface border border-gray-100 dark:border-dark-border px-3 py-2">
+            <Calendar className="h-4 w-4 text-gray-400 dark:text-dark-text2" />
+            <span className="text-xs text-gray-600 dark:text-dark-text2">Hasta: <strong>{formatDate(classData.ends_at)}</strong></span>
           </div>
         )}
         {isEntrenamiento && classData.ends_indefinitely && (
-          <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
-            <Calendar className="h-4 w-4 text-gray-400" />
-            <span className="text-xs text-gray-600">Duración <strong>indefinida</strong></span>
+          <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-dark-surface border border-gray-100 dark:border-dark-border px-3 py-2">
+            <Calendar className="h-4 w-4 text-gray-400 dark:text-dark-text2" />
+            <span className="text-xs text-gray-600 dark:text-dark-text2">Duración <strong>indefinida</strong></span>
           </div>
         )}
 
         <div className="card p-4 space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="h-4 w-4 text-brand-500 flex-shrink-0" />
-            <span className="text-gray-700 flex-1">{scheduleText}</span>
+            <span className="text-gray-700 dark:text-dark-text2 flex-1">{scheduleText}</span>
             {classData.recurrence === 'custom' && (classData.custom_dates?.length ?? 0) > 0 && (
               <button onClick={() => setShowDatesCalendar(true)} className="flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors flex-shrink-0">
                 <Calendar className="h-3 w-3" /> Ver fechas
@@ -406,13 +406,13 @@ export default function ClassDetailClient({
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Clock className="h-4 w-4 text-brand-500 flex-shrink-0" />
-            <span className="text-gray-700">{classData.duration_minutes} minutos</span>
+            <span className="text-gray-700 dark:text-dark-text2">{classData.duration_minutes} minutos</span>
           </div>
           {classData.location_name && (
             <div className="flex items-center gap-3 text-sm">
               <MapPin className="h-4 w-4 text-brand-500 flex-shrink-0" />
               <div>
-                <p className="text-gray-700">{classData.location_name}</p>
+                <p className="text-gray-700 dark:text-dark-text2">{classData.location_name}</p>
                 {classData.location_address && <p className="text-xs text-gray-500">{classData.location_address}</p>}
               </div>
             </div>
@@ -427,8 +427,8 @@ export default function ClassDetailClient({
 
         {classData.description && (
           <div>
-            <h3 className="font-semibold text-sm text-gray-900 mb-2">Descripción</h3>
-            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{classData.description}</p>
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text mb-2">Descripción</h3>
+            <p className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed whitespace-pre-wrap">{classData.description}</p>
           </div>
         )}
 
@@ -517,10 +517,10 @@ export default function ClassDetailClient({
 
       {/* Bottom CTA — enrollment or 2x */}
       {!isTeacher && (!enrollment || enrollment.status === 'cancelled') && canEnrollDirectly && (
-        <div className="sticky bottom-16 left-0 right-0 border-t border-gray-100 bg-white/90 backdrop-blur-md px-4 py-3">
+        <div className="sticky bottom-16 left-0 right-0 border-t border-gray-100 dark:border-dark-border bg-white/90 dark:bg-dark-surface/90 backdrop-blur-md px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-dark-text2">
                 {isPeriodic ? 'Precio mensual' : 'Precio'}
               </p>
               {hasDiscount ? (
@@ -529,7 +529,7 @@ export default function ClassDetailClient({
                   <p className="text-base text-gray-400 line-through">{formatCLP(originalPrice)}</p>
                 </div>
               ) : (
-                <p className="text-2xl font-bold text-gray-900">{formatCLP(classData.price)}</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(classData.price)}</p>
               )}
               {classData.price_suelta && (
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -540,7 +540,7 @@ export default function ClassDetailClient({
                       <span className="line-through text-gray-400 ml-1">{formatCLP(classData.price_suelta)}</span>
                     </>
                   ) : (
-                    <span className="font-semibold text-gray-700">{formatCLP(classData.price_suelta)}</span>
+                    <span className="font-semibold text-gray-700 dark:text-dark-text2">{formatCLP(classData.price_suelta)}</span>
                   )}
                 </p>
               )}

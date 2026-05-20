@@ -131,26 +131,26 @@ export default function CreatePostScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-blanco-violeta" edges={['top']}>
-      <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
+    <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900">Nueva coreografía</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Nueva coreografía</Text>
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
 
         {/* Title */}
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">Título *</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Título *</Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
             placeholder="ej: Combo de Salsa — nivel básico"
             placeholderTextColor="#9CA3AF"
             maxLength={120}
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white"
+            className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
           />
         </View>
 
@@ -171,29 +171,29 @@ export default function CreatePostScreen() {
         ) : (
           <TouchableOpacity
             onPress={pickVideo}
-            className="border-2 border-dashed border-gray-200 rounded-xl p-10 items-center gap-2"
+            className="border-2 border-dashed border-gray-200 dark:border-dark-border rounded-xl p-10 items-center gap-2"
           >
             <Video size={32} stroke="#9CA3AF" />
-            <Text className="text-sm text-gray-500">Seleccionar video</Text>
-            <Text className="text-xs text-gray-400">MP4, MOV</Text>
+            <Text className="text-sm text-gray-500 dark:text-dark-text2">Seleccionar video</Text>
+            <Text className="text-xs text-gray-400 dark:text-dark-text2/60">MP4, MOV</Text>
           </TouchableOpacity>
         )}
 
         {/* City */}
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700">Ciudad</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</Text>
           <TextInput
             value={city}
             onChangeText={setCity}
             placeholder="ej: Santiago"
             placeholderTextColor="#9CA3AF"
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white"
+            className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
           />
         </View>
 
         {/* Visibility */}
         <View className="gap-2">
-          <Text className="text-sm font-medium text-gray-700">Visibilidad</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Visibilidad</Text>
           <View className="flex-row gap-2">
             {VISIBILITY_OPTIONS.map(({ value, label, icon: Icon }) => {
               const active = visibility === value
@@ -202,11 +202,11 @@ export default function CreatePostScreen() {
                   key={value}
                   onPress={() => setVisibility(value)}
                   className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border ${
-                    active ? 'bg-brand-50 border-brand-200' : 'bg-white border-gray-200'
+                    active ? 'bg-brand-50 border-brand-200' : 'bg-white dark:bg-dark-surface2 border-gray-200 dark:border-dark-border'
                   }`}
                 >
                   <Icon size={14} stroke={active ? '#7e22ce' : '#9CA3AF'} />
-                  <Text className={`text-sm font-medium ${active ? 'text-brand-700' : 'text-gray-500'}`}>{label}</Text>
+                  <Text className={`text-sm font-medium ${active ? 'text-brand-700' : 'text-gray-500 dark:text-dark-text2'}`}>{label}</Text>
                 </TouchableOpacity>
               )
             })}

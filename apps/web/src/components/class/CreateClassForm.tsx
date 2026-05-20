@@ -261,23 +261,23 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
   return (
     <div className="px-4 py-4">
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Publicar clase</h1>
-      <p className="text-sm text-gray-500 mb-5">Comparte los detalles de tu clase</p>
+      <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-1">Publicar clase</h1>
+      <p className="text-sm text-gray-500 dark:text-dark-text2 mb-5">Comparte los detalles de tu clase</p>
 
       {/* Monthly limit modal */}
       {showLimitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-6">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="text-base font-bold text-gray-900 mb-2">Límite mensual alcanzado</h3>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-dark-surface p-5 shadow-xl">
+            <h3 className="text-base font-bold text-gray-900 dark:text-dark-text mb-2">Límite mensual alcanzado</h3>
+            <p className="text-sm text-gray-600 dark:text-dark-text2 mb-4">
               Ya publicaste tu clase de este mes. Podrás publicar la siguiente desde el{' '}
               <strong>{nextMonthDate}</strong>.
             </p>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-gray-500 dark:text-dark-text2 mb-4">
               Actualiza al plan <strong>Pro</strong> para publicar clases sin límite.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setShowLimitModal(false)} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button onClick={() => setShowLimitModal(false)} className="flex-1 rounded-xl border border-gray-200 dark:border-dark-border py-2.5 text-sm font-medium text-gray-700 dark:text-dark-text2 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2">
                 Cerrar
               </button>
               <a href="/plans" className="flex-1 btn-primary py-2.5 text-sm text-center">
@@ -291,9 +291,9 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       {/* Indefinite popup for periodica */}
       {showIndefinitePopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-6">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="text-base font-bold text-gray-900 mb-2">Usa el tipo "Entrenamiento"</h3>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-dark-surface p-5 shadow-xl">
+            <h3 className="text-base font-bold text-gray-900 dark:text-dark-text mb-2">Usa el tipo "Entrenamiento"</h3>
+            <p className="text-sm text-gray-600 dark:text-dark-text2 mb-4">
               Las clases sin fecha de término deben ser de tipo <strong>Entrenamiento</strong>.
               Las clases periódicas regulares requieren una fecha de cierre.
             </p>
@@ -318,7 +318,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       )}
 
       {error && (
-        <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">{error}</div>
       )}
 
       {basicBlocked && (
@@ -346,7 +346,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Type selector */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">Tipo de clase</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-dark-text2">Tipo de clase</label>
           <div className="space-y-2">
             {[
               { value: 'suelta', label: 'Clase suelta', desc: 'Una fecha específica', locked: false },
@@ -361,7 +361,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                 <input type="radio" value={value} {...register('type')} className="sr-only" disabled={locked} />
                 <div>
                   <p className="font-semibold text-sm">{label}</p>
-                  <p className="text-xs text-gray-500">{desc}</p>
+                  <p className="text-xs text-gray-500 dark:text-dark-text2">{desc}</p>
                 </div>
               </label>
             ))}
@@ -370,28 +370,28 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
         {/* Title */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Título *</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Título *</label>
           <input {...register('title')} placeholder="ej: Clases de Salsa — Nivel básico" className="input" />
           {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title.message}</p>}
         </div>
 
         {/* Description */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Descripción</label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Descripción</label>
           <textarea {...register('description')} rows={4} placeholder="Describe la clase, qué aprenderán, requisitos previos..." className="input resize-none" />
         </div>
 
         {/* Dance style + Level */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Estilo</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Estilo</label>
             <select {...register('dance_style')} className="input">
               <option value="">Seleccionar</option>
               {DANCE_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nivel</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Nivel</label>
             <select {...register('level')} className="input">
               {(['todos', 'principiante', 'intermedio', 'avanzado'] as ClassLevel[]).map((l) => (
                 <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
@@ -403,8 +403,8 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         {/* Class type (category) */}
         {!isEntrenamiento && (
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Categoría <span className="text-gray-400 font-normal">(opcional)</span>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+              Categoría <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
             </label>
             <select {...register('class_type')} className="input">
               <option value="">Sin especificar</option>
@@ -419,7 +419,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         {classType === 'suelta' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Fecha *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha *</label>
               <DateInput
                 value={watch('date') ?? ''}
                 onChange={(iso) => setValue('date', iso)}
@@ -428,7 +428,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               {errors.date && <p className="mt-1 text-xs text-red-600">{errors.date.message}</p>}
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Hora *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Hora *</label>
               <input {...register('time')} type="time" className="input" />
               {errors.time && <p className="mt-1 text-xs text-red-600">{errors.time.message}</p>}
             </div>
@@ -439,7 +439,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         {isPeriodic && (
           <div className="space-y-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Periodicidad *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Periodicidad *</label>
               <select {...register('recurrence')} className="input">
                 <option value="">Seleccionar</option>
                 <option value="weekly">Semanal</option>
@@ -452,7 +452,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
             {recurrence && recurrence !== 'custom' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Día *</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Día *</label>
                   <select {...register('day_of_week')} className="input">
                     <option value="">Seleccionar</option>
                     {DAYS_OF_WEEK.map((d, i) => <option key={i} value={i}>{d}</option>)}
@@ -460,7 +460,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                   {errors.day_of_week && <p className="mt-1 text-xs text-red-600">{errors.day_of_week.message}</p>}
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Hora *</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Hora *</label>
                   <input {...register('recurring_time')} type="time" className="input" />
                   {errors.recurring_time && <p className="mt-1 text-xs text-red-600">{errors.recurring_time.message}</p>}
                 </div>
@@ -471,7 +471,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               <div className="space-y-3">
                 <MonthCalendar selected={customDates} onChange={setCustomDates} disablePast />
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Hora de inicio *</label>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Hora de inicio *</label>
                   <input {...register('recurring_time')} type="time" className="input" />
                   {errors.recurring_time && <p className="mt-1 text-xs text-red-600">{errors.recurring_time.message}</p>}
                 </div>
@@ -479,8 +479,8 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
             )}
 
             {/* End date */}
-            <div className="rounded-xl border border-gray-200 p-3 space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Fecha de término *</label>
+            <div className="rounded-xl border border-gray-200 dark:border-dark-border p-3 space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha de término *</label>
               {!endsIndefinitely && (
                 <DateInput
                   value={watch('ends_at') ?? ''}
@@ -498,7 +498,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                     onChange={(e) => handleIndefiniteChange(e.target.checked)}
                     className="h-4 w-4 rounded border-gray-300 text-brand-600"
                   />
-                  <span className="text-sm text-gray-700">Indefinido</span>
+                  <span className="text-sm text-gray-700 dark:text-dark-text2">Indefinido</span>
                   {endsIndefinitely && (
                     <span className="text-xs text-amber-600">— Recuerda avisar a tus alumnos cuándo dejar de pagar</span>
                   )}
@@ -518,19 +518,19 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
             {/* Price suelta (only for periodica, not entrenamiento) */}
             {classType === 'periodica' && (
-              <div className="rounded-xl border border-gray-200 p-3 space-y-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  Precio clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
+              <div className="rounded-xl border border-gray-200 dark:border-dark-border p-3 space-y-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                  Precio clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                 </label>
-                <p className="text-xs text-gray-400">Si los alumnos también pueden pagar solo una clase</p>
+                <p className="text-xs text-gray-400 dark:text-dark-text2/60">Si los alumnos también pueden pagar solo una clase</p>
                 <input {...register('price_suelta')} type="number" min={0} placeholder="ej: 5000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
                 {errors.price_suelta && <p className="mt-1 text-xs text-red-600">{errors.price_suelta.message}</p>}
 
                 {/* 2x for suelta within monthly */}
-                <label className="block text-sm font-medium text-gray-700 mt-3">
-                  Precio 2x clase suelta <span className="text-gray-400 font-normal">(opcional)</span>
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2 mt-3">
+                  Precio 2x clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                 </label>
-                <p className="text-xs text-gray-400">Precio total para dos personas en una clase suelta</p>
+                <p className="text-xs text-gray-400 dark:text-dark-text2/60">Precio total para dos personas en una clase suelta</p>
                 <input {...register('price_suelta_2x')} type="number" min={0} placeholder="ej: 8000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
               </div>
             )}
@@ -544,7 +544,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                     {...register('requires_audition')}
                     className="h-4 w-4 rounded border-gray-300 text-brand-600"
                   />
-                  <span className="text-sm font-medium text-gray-800">Requiere postulación</span>
+                  <span className="text-sm font-medium text-gray-800 dark:text-dark-text">Requiere postulación</span>
                 </label>
                 {requiresAudition && (
                   <p className="text-xs text-brand-700">
@@ -561,15 +561,15 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         {/* Location */}
         <div className="space-y-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Lugar</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Lugar</label>
             <input {...register('location_name')} placeholder="ej: Estudio Dance House" className="input" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Dirección</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Dirección</label>
             <input {...register('location_address')} placeholder="ej: Av. Providencia 1234, Santiago" className="input" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</label>
             <CityCombobox value={cityValue} onChange={setCityValue} />
           </div>
         </div>
@@ -577,16 +577,16 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         {/* Spots + Duration + Price */}
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Cupos *</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Cupos *</label>
             <input {...register('max_spots')} type="number" min={1} placeholder="15" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
             {errors.max_spots && <p className="mt-1 text-xs text-red-600">{errors.max_spots.message}</p>}
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Duración (min)</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Duración (min)</label>
             <input {...register('duration_minutes')} type="number" min={30} placeholder="60" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
               {isPeriodic ? 'Precio mensual ($) *' : 'Precio ($) *'}
             </label>
             <input {...register('price')} type="number" min={0} placeholder="15000" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
@@ -595,11 +595,11 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         </div>
 
         {/* Price 2x (for suelta or entrenamiento monthly) */}
-        <div className="rounded-xl border border-brand-100 bg-brand-50/30 p-3 space-y-1">
-          <label className="block text-sm font-medium text-gray-700">
-            Precio 2x <span className="text-gray-400 font-normal">(opcional)</span>
+        <div className="rounded-xl border border-brand-100 dark:border-brand-900/40 bg-brand-50/30 dark:bg-brand-950/20 p-3 space-y-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
+            Precio 2x <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
           </label>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 dark:text-dark-text2/60">
             {classType === 'suelta'
               ? 'Precio total cuando dos alumnos pagan juntos en un mismo comprobante'
               : 'Precio mensual total para dos alumnos que pagan juntos'}
@@ -609,9 +609,9 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
         {/* Media upload */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-dark-text2">
             {isBasic ? 'Foto o Video' : 'Fotos/Videos'}{' '}
-            <span className="text-gray-400 font-normal">(máx. {mediaLimit})</span>
+            <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(máx. {mediaLimit})</span>
           </label>
 
           {mediaFiles.length > 0 && (
@@ -635,12 +635,12 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               {...getRootProps()}
               className={cn(
                 'rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors',
-                isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300'
+                isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 dark:border-dark-border hover:border-brand-300'
               )}
             >
               <input {...getInputProps()} />
-              <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Arrastra o selecciona fotos/videos</p>
+              <Upload className="h-8 w-8 text-gray-300 dark:text-dark-text2/40 mx-auto mb-2" />
+              <p className="text-sm text-gray-600 dark:text-dark-text2">Arrastra o selecciona fotos/videos</p>
             </div>
           )}
         </div>

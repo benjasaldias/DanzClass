@@ -41,7 +41,7 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
     .toUpperCase()
 
   return (
-    <View className="border-b border-gray-100 bg-white">
+    <View className="border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface">
       {/* Author header */}
       <TouchableOpacity
         onPress={() => author?.username && router.push(`/(app)/teacher/${author.username}` as any)}
@@ -55,8 +55,8 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
           </View>
         )}
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-gray-900">{author?.full_name}</Text>
-          <Text className="text-xs text-gris-humo">{timeAgo(post.created_at)}</Text>
+          <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{author?.full_name}</Text>
+          <Text className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(post.created_at)}</Text>
         </View>
         {visibilityInfo && (
           <View className="flex-row items-center gap-1 bg-lavanda-suave rounded-full px-2 py-1">
@@ -107,7 +107,7 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
       {/* Title */}
       {post.title && (
         <View className="px-4 pt-3 pb-4">
-          <Text className="font-semibold text-gray-900 text-sm">{post.title}</Text>
+          <Text className="font-semibold text-gray-900 dark:text-dark-text text-sm">{post.title}</Text>
         </View>
       )}
     </View>

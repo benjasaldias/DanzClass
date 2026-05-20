@@ -35,11 +35,11 @@ export default function TopBar({ title }: TopBarProps) {
   }, [])
 
   return (
-    <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+    <View className="flex-row items-center justify-between px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
       {/* Logo */}
       <View className="flex-row items-center gap-1.5">
         <Music size={20} stroke="#c026d3" />
-        <Text className="text-lg font-bold text-gray-900">{title ?? 'DanzClass'}</Text>
+        <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{title ?? 'DanzClass'}</Text>
       </View>
 
       {/* Actions */}
