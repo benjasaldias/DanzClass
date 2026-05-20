@@ -22,6 +22,7 @@ export default async function ExplorePage() {
       .from('profiles')
       .select('*')
       .neq('id', user?.id ?? '')
+      .eq('is_confirmed' as any, true)
       .order('full_name', { ascending: true })
       .limit(100),
     user

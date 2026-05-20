@@ -43,6 +43,7 @@ export default function TeacherProfileScreen() {
         .from('profiles')
         .select('*')
         .eq('username', username)
+        .eq('is_confirmed' as any, true)
         .single()
 
       if (!p) { setLoading(false); return }
@@ -222,7 +223,7 @@ export default function TeacherProfileScreen() {
             </View>
             <View className="w-px bg-gray-100 dark:bg-dark-border" />
             <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900">{classesCount}</Text>
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{classesCount}</Text>
               <View className="flex-row items-center gap-1">
                 <Music2 size={11} stroke="#6B6880" />
                 <Text className="text-xs text-gris-humo dark:text-dark-text2">clases</Text>
@@ -230,7 +231,7 @@ export default function TeacherProfileScreen() {
             </View>
             <View className="w-px bg-gray-100 dark:bg-dark-border" />
             <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900">{trustCount}</Text>
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{trustCount}</Text>
               <View className="flex-row items-center gap-1">
                 <ShieldCheck size={11} stroke="#6B6880" />
                 <Text className="text-xs text-gris-humo dark:text-dark-text2">confían</Text>

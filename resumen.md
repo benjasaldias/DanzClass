@@ -879,6 +879,28 @@ Todos los emojis UI reemplazados por íconos vectoriales de `lucide-react-native
 - `_layout.tsx`: registrado `class/[id]/auditions` como `presentation: 'card'`
 - `_layout.tsx`: migrado a `useTheme()` de `ThemeContext` (en vez de `useColorScheme` directamente)
 
+### ✅ Dark mode fix — stats en perfil ajeno mobile
+
+- `teacher/[username].tsx` líneas 225 y 233: añadido `dark:text-dark-text` a los contadores de clases y "confían" (antes aparecían negros sobre fondo oscuro)
+
+### ✅ Protección contra cuentas sin confirmar
+
+**2.1 — Eliminación automática + advertencia al registrarse**
+
+- Nueva migración `018_is_confirmed_profiles.sql`: columna `is_confirmed BOOLEAN DEFAULT false NOT NULL` en `profiles`; trigger `on_auth_user_email_confirmed` en `auth.users` que lo pone en `true` cuando se confirma el email; backfill de usuarios ya confirmados
+- Nueva ruta cron `apps/web/src/app/api/cron/cleanup-unconfirmed/route.ts`: lista todos los usuarios auth, elimina los que tienen `email_confirmed_at IS NULL` y `created_at < now - 1 día`; paginado en bloques de 1000
+- `apps/web/vercel.json`: añadido cron `0 4 * * *` para `/api/cron/cleanup-unconfirmed`
+- `apps/web/src/app/auth/register/page.tsx`: pantalla de éxito muestra banner ámbar "⚠️ Tienes 1 día para confirmar tu correo. Si no lo haces, tu cuenta será eliminada automáticamente."
+- `apps/mobile/app/(auth)/register.tsx`: en vez de redirigir al feed inmediatamente, muestra pantalla de éxito con MailCheck, mismo aviso ámbar, y botón "Ir a iniciar sesión" que navega a login
+
+**2.2 — Filtrado de cuentas no confirmadas**
+
+- `packages/shared/src/types/index.ts`: añadido `is_confirmed: boolean` a la interfaz `Profile`
+- `apps/web/src/app/(app)/explore/page.tsx`: `.eq('is_confirmed' as any, true)` en la query de profiles
+- `apps/web/src/app/(app)/teacher/[username]/page.tsx`: ídem — usuario no confirmado resulta en `notFound()`
+- `apps/mobile/app/(app)/(tabs)/explore.tsx`: `.eq('is_confirmed' as any, true)` en la query de profiles
+- `apps/mobile/app/(app)/teacher/[username].tsx`: ídem — usuario no confirmado resulta en pantalla "Usuario no encontrado"
+
 ---
 
 ## Preparación deployment mobile — sesión 2026-05-19

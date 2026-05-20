@@ -3,8 +3,9 @@ import { Link, useRouter } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Music2 } from 'lucide-react-native'
+import { Music2, MailCheck } from 'lucide-react-native'
 import { Icon } from '../../components/ui/Icon'
 
 const schema = z.object({
@@ -23,6 +24,7 @@ type FormData = z.infer<typeof schema>
 
 export default function RegisterScreen() {
   const router = useRouter()
+  const [emailSent, setEmailSent] = useState(false)
   const {
     control,
     handleSubmit,
@@ -48,8 +50,37 @@ export default function RegisterScreen() {
     if (error) {
       setError('root', { message: error.message })
     } else {
-      router.replace('/(app)/(tabs)/feed')
+      setEmailSent(true)
     }
+  }
+
+  if (emailSent) {
+    return (
+      <KeyboardAvoidingView className="flex-1 bg-noche-urbana">
+        <View className="flex-1 items-center justify-center px-6 gap-6">
+          <View className="w-16 h-16 bg-brand-100 rounded-full items-center justify-center">
+            <MailCheck size={32} stroke="#c026d3" />
+          </View>
+          <View className="items-center gap-2">
+            <Text className="text-white text-2xl font-bold">Revisa tu correo</Text>
+            <Text className="text-white/70 text-sm text-center leading-relaxed">
+              Te enviamos un enlace de confirmación. Haz clic en él para activar tu cuenta.
+            </Text>
+          </View>
+          <View className="bg-amber-500/20 border border-amber-400/40 rounded-2xl px-4 py-3 w-full">
+            <Text className="text-amber-300 text-sm text-center leading-relaxed">
+              ⚠️ Tienes 1 día para confirmar tu correo. Si no lo haces, tu cuenta será eliminada automáticamente.
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.replace('/(auth)/login')}
+            className="bg-brand-600 rounded-xl py-3 px-8 w-full items-center"
+          >
+            <Text className="text-white font-semibold text-base">Ir a iniciar sesión</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    )
   }
 
   return (

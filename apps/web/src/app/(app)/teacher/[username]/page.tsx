@@ -16,6 +16,7 @@ export default async function UserProfilePage({ params }: Props) {
     .from('profiles')
     .select('*')
     .eq('username', params.username)
+    .eq('is_confirmed' as any, true)
     .single()
 
   const profileUser = rawProfile as Profile | null

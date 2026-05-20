@@ -45,6 +45,7 @@ export default function ExploreScreen() {
           supabase
             .from('profiles')
             .select('id, username, full_name, avatar_url, city, styles_teaching')
+            .eq('is_confirmed' as any, true)
             .order('created_at', { ascending: false })
             .limit(100),
           supabase

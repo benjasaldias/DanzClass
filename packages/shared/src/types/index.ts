@@ -102,6 +102,7 @@ export interface Profile {
   styles_dancing: string[]
   styles_teaching: string[]
   enrolled_classes_public: boolean
+  is_confirmed: boolean
   created_at: string
   updated_at: string
 }

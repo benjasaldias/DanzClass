@@ -77,6 +77,9 @@ export default function RegisterPage() {
             <p className="text-sm text-gray-500 dark:text-dark-text2 leading-relaxed">
               Te enviamos un enlace de confirmación. Haz clic en él para activar tu cuenta y luego inicia sesión.
             </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2">
+              ⚠️ Tienes 1 día para confirmar tu correo. Si no lo haces, tu cuenta será eliminada automáticamente.
+            </p>
             <Link
               href="/auth/login"
               className="btn-primary w-full py-3 block text-center"
