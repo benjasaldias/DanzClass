@@ -39,9 +39,11 @@ const ENROLL_STATUS: Record<string, { label: string; color: string }> = {
 
 // ─── Enrolled tab ─────────────────────────────────────────────────────────────
 
-function EnrolledTab({ enrollments }: { enrollments: any[] }) {
-  const router = useRouter()
-
+function EnrolledTab({ enrollments, onPressClass, onPressPayment }: {
+  enrollments: any[]
+  onPressClass: (classId: string) => void
+  onPressPayment: (enrollmentId: string) => void
+}) {
   if (enrollments.length === 0) {
     return (
       <View className="items-center py-16">
@@ -64,7 +66,7 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
         return (
           <TouchableOpacity
             key={enrollment.id}
-            onPress={() => router.push(`/(app)/class/${cls?.id}` as any)}
+            onPress={() => onPressClass(cls?.id)}
             className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border shadow-sm"
           >
             <Text className="font-bold text-gray-900 dark:text-dark-text text-sm">{cls?.title}</Text>
@@ -74,7 +76,7 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
 
             {enrollment.status === 'pending_payment' && (
               <TouchableOpacity
-                onPress={() => router.push(`/(app)/payment/${enrollment.id}` as any)}
+                onPress={() => onPressPayment(enrollment.id)}
                 className="mt-2 bg-brand-600 rounded-xl py-2 items-center"
               >
                 <Text className="text-white font-semibold text-sm">
@@ -388,6 +390,7 @@ function TeachingTab({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function MyClassesScreen() {
+  const router = useRouter()
   const [tab, setTab] = useState<'enrolled' | 'teaching'>('enrolled')
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [teachingClasses, setTeachingClasses] = useState<any[]>([])
@@ -465,7 +468,11 @@ export default function MyClassesScreen() {
 
       <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
         {tab === 'enrolled'
-          ? <EnrolledTab enrollments={enrollments} />
+          ? <EnrolledTab
+              enrollments={enrollments}
+              onPressClass={(id) => router.push(`/(app)/class/${id}` as any)}
+              onPressPayment={(id) => router.push(`/(app)/payment/${id}` as any)}
+            />
           : userId
             ? <TeachingTab classes={teachingClasses} currentUserId={userId} dismissedIds={dismissedIds} />
             : null

@@ -1,17 +1,21 @@
 import { Tabs } from 'expo-router'
 import { Home, Search, PlusSquare, BookOpen, User } from 'lucide-react-native'
+import { useColorScheme } from 'nativewind'
 
 export default function TabsLayout() {
+  const { colorScheme } = useColorScheme()
+  const isDark = colorScheme === 'dark'
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#c026d3',
+        tabBarActiveTintColor: '#534AB7',
         tabBarInactiveTintColor: '#6B6880',
         tabBarStyle: {
-          backgroundColor: 'white',
+          backgroundColor: isDark ? '#241547' : 'white',
           borderTopWidth: 1,
-          borderTopColor: '#f3f4f6',
+          borderTopColor: isDark ? '#3D2870' : '#f3f4f6',
           height: 60,
           paddingBottom: 8,
         },

@@ -51,14 +51,14 @@ export default function MobileDateInput({ value, onChange, label, placeholder = 
 
   return (
     <View>
-      {label && <Text className="text-sm font-medium text-gray-700 mb-1.5">{label}</Text>}
+      {label && <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1.5">{label}</Text>}
       <TextInput
         value={display}
         onChangeText={handleChange}
         placeholder={placeholder}
         keyboardType="numeric"
         maxLength={10}
-        className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white ${error ? 'border-red-300' : 'border-gray-200'}`}
+        className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${error ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
         placeholderTextColor="#9CA3AF"
       />
       {error && <Text className="text-xs text-red-600 mt-1">{error}</Text>}
