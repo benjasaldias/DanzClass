@@ -1,10 +1,9 @@
 import { Tabs } from 'expo-router'
 import { Home, Search, PlusSquare, BookOpen, User } from 'lucide-react-native'
-import { useColorScheme } from 'nativewind'
+import { useTheme } from '../../../context/ThemeContext'
 
 export default function TabsLayout() {
-  const { colorScheme } = useColorScheme()
-  const isDark = colorScheme === 'dark'
+  const { isDark } = useTheme()
 
   return (
     <Tabs

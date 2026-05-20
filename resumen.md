@@ -824,12 +824,60 @@ Todos los emojis UI reemplazados por íconos vectoriales de `lucide-react-native
 
 ### Limitaciones conocidas (post-MVP)
 
-- **Sistema 2x**: no implementado en mobile (web sí)
-- **Descuentos espontáneos**: no implementado en mobile
-- **Audiciones**: notificaciones `audition_accepted`/`audition_rejected` sin pantalla dedicada
 - **Notificaciones push**: Expo Notifications pendiente
 - **Paginación real**: el feed carga con `.limit(20)` pero no hay scroll infinito con cursor
 - **Sin build de producción local**: Node.js v12 en WSL2 impide correr `eas build` localmente; build debe realizarse desde máquina con Node ≥ 18
+
+---
+
+## Sesión 2026-05-20 — Sistema 2x, descuentos y audiciones en mobile
+
+### ✅ Bearer auth en rutas web adicionales
+
+- `apps/web/src/app/api/class/discount/route.ts` — añadido soporte Bearer token (igual al patrón de transfer-payment/create-preference)
+- `apps/web/src/app/api/class-2x/match/route.ts` — ídem
+
+### ✅ Sistema 2x en mobile — `class/[id]/index.tsx`
+
+- Fetch de `friendships` + `class_2x_requests` de amigos en el `useEffect` inicial
+- Sección colapsable "X amig@s buscan compañer@ 2x" (solo para no-profesores, cuando hay solicitudes activas)
+- TwoxRequestButton inline en la sección de precio: estados `idle` → `Busco 2x`, `looking` → `Cancelar búsqueda`, `matched` → botones "Ir a pagar" / "Que pague mi compañer@"
+- Llama a `/api/class-2x/transfer-payment` y `/api/class-2x/match` con `Bearer ${token}`
+- Race condition: error inline cuando el 2x ya fue tomado por otra persona
+
+### ✅ Descuentos espontáneos en mobile — `class/[id]/index.tsx`
+
+- Botón "Descuento" en el header (teacher only), color coral-fuego
+- `DiscountModal` inline en el archivo: campos precio suelta con descuento + precio mensual con descuento (solo para periódica/entrenamiento)
+- Valida que el precio con descuento sea menor al original
+- Llama a `WEB_URL/api/class/discount` con `Bearer ${token}`
+- Al guardar, actualiza `discountData` local (price y banner sin recarga de página)
+- El banner "¡Descuento activo!" se muestra reactivamente al confirmar
+
+### ✅ Audiciones en mobile
+
+**Botón "Postularme" en class detail:**
+- Visible para alumnos en clases entrenamiento con `requires_audition=true` y `audition_closed=false`
+- `AuditionModal` inline: nombre completo (required), edad/teléfono opcionales, video (expo-image-picker → Storage privado `audition-videos`)
+- Subida de video como Blob a Supabase Storage; guarda el path (no URL pública)
+- Notifica al profesor (`new_audition`) tras enviar
+- Muestra estado post-submit: "Postulación enviada" con badge aceptada/rechazada
+
+**Botón "Postulaciones" en header (teacher only):**
+- Visible para teacher en clases entrenamiento con `requires_audition=true`
+- Navega a nueva pantalla `/(app)/class/[id]/auditions`
+
+**Nueva pantalla `class/[id]/auditions.tsx`:**
+- Carga todas las postulaciones de la clase con datos del postulante
+- Secciones Pendientes / Publicadas
+- Decisiones locales en borrador (Aceptar/Rechazar/Deshacer sin escritura inmediata a DB)
+- Botón sticky "Publicar resultados (N postulaciones)" — batch write + notificaciones `audition_accepted`/`audition_rejected`
+- Botón "Cerrar postulaciones" (Alert de confirmación → `audition_closed = true`)
+- "Ver video" — genera URL firmada de Supabase Storage (válida 1h) y abre con `Linking.openURL`
+
+**Layout update:**
+- `_layout.tsx`: registrado `class/[id]/auditions` como `presentation: 'card'`
+- `_layout.tsx`: migrado a `useTheme()` de `ThemeContext` (en vez de `useColorScheme` directamente)
 
 ---
 

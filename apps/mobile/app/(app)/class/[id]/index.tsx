@@ -1,14 +1,16 @@
 import { useEffect, useState, useRef } from 'react'
 import {
   View, Text, TouchableOpacity, ActivityIndicator, ScrollView,
-  Image, Modal, Pressable, Alert, Dimensions, NativeScrollEvent, NativeSyntheticEvent,
+  Image, Modal, Pressable, Alert, Dimensions, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
+import * as ImagePicker from 'expo-image-picker'
 import {
   ChevronLeft, MapPin, Clock, Users, Calendar, ChevronDown,
-  ChevronRight, AlertCircle, CheckCircle2, Tag, Music2,
+  ChevronRight, CheckCircle2, Tag, Music2, AlertCircle,
+  UserPlus, X, Loader2, ArrowRight, Send, Video,
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
@@ -16,6 +18,7 @@ import { formatCLP, DAYS_OF_WEEK, canEnroll } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
+const WEB_URL = 'https://dc-project-web.vercel.app'
 
 const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
   principiante: { bg: '#dcfce7', text: '#15803d' },
@@ -39,15 +42,15 @@ function CustomDatesModal({ dates, time, onClose }: { dates: string[]; time: str
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/50 justify-end" onPress={onClose}>
-        <View className="bg-white rounded-t-3xl p-6" style={{ maxHeight: '70%' }}>
-          <Text className="text-lg font-bold text-gray-900 mb-4">Fechas programadas</Text>
+        <View className="bg-white dark:bg-dark-surface rounded-t-3xl p-6" style={{ maxHeight: '70%' }}>
+          <Text className="text-lg font-bold text-gray-900 dark:text-dark-text mb-4">Fechas programadas</Text>
           <ScrollView>
             {dates.sort().map((d) => (
-              <View key={d} className="flex-row items-center gap-3 py-3 border-b border-gray-100">
+              <View key={d} className="flex-row items-center gap-3 py-3 border-b border-gray-100 dark:border-dark-border">
                 <View className="w-8 h-8 rounded-full bg-brand-50 items-center justify-center">
                   <Calendar size={14} stroke="#c026d3" />
                 </View>
-                <Text className="text-sm text-gray-800">{formatDate(d)} · {formatTime(time)}</Text>
+                <Text className="text-sm text-gray-800 dark:text-dark-text">{formatDate(d)} · {formatTime(time)}</Text>
               </View>
             ))}
           </ScrollView>
@@ -72,12 +75,332 @@ function VideoCarouselItem({ url }: { url: string }) {
   )
 }
 
+// ─── Discount Modal ───────────────────────────────────────────────────────────
+function DiscountModal({
+  classId, classType, currentPrice, currentPriceSuelta,
+  currentDiscountPrice, currentDiscountPriceMonthly,
+  token, onClose, onSaved,
+}: {
+  classId: string; classType: string; currentPrice: number
+  currentPriceSuelta: number | null; currentDiscountPrice: number | null
+  currentDiscountPriceMonthly: number | null; token: string
+  onClose: () => void; onSaved: (dp: number | null, dpm: number | null) => void
+}) {
+  const isPeriodic = classType === 'periodica' || classType === 'entrenamiento'
+  const [discountPrice, setDiscountPrice] = useState(currentDiscountPrice ? String(currentDiscountPrice) : '')
+  const [discountPriceMonthly, setDiscountPriceMonthly] = useState(currentDiscountPriceMonthly ? String(currentDiscountPriceMonthly) : '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    const dp = discountPrice ? parseInt(discountPrice) : null
+    const dpm = discountPriceMonthly ? parseInt(discountPriceMonthly) : null
+    const basePrice = currentPriceSuelta ?? currentPrice
+    if (dp !== null && dp >= basePrice) {
+      setError('El precio con descuento debe ser menor al precio original')
+      setSaving(false)
+      return
+    }
+    if (dpm !== null && isPeriodic && dpm >= currentPrice) {
+      setError('El precio mensual con descuento debe ser menor al precio mensual original')
+      setSaving(false)
+      return
+    }
+    const res = await fetch(`${WEB_URL}/api/class/discount`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ class_id: classId, discount_price: dp, discount_price_monthly: isPeriodic ? dpm : null }),
+    })
+    if (!res.ok) {
+      setError('Error al guardar. Intenta de nuevo.')
+    } else {
+      onSaved(dp, isPeriodic ? dpm : null)
+    }
+    setSaving(false)
+  }
+
+  async function handleClear() {
+    setSaving(true)
+    await fetch(`${WEB_URL}/api/class/discount`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ class_id: classId, discount_price: null, discount_price_monthly: null }),
+    })
+    onSaved(null, null)
+    setSaving(false)
+  }
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <Pressable className="flex-1 bg-black/50 justify-end" onPress={onClose}>
+          <Pressable>
+            <View className="bg-white dark:bg-dark-surface rounded-t-3xl p-5">
+              <View className="flex-row items-center justify-between mb-4">
+                <View className="flex-row items-center gap-2">
+                  <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: '#D85A3026' }}>
+                    <Tag size={16} stroke="#D85A30" />
+                  </View>
+                  <Text className="text-base font-bold text-gray-900 dark:text-dark-text">Precio con descuento</Text>
+                </View>
+                <TouchableOpacity onPress={onClose} className="p-1.5 rounded-full">
+                  <X size={16} stroke="#6B6880" />
+                </TouchableOpacity>
+              </View>
+
+              {error && (
+                <View className="mb-4 rounded-xl bg-red-50 border border-red-200 px-3 py-2">
+                  <Text className="text-xs text-red-700">{error}</Text>
+                </View>
+              )}
+
+              <View className="gap-4">
+                <View>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1.5">
+                    {isPeriodic ? 'Precio clase suelta con descuento' : 'Precio con descuento'}
+                    <Text className="text-xs text-gray-400"> (original: {formatCLP(currentPriceSuelta ?? currentPrice)})</Text>
+                  </Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    value={discountPrice}
+                    onChangeText={setDiscountPrice}
+                    placeholder="ej: 8000"
+                    placeholderTextColor="#9ca3af"
+                    className="border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
+                  />
+                </View>
+                {isPeriodic && (
+                  <View>
+                    <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1.5">
+                      Precio mensual con descuento
+                      <Text className="text-xs text-gray-400"> (original: {formatCLP(currentPrice)})</Text>
+                    </Text>
+                    <TextInput
+                      keyboardType="numeric"
+                      value={discountPriceMonthly}
+                      onChangeText={setDiscountPriceMonthly}
+                      placeholder="ej: 12000"
+                      placeholderTextColor="#9ca3af"
+                      className="border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
+                    />
+                  </View>
+                )}
+                <View className="rounded-xl px-3 py-2" style={{ backgroundColor: '#D85A301A', borderWidth: 1, borderColor: '#D85A3033' }}>
+                  <Text className="text-xs text-gris-humo">Al publicar, se notificará a todos tus seguidores sobre el descuento.</Text>
+                </View>
+              </View>
+
+              <View className="flex-row gap-2 mt-5">
+                {(currentDiscountPrice || currentDiscountPriceMonthly) && (
+                  <TouchableOpacity
+                    onPress={handleClear}
+                    disabled={saving}
+                    className="rounded-xl border border-gray-200 dark:border-dark-border px-4 py-3"
+                  >
+                    <Text className="text-sm font-medium text-gray-600 dark:text-dark-text2">Quitar descuento</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={saving}
+                  className="flex-1 rounded-xl py-3 items-center justify-center flex-row gap-2"
+                  style={{ backgroundColor: '#D85A30' }}
+                >
+                  {saving && <ActivityIndicator size="small" color="white" />}
+                  <Text className="text-sm font-semibold text-white">Publicar descuento</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
+// ─── Audition Modal ───────────────────────────────────────────────────────────
+function AuditionModal({
+  classId, userId, teacherId, onClose, onSubmitted,
+}: {
+  classId: string; userId: string; teacherId: string
+  onClose: () => void; onSubmitted: () => void
+}) {
+  const [fullName, setFullName] = useState('')
+  const [age, setAge] = useState('')
+  const [phone, setPhone] = useState('')
+  const [videoUri, setVideoUri] = useState<string | null>(null)
+  const [videoName, setVideoName] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function pickVideo() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      allowsEditing: false,
+      quality: 1,
+    })
+    if (!result.canceled && result.assets[0]) {
+      setVideoUri(result.assets[0].uri)
+      const parts = result.assets[0].uri.split('/')
+      setVideoName(parts[parts.length - 1])
+    }
+  }
+
+  async function handleSubmit() {
+    if (!fullName.trim()) { setError('El nombre completo es requerido'); return }
+    setSubmitting(true)
+    setError(null)
+
+    let videoStoragePath: string | null = null
+
+    if (videoUri) {
+      const ext = videoUri.split('.').pop() ?? 'mp4'
+      const path = `${userId}/${classId}.${ext}`
+      const res = await fetch(videoUri)
+      const blob = await res.blob()
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('audition-videos')
+        .upload(path, blob, { upsert: true, contentType: `video/${ext}` })
+      if (uploadErr || !uploadData) {
+        setError('Error al subir el video. Intenta de nuevo.')
+        setSubmitting(false)
+        return
+      }
+      videoStoragePath = uploadData.path
+    }
+
+    const { error: insertErr } = await (supabase as any).from('auditions').insert({
+      class_id: classId,
+      applicant_id: userId,
+      full_name: fullName.trim(),
+      age: age ? parseInt(age) : null,
+      phone: phone.trim() || null,
+      video_url: videoStoragePath,
+      status: 'pending',
+    })
+
+    if (insertErr) {
+      setError(insertErr.message.includes('unique') ? 'Ya tienes una postulación enviada' : 'Error al enviar. Intenta de nuevo.')
+    } else {
+      await (supabase as any).from('notifications').insert({
+        user_id: teacherId,
+        type: 'new_audition',
+        data: { from_user_id: userId, class_id: classId },
+      })
+      onSubmitted()
+    }
+    setSubmitting(false)
+  }
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <Pressable className="flex-1 bg-black/50 justify-end" onPress={onClose}>
+          <Pressable>
+            <View className="bg-white dark:bg-dark-surface rounded-t-3xl p-5" style={{ maxHeight: '90%' }}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View className="flex-row items-center justify-between mb-4">
+                  <Text className="text-base font-bold text-gray-900 dark:text-dark-text">Postularme al entrenamiento</Text>
+                  <TouchableOpacity onPress={onClose} className="p-1.5 rounded-full">
+                    <X size={16} stroke="#6B6880" />
+                  </TouchableOpacity>
+                </View>
+
+                {error && (
+                  <View className="mb-4 rounded-xl bg-red-50 border border-red-200 px-3 py-2">
+                    <Text className="text-xs text-red-700">{error}</Text>
+                  </View>
+                )}
+
+                <View className="gap-4 mb-4">
+                  <View>
+                    <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1.5">Nombre completo *</Text>
+                    <TextInput
+                      value={fullName}
+                      onChangeText={setFullName}
+                      placeholder="Tu nombre y apellido"
+                      placeholderTextColor="#9ca3af"
+                      className="border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
+                    />
+                  </View>
+
+                  <View className="flex-row gap-3">
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1.5">Edad <Text className="text-gray-400 font-normal">(opc.)</Text></Text>
+                      <TextInput
+                        keyboardType="numeric"
+                        value={age}
+                        onChangeText={setAge}
+                        placeholder="25"
+                        placeholderTextColor="#9ca3af"
+                        className="border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1.5">Teléfono <Text className="text-gray-400 font-normal">(opc.)</Text></Text>
+                      <TextInput
+                        keyboardType="phone-pad"
+                        value={phone}
+                        onChangeText={setPhone}
+                        placeholder="+56 9 1234 5678"
+                        placeholderTextColor="#9ca3af"
+                        className="border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
+                      />
+                    </View>
+                  </View>
+
+                  <View>
+                    <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1.5">
+                      Video bailando <Text className="text-gray-400 font-normal">(opc., máx. 100MB)</Text>
+                    </Text>
+                    {videoUri ? (
+                      <View className="flex-row items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-3 py-3">
+                        <Video size={18} stroke="#c026d3" />
+                        <Text className="text-sm text-gray-700 flex-1" numberOfLines={1}>{videoName}</Text>
+                        <TouchableOpacity onPress={() => { setVideoUri(null); setVideoName(null) }}>
+                          <X size={14} stroke="#9ca3af" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={pickVideo}
+                        className="rounded-xl border-2 border-dashed border-gray-200 p-5 items-center gap-2"
+                      >
+                        <Video size={24} stroke="#9ca3af" />
+                        <Text className="text-sm text-gray-500">Seleccionar video</Text>
+                        <Text className="text-xs text-gray-400">MP4, MOV — privado, solo el profesor lo verá</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  disabled={submitting}
+                  className="bg-brand-600 rounded-xl py-3 items-center flex-row justify-center gap-2"
+                >
+                  {submitting && <ActivityIndicator size="small" color="white" />}
+                  <Text className="text-white font-semibold">{submitting ? 'Enviando...' : 'Enviar postulación'}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ClassDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const [cls, setCls] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [tier, setTier] = useState<SubscriptionTier>('none')
   const [enrollment, setEnrollment] = useState<any>(null)
   const [spots, setSpots] = useState<any>(null)
@@ -87,11 +410,29 @@ export default function ClassDetailScreen() {
   const [leaving, setLeaving] = useState(false)
   const carouselRef = useRef<ScrollView>(null)
 
+  // 2x state
+  const [twoxRequest, setTwoxRequest] = useState<any>(null)
+  const [twoxState, setTwoxState] = useState<'idle' | 'looking' | 'matched'>('idle')
+  const [twoxActing, setTwoxActing] = useState(false)
+  const [friendsTwox, setFriendsTwox] = useState<any[]>([])
+  const [friendsOpen, setFriendsOpen] = useState(false)
+  const [matchError, setMatchError] = useState<string | null>(null)
+
+  // Discount state
+  const [discountData, setDiscountData] = useState({ discount_price: null as number | null, discount_price_monthly: null as number | null })
+  const [showDiscountModal, setShowDiscountModal] = useState(false)
+
+  // Audition state
+  const [myAudition, setMyAudition] = useState<any>(null)
+  const [showAuditionModal, setShowAuditionModal] = useState(false)
+  const [auditionSubmitted, setAuditionSubmitted] = useState(false)
+
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      setUserId(user.id)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return
+      setUserId(session.user.id)
+      setToken(session.access_token)
 
       const [clsRes, subRes, spotsRes] = await Promise.all([
         (supabase as any)
@@ -99,7 +440,7 @@ export default function ClassDetailScreen() {
           .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
           .eq('id', id)
           .single(),
-        supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').single(),
+        supabase.from('subscriptions').select('tier').eq('user_id', session.user.id).eq('status', 'active').single(),
         (supabase as any).from('class_spots').select('*').eq('class_id', id).maybeSingle(),
       ])
 
@@ -107,57 +448,132 @@ export default function ClassDetailScreen() {
       setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
       setSpots(spotsRes.data)
 
-      // Check if user already enrolled
+      if (clsRes.data) {
+        setDiscountData({
+          discount_price: clsRes.data.discount_price ?? null,
+          discount_price_monthly: clsRes.data.discount_price_monthly ?? null,
+        })
+      }
+
+      // Enrollment check
       const { data: existing } = await supabase
         .from('enrollments')
         .select('*, payment:payments(*)')
-        .eq('student_id', user.id)
-        .eq('class_id', id)
+        .eq('student_id', session.user.id)
+        .eq('class_id', id as string)
         .neq('status', 'cancelled')
         .maybeSingle()
       setEnrollment(existing)
+
+      // 2x request check
+      const { data: twox } = await (supabase as any)
+        .from('class_2x_requests')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('class_id', id)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+      if (twox) {
+        setTwoxRequest(twox)
+        setTwoxState(twox.status === 'matched' ? 'matched' : 'looking')
+      }
+
+      // Friends 2x requests
+      const { data: friendships } = await (supabase as any)
+        .from('friendships')
+        .select('requester_id, addressee_id')
+        .eq('status', 'accepted')
+        .or(`requester_id.eq.${session.user.id},addressee_id.eq.${session.user.id}`)
+      const friendIds = ((friendships as any[]) ?? []).map((f: any) =>
+        f.requester_id === session.user.id ? f.addressee_id : f.requester_id
+      )
+      if (friendIds.length > 0) {
+        const { data: fTwox } = await (supabase as any)
+          .from('class_2x_requests')
+          .select('*, user:profiles!user_id(username, full_name, avatar_url)')
+          .in('user_id', friendIds)
+          .eq('class_id', id)
+          .eq('status', 'looking')
+        setFriendsTwox((fTwox as any[]) ?? [])
+      }
+
+      // Audition check (only for entrenamiento)
+      if (clsRes.data?.type === 'entrenamiento') {
+        const { data: audition } = await (supabase as any)
+          .from('auditions')
+          .select('*')
+          .eq('class_id', id)
+          .eq('applicant_id', session.user.id)
+          .maybeSingle()
+        if (audition) {
+          setMyAudition(audition)
+          setAuditionSubmitted(true)
+        }
+      }
+
       setLoading(false)
     }
     load()
   }, [id])
 
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
-        <ActivityIndicator color="#c026d3" />
-      </SafeAreaView>
-    )
+  // ─── 2x handlers ─────────────────────────────────────────────────────────
+  async function handle2xCreate() {
+    if (!userId) return
+    setTwoxActing(true)
+    const { data, error } = await (supabase as any)
+      .from('class_2x_requests')
+      .insert({ user_id: userId, class_id: id, status: 'looking' })
+      .select()
+      .single()
+    if (!error && data) {
+      setTwoxRequest(data)
+      setTwoxState('looking')
+    }
+    setTwoxActing(false)
   }
 
-  if (!cls) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
-        <Text className="text-gray-500">Clase no encontrada</Text>
-      </SafeAreaView>
-    )
+  async function handle2xCancel() {
+    if (!twoxRequest) return
+    setTwoxActing(true)
+    await (supabase as any).from('class_2x_requests').update({ status: 'cancelled' }).eq('id', twoxRequest.id)
+    setTwoxRequest(null)
+    setTwoxState('idle')
+    setTwoxActing(false)
   }
 
-  const teacher = cls.teacher
-  const media = [...(cls.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
-  const isTeacher = cls.teacher_id === userId
-  const isPeriodic = cls.type === 'periodica' || cls.type === 'entrenamiento'
-  const isCustom = cls.recurrence === 'custom'
-  const spotsAvailable = spots?.spots_available ?? cls.max_spots
-  const isFull = spotsAvailable <= 0
-  const levelColors = LEVEL_COLORS[cls.level] ?? { bg: '#f3f4f6', text: '#374151' }
+  async function handle2xTransferPayment() {
+    if (!twoxRequest || !token) return
+    setTwoxActing(true)
+    await fetch(`${WEB_URL}/api/class-2x/transfer-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ request_id: twoxRequest.id }),
+    })
+    const { data } = await (supabase as any).from('class_2x_requests').select('*').eq('id', twoxRequest.id).single()
+    setTwoxRequest(data)
+    setTwoxActing(false)
+  }
 
-  const activePrice = isPeriodic
-    ? (cls.discount_price_monthly ?? cls.price)
-    : (cls.discount_price ?? cls.price)
-  const hasDiscount = activePrice < cls.price
+  async function handleJoin2x(requestId: string) {
+    if (!token) return
+    setMatchError(null)
+    const res = await fetch(`${WEB_URL}/api/class-2x/match`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ request_id: requestId }),
+    })
+    if (res.ok) {
+      setFriendsTwox((prev) => prev.filter((r) => r.id !== requestId))
+      Alert.alert('¡Emparejad@!', 'Coordinaste el 2x. Revisa tus inscripciones para pagar.')
+    } else if (res.status === 404) {
+      setMatchError('Este 2x ya fue tomado por otra persona.')
+      setFriendsTwox((prev) => prev.filter((r) => r.id !== requestId))
+    } else {
+      setMatchError('Error al unirse al 2x. Intenta de nuevo.')
+    }
+  }
 
-  const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
-  const scheduleText = cls.type === 'suelta'
-    ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
-    : isCustom
-      ? `${cls.custom_dates?.length ?? 0} clases programadas · ${formatTime(cls.recurring_time)}`
-      : `${recurrenceLabel[cls.recurrence] ?? ''} · ${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`
-
+  // ─── Enrollment handlers ──────────────────────────────────────────────────
   async function handleEnroll() {
     if (!userId || isFull) return
     setEnrolling(true)
@@ -185,8 +601,7 @@ export default function ClassDetailScreen() {
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Salir',
-          style: 'destructive',
+          text: 'Salir', style: 'destructive',
           onPress: async () => {
             setLeaving(true)
             await supabase.from('enrollments').update({ status: 'cancelled' }).eq('id', enrollment.id)
@@ -199,6 +614,55 @@ export default function ClassDetailScreen() {
     )
   }
 
+  // ─── Render ───────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
+        <ActivityIndicator color="#c026d3" />
+      </SafeAreaView>
+    )
+  }
+
+  if (!cls) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
+        <Text className="text-gray-500">Clase no encontrada</Text>
+      </SafeAreaView>
+    )
+  }
+
+  const teacher = cls.teacher
+  const media = [...(cls.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
+  const isTeacher = cls.teacher_id === userId
+  const isPeriodic = cls.type === 'periodica' || cls.type === 'entrenamiento'
+  const isEntrenamiento = cls.type === 'entrenamiento'
+  const isCustom = cls.recurrence === 'custom'
+  const spotsAvailable = spots?.spots_available ?? cls.max_spots
+  const isFull = spotsAvailable <= 0
+  const levelColors = LEVEL_COLORS[cls.level] ?? { bg: '#f3f4f6', text: '#374151' }
+
+  const activePrice = isPeriodic
+    ? (discountData.discount_price_monthly ?? cls.price)
+    : (discountData.discount_price ?? cls.price)
+  const hasDiscount = activePrice < cls.price
+
+  const has2xPrice = !!(cls.price_2x || cls.price_suelta_2x)
+  const price2x = cls.price_2x ?? cls.price_suelta_2x
+  const price2xLabel = cls.price_2x
+    ? (isPeriodic ? 'mensual por ambos' : 'total por ambos')
+    : 'suelta por ambos'
+  const isMyTurnToPay2x = twoxRequest?.payment_assignee === userId
+
+  const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
+  const scheduleText = cls.type === 'suelta'
+    ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
+    : isCustom
+      ? `${cls.custom_dates?.length ?? 0} clases programadas · ${formatTime(cls.recurring_time)}`
+      : `${recurrenceLabel[cls.recurrence] ?? ''} · ${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`
+
+  const canEnrollDirectly = !isEntrenamiento || cls.audition_closed || !cls.requires_audition
+  const auditionOpen = isEntrenamiento && cls.requires_audition && !cls.audition_closed
+
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       {/* Header */}
@@ -208,8 +672,23 @@ export default function ClassDetailScreen() {
         </TouchableOpacity>
         <Text className="text-base font-bold text-gray-900 dark:text-dark-text flex-1" numberOfLines={1}>{cls.title}</Text>
         {isTeacher && (
-          <TouchableOpacity onPress={() => router.push(`/(app)/class/${cls.id}/edit` as any)}>
-            <Text className="text-brand-600 text-sm font-semibold">Editar</Text>
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={() => setShowDiscountModal(true)}
+              className="flex-row items-center gap-1 px-3 py-1.5 rounded-full border"
+              style={{ borderColor: '#D85A30', backgroundColor: '#D85A301A' }}
+            >
+              <Tag size={12} stroke="#D85A30" />
+              <Text className="text-xs font-semibold" style={{ color: '#D85A30' }}>Descuento</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push(`/(app)/class/${cls.id}/edit` as any)}>
+              <Text className="text-brand-600 text-sm font-semibold">Editar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {isTeacher && isEntrenamiento && cls.requires_audition && (
+          <TouchableOpacity onPress={() => router.push(`/(app)/class/${cls.id}/auditions` as any)}>
+            <Text className="text-brand-600 text-sm font-semibold">Postulaciones</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -243,8 +722,6 @@ export default function ClassDetailScreen() {
                 </View>
               ))}
             </ScrollView>
-
-            {/* Indicator bar: ‹ dots › */}
             {media.length > 1 && (
               <View className="absolute bottom-3 left-0 right-0 flex-row items-center justify-center gap-2">
                 <TouchableOpacity
@@ -258,20 +735,15 @@ export default function ClassDetailScreen() {
                 >
                   <ChevronLeft size={22} stroke={mediaIndex === 0 ? 'rgba(255,255,255,0.25)' : 'white'} />
                 </TouchableOpacity>
-
                 {media.map((_: any, i: number) => (
                   <TouchableOpacity
                     key={i}
-                    onPress={() => {
-                      carouselRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true })
-                      setMediaIndex(i)
-                    }}
+                    onPress={() => { carouselRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true }); setMediaIndex(i) }}
                     hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                   >
                     <View className={`h-2 rounded-full ${i === mediaIndex ? 'w-5 bg-white' : 'w-2 bg-white/50'}`} />
                   </TouchableOpacity>
                 ))}
-
                 <TouchableOpacity
                   onPress={() => {
                     const next = Math.min(media.length - 1, mediaIndex + 1)
@@ -294,9 +766,65 @@ export default function ClassDetailScreen() {
 
         {/* Discount banner */}
         {hasDiscount && (
-          <View className="flex-row items-center gap-2 bg-coral-fuego px-4 py-2">
+          <View className="flex-row items-center gap-2 px-4 py-2" style={{ backgroundColor: '#D85A30' }}>
             <Tag size={14} stroke="white" />
             <Text className="text-white text-sm font-semibold">¡Descuento activo!</Text>
+          </View>
+        )}
+
+        {/* Friends looking for 2x — collapsible */}
+        {!isTeacher && friendsTwox.length > 0 && (
+          <View className="border-b border-gray-100 dark:border-dark-border" style={{ backgroundColor: '#f5f3ff' }}>
+            <TouchableOpacity
+              onPress={() => setFriendsOpen((o) => !o)}
+              className="flex-row items-center justify-between px-4 py-3"
+            >
+              <View className="flex-row items-center gap-2">
+                <View className="w-6 h-6 rounded-full bg-brand-600 items-center justify-center">
+                  <Users size={14} stroke="white" />
+                </View>
+                <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">
+                  {friendsTwox.length === 1
+                    ? '1 amig@ busca compañer@ 2x'
+                    : `${friendsTwox.length} amig@s buscan compañer@ 2x`}
+                </Text>
+              </View>
+              {friendsOpen ? <ChevronDown size={16} stroke="#6B6880" /> : <ChevronRight size={16} stroke="#6B6880" />}
+            </TouchableOpacity>
+            {friendsOpen && (
+              <View className="px-4 pb-3 gap-2">
+                {matchError && (
+                  <View className="rounded-xl bg-red-50 border border-red-200 px-3 py-2">
+                    <Text className="text-xs text-red-600">{matchError}</Text>
+                  </View>
+                )}
+                {friendsTwox.map((entry: any) => (
+                  <View key={entry.id} className="flex-row items-center gap-3 rounded-xl bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border px-3 py-2.5">
+                    {entry.user?.avatar_url ? (
+                      <Image source={{ uri: entry.user.avatar_url }} className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <View className="w-8 h-8 rounded-full bg-brand-100 items-center justify-center">
+                        <Text className="text-brand-700 text-xs font-bold">
+                          {(entry.user?.full_name ?? '').split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                        </Text>
+                      </View>
+                    )}
+                    <View className="flex-1 min-w-0">
+                      <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text" numberOfLines={1}>{entry.user?.full_name}</Text>
+                      {price2x && (
+                        <Text className="text-xs text-brand-600 font-medium">{formatCLP(price2x)} en pareja</Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleJoin2x(entry.id)}
+                      className="bg-brand-600 rounded-full px-3 py-1.5"
+                    >
+                      <Text className="text-xs font-semibold text-white">¡Ir juntos!</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -382,26 +910,64 @@ export default function ClassDetailScreen() {
             </View>
           </View>
 
+          {/* Audition section for students (entrenamiento) */}
+          {!isTeacher && isEntrenamiento && cls.requires_audition && (
+            <View className={`rounded-2xl border p-4 ${auditionSubmitted ? 'bg-blue-50 border-blue-200' : 'bg-brand-50 border-brand-200'}`}>
+              {auditionSubmitted ? (
+                <View className="flex-row items-center gap-2">
+                  <CheckCircle2 size={16} stroke="#2563eb" />
+                  <Text className="text-sm font-semibold text-blue-700">Postulación enviada</Text>
+                  {myAudition?.status === 'accepted' && (
+                    <View className="ml-2 bg-green-100 rounded-full px-2 py-0.5">
+                      <Text className="text-xs font-semibold text-green-700">Aceptada</Text>
+                    </View>
+                  )}
+                  {myAudition?.status === 'rejected' && (
+                    <View className="ml-2 bg-red-100 rounded-full px-2 py-0.5">
+                      <Text className="text-xs font-semibold text-red-600">No seleccionad@</Text>
+                    </View>
+                  )}
+                </View>
+              ) : cls.audition_closed ? (
+                <View className="flex-row items-center gap-2">
+                  <AlertCircle size={16} stroke="#6B6880" />
+                  <Text className="text-sm text-gray-600">Las postulaciones están cerradas</Text>
+                </View>
+              ) : (
+                <View className="gap-2">
+                  <Text className="text-sm font-semibold text-brand-700">Este entrenamiento requiere postulación</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowAuditionModal(true)}
+                    className="bg-brand-600 rounded-xl py-2.5 items-center flex-row justify-center gap-2"
+                  >
+                    <UserPlus size={16} stroke="white" />
+                    <Text className="text-sm font-semibold text-white">Postularme</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Price section */}
           <View className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 gap-2">
             <View className="flex-row items-end gap-3">
               <Text className="text-2xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(activePrice)}</Text>
               {hasDiscount && (
-                <Text className="text-sm text-gray-400 dark:text-dark-text2/50 line-through mb-0.5">{formatCLP(cls.price)}</Text>
+                <Text className="text-sm text-gray-400 line-through mb-0.5">{formatCLP(cls.price)}</Text>
               )}
-              {isPeriodic && <Text className="text-sm text-gray-500 dark:text-dark-text2 mb-0.5">/mes</Text>}
+              {isPeriodic && <Text className="text-sm text-gray-500 mb-0.5">/mes</Text>}
             </View>
             {isPeriodic && cls.price_suelta && (
-              <Text className="text-sm text-gray-600 dark:text-dark-text2">
-                Suelta: {formatCLP(cls.discount_price ?? cls.price_suelta)}
-                {cls.discount_price && cls.discount_price < cls.price_suelta && (
+              <Text className="text-sm text-gray-600">
+                Suelta: {formatCLP(discountData.discount_price ?? cls.price_suelta)}
+                {discountData.discount_price && discountData.discount_price < cls.price_suelta && (
                   <Text className="text-gray-400 line-through"> {formatCLP(cls.price_suelta)}</Text>
                 )}
               </Text>
             )}
 
-            {/* CTA */}
-            {!isTeacher && (
+            {/* CTA for student */}
+            {!isTeacher && canEnrollDirectly && (
               enrollment ? (
                 <View className="gap-2 mt-1">
                   <View className="flex-row items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
@@ -423,9 +989,7 @@ export default function ClassDetailScreen() {
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={handleLeave} disabled={leaving} className="py-2 items-center">
-                    <Text className="text-xs text-red-500">
-                      {leaving ? 'Saliendo...' : 'Salir de la clase'}
-                    </Text>
+                    <Text className="text-xs text-red-500">{leaving ? 'Saliendo...' : 'Salir de la clase'}</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -443,16 +1007,114 @@ export default function ClassDetailScreen() {
                 </TouchableOpacity>
               )
             )}
+
+            {/* 2x button — shown if class has 2x price and is not full */}
+            {!isTeacher && has2xPrice && !isFull && !enrollment && (
+              <View className="mt-2 rounded-xl border border-brand-200 bg-brand-50/40 p-3 gap-2">
+                <View className="flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-xs font-semibold text-brand-700">Precio pareja (2x)</Text>
+                    <Text className="text-lg font-bold text-brand-900">{formatCLP(price2x)}</Text>
+                    <Text className="text-xs text-brand-600">{price2xLabel}</Text>
+                  </View>
+                  {twoxState === 'idle' && (
+                    <TouchableOpacity
+                      onPress={handle2xCreate}
+                      disabled={twoxActing}
+                      className="flex-row items-center gap-1.5 bg-brand-600 rounded-full px-4 py-2"
+                    >
+                      {twoxActing ? <ActivityIndicator size="small" color="white" /> : <Users size={14} stroke="white" />}
+                      <Text className="text-sm font-semibold text-white">Busco 2x</Text>
+                    </TouchableOpacity>
+                  )}
+                  {twoxState === 'looking' && (
+                    <TouchableOpacity
+                      onPress={handle2xCancel}
+                      disabled={twoxActing}
+                      className="flex-row items-center gap-1.5 border border-brand-300 rounded-full px-3 py-2"
+                    >
+                      {twoxActing ? <ActivityIndicator size="small" color="#c026d3" /> : <X size={14} stroke="#c026d3" />}
+                      <Text className="text-xs font-medium text-brand-700">Cancelar</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {twoxState === 'looking' && (
+                  <View className="flex-row items-center gap-1.5">
+                    <View className="w-2 h-2 rounded-full bg-brand-400" />
+                    <Text className="text-xs text-brand-600">Buscando compañer@... tus amigos verán que quieres ir en pareja</Text>
+                  </View>
+                )}
+                {twoxState === 'matched' && (
+                  <View className="gap-2">
+                    <Text className="text-xs font-semibold text-green-700">¡Emparejad@! Coordinen el pago juntos.</Text>
+                    {isMyTurnToPay2x ? (
+                      <View className="flex-row gap-2">
+                        <TouchableOpacity
+                          onPress={() => {
+                            const enrollId = twoxRequest?.enrollment_id
+                            if (enrollId) router.push(`/(app)/payment/${enrollId}` as any)
+                          }}
+                          className="flex-row items-center gap-1.5 bg-brand-600 rounded-full px-3 py-1.5"
+                        >
+                          <ArrowRight size={14} stroke="white" />
+                          <Text className="text-xs font-semibold text-white">Ir a pagar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={handle2xTransferPayment}
+                          disabled={twoxActing}
+                          className="flex-row items-center gap-1.5 border border-gray-200 rounded-full px-3 py-1.5"
+                        >
+                          {twoxActing && <ActivityIndicator size="small" color="#6B6880" />}
+                          <Text className="text-xs text-gray-600">Que pague mi compañer@</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <Text className="text-xs text-gray-500">Tu compañer@ tiene el turno de pago</Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
 
-      {/* Custom dates modal */}
+      {/* Modals */}
       {showDates && isCustom && (
         <CustomDatesModal
           dates={cls.custom_dates ?? []}
           time={cls.recurring_time}
           onClose={() => setShowDates(false)}
+        />
+      )}
+
+      {showDiscountModal && isTeacher && token && (
+        <DiscountModal
+          classId={cls.id}
+          classType={cls.type}
+          currentPrice={cls.price}
+          currentPriceSuelta={cls.price_suelta ?? null}
+          currentDiscountPrice={discountData.discount_price}
+          currentDiscountPriceMonthly={discountData.discount_price_monthly}
+          token={token}
+          onClose={() => setShowDiscountModal(false)}
+          onSaved={(dp, dpm) => {
+            setDiscountData({ discount_price: dp, discount_price_monthly: dpm })
+            setShowDiscountModal(false)
+          }}
+        />
+      )}
+
+      {showAuditionModal && userId && (
+        <AuditionModal
+          classId={cls.id}
+          userId={userId}
+          teacherId={cls.teacher_id}
+          onClose={() => setShowAuditionModal(false)}
+          onSubmitted={() => {
+            setAuditionSubmitted(true)
+            setShowAuditionModal(false)
+          }}
         />
       )}
     </SafeAreaView>
