@@ -81,7 +81,7 @@ export function SubscribeButton({ plan, currentTier, price }: Props) {
       <button
         onClick={handleAnnual}
         disabled={loading}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-brand-200 hover:border-brand-400 hover:bg-brand-50 text-brand-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-brand-200 dark:border-brand-700 bg-white dark:bg-dark-surface2 hover:border-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/40 text-brand-700 dark:text-brand-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <Wallet className="h-4 w-4 flex-shrink-0" />
         <div className="flex-1 text-left">

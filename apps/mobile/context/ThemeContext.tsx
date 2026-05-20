@@ -1,6 +1,5 @@
-import { createContext, useContext, useEffect } from 'react'
-import { useColorScheme as useRNColorScheme } from 'react-native'
-import { useColorScheme } from 'nativewind'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const STORAGE_KEY = 'app_theme'
@@ -13,29 +12,26 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType>({ isDark: false, toggleTheme: () => {} })
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { colorScheme, setColorScheme } = useColorScheme()
-  const systemScheme = useRNColorScheme()
+  const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored === 'dark' || stored === 'light') {
-        setColorScheme(stored)
-      }
+      if (stored === 'dark') setIsDark(true)
+      else if (stored === 'light') setIsDark(false)
     })
   }, [])
 
   function toggleTheme() {
-    const current = colorScheme ?? systemScheme ?? 'light'
-    const next = current === 'dark' ? 'light' : 'dark'
-    setColorScheme(next)
-    AsyncStorage.setItem(STORAGE_KEY, next)
+    const next = !isDark
+    setIsDark(next)
+    AsyncStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light')
   }
-
-  const isDark = (colorScheme ?? systemScheme) === 'dark'
 
   return (
     <ThemeContext.Provider value={{ isDark, toggleTheme }}>
-      {children}
+      <View className={`flex-1${isDark ? ' dark' : ''}`}>
+        {children}
+      </View>
     </ThemeContext.Provider>
   )
 }

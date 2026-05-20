@@ -196,17 +196,17 @@ function EmptyState({ filter, contentType }: { filter: FeedFilter; contentType: 
   const typeLabel = contentType === 'posts' ? 'videos' : contentType === 'classes' ? 'clases' : 'contenido'
   const messages: Record<FeedFilter, { title: string; desc: string }> = {
     following: { title: 'Aún no sigues a nadie', desc: `Explora profesores para ver sus ${typeLabel} aquí` },
-    global: { title: `No hay ${typeLabel} publicados`, desc: `Sé el primero en publicar` },
+    global: { title: `Aún no hay ${typeLabel}`, desc: `Sé el primero en publicar` },
     nearby: { title: `Sin ${typeLabel} cerca`, desc: 'No hay contenido disponible en tu ciudad' },
   }
   const { title, desc } = messages[filter]
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100">
-        <Globe className="h-8 w-8 text-gray-400" />
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-surface2">
+        <Globe className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
       </div>
-      <h3 className="font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1 text-sm text-gray-500">{desc}</p>
+      <h3 className="font-semibold text-gray-900 dark:text-dark-text">{title}</h3>
+      <p className="mt-1 text-sm text-gray-500 dark:text-dark-text2">{desc}</p>
     </div>
   )
 }

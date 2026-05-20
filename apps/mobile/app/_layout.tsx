@@ -4,13 +4,14 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import type { Session } from '@supabase/supabase-js'
-import { ThemeProvider } from '../context/ThemeContext'
+import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import '../global.css'
 
 function AppContent() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const router = useRouter()
   const segments = useSegments()
+  const { isDark } = useTheme()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -42,7 +43,7 @@ function AppContent() {
 
   return (
     <>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Slot />
     </>
   )
