@@ -982,16 +982,22 @@ eas build --profile preview --platform android
 eas build --profile production --platform all
 ```
 
-### Assets — pendiente del usuario
+### Assets — ✅ CREADOS por el usuario (sesión 2026-05-21)
 
-Todos los assets en `apps/mobile/assets/` son placeholders 1×1 px. Specs requeridas:
+Los assets en `apps/mobile/assets/` son los archivos reales del logo oficial:
 
-| Asset | Tamaño | Notas |
+| Asset | Dimensiones reales | Uso |
 |---|---|---|
-| `icon.png` | 1024×1024 | Sin transparencia, fondo sólido |
-| `adaptive-icon.png` | 1024×1024 | Foreground con transparencia OK; logo en 66% central |
-| `splash.png` | 1284×2778 | Fondo sólido, logo centrado |
-| `favicon.png` | 32×32 | Solo web, no urgente |
+| `icon.png` | 3870×3870 | Ícono principal de la app (App Store / Play Store) |
+| `adaptive-icon.png` | 1024×1024 | Foreground del ícono adaptativo Android; también usado en web manifest PWA |
+| `splash.png` | 1242×2436 | Splash screen mobile |
+| `favicon.png` | 48×48 | Favicon web → copiado a `apps/web/src/app/icon.png` |
+
+Los assets web fueron generados a partir de estos archivos:
+
+- `apps/web/src/app/icon.png` ← copia de `favicon.png` (48×48) — Next.js lo sirve como favicon automáticamente
+- `apps/web/public/icon-192.png` ← copia de `adaptive-icon.png` (1024×1024) — para el web manifest PWA
+- `apps/web/public/icon-512.png` ← copia de `adaptive-icon.png` (1024×1024, purpose: maskable)
 
 ### Deep linking Mercado Pago — estado
 
@@ -1026,15 +1032,17 @@ Todos los assets en `apps/mobile/assets/` son placeholders 1×1 px. Specs requer
 - [ ] Apple Developer Account ($99/año) — solo necesaria para builds iOS
 - [ ] Google Play Developer Account ($25 único) — solo para submit a Play Store
 
-### ⏳ Iconografía oficial de DanzClass — PENDIENTE
+### ✅ Iconografía oficial de DanzClass — ASSETS CREADOS (sesión 2026-05-21)
 
-La identidad visual (logo, ícono, splash) no ha sido definida aún. Las tareas pendientes son:
+Los assets oficiales ya existen en `apps/mobile/assets/` (creados por el usuario):
 
-- [ ] **Diseñar logo oficial** de DanzClass (ícono vectorial + logotipo)
-- [ ] Exportar assets para mobile: `icon.png` (1024×1024), `adaptive-icon.png` (1024×1024), `splash.png` (1284×2778)
-- [ ] Reemplazar favicon web (`apps/web/src/app/icon.tsx`) con versión del logo oficial una vez disponible
-- [ ] Actualizar el placeholder `Music2` (lucide) en headers de web y mobile por el logo oficial
-- [ ] Exportar `favicon.png` (32×32) para web si se requiere un `.ico` clásico
+- `icon.png` (3870×3870), `adaptive-icon.png` (1024×1024), `splash.png` (1242×2436), `favicon.png` (48×48)
+- El favicon web (`apps/web/src/app/icon.png`) ya usa el logo real
+- El web manifest PWA usa `adaptive-icon.png` como ícono
+
+Pendiente de implementar (no urgente para MVP):
+
+- [ ] Reemplazar el placeholder `Music2` (lucide) en headers de web y mobile por una imagen `<Image>` del logo real
 
 ---
 
@@ -1187,10 +1195,9 @@ Pantallas migradas (todos los tokens `dark:bg-dark-*`, `dark:text-dark-*`, `dark
 - Registro (web) actualizado: el checkbox ahora enlaza a **ambas** páginas (`/terms` y `/privacy`)
 - `/terms` actualizado: footer enlaza a `/privacy`
 
-### ✅ Favicon web
+### ✅ Favicon web (logo oficial)
 
-- `apps/web/src/app/icon.tsx` — Next.js 14 App Router genera automáticamente el favicon como PNG 32×32
-- Diseño: letras "DC" en blanco sobre fondo `#c026d3` (brand-600), esquinas redondeadas
-- Next.js inyecta automáticamente `<link rel="icon">` en el HTML; no requiere configuración adicional
-- `apps/web/public/manifest.json` — creado (era referenciado en `layout.tsx` pero no existía)
-- **Nota:** el favicon actual es un placeholder funcional. Debe reemplazarse con el logo oficial cuando esté disponible — ver sección "Iconografía oficial pendiente"
+- `apps/web/src/app/icon.png` — copia de `apps/mobile/assets/favicon.png` (48×48, logo real del usuario)
+- Next.js 14 App Router detecta `icon.png` en el app dir y lo sirve automáticamente como favicon; inyecta `<link rel="icon">` sin configuración adicional
+- `apps/web/public/manifest.json` — creado (era referenciado en `layout.tsx` pero no existía); usa `adaptive-icon.png` (1024×1024) como ícono PWA
+- `apps/web/public/icon-192.png` y `icon-512.png` — copias de `adaptive-icon.png` para el manifest
