@@ -12,11 +12,11 @@ export default async function UserProfilePage({ params }: Props) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: rawProfile } = await supabase
+  const { data: rawProfile } = await (supabase as any)
     .from('profiles')
     .select('*')
     .eq('username', params.username)
-    .eq('is_confirmed' as any, true)
+    .eq('is_confirmed', true)
     .single()
 
   const profileUser = rawProfile as Profile | null
