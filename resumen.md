@@ -976,7 +976,7 @@ Draft redactado en sesión 2026-05-19 cubre:
 - Retención y eliminación (incluye el cron de cleanup)
 - Derechos del usuario
 - Mayores de 14 años
-- Contacto: contacto@danceclass.cl
+- Contacto: contacto@danzclass.com
 
 Pendiente: confirmación del usuario para crear `apps/web/src/app/privacy/page.tsx`.
 

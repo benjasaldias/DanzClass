@@ -7,7 +7,7 @@ export const metadata = {
 }
 
 const LAST_UPDATED = '15 de mayo de 2026'
-const CONTACT_EMAIL = 'contacto@danceclass.cl'
+const CONTACT_EMAIL = 'contacto@danzclass.com'
 
 export default function TermsPage() {
   return (
@@ -131,7 +131,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Section title="7. Limitaci��n de responsabilidad">
+          <Section title="7. Limitación de responsabilidad">
             <p>
               En la máxima medida permitida por la ley, DanzClass no será responsable por:
             </p>
