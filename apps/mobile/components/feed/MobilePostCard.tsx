@@ -44,7 +44,8 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
     <View className="border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface">
       {/* Author header */}
       <TouchableOpacity
-        onPress={() => author?.username && router.push(`/(app)/teacher/${author.username}` as any)}
+        onPress={() => author?.username && author.id !== currentUserId && router.push(`/(app)/teacher/${author.username}` as any)}
+        activeOpacity={author?.id === currentUserId ? 1 : 0.7}
         className="flex-row items-center gap-3 px-4 py-3"
       >
         {author?.avatar_url ? (

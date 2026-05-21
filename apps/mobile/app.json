@@ -39,6 +39,15 @@
       "expo-secure-store",
       "expo-video",
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#c026d3",
+          "image": "./assets/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "DanzClass necesita acceso a tus fotos para subir imágenes de clase, foto de perfil y comprobantes de pago."

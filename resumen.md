@@ -903,6 +903,37 @@ Todos los emojis UI reemplazados por íconos vectoriales de `lucide-react-native
 
 ---
 
+## Bugfixes mobile post-build — sesión 2026-05-21
+
+### ✅ Splash screen (app.json)
+
+- Agregado plugin `expo-splash-screen` con `backgroundColor: "#c026d3"`, `image: "./assets/splash.png"`, `imageWidth: 200`, `resizeMode: "contain"`
+- Requiere nuevo build EAS para tener efecto en Android
+
+### ✅ Editar clase desde cualquier contexto
+
+- `MobileClassCard`: cuando `teacher_id === currentUserId`, el botón de acción (antes oculto) ahora muestra "Editar" → navega a `/(app)/class/${id}/edit`
+- Aplica en feed, mis clases y perfil propio
+
+### ✅ Loop de navegación + compact view en perfil
+
+- `MobileClassCard`: header del autor ya no navega cuando `teacher.id === currentUserId` (`activeOpacity: 1`, sin push)
+- `MobilePostCard`: igual — header no navega si `author.id === currentUserId`
+- Nueva prop `compact?: boolean` en `MobileClassCard`: layout horizontal con thumbnail 64px, título, estilo, horario y precio; botón "Editar" en el lado derecho
+- `profile.tsx`: clases activas usan `compact={true}`, coincidiendo con el diseño web (sin header de autor)
+
+### ✅ Perfil se refresca al volver de crear clase
+
+- `profile.tsx`: reemplazado `useEffect(() => { load() }, [load])` por `useFocusEffect(load)` (importado de `expo-router`)
+- Ahora cada vez que el tab de perfil recibe foco se re-ejecuta el fetch
+
+### ✅ Dark mode botón anual en planes
+
+- `plans/index.tsx`: botón "Anual" tiene `dark:border-brand-600 dark:bg-dark-surface2` en el borde/fondo, `dark:text-dark-text` en el título y `dark:text-dark-text2` en el subtítulo
+- El ícono Wallet cambió su stroke de `#7c3aed` a `#7F77DD` (morado-flow) para mayor legibilidad en ambos modos
+
+---
+
 ## Preparación deployment mobile — sesión 2026-05-19
 
 ### Archivos creados / modificados

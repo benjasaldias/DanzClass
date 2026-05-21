@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -56,7 +57,7 @@ export default function ProfileScreen() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useFocusEffect(load)
 
   async function handleLogout() {
     Alert.alert('Cerrar sesión', '¿Estás seguro?', [
@@ -227,7 +228,7 @@ export default function ProfileScreen() {
               Mis clases activas ({classes.length})
             </Text>
             {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
-              <MobileClassCard key={c.id} classData={c} currentUserId={userId ?? ''} />
+              <MobileClassCard key={c.id} classData={c} currentUserId={userId ?? ''} compact />
             ))}
             {classes.length > 5 && !showAllClasses && (
               <TouchableOpacity

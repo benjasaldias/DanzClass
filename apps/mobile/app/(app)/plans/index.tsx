@@ -215,16 +215,16 @@ export default function PlansScreen() {
                       <TouchableOpacity
                         onPress={() => handleSubscribe(plan.id, 'annual')}
                         disabled={!!checkingOut}
-                        className={`flex-row items-center gap-3 px-4 py-3 rounded-xl border-2 border-brand-200 ${checkingOut ? 'opacity-60' : ''}`}
+                        className={`flex-row items-center gap-3 px-4 py-3 rounded-xl border-2 border-brand-200 dark:border-brand-600 dark:bg-dark-surface2 ${checkingOut ? 'opacity-60' : ''}`}
                       >
-                        <Wallet size={16} stroke="#7c3aed" />
+                        <Wallet size={16} stroke="#7F77DD" />
                         <View className="flex-1">
-                          <Text className="text-brand-700 font-semibold text-sm">
+                          <Text className="text-brand-700 dark:text-dark-text font-semibold text-sm">
                             {checkingOut === `${plan.id}-annual`
                               ? 'Abriendo checkout...'
                               : `Anual · ${formatCLP(annualPrice)}`}
                           </Text>
-                          <Text className="text-brand-500 text-xs">
+                          <Text className="text-brand-500 dark:text-dark-text2 text-xs">
                             Pago único · cualquier medio · ahorras {formatCLP(annualSavings)}
                           </Text>
                         </View>
