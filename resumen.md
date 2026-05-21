@@ -217,11 +217,13 @@ ALTER TABLE classes ADD CONSTRAINT classes_recurrence_check
 - API route `POST /api/admin/content-action` con validación de admin (service role)
 - Para obtener el UUID del admin: Supabase → Authentication → Users
 
-### ✅ Términos de Uso (`/terms`)
-- Página pública en `/terms` — 11 cláusulas en español, sin login requerido
-- Cláusula 2: el usuario **declara ser titular de los derechos** sobre el audio y video que sube
-- DanzClass se posiciona como plataforma intermediaria (safe harbor)
-- **Registro** actualizado: checkbox obligatorio `z.literal(true)` que enlaza a `/terms`; no se puede crear cuenta sin aceptarlo
+### ✅ Términos de Uso (`/terms`) y Política de Privacidad (`/privacy`)
+
+- `/terms` — 11 cláusulas en español; cláusula 2: usuario declara ser titular de derechos sobre contenido subido; DanzClass como plataforma intermediaria (safe harbor)
+- `/privacy` — Política de Privacidad completa en español: datos recopilados, servicios terceros (Supabase, Cloudinary, Mercado Pago, Vercel), retención/eliminación, privacidad de publicaciones, derechos ARCO, mayores de 14 años, contacto
+- Ambas páginas son **públicas** (sin login requerido) — agregadas a `PUBLIC_ROUTES` en middleware
+- **Registro** (web y mobile): checkbox obligatorio enlaza a `/terms` **y** `/privacy`; no se puede crear cuenta sin aceptarlos
+- App Store y Google Play exigen URL de Política de Privacidad durante el submit — usar `https://dc-project-web.vercel.app/privacy`
 
 ### ✅ Inscripción 2x (pareja) — NUEVO sesión 2026-05-17 / MEJORADO sesión 2026-05-17b
 
@@ -999,29 +1001,40 @@ Todos los assets en `apps/mobile/assets/` son placeholders 1×1 px. Specs requer
 - **Gap timing (no bloqueante):** el webhook de MP es asíncrono — si el usuario reconsulta el plan justo al cerrar el browser puede ver tier `'none'` por unos segundos.
 - Para Supabase Auth en build nativo: agregar `danceclass://**` en Supabase → Authentication → Redirect URLs.
 
-### Política de privacidad — pendiente confirmación
+### ✅ Política de privacidad — CREADA (sesión 2026-05-21)
 
-Draft redactado en sesión 2026-05-19 cubre:
-- Datos recolectados (cuenta, actividad, pagos, datos bancarios, videos audición)
-- Servicios terceros: Supabase, Cloudinary, Mercado Pago, Vercel
-- Retención y eliminación (incluye el cron de cleanup)
-- Derechos del usuario
+`apps/web/src/app/privacy/page.tsx` — 12 secciones, misma estructura visual que `/terms`:
+
+- Datos recopilados: cuenta, actividad, pagos/datos bancarios, multimedia, técnicos
+- Servicios terceros: Supabase, Cloudinary, Mercado Pago, Vercel (con links a sus propias políticas)
+- Retención: cuentas sin confirmar eliminadas en 24h, media de clases vencidas eliminada por cron, cierre de cuenta borra datos
+- Privacidad de publicaciones: público / seguidores / amigos
+- Derechos ARCO según Ley 19.628 (Chile), respuesta en 30 días hábiles
 - Mayores de 14 años
 - Contacto: contacto@danzclass.com
-
-Pendiente: confirmación del usuario para crear `apps/web/src/app/privacy/page.tsx`.
+- **URL para App Store / Google Play:** `https://dc-project-web.vercel.app/privacy` (copiar literal en el submit)
 
 ### Pendiente del lado del usuario
 
 - [ ] Confirmar diff de `app.json` para que se aplique
-- [ ] Confirmar draft de política de privacidad para crear el archivo
+- [x] ~~Confirmar draft de política de privacidad para crear el archivo~~ — creado en sesión 2026-05-21
 - [ ] Crear cuenta en expo.dev (gratuita)
 - [ ] Correr `eas init` desde `apps/mobile/` para obtener projectId real
 - [ ] Configurar `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY` en Expo dashboard
-- [ ] Proveer assets reales (icon.png, adaptive-icon.png, splash.png)
+- [ ] Proveer assets reales (icon.png, adaptive-icon.png, splash.png) — **ver nota de iconografía oficial más abajo**
 - [ ] Agregar `danceclass://**` en Supabase redirect URLs
 - [ ] Apple Developer Account ($99/año) — solo necesaria para builds iOS
 - [ ] Google Play Developer Account ($25 único) — solo para submit a Play Store
+
+### ⏳ Iconografía oficial de DanzClass — PENDIENTE
+
+La identidad visual (logo, ícono, splash) no ha sido definida aún. Las tareas pendientes son:
+
+- [ ] **Diseñar logo oficial** de DanzClass (ícono vectorial + logotipo)
+- [ ] Exportar assets para mobile: `icon.png` (1024×1024), `adaptive-icon.png` (1024×1024), `splash.png` (1284×2778)
+- [ ] Reemplazar favicon web (`apps/web/src/app/icon.tsx`) con versión del logo oficial una vez disponible
+- [ ] Actualizar el placeholder `Music2` (lucide) en headers de web y mobile por el logo oficial
+- [ ] Exportar `favicon.png` (32×32) para web si se requiere un `.ico` clásico
 
 ---
 
@@ -1156,3 +1169,28 @@ Pantallas migradas (todos los tokens `dark:bg-dark-*`, `dark:text-dark-*`, `dark
 
 - `supabase/scripts/reset_test_data.sql` — DELETE en orden FK-safe, preserva cuentas de producción
 - `supabase/scripts/clean_storage.mjs` — limpia buckets de Supabase Storage recursivamente
+
+---
+
+## Sesión 2026-05-21 — Rutas públicas legales, favicon y política de privacidad
+
+### ✅ Rutas públicas (`/terms` y `/privacy`)
+
+- `apps/web/src/middleware.ts`: `/terms` y `/privacy` agregadas a `PUBLIC_ROUTES` — accesibles sin login
+- Ambas rutas son requeridas por App Store y Google Play para el submit de la app
+
+### ✅ Política de Privacidad (`/privacy`) — CREADA
+
+- `apps/web/src/app/privacy/page.tsx` — 12 secciones en español, misma estructura visual que `/terms`
+- Cubre: datos recopilados, servicios terceros, retención/eliminación, privacidad de publicaciones, seguridad, menores de 14 años, derechos ARCO (Ley 19.628 Chile), cookies, contacto
+- **Nota importante:** `/terms` (Términos de Servicio) y `/privacy` (Política de Privacidad) son documentos **distintos**. No son intercambiables. App Store y Google Play piden la URL de la Política de Privacidad — usar `https://dc-project-web.vercel.app/privacy`
+- Registro (web) actualizado: el checkbox ahora enlaza a **ambas** páginas (`/terms` y `/privacy`)
+- `/terms` actualizado: footer enlaza a `/privacy`
+
+### ✅ Favicon web
+
+- `apps/web/src/app/icon.tsx` — Next.js 14 App Router genera automáticamente el favicon como PNG 32×32
+- Diseño: letras "DC" en blanco sobre fondo `#c026d3` (brand-600), esquinas redondeadas
+- Next.js inyecta automáticamente `<link rel="icon">` en el HTML; no requiere configuración adicional
+- `apps/web/public/manifest.json` — creado (era referenciado en `layout.tsx` pero no existía)
+- **Nota:** el favicon actual es un placeholder funcional. Debe reemplazarse con el logo oficial cuando esté disponible — ver sección "Iconografía oficial pendiente"

@@ -179,6 +179,14 @@ export default function RegisterPage() {
                   >
                     Términos de Uso
                   </Link>
+                  {' '}y la{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="font-semibold text-brand-600 hover:text-brand-700 underline"
+                  >
+                    Política de Privacidad
+                  </Link>
                   , incluyendo que soy responsable del contenido que publico y declaro tener los derechos
                   sobre cualquier audio y video que suba a la plataforma.
                 </span>

@@ -185,7 +185,11 @@ export default function TermsPage() {
             Crear cuenta en DanzClass
           </Link>
           <p className="mt-3 text-xs text-gray-400">
-            Al registrarte declaras haber leído y aceptado estos Términos de Uso.
+            Al registrarte declaras haber leído y aceptado estos Términos de Uso y la{' '}
+            <Link href="/privacy" className="text-brand-600 hover:text-brand-700">
+              Política de Privacidad
+            </Link>
+            .
           </p>
         </div>
       </div>
