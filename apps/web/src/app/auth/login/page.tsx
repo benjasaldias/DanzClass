@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Music2, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import LogoIcon from '@/components/ui/LogoIcon'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -47,7 +48,7 @@ export default function LoginPage() {
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 border border-white/20">
-              <Music2 className="h-6 w-6 text-brand-300" />
+              <LogoIcon className="h-6 w-6 text-white" />
             </div>
             <span className="text-xl font-bold text-white">DanzClass</span>
           </div>

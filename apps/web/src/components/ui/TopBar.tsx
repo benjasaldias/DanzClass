@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { Music2, Bell } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import type { Profile } from '@danceclass/shared'
 import Avatar from './Avatar'
+import LogoIcon from './LogoIcon'
 
 interface TopBarProps {
   profile: Profile | null
@@ -13,7 +14,7 @@ export default function TopBar({ profile, unreadCount }: TopBarProps) {
     <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border">
       <div className="mx-auto max-w-lg px-4 h-14 flex items-center justify-between">
         <Link href="/feed" className="flex items-center gap-2">
-          <Music2 className="h-6 w-6 text-brand-600 dark:text-brand-300" />
+          <LogoIcon className="h-6 w-6 text-brand-600 dark:text-brand-300" />
           <span className="text-lg font-bold text-gray-900 dark:text-dark-text">DanzClass</span>
         </Link>
 

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Music2 } from 'lucide-react'
+import LogoIcon from '@/components/ui/LogoIcon'
 
 export const metadata = {
   title: 'Términos de Uso — DanzClass',
@@ -17,7 +17,7 @@ export default function TermsPage() {
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600">
-              <Music2 className="h-5 w-5 text-white" />
+              <LogoIcon className="h-5 w-5 text-white" />
             </div>
             <span className="font-bold text-gray-900">DanzClass</span>
           </Link>

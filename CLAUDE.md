@@ -175,6 +175,7 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 | `ui/LogoutButton.tsx` | Cerrar sesión; prop `asButton` para renderizar como pill |
 | `ui/ReportModal.tsx` | Modal denuncia; llama `/api/reports` (no inserta directo) |
 | `ui/DateInput.tsx` | Fecha en DD/MM/AAAA; almacena YYYY-MM-DD; sin `type="date"` |
+| `ui/LogoIcon.tsx` | SVG del logo oficial; usa `fill="currentColor"` — controlar color con className |
 | `feed/ClassCard.tsx` | Card clase: tono lila, cupos x/y, badge, precios 2x, fondo emerald en precio |
 | `feed/PostCard.tsx` | Video adaptivo; menú ⋮ autor; botón denuncia no-autores |
 | `feed/FeedClient.tsx` | Feed unificado clases+posts con filtros |
@@ -225,6 +226,9 @@ canUploadVideo(tier)    // basic | teacher | pro
 ---
 
 ## Decisiones técnicas importantes
+
+**Logo oficial — `LogoIcon` (SVG inline):**
+El logo es una marca geométrica tipo "D" construida con rectángulos (sin dependencia de fuentes externas). Para web: `ui/LogoIcon.tsx` usa `fill="currentColor"` — el color se controla con clases Tailwind (`text-brand-600 dark:text-brand-300`). Para mobile: `components/ui/LogoIcon.tsx` usa `react-native-svg` con prop `color`. `Music2`/`Music` de lucide se conserva solo en roles semánticos (empty states, notificaciones de clase, filtros de género) — no como logo.
 
 **TypeScript + Supabase — "Type instantiation is excessively deep":**
 Queries con joins anidados superan el límite de inferencia. Fix: `(supabase as any).from(...)` o `.select('...' as any)`.

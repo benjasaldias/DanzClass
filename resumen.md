@@ -1201,3 +1201,52 @@ Pantallas migradas (todos los tokens `dark:bg-dark-*`, `dark:text-dark-*`, `dark
 - Next.js 14 App Router detecta `icon.png` en el app dir y lo sirve automáticamente como favicon; inyecta `<link rel="icon">` sin configuración adicional
 - `apps/web/public/manifest.json` — creado (era referenciado en `layout.tsx` pero no existía); usa `adaptive-icon.png` (1024×1024) como ícono PWA
 - `apps/web/public/icon-192.png` y `icon-512.png` — copias de `adaptive-icon.png` para el manifest
+
+### ✅ Assets actualizados con nuevo logo oficial
+
+Los siguientes archivos fueron reemplazados con los nuevos logos entregados por el usuario (disponibles también en la raíz del repo):
+
+| Archivo | Fuente |
+| --- | --- |
+| `apps/mobile/assets/icon.png` | `icon.png` (raíz) |
+| `apps/mobile/assets/adaptive-icon.png` | `adaptive-icon.png` (raíz) |
+| `apps/mobile/assets/splash.png` | `splash.png` (raíz) |
+| `apps/mobile/assets/favicon.png` | `favicon.png` (raíz) |
+| `apps/web/src/app/icon.png` | `favicon.png` (raíz, 48×48) |
+| `apps/web/public/icon-192.png` | `adaptive-icon.png` (raíz) |
+| `apps/web/public/icon-512.png` | `adaptive-icon.png` (raíz) |
+
+### ✅ LogoIcon — componente SVG del logo oficial integrado en la app
+
+El usuario entregó `icon-no-bg.svg` (logotipo en formato SVG con fondo transparente, marca geométrica tipo "D" + texto "dc").
+
+**Componentes creados:**
+
+- `apps/web/src/components/ui/LogoIcon.tsx` — SVG inline como React component; usa `fill="currentColor"` para que CSS controle el color vía className
+- `apps/mobile/components/ui/LogoIcon.tsx` — mismo SVG usando `react-native-svg` (ya instalado); acepta props `size` y `color`
+
+**Criterio de reemplazo:**
+
+- `Music2`/`Music` como **logo de marca** → reemplazado con LogoIcon
+- `Music2` como **ícono semántico de baile/música** (empty states, notificaciones, filtros, feature cards) → conservado
+
+**Archivos actualizados:**
+
+| Archivo | Cambio |
+| --- | --- |
+| `apps/web/src/components/ui/TopBar.tsx` | `Music2` → `LogoIcon` (`text-brand-600 dark:text-brand-300`) |
+| `apps/web/src/app/page.tsx` | `Music2` logo hero → `LogoIcon` (`text-white`, fondo translúcido) |
+| `apps/web/src/app/auth/login/page.tsx` | `Music2` → `LogoIcon` (`text-white` en `bg-white/10`) |
+| `apps/web/src/app/auth/register/page.tsx` | `Music2` → `LogoIcon` (mismo) |
+| `apps/web/src/app/terms/page.tsx` | `Music2` → `LogoIcon` (`text-white` en `bg-brand-600`) |
+| `apps/web/src/app/privacy/page.tsx` | `Music2` → `LogoIcon` (mismo) |
+| `apps/mobile/components/ui/TopBar.tsx` | `Music` → `LogoIcon` (color `#c026d3`, size 22) |
+| `apps/mobile/app/(auth)/login.tsx` | `Icon icon={Music2}` → `LogoIcon` (color `white`, size 32) |
+| `apps/mobile/app/(auth)/register.tsx` | `Icon icon={Music2}` → `LogoIcon` (mismo) |
+
+**Decisiones de color:**
+
+- TopBar web: `text-brand-600` light / `text-brand-300` dark — consistente con el color previo del ícono
+- TopBar mobile: `#c026d3` siempre (mismo que antes, visible sobre ambos fondos)
+- Auth screens (web y mobile): blanco — el contenedor ya tiene fondo `bg-white/10` translúcido sobre gradiente oscuro; blanco da mejor contraste que morado sobre morado
+- Terms/Privacy header: `text-white` sobre `bg-brand-600` sólido

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, Image } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Bell, Music } from 'lucide-react-native'
+import { Bell } from 'lucide-react-native'
+import LogoIcon from './LogoIcon'
 import { supabase } from '../../lib/supabase'
 
 interface TopBarProps {
@@ -38,7 +39,7 @@ export default function TopBar({ title }: TopBarProps) {
     <View className="flex-row items-center justify-between px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
       {/* Logo */}
       <View className="flex-row items-center gap-1.5">
-        <Music size={20} stroke="#c026d3" />
+        <LogoIcon size={22} />
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{title ?? 'DanzClass'}</Text>
       </View>
 

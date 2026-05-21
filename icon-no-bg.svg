@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="1024mm"
+   height="1024mm"
+   viewBox="0 0 1024 1024"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer2"
+     style="display:inline;fill:#ffffff;fill-opacity:1">
+    <rect
+       style="display:inline;fill:#bfb6d1;fill-opacity:1;stroke-width:0.709421"
+       id="rect12"
+       width="115.47116"
+       height="678.81024"
+       x="373.35712"
+       y="113.44515" />
+    <rect
+       style="display:inline;fill:#bfb6d1;fill-opacity:1;stroke-width:0.302479"
+       id="rect1"
+       width="440.74585"
+       height="91.634361"
+       x="375.30838"
+       y="113.15153" />
+    <rect
+       style="display:inline;fill:#bfb6d1;fill-opacity:1;stroke-width:0.292078"
+       id="rect1-8"
+       width="410.95554"
+       height="91.634361"
+       x="375.27319"
+       y="246.56194" />
+    <rect
+       style="display:inline;fill:#bfb6d1;fill-opacity:1;stroke-width:0.304625"
+       id="rect1-8-1"
+       width="377.06497"
+       height="108.63554"
+       x="112.01721"
+       y="-827.78662"
+       transform="matrix(-0.00361895,0.99999345,-0.99999892,-0.00146838,0,0)" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:708.319px;line-height:0;font-family:Sora;-inkscape-font-specification:'Sora Bold';letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;direction:ltr;display:inline;fill:#bfb6d1;fill-opacity:1;stroke-width:0.531242"
+       x="44.117241"
+       y="878.65533"
+       id="text1"
+       transform="scale(0.99629915,1.0037146)"><tspan
+         id="tspan1"
+         style="writing-mode:lr-tb;direction:ltr;fill:#bfb6d1;fill-opacity:1;stroke-width:0.531242"
+         x="44.117241"
+         y="878.65533">dc</tspan></text>
+  </g>
+</svg>

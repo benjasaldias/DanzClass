@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Music2, Users, Calendar, CreditCard } from 'lucide-react'
+import LogoIcon from '@/components/ui/LogoIcon'
 
 export default async function LandingPage() {
   const supabase = createClient()
@@ -15,7 +16,7 @@ export default async function LandingPage() {
         {/* Logo */}
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20">
-            <Music2 className="h-8 w-8 text-brand-300" />
+            <LogoIcon className="h-8 w-8 text-white" />
           </div>
           <div className="text-left">
             <h1 className="text-2xl font-bold tracking-tight">DanzClass</h1>

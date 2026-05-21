@@ -5,8 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Music2, MailCheck } from 'lucide-react-native'
+import { MailCheck } from 'lucide-react-native'
 import { Icon } from '../../components/ui/Icon'
+import LogoIcon from '../../components/ui/LogoIcon'
 
 const schema = z.object({
   fullName: z.string().min(2, 'Mínimo 2 caracteres'),
@@ -93,7 +94,7 @@ export default function RegisterScreen() {
           {/* Logo */}
           <View className="items-center gap-3">
             <View className="w-16 h-16 bg-white/10 rounded-2xl items-center justify-center">
-              <Icon icon={Music2} size={28} variant="active" />
+              <LogoIcon size={32} color="white" />
             </View>
             <Text className="text-white text-3xl font-bold">DanzClass</Text>
           </View>
