@@ -18,7 +18,7 @@ export default async function ExplorePage() {
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(30),
-    supabase
+    (supabase as any)
       .from('profiles')
       .select('*')
       .neq('id', user?.id ?? '')
