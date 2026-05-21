@@ -9,8 +9,8 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#c026d3"
+      "resizeMode": "cover",
+      "backgroundColor": "#1A1035"
     },
     "ios": {
       "supportsTablet": false,
@@ -41,10 +41,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#c026d3",
+          "backgroundColor": "#1A1035",
           "image": "./assets/splash.png",
-          "imageWidth": 200,
-          "resizeMode": "contain"
+          "resizeMode": "cover"
         }
       ],
       [
