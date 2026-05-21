@@ -1222,8 +1222,13 @@ El usuario entregó `icon-no-bg.svg` (logotipo en formato SVG con fondo transpar
 
 **Componentes creados:**
 
-- `apps/web/src/components/ui/LogoIcon.tsx` — SVG inline como React component; usa `fill="currentColor"` para que CSS controle el color vía className
-- `apps/mobile/components/ui/LogoIcon.tsx` — mismo SVG usando `react-native-svg` (ya instalado); acepta props `size` y `color`
+- `apps/web/src/components/ui/LogoIcon.tsx` — SVG inline como React component; usa `fill="currentColor"` para color via className; incluye rects + `<text>` con Sora Bold
+- `apps/mobile/components/ui/LogoIcon.tsx` — mismo SVG usando `react-native-svg`; acepta props `size` y `color`; incluye rects + `<Text>` con Sora-Bold
+
+**Carga de fuente Sora Bold:**
+
+- **Web:** `next/font/google` — `Sora({ weight: ['700'], variable: '--font-sora' })` añadido en `apps/web/src/app/layout.tsx`; la variable CSS `--font-sora` se aplica al `<html>` y el SVG inline la hereda
+- **Mobile:** `apps/mobile/assets/fonts/Sora-Bold.ttf` descargado de Google Fonts Statics (46KB); cargado en `apps/mobile/app/_layout.tsx` con `useFonts({ 'Sora-Bold': require('../assets/fonts/Sora-Bold.ttf') })`; el layout espera `fontsLoaded` antes de renderizar
 
 **Criterio de reemplazo:**
 

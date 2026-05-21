@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Sora } from 'next/font/google'
 import ThemeProvider from '@/components/ui/ThemeProvider'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
+const sora = Sora({ subsets: ['latin'], weight: ['700'], variable: '--font-sora' })
 
 export const metadata: Metadata = {
   title: 'DanzClass',
@@ -21,7 +22,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={inter.variable} suppressHydrationWarning>
+    <html lang="es" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <body className="min-h-screen">
         <ThemeProvider>{children}</ThemeProvider>
       </body>

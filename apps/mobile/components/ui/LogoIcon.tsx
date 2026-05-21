@@ -1,4 +1,4 @@
-import Svg, { Rect, G } from 'react-native-svg'
+import Svg, { Rect, G, Text } from 'react-native-svg'
 
 interface LogoIconProps {
   size?: number
@@ -23,6 +23,16 @@ export default function LogoIcon({ size = 24, color = '#c026d3' }: LogoIconProps
           height="108.636"
           transform="matrix(-0.00361895,0.99999345,-0.99999892,-0.00146838,0,0)"
         />
+        {/* dc letterforms */}
+        <Text
+          x="44.117241"
+          y="878.65533"
+          fontFamily="Sora-Bold, sans-serif"
+          fontWeight="bold"
+          fontSize="708.319"
+          letterSpacing="0"
+          fill={color}
+        >dc</Text>
       </G>
     </Svg>
   )

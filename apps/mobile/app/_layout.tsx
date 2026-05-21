@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Slot, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { useFonts } from 'expo-font'
 import { supabase } from '../lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 import { ThemeProvider, useTheme } from '../context/ThemeContext'
@@ -50,6 +51,12 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    'Sora-Bold': require('../assets/fonts/Sora-Bold.ttf'),
+  })
+
+  if (!fontsLoaded) return null
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
