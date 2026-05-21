@@ -12,7 +12,7 @@ export default async function ExplorePage() {
     { data: myFollows },
     { data: myFriendships },
   ] = await Promise.all([
-    supabase
+    (supabase as any)
       .from('classes')
       .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
       .eq('status', 'active')
