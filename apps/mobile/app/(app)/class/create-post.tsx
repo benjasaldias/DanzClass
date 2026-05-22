@@ -69,18 +69,30 @@ export default function CreatePostScreen() {
   }, [])
 
   async function pickVideo() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
       Alert.alert('Permiso requerido', 'Necesitas dar acceso a tu galería para seleccionar videos.')
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['videos'],
-      allowsMultipleSelection: false,
-      quality: 0.8,
-    })
-    if (result.canceled || !result.assets[0]) return
-    setVideoUri(result.assets[0].uri)
+    if (permission.accessPrivileges === 'limited') {
+      Alert.alert(
+        'Acceso limitado a Fotos',
+        'Para seleccionar videos ve a Configuración > Expo Go > Fotos y elige "Acceso completo".',
+        [{ text: 'OK' }]
+      )
+      return
+    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsMultipleSelection: false,
+        quality: 0.8,
+      })
+      if (result.canceled || !result.assets[0]) return
+      setVideoUri(result.assets[0].uri)
+    } catch {
+      Alert.alert('Error de acceso', 'No se pudo abrir la galería. Ve a Configuración > Expo Go > Fotos y elige "Acceso completo".')
+    }
   }
 
   async function handleSubmit() {

@@ -130,25 +130,37 @@ export default function EditClassScreen() {
 
   async function pickMedia() {
     if (totalMedia >= 5) { Alert.alert('Límite', 'Puedes subir máximo 5 archivos'); return }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
       Alert.alert('Permiso requerido', 'Necesitas dar acceso a tu galería para seleccionar archivos.')
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: false,
-      quality: 0.8,
-    })
-    if (result.canceled || !result.assets[0]) return
-    const asset = result.assets[0]
-    const isVideo = asset.type === 'video'
-    setNewMediaItems((prev) => [...prev, {
-      uri: asset.uri,
-      type: isVideo ? 'video' : 'image',
-      mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
-      fileName: asset.fileName ?? `media_${Date.now()}`,
-    }])
+    if (permission.accessPrivileges === 'limited') {
+      Alert.alert(
+        'Acceso limitado a Fotos',
+        'Para seleccionar archivos ve a Configuración > Expo Go > Fotos y elige "Acceso completo".',
+        [{ text: 'OK' }]
+      )
+      return
+    }
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsMultipleSelection: false,
+        quality: 0.8,
+      })
+      if (result.canceled || !result.assets[0]) return
+      const asset = result.assets[0]
+      const isVideo = asset.type === 'video'
+      setNewMediaItems((prev) => [...prev, {
+        uri: asset.uri,
+        type: isVideo ? 'video' : 'image',
+        mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
+        fileName: asset.fileName ?? `media_${Date.now()}`,
+      }])
+    } catch {
+      Alert.alert('Error de acceso', 'No se pudo abrir la galería. Ve a Configuración > Expo Go > Fotos y elige "Acceso completo".')
+    }
   }
 
   async function removeExistingMedia(media: ExistingMedia) {

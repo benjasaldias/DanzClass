@@ -104,30 +104,42 @@ export default function CreateClassScreen() {
       Alert.alert('Límite', `Puedes subir máximo ${mediaLimit} archivo${mediaLimit > 1 ? 's' : ''}`)
       return
     }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
       Alert.alert('Permiso requerido', 'Necesitas dar acceso a tu galería para seleccionar archivos.')
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: canUploadVideo(tier) ? ['images', 'videos'] : ['images'],
-      allowsMultipleSelection: false,
-      quality: 0.8,
-    })
-    if (result.canceled || !result.assets[0]) return
-    const asset = result.assets[0]
-    const isVideo = asset.type === 'video'
-    if (isVideo && !canUploadVideo(tier)) {
-      Alert.alert('Plan insuficiente', 'Tu plan no permite subir videos en clases.')
+    if (permission.accessPrivileges === 'limited') {
+      Alert.alert(
+        'Acceso limitado a Fotos',
+        'Para seleccionar archivos ve a Configuración > Expo Go > Fotos y elige "Acceso completo".',
+        [{ text: 'OK' }]
+      )
       return
     }
-    if (mediaItems.length >= mediaLimit) return
-    setMediaItems((prev) => [...prev, {
-      uri: asset.uri,
-      type: isVideo ? 'video' : 'image',
-      mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
-      fileName: asset.fileName ?? `media_${Date.now()}`,
-    }])
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: canUploadVideo(tier) ? ['images', 'videos'] : ['images'],
+        allowsMultipleSelection: false,
+        quality: 0.8,
+      })
+      if (result.canceled || !result.assets[0]) return
+      const asset = result.assets[0]
+      const isVideo = asset.type === 'video'
+      if (isVideo && !canUploadVideo(tier)) {
+        Alert.alert('Plan insuficiente', 'Tu plan no permite subir videos en clases.')
+        return
+      }
+      if (mediaItems.length >= mediaLimit) return
+      setMediaItems((prev) => [...prev, {
+        uri: asset.uri,
+        type: isVideo ? 'video' : 'image',
+        mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
+        fileName: asset.fileName ?? `media_${Date.now()}`,
+      }])
+    } catch {
+      Alert.alert('Error de acceso', 'No se pudo abrir la galería. Ve a Configuración > Expo Go > Fotos y elige "Acceso completo".')
+    }
   }
 
   function removeMedia(index: number) {
