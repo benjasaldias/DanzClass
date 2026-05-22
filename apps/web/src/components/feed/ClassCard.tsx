@@ -7,11 +7,18 @@ import { MapPin, Clock, Users, ChevronRight, Music2, Calendar, Share2 } from 'lu
 import { cn, timeAgo, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
+import StarRating from '@/components/ui/StarRating'
+
+interface TeacherRating {
+  avg_stars: number
+  rating_count: number
+}
 
 interface ClassCardProps {
   classData: any
   currentUserId: string
   currentUserRole?: string
+  teacherRating?: TeacherRating
 }
 
 const LEVEL_COLORS = {
@@ -21,7 +28,7 @@ const LEVEL_COLORS = {
   todos: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 }
 
-export default function ClassCard({ classData, currentUserId, currentUserRole }: ClassCardProps) {
+export default function ClassCard({ classData, currentUserId, currentUserRole, teacherRating }: ClassCardProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [copied, setCopied] = useState(false)
 
@@ -76,6 +83,12 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
           <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-1">
             <span className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{teacher.full_name}</span>
           </Link>
+          {teacherRating && teacherRating.rating_count > 0 && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <StarRating value={teacherRating.avg_stars} readOnly size="sm" />
+              <span className="text-xs text-gray-400 dark:text-dark-text2">({teacherRating.rating_count})</span>
+            </div>
+          )}
           <p className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</p>
         </div>
         {styleBadge && (

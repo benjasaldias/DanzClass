@@ -49,6 +49,21 @@ export default async function FeedPage() {
 
   const [{ data: classes }, { data: posts }] = await Promise.all([classesQuery, postsQuery])
 
+  // Batch-fetch ratings for teachers of initial classes
+  const teacherIds = [...new Set((classes ?? []).map((c: any) => c.teacher_id as string))]
+  const ratingsRows = teacherIds.length > 0
+    ? ((await (supabase as any).from('ratings').select('rated_user_id, stars').in('rated_user_id', teacherIds)).data ?? []) as { rated_user_id: string; stars: number }[]
+    : []
+  const initialTeacherRatings: Record<string, { avg_stars: number; rating_count: number }> = {}
+  for (const row of ratingsRows) {
+    if (!initialTeacherRatings[row.rated_user_id]) initialTeacherRatings[row.rated_user_id] = { avg_stars: 0, rating_count: 0 }
+    initialTeacherRatings[row.rated_user_id].rating_count++
+    initialTeacherRatings[row.rated_user_id].avg_stars += Number(row.stars)
+  }
+  for (const id of Object.keys(initialTeacherRatings)) {
+    initialTeacherRatings[id].avg_stars = Math.round((initialTeacherRatings[id].avg_stars / initialTeacherRatings[id].rating_count) * 10) / 10
+  }
+
   return (
     <FeedClient
       initialClasses={(classes as any[]) ?? []}
@@ -57,6 +72,7 @@ export default async function FeedPage() {
       currentProfile={profile}
       followingIds={followingIds}
       friendsTwoxRequests={friendsTwox}
+      initialTeacherRatings={initialTeacherRatings}
     />
   )
 }

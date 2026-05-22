@@ -1,11 +1,47 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import TeacherProfileClient from '@/components/profile/TeacherProfileClient'
-import EndorsementPopup from '@/components/ui/EndorsementPopup'
 import type { Profile } from '@danceclass/shared'
 
 interface Props {
   params: { username: string }
+}
+
+function classSessionHasEnded(cls: any, enrollmentCreatedAt: string): boolean {
+  const now = new Date()
+  const enrolledAt = new Date(enrollmentCreatedAt)
+
+  if (cls.type === 'suelta') {
+    if (!cls.date || !cls.time) return false
+    const [h, m] = (cls.time as string).split(':').map(Number)
+    const classEnd = new Date(`${cls.date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
+    classEnd.setMinutes(classEnd.getMinutes() + (cls.duration_minutes ?? 60))
+    return classEnd < now
+  }
+
+  if (cls.recurrence === 'custom' || (cls.custom_dates && cls.custom_dates.length > 0)) {
+    const time = cls.recurring_time ?? cls.time ?? '00:00'
+    const [h, m] = time.split(':').map(Number)
+    return (cls.custom_dates ?? []).some((d: string) => {
+      const sessionEnd = new Date(`${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
+      sessionEnd.setMinutes(sessionEnd.getMinutes() + (cls.duration_minutes ?? 60))
+      return sessionEnd < now && new Date(`${d}T00:00:00`) >= enrolledAt
+    })
+  }
+
+  if (cls.day_of_week != null && cls.recurring_time) {
+    const [h, m] = (cls.recurring_time as string).split(':').map(Number)
+    const today = new Date()
+    const daysBack = (today.getDay() - cls.day_of_week + 7) % 7
+    const candidate = new Date(today)
+    candidate.setDate(today.getDate() - (daysBack === 0 ? 7 : daysBack))
+    candidate.setHours(h, m, 0, 0)
+    candidate.setMinutes(candidate.getMinutes() + (cls.duration_minutes ?? 60))
+    if (candidate >= now) candidate.setDate(candidate.getDate() - 7)
+    return candidate < now && candidate >= enrolledAt
+  }
+
+  return false
 }
 
 export default async function UserProfilePage({ params }: Props) {
@@ -30,11 +66,11 @@ export default async function UserProfilePage({ params }: Props) {
     followData,
     enrolledData,
     friendshipData,
-    trustData,
     { count: classesCount },
     { count: paidSpotsCount },
-    hasEndorsedData,
-    pastClassesData,
+    ratingsData,
+    myRatingData,
+    pastEnrollmentsData,
   ] = await Promise.all([
     supabase
       .from('classes')
@@ -68,32 +104,31 @@ export default async function UserProfilePage({ params }: Props) {
           .maybeSingle()
       : Promise.resolve({ data: null }),
 
-    // Trust count for this user
-    supabase.from('trust_endorsements' as any).select('*', { count: 'exact', head: true }).eq('endorsed_id', profileUser.id),
-
-    // Classes taught count
     supabase.from('classes').select('*', { count: 'exact', head: true }).eq('teacher_id', profileUser.id),
 
-    // Paid spots count (confirmed enrollments in teacher's classes)
     supabase
       .from('enrollments')
       .select('*, class:classes!inner(*)', { count: 'exact', head: true })
       .eq('class.teacher_id', profileUser.id)
       .eq('status', 'confirmed'),
 
-    // Has current user endorsed this profile?
+    // Ratings for this teacher (avg + count)
+    (supabase as any).from('ratings').select('stars').eq('rated_user_id', profileUser.id),
+
+    // Current user's rating for this teacher
     user && !isOwnProfile
-      ? supabase.from('trust_endorsements' as any).select('*').eq('endorser_id', user.id).eq('endorsed_id', profileUser.id).maybeSingle()
+      ? (supabase as any).from('ratings').select('stars').eq('rater_id', user.id).eq('rated_user_id', profileUser.id).maybeSingle()
       : Promise.resolve({ data: null }),
 
-    // Past classes where current user was confirmed (for endorsement popup)
-    user
-      ? supabase
+    // Past confirmed enrollments of current user in this teacher's classes (for canRate check)
+    user && !isOwnProfile
+      ? (supabase as any)
           .from('enrollments')
-          .select('*, class:classes!inner(id, title, teacher_id, date, type, teacher:profiles!teacher_id(full_name))')
+          .select('created_at, class:classes!inner(id, type, date, time, duration_minutes, recurrence, day_of_week, recurring_time, custom_dates)')
           .eq('student_id', user.id)
           .eq('status', 'confirmed')
-          .not('class.teacher_id', 'eq', user.id)
+          .eq('class.teacher_id', profileUser.id)
+          .limit(20)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -109,21 +144,17 @@ export default async function UserProfilePage({ params }: Props) {
     }
   }
 
-  // Filter past classes where the class date has already passed (suelta)
-  const today = new Date().toISOString().split('T')[0]
-  const pastForEndorsement = ((pastClassesData as any).data ?? [])
-    .filter((e: any) => {
-      const cls = e.class
-      if (!cls) return false
-      if (cls.type === 'suelta' && cls.date && cls.date < today) return true
-      return false
-    })
-    .map((e: any) => ({
-      teacherId: e.class.teacher_id,
-      teacherName: e.class.teacher?.full_name ?? '',
-      classTitle: e.class.title,
-      classId: e.class.id,
-    }))
+  // Compute avg stars and count
+  const ratingRows: { stars: number }[] = ratingsData.data ?? []
+  const ratingCount = ratingRows.length
+  const avgStars = ratingCount > 0
+    ? Math.round((ratingRows.reduce((sum, r) => sum + Number(r.stars), 0) / ratingCount) * 10) / 10
+    : 0
+  const myRating: number | null = (myRatingData.data as any)?.stars ? Number((myRatingData.data as any).stars) : null
+
+  // canRate: confirmed enrollment in a past class with this teacher
+  const pastEnrollments: any[] = (pastEnrollmentsData as any).data ?? []
+  const canRate = !isOwnProfile && pastEnrollments.some((e: any) => classSessionHasEnded(e.class, e.created_at))
 
   // Fetch posts filtered by viewer's relationship with this profile
   const isFriendFinal = friendStatus === 'accepted'
@@ -145,25 +176,22 @@ export default async function UserProfilePage({ params }: Props) {
     .limit(20)
 
   return (
-    <>
-      <TeacherProfileClient
-        teacher={profileUser}
-        classes={classes ?? []}
-        enrolledClasses={enrolledData.data ?? []}
-        posts={postsData ?? []}
-        followersCount={followersCount ?? 0}
-        isFollowing={!!followData.data}
-        currentUserId={user?.id}
-        isOwnProfile={isOwnProfile}
-        friendStatus={friendStatus}
-        trustCount={(trustData as any).count ?? 0}
-        classesCount={classesCount ?? 0}
-        paidSpotsCount={paidSpotsCount ?? 0}
-        hasEndorsed={!!(hasEndorsedData as any).data}
-      />
-      {user && pastForEndorsement.length > 0 && (
-        <EndorsementPopup endorserId={user.id} pastClasses={pastForEndorsement} />
-      )}
-    </>
+    <TeacherProfileClient
+      teacher={profileUser}
+      classes={classes ?? []}
+      enrolledClasses={enrolledData.data ?? []}
+      posts={postsData ?? []}
+      followersCount={followersCount ?? 0}
+      isFollowing={!!followData.data}
+      currentUserId={user?.id}
+      isOwnProfile={isOwnProfile}
+      friendStatus={friendStatus}
+      classesCount={classesCount ?? 0}
+      paidSpotsCount={paidSpotsCount ?? 0}
+      avgStars={avgStars}
+      ratingCount={ratingCount}
+      myRating={myRating}
+      canRate={canRate}
+    />
   )
 }

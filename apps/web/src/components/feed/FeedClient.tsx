@@ -11,6 +11,7 @@ import type { User } from '@supabase/supabase-js'
 import type { Profile, FeedFilter } from '@danceclass/shared'
 
 type ContentType = 'all' | 'classes' | 'posts'
+type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
 
 interface FeedClientProps {
   initialClasses: any[]
@@ -19,6 +20,7 @@ interface FeedClientProps {
   currentProfile: Profile | null
   followingIds: string[]
   friendsTwoxRequests?: any[]
+  initialTeacherRatings?: TeacherRatings
 }
 
 const FILTERS: { key: FeedFilter; label: string; icon: React.ElementType }[] = [
@@ -33,6 +35,21 @@ const CONTENT_LABELS: Record<ContentType, string> = {
   posts: 'Videos',
 }
 
+async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, teacherIds: string[]): Promise<TeacherRatings> {
+  if (teacherIds.length === 0) return {}
+  const { data } = await (supabase as any).from('ratings').select('rated_user_id, stars').in('rated_user_id', teacherIds)
+  const map: TeacherRatings = {}
+  for (const row of (data ?? []) as { rated_user_id: string; stars: number }[]) {
+    if (!map[row.rated_user_id]) map[row.rated_user_id] = { avg_stars: 0, rating_count: 0 }
+    map[row.rated_user_id].rating_count++
+    map[row.rated_user_id].avg_stars += Number(row.stars)
+  }
+  for (const id of Object.keys(map)) {
+    map[id].avg_stars = Math.round((map[id].avg_stars / map[id].rating_count) * 10) / 10
+  }
+  return map
+}
+
 export default function FeedClient({
   initialClasses,
   initialPosts,
@@ -40,6 +57,7 @@ export default function FeedClient({
   currentProfile,
   followingIds,
   friendsTwoxRequests = [],
+  initialTeacherRatings = {},
 }: FeedClientProps) {
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('global')
   const [contentType, setContentType] = useState<ContentType>('all')
@@ -47,6 +65,7 @@ export default function FeedClient({
   const [classes, setClasses] = useState(initialClasses)
   const [posts, setPosts] = useState(initialPosts)
   const [loading, setLoading] = useState(false)
+  const [teacherRatings, setTeacherRatings] = useState<TeacherRatings>(initialTeacherRatings)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -83,7 +102,6 @@ export default function FeedClient({
       postQuery = postQuery.eq('city', currentProfile.city)
     }
 
-    // Posts: only public unless following (followers/friends shown when following)
     if (filter !== 'following') {
       postQuery = (postQuery as any).eq('visibility', 'public')
     } else {
@@ -91,8 +109,15 @@ export default function FeedClient({
     }
 
     const [{ data: classData }, { data: postData }] = await Promise.all([classQuery, postQuery])
-    setClasses(classData ?? [])
+    const newClasses = classData ?? []
+    setClasses(newClasses)
     setPosts((postData as any[]) ?? [])
+
+    // Fetch ratings for the new set of teachers
+    const teacherIds = [...new Set(newClasses.map((c: any) => c.teacher_id as string))]
+    const ratings = await fetchTeacherRatings(supabase, teacherIds)
+    setTeacherRatings((prev) => ({ ...prev, ...ratings }))
+
     setLoading(false)
   }, [followingIds, currentProfile])
 
@@ -101,7 +126,6 @@ export default function FeedClient({
     loadFeed(filter)
   }
 
-  // Merge and sort feed items by created_at
   const feedItems: { type: 'class' | 'post'; data: any; created_at: string }[] = []
   if (contentType !== 'posts') {
     classes.forEach((c) => feedItems.push({ type: 'class', data: c, created_at: c.created_at }))
@@ -116,7 +140,6 @@ export default function FeedClient({
       {/* Filter bar */}
       <div className="sticky top-14 z-30 bg-blanco-violeta/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border px-4">
         <div className="flex items-center gap-2 py-2">
-          {/* Location/follow filters */}
           <div className="flex gap-1 flex-1 overflow-x-auto no-scrollbar">
             {FILTERS.map(({ key, label, icon: Icon }) => (
               <button
@@ -133,7 +156,6 @@ export default function FeedClient({
             ))}
           </div>
 
-          {/* Content type dropdown */}
           <div ref={dropdownRef} className="relative flex-shrink-0">
             <button
               onClick={() => setDropdownOpen((o) => !o)}
@@ -159,11 +181,10 @@ export default function FeedClient({
               </div>
             )}
           </div>
-
         </div>
       </div>
 
-      {/* Friends 2x section — only in Siguiendo tab */}
+      {/* Friends 2x section */}
       {activeFilter === 'following' && friendsTwoxRequests.length > 0 && (
         <FriendsTwoxList
           requests={friendsTwoxRequests}
@@ -182,12 +203,17 @@ export default function FeedClient({
         ) : (
           feedItems.map((item) =>
             item.type === 'class'
-              ? <ClassCard key={`class-${item.data.id}`} classData={item.data} currentUserId={currentUser.id} currentUserRole={currentProfile?.role ?? 'user'} />
+              ? <ClassCard
+                  key={`class-${item.data.id}`}
+                  classData={item.data}
+                  currentUserId={currentUser.id}
+                  currentUserRole={currentProfile?.role ?? 'user'}
+                  teacherRating={teacherRatings[item.data.teacher_id]}
+                />
               : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser.id} />
           )
         )}
       </div>
-
     </div>
   )
 }

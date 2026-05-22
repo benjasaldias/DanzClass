@@ -7,8 +7,11 @@ import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
 import TopBar from '../../../components/ui/TopBar'
+import RatingPopup from '../../../components/ui/RatingPopup'
 import { useTheme } from '../../../context/ThemeContext'
 import type { FeedFilter } from '@danceclass/shared'
+
+type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
 
 const FEED_FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'following', label: 'Siguiendo' },
@@ -35,6 +38,7 @@ export default function FeedScreen() {
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [userCity, setUserCity] = useState<string | null>(null)
   const [friendIds, setFriendIds] = useState<string[]>([])
+  const [teacherRatings, setTeacherRatings] = useState<TeacherRatings>({})
 
   useEffect(() => {
     async function init() {
@@ -118,6 +122,25 @@ export default function FeedScreen() {
     // Sort mixed feed by created_at descending
     allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setItems(allItems)
+
+    // Batch-fetch ratings for visible teachers
+    const teacherIds = [...new Set(allItems.filter((i) => i._type === 'class').map((i: any) => i.teacher_id as string))]
+    if (teacherIds.length > 0) {
+      const { data: ratingsRows } = await (supabase as any)
+        .from('ratings')
+        .select('rated_user_id, stars')
+        .in('rated_user_id', teacherIds)
+      const map: TeacherRatings = {}
+      for (const row of (ratingsRows ?? []) as { rated_user_id: string; stars: number }[]) {
+        if (!map[row.rated_user_id]) map[row.rated_user_id] = { avg_stars: 0, rating_count: 0 }
+        map[row.rated_user_id].rating_count++
+        map[row.rated_user_id].avg_stars += Number(row.stars)
+      }
+      for (const id of Object.keys(map)) {
+        map[id].avg_stars = Math.round((map[id].avg_stars / map[id].rating_count) * 10) / 10
+      }
+      setTeacherRatings((prev) => ({ ...prev, ...map }))
+    }
   } catch {
     // keep whatever was already in items; user sees stale data or empty state
   } finally {
@@ -134,6 +157,7 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      {userId && <RatingPopup userId={userId} />}
       <TopBar />
 
       {/* Filters row */}
@@ -192,7 +216,7 @@ export default function FeedScreen() {
           keyExtractor={(item: any) => `${item._type}-${item.id}`}
           renderItem={({ item }: { item: any }) =>
             item._type === 'class'
-              ? <MobileClassCard classData={item} currentUserId={userId ?? ''} />
+              ? <MobileClassCard classData={item} currentUserId={userId ?? ''} teacherRating={teacherRatings[item.teacher_id]} />
               : <MobilePostCard post={item} currentUserId={userId ?? ''} />
           }
           refreshControl={

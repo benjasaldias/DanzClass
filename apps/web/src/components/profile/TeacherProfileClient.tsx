@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock, ShieldCheck, BookOpen, Star, Video } from 'lucide-react'
+import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock, BookOpen, Star, Video } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import TrustButton from '@/components/ui/TrustButton'
+import StarRating from '@/components/ui/StarRating'
+import RatingModal from '@/components/ui/RatingModal'
 import PostCard from '@/components/feed/PostCard'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import type { Profile } from '@danceclass/shared'
@@ -25,10 +26,12 @@ interface TeacherProfileClientProps {
   currentUserId?: string
   isOwnProfile: boolean
   friendStatus: FriendStatus
-  trustCount: number
   classesCount: number
   paidSpotsCount: number
-  hasEndorsed: boolean
+  avgStars: number
+  ratingCount: number
+  myRating: number | null
+  canRate: boolean
 }
 
 export default function TeacherProfileClient({
@@ -41,10 +44,12 @@ export default function TeacherProfileClient({
   currentUserId,
   isOwnProfile,
   friendStatus: initialFriendStatus,
-  trustCount,
   classesCount,
   paidSpotsCount,
-  hasEndorsed,
+  avgStars: initialAvgStars,
+  ratingCount: initialRatingCount,
+  myRating: initialMyRating,
+  canRate,
 }: TeacherProfileClientProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [followers, setFollowers] = useState(initialFollowers)
@@ -52,6 +57,10 @@ export default function TeacherProfileClient({
   const [loadingFollow, setLoadingFollow] = useState(false)
   const [loadingFriend, setLoadingFriend] = useState(false)
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false)
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [myRating, setMyRating] = useState<number | null>(initialMyRating)
+  const [avgStars, setAvgStars] = useState(initialAvgStars)
+  const [ratingCount, setRatingCount] = useState(initialRatingCount)
 
   const supabase = createClient()
 
@@ -106,6 +115,19 @@ export default function TeacherProfileClient({
     setLoadingFriend(false)
   }
 
+  function handleRated(stars: number) {
+    const isNew = myRating === null
+    const prevStars = myRating ?? 0
+    setMyRating(stars)
+    if (isNew) {
+      const newCount = ratingCount + 1
+      setRatingCount(newCount)
+      setAvgStars(Math.round(((avgStars * ratingCount + stars) / newCount) * 10) / 10)
+    } else {
+      setAvgStars(Math.round(((avgStars * ratingCount - prevStars + stars) / ratingCount) * 10) / 10)
+    }
+  }
+
   const friendBtnLabel = {
     none: 'Agregar amig@',
     pending_sent: 'Solicitud enviada',
@@ -127,6 +149,17 @@ export default function TeacherProfileClient({
           onCancel={() => setShowUnfriendConfirm(false)}
         />
       )}
+      {showRatingModal && currentUserId && (
+        <RatingModal
+          teacherId={teacher.id}
+          teacherName={teacher.full_name}
+          raterId={currentUserId}
+          initialRating={myRating}
+          onClose={() => setShowRatingModal(false)}
+          onRate={handleRated}
+        />
+      )}
+
       {/* Header */}
       <div className="px-4 py-6 flex flex-col items-center text-center gap-3">
         <Avatar src={teacher.avatar_url} name={teacher.full_name} size="xl" />
@@ -158,11 +191,18 @@ export default function TeacherProfileClient({
             <span className="text-base font-bold text-gray-900 dark:text-dark-text">{paidSpotsCount}</span>
             <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
           </div>
-          <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
-          <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-green-700 dark:text-green-400">{trustCount}</span>
-            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
-          </div>
+          {ratingCount > 0 && (
+            <>
+              <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-1">
+                  <span className="text-base font-bold text-brand-600">{avgStars.toFixed(1)}</span>
+                  <StarRating value={avgStars} readOnly size="sm" />
+                </div>
+                <span className="text-[11px] text-gray-500 dark:text-dark-text2">{ratingCount} valoracion{ratingCount !== 1 ? 'es' : ''}</span>
+              </div>
+            </>
+          )}
         </div>
 
         {teacher.instagram_handle && (
@@ -196,12 +236,20 @@ export default function TeacherProfileClient({
               {friendBtnLabel}
             </button>
 
-            <TrustButton
-              endorsedId={teacher.id}
-              endorserId={currentUserId}
-              initialEndorsed={hasEndorsed}
-              initialCount={trustCount}
-            />
+            {canRate && (
+              <button
+                onClick={() => setShowRatingModal(true)}
+                className={cn(
+                  'flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border transition-colors',
+                  myRating !== null
+                    ? 'border-brand-200 dark:border-brand-800 bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300'
+                    : 'border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-300 hover:text-brand-700'
+                )}
+              >
+                <Star className="h-4 w-4" />
+                {myRating !== null ? `Mi valoración: ${myRating}` : 'Valorar'}
+              </button>
+            )}
           </div>
         )}
 

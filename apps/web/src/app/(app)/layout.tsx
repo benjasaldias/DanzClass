@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/ui/BottomNav'
 import TopBar from '@/components/ui/TopBar'
+import RatingPopupLoader from '@/components/ui/RatingPopup'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </main>
       <BottomNav tier={activeTier} />
+      <RatingPopupLoader userId={user.id} />
     </div>
   )
 }

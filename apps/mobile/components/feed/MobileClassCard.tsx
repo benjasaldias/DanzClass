@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { MapPin, Clock, Users, ChevronRight, ChevronLeft, Music2 } from 'lucide-react-native'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
+import StarRating from '../ui/StarRating'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -24,6 +25,7 @@ interface MobileClassCardProps {
   classData: any
   currentUserId: string
   compact?: boolean
+  teacherRating?: { avg_stars: number; rating_count: number }
 }
 
 function timeAgo(date: string): string {
@@ -45,7 +47,7 @@ function formatDate(date: string): string {
   return new Date(date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
 }
 
-export default function MobileClassCard({ classData, currentUserId, compact = false }: MobileClassCardProps) {
+export default function MobileClassCard({ classData, currentUserId, compact = false, teacherRating }: MobileClassCardProps) {
   const router = useRouter()
   const [mediaIndex, setMediaIndex] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
@@ -133,7 +135,12 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
         </View>
         <View className="flex-1">
           <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{teacher.full_name}</Text>
-          <Text className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</Text>
+          <View className="flex-row items-center gap-1">
+            {teacherRating && teacherRating.rating_count > 0 && (
+              <StarRating value={teacherRating.avg_stars} readOnly size="sm" instanceId={`card-${classData.id}`} showCount count={teacherRating.rating_count} />
+            )}
+            <Text className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</Text>
+          </View>
         </View>
         {classData.dance_style && (
           <View className="bg-brand-50 rounded-full px-2.5 py-1">

@@ -1,12 +1,46 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert, Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ChevronLeft, MapPin, Users, UserPlus, UserCheck, UserMinus, ShieldCheck, Music2 } from 'lucide-react-native'
+import { ChevronLeft, MapPin, Users, Music2, Star } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
+import StarRating from '../../../components/ui/StarRating'
 import { useTheme } from '../../../context/ThemeContext'
+
+function classSessionHasEnded(cls: any, enrollmentCreatedAt: string): boolean {
+  const now = new Date()
+  const enrolledAt = new Date(enrollmentCreatedAt)
+  if (cls.type === 'suelta') {
+    if (!cls.date || !cls.time) return false
+    const [h, m] = (cls.time as string).split(':').map(Number)
+    const end = new Date(`${cls.date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
+    end.setMinutes(end.getMinutes() + (cls.duration_minutes ?? 60))
+    return end < now
+  }
+  if (cls.recurrence === 'custom' || (cls.custom_dates && cls.custom_dates.length > 0)) {
+    const time = cls.recurring_time ?? '00:00'
+    const [h, m] = time.split(':').map(Number)
+    return (cls.custom_dates ?? []).some((d: string) => {
+      const end = new Date(`${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
+      end.setMinutes(end.getMinutes() + (cls.duration_minutes ?? 60))
+      return end < now && new Date(`${d}T00:00:00`) >= enrolledAt
+    })
+  }
+  if (cls.day_of_week != null && cls.recurring_time) {
+    const [h, m] = (cls.recurring_time as string).split(':').map(Number)
+    const today = new Date()
+    const daysBack = (today.getDay() - cls.day_of_week + 7) % 7
+    const candidate = new Date(today)
+    candidate.setDate(today.getDate() - (daysBack === 0 ? 7 : daysBack))
+    candidate.setHours(h, m, 0, 0)
+    candidate.setMinutes(candidate.getMinutes() + (cls.duration_minutes ?? 60))
+    if (candidate >= now) candidate.setDate(candidate.getDate() - 7)
+    return candidate < now && candidate >= enrolledAt
+  }
+  return false
+}
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
 
@@ -21,12 +55,20 @@ export default function TeacherProfileScreen() {
 
   // Stats
   const [followers, setFollowers] = useState(0)
-  const [trustCount, setTrustCount] = useState(0)
+  const [avgStars, setAvgStars] = useState(0)
+  const [ratingCount, setRatingCount] = useState(0)
+  const [myRating, setMyRating] = useState<number | null>(null)
+  const [canRate, setCanRate] = useState(false)
   const [classesCount, setClassesCount] = useState(0)
   const [classes, setClasses] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [showAllClasses, setShowAllClasses] = useState(false)
   const [showAllPosts, setShowAllPosts] = useState(false)
+
+  // Rating modal
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [ratingSelected, setRatingSelected] = useState(0)
+  const [ratingLoading, setRatingLoading] = useState(false)
 
   // Social
   const [isFollowing, setIsFollowing] = useState(false)
@@ -52,9 +94,12 @@ export default function TeacherProfileScreen() {
       setProfile(p)
       setIsOwnProfile(uid === p.id)
 
-      const [followersRes, trustRes, classesRes, followRes, friendRes, postsRes] = await Promise.all([
+      const [followersRes, ratingsRes, myRatingRes, classesRes, followRes, friendRes, postsRes, pastEnrollmentsRes] = await Promise.all([
         supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', p.id),
-        (supabase as any).from('trust_endorsements').select('endorser_id', { count: 'exact', head: true }).eq('endorsed_id', p.id),
+        (supabase as any).from('ratings').select('stars').eq('rated_user_id', p.id),
+        uid && uid !== p.id
+          ? (supabase as any).from('ratings').select('stars').eq('rater_id', uid).eq('rated_user_id', p.id).maybeSingle()
+          : Promise.resolve({ data: null }),
         (supabase as any).from('classes').select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id,status)').eq('teacher_id', p.id).eq('status', 'active'),
         uid ? supabase.from('follows').select('follower_id').eq('follower_id', uid).eq('following_id', p.id).maybeSingle() : Promise.resolve({ data: null }),
         uid && uid !== p.id
@@ -64,10 +109,27 @@ export default function TeacherProfileScreen() {
             .maybeSingle()
           : Promise.resolve({ data: null }),
         (supabase as any).from('posts').select('*, author:profiles!user_id(id, username, full_name, avatar_url)').eq('user_id', p.id).order('created_at', { ascending: false }),
+        uid && uid !== p.id
+          ? (supabase as any).from('enrollments')
+              .select('created_at, class:classes!inner(id, type, date, time, duration_minutes, recurrence, day_of_week, recurring_time, custom_dates)')
+              .eq('student_id', uid)
+              .eq('status', 'confirmed')
+              .eq('class.teacher_id', p.id)
+              .limit(20)
+          : Promise.resolve({ data: [] }),
       ])
 
       setFollowers(followersRes.count ?? 0)
-      setTrustCount(trustRes.count ?? 0)
+      // Ratings
+      const ratingRows = ratingsRes.data ?? []
+      const rc = ratingRows.length
+      setRatingCount(rc)
+      setAvgStars(rc > 0 ? Math.round((ratingRows.reduce((s: number, r: any) => s + Number(r.stars), 0) / rc) * 10) / 10 : 0)
+      setMyRating(myRatingRes.data?.stars ? Number(myRatingRes.data.stars) : null)
+      setRatingSelected(myRatingRes.data?.stars ? Number(myRatingRes.data.stars) : 0)
+      const pastEnrollments = pastEnrollmentsRes.data ?? []
+      setCanRate(uid !== p.id && pastEnrollments.some((e: any) => classSessionHasEnded(e.class, e.created_at)))
+
       setClasses(classesRes.data ?? [])
       setClassesCount(classesRes.data?.length ?? 0)
       setIsFollowing(!!followRes.data)
@@ -159,6 +221,26 @@ export default function TeacherProfileScreen() {
     return 'Enviar solicitud'
   }
 
+  async function handleSubmitRating() {
+    if (!currentUserId || !profile || ratingSelected < 1) return
+    setRatingLoading(true)
+    const isEdit = myRating !== null
+    if (isEdit) {
+      await (supabase as any).from('ratings').update({ stars: ratingSelected }).eq('rater_id', currentUserId).eq('rated_user_id', profile.id)
+    } else {
+      await (supabase as any).from('ratings').insert({ rater_id: currentUserId, rated_user_id: profile.id, stars: ratingSelected })
+    }
+    const newCount = isEdit ? ratingCount : ratingCount + 1
+    const newAvg = isEdit
+      ? Math.round(((avgStars * ratingCount - (myRating ?? 0) + ratingSelected) / ratingCount) * 10) / 10
+      : Math.round(((avgStars * ratingCount + ratingSelected) / newCount) * 10) / 10
+    setMyRating(ratingSelected)
+    setRatingCount(newCount)
+    setAvgStars(newAvg)
+    setRatingLoading(false)
+    setShowRatingModal(false)
+  }
+
   if (loading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
@@ -182,8 +264,54 @@ export default function TeacherProfileScreen() {
     .join('')
     .toUpperCase()
 
+  const ratingLabels: Record<number, string> = {
+    0.5: 'Muy malo', 1: 'Malo', 1.5: 'Malo', 2: 'Regular', 2.5: 'Regular',
+    3: 'Bueno', 3.5: 'Bueno', 4: 'Muy bueno', 4.5: 'Excelente', 5: 'Excelente',
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      {/* Rating Modal */}
+      <Modal visible={showRatingModal} transparent animationType="fade" onRequestClose={() => setShowRatingModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
+          <View className="w-full max-w-sm rounded-2xl bg-white dark:bg-dark-surface p-6" style={{ maxWidth: 360 }}>
+            <View className="items-center mb-4">
+              <View className="w-10 h-10 rounded-full bg-brand-100 items-center justify-center mb-2">
+                <Star size={20} stroke="#c026d3" />
+              </View>
+              <Text className="text-base font-bold text-gray-900 dark:text-dark-text">
+                {myRating !== null ? 'Editar valoración' : 'Valorar profesor'}
+              </Text>
+              <Text className="text-sm text-gris-humo dark:text-dark-text2 mt-0.5">{profile?.full_name}</Text>
+            </View>
+            <View className="items-center gap-2 mb-4">
+              <StarRating value={ratingSelected} onChange={setRatingSelected} size="lg" instanceId="rating-modal" />
+              <Text className="text-xs text-gray-500 dark:text-dark-text2" style={{ minHeight: 16 }}>
+                {ratingSelected > 0 ? ratingLabels[ratingSelected] ?? '' : 'Toca para valorar'}
+              </Text>
+            </View>
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                onPress={handleSubmitRating}
+                disabled={ratingLoading || ratingSelected < 1}
+                className="flex-1 rounded-xl bg-brand-600 py-3 items-center"
+                style={{ opacity: ratingSelected < 1 ? 0.5 : 1 }}
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {ratingLoading ? '...' : myRating !== null ? 'Actualizar' : 'Publicar'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowRatingModal(false)}
+                className="rounded-xl border border-gray-200 dark:border-dark-border px-4 py-3 items-center"
+              >
+                <Text className="text-sm text-gray-600 dark:text-dark-text2">Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
@@ -231,45 +359,64 @@ export default function TeacherProfileScreen() {
                 <Text className="text-xs text-gris-humo dark:text-dark-text2">clases</Text>
               </View>
             </View>
-            <View className="w-px bg-gray-100 dark:bg-dark-border" />
-            <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{trustCount}</Text>
-              <View className="flex-row items-center gap-1">
-                <ShieldCheck size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo dark:text-dark-text2">confían</Text>
-              </View>
-            </View>
+            {ratingCount > 0 && (
+              <>
+                <View className="w-px bg-gray-100 dark:bg-dark-border" />
+                <View className="items-center">
+                  <Text className="text-lg font-bold" style={{ color: '#c026d3' }}>{avgStars.toFixed(1)}</Text>
+                  <StarRating value={avgStars} readOnly size="sm" instanceId="profile-stats" />
+                  <Text className="text-xs text-gris-humo dark:text-dark-text2">{ratingCount} val.</Text>
+                </View>
+              </>
+            )}
           </View>
 
           {/* Social buttons (not own profile) */}
           {!isOwnProfile && (
-            <View className="flex-row gap-2">
-              <TouchableOpacity
-                onPress={handleFollowToggle}
-                disabled={loadingFollow}
-                className={`flex-1 rounded-xl py-2.5 items-center border ${isFollowing ? 'border-brand-300 bg-brand-50' : 'border-brand-600 bg-brand-600'}`}
-              >
-                <Text className={`text-sm font-semibold ${isFollowing ? 'text-brand-700' : 'text-white'}`}>
-                  {loadingFollow ? '...' : isFollowing ? 'Siguiendo' : 'Seguir'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleFriendAction}
-                disabled={loadingFriend || friendStatus === 'pending_sent'}
-                className={`flex-1 rounded-xl py-2.5 items-center border ${
-                  friendStatus === 'accepted' ? 'border-green-300 bg-green-50' :
-                  friendStatus === 'pending_received' ? 'border-morado-flow bg-morado-flow' :
-                  'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
-                }`}
-              >
-                <Text className={`text-sm font-semibold ${
-                  friendStatus === 'accepted' ? 'text-green-700' :
-                  friendStatus === 'pending_received' ? 'text-white' :
-                  'text-gray-700 dark:text-dark-text2'
-                }`}>
-                  {loadingFriend ? '...' : friendButtonLabel()}
-                </Text>
-              </TouchableOpacity>
+            <View className="gap-2">
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={handleFollowToggle}
+                  disabled={loadingFollow}
+                  className={`flex-1 rounded-xl py-2.5 items-center border ${isFollowing ? 'border-brand-300 bg-brand-50' : 'border-brand-600 bg-brand-600'}`}
+                >
+                  <Text className={`text-sm font-semibold ${isFollowing ? 'text-brand-700' : 'text-white'}`}>
+                    {loadingFollow ? '...' : isFollowing ? 'Siguiendo' : 'Seguir'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleFriendAction}
+                  disabled={loadingFriend || friendStatus === 'pending_sent'}
+                  className={`flex-1 rounded-xl py-2.5 items-center border ${
+                    friendStatus === 'accepted' ? 'border-green-300 bg-green-50' :
+                    friendStatus === 'pending_received' ? 'border-morado-flow bg-morado-flow' :
+                    'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
+                  }`}
+                >
+                  <Text className={`text-sm font-semibold ${
+                    friendStatus === 'accepted' ? 'text-green-700' :
+                    friendStatus === 'pending_received' ? 'text-white' :
+                    'text-gray-700 dark:text-dark-text2'
+                  }`}>
+                    {loadingFriend ? '...' : friendButtonLabel()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {canRate && (
+                <TouchableOpacity
+                  onPress={() => { setRatingSelected(myRating ?? 0); setShowRatingModal(true) }}
+                  className={`rounded-xl py-2.5 items-center border flex-row justify-center gap-2 ${
+                    myRating !== null
+                      ? 'border-brand-200 bg-brand-50 dark:bg-brand-950/20 dark:border-brand-800'
+                      : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
+                  }`}
+                >
+                  <Star size={14} stroke={myRating !== null ? '#c026d3' : '#6B6880'} />
+                  <Text className={`text-sm font-semibold ${myRating !== null ? 'text-brand-700 dark:text-brand-300' : 'text-gray-700 dark:text-dark-text2'}`}>
+                    {myRating !== null ? `Mi valoración: ${myRating}` : 'Valorar profesor'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
