@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   MapPin, Clock, Users, Calendar, ChevronLeft, ChevronRight, UserPlus, UserMinus,
   AlertCircle, CheckCircle2, Pencil, Trash2, Flag, Tag, ClipboardList,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Share2,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -24,7 +24,7 @@ import type { Profile } from '@danceclass/shared'
 
 interface ClassDetailClientProps {
   classData: any
-  currentUser: User
+  currentUser: User | null
   currentProfile: Profile | null
   enrollment: any
   spots: any
@@ -51,6 +51,8 @@ export default function ClassDetailClient({
 }: ClassDetailClientProps) {
   const router = useRouter()
 
+  const userId = currentUser?.id ?? null
+
   const [enrollment, setEnrollment] = useState(initialEnrollment)
   const [spots, setSpots] = useState(initialSpots)
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
@@ -75,11 +77,12 @@ export default function ClassDetailClient({
   const [friendsOpen, setFriendsOpen] = useState(false)
   const [matchingId, setMatchingId] = useState<string | null>(null)
   const [matchError, setMatchError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const teacher = classData.teacher
   const media = [...(classData.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
 
-  const isTeacher = classData.teacher_id === currentUser.id
+  const isTeacher = userId !== null && classData.teacher_id === userId
   const spotsAvailable = spots?.spots_available ?? classData.max_spots
   const isFull = spotsAvailable <= 0
   const isEntrenamiento = classData.type === 'entrenamiento'
@@ -101,8 +104,21 @@ export default function ClassDetailClient({
   const originalPrice = classData.price
   const hasDiscount = activePrice < originalPrice
 
+  async function handleShare() {
+    const url = `${window.location.origin}/class/${classData.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // fallback for browsers that block clipboard
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   async function handleEnroll() {
-    if (isFull) return
+    if (!currentUser || isFull) return
     setEnrolling(true)
     const supabase = createClient()
     const enrollmentPayload: EnrollmentInsert = { student_id: currentUser.id, class_id: classData.id, session_id: null, status: 'pending_payment' }
@@ -125,6 +141,7 @@ export default function ClassDetailClient({
   }
 
   async function handleFollowToggle() {
+    if (!currentUser) return
     setFollowLoading(true)
     const supabase = createClient()
     if (isFollowing) {
@@ -150,6 +167,7 @@ export default function ClassDetailClient({
   }
 
   async function handleDeleteClass() {
+    if (!currentUser) return
     setDeleting(true)
     const supabase = createClient()
     const { data: enrollments } = await supabase.from('enrollments' as any).select('student_id').eq('class_id', classData.id).in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
@@ -195,8 +213,12 @@ export default function ClassDetailClient({
     ? `IMPORTANTE: ya pagaste esta clase. ¿Seguro que quieres salirte?`
     : `¿Seguro que quieres salirte de "${classData.title}"? Tu cupo quedará libre.`
 
-  // Can the student enroll? Not for audition-required entrenamiento (unless audition is closed)
   const canEnrollDirectly = !isEntrenamiento || classData.audition_closed || !classData.requires_audition
+
+  const shareButtonClasses = "flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium transition-colors"
+  const shareButtonActiveClasses = copied
+    ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400"
+    : "text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface"
 
   return (
     <div className="flex flex-col">
@@ -209,7 +231,7 @@ export default function ClassDetailClient({
       {showDatesCalendar && (
         <CustomDatesCalendar dates={classData.custom_dates ?? []} onClose={() => setShowDatesCalendar(false)} />
       )}
-      {showReport && (
+      {showReport && currentUser && (
         <ReportModal contentType="class" contentId={classData.id} reporterId={currentUser.id} onClose={() => setShowReport(false)} />
       )}
       {showDiscount && (
@@ -224,7 +246,7 @@ export default function ClassDetailClient({
           onSaved={handleDiscountSaved}
         />
       )}
-      {showAudition && (
+      {showAudition && currentUser && (
         <AuditionModal
           classId={classData.id}
           userId={currentUser.id}
@@ -243,6 +265,10 @@ export default function ClassDetailClient({
 
         {isTeacher ? (
           <div className="flex gap-2 flex-wrap justify-end">
+            <button onClick={handleShare} className={cn(shareButtonClasses, shareButtonActiveClasses)}>
+              <Share2 className="h-3.5 w-3.5" />
+              {copied ? '¡Enlace copiado!' : 'Compartir'}
+            </button>
             {isEntrenamiento && !classData.audition_closed && (
               <Link
                 href={`/class/${classData.id}/auditions`}
@@ -269,10 +295,18 @@ export default function ClassDetailClient({
             </button>
           </div>
         ) : (
-          <button onClick={() => setShowReport(true)} className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-dark-text2 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-colors">
-            <Flag className="h-3.5 w-3.5" />
-            Reportar
-          </button>
+          <div className="flex gap-2">
+            <button onClick={handleShare} className={cn(shareButtonClasses, shareButtonActiveClasses)}>
+              <Share2 className="h-3.5 w-3.5" />
+              {copied ? '¡Enlace copiado!' : 'Compartir'}
+            </button>
+            {currentUser && (
+              <button onClick={() => setShowReport(true)} className="flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-dark-text2 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-colors">
+                <Flag className="h-3.5 w-3.5" />
+                Reportar
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -366,7 +400,7 @@ export default function ClassDetailClient({
               <p className="text-xs text-gray-500 dark:text-dark-text2">@{teacher.username}</p>
             </div>
           </Link>
-          {!isTeacher && (
+          {!isTeacher && currentUser && (
             <button
               onClick={handleFollowToggle}
               disabled={followLoading}
@@ -433,7 +467,7 @@ export default function ClassDetailClient({
         )}
 
         {/* Friends looking for 2x partner in this class */}
-        {!isTeacher && friendsTwox.length > 0 && (
+        {!isTeacher && currentUser && friendsTwox.length > 0 && (
           <div className="rounded-xl border border-brand-200 bg-brand-50/60 overflow-hidden">
             <button
               onClick={() => setFriendsOpen((o) => !o)}
@@ -482,7 +516,7 @@ export default function ClassDetailClient({
         )}
 
         {/* Audition status for entrenamiento */}
-        {isEntrenamiento && classData.requires_audition && !isTeacher && (
+        {isEntrenamiento && classData.requires_audition && !isTeacher && currentUser && (
           <div className={cn('rounded-xl border p-4', auditionSubmitted ? 'bg-blue-50 border-blue-200' : 'bg-brand-50 border-brand-200')}>
             {auditionSubmitted ? (
               <div>
@@ -510,12 +544,12 @@ export default function ClassDetailClient({
           </div>
         )}
 
-        {enrollment && enrollment.status !== 'cancelled' && (
+        {currentUser && enrollment && enrollment.status !== 'cancelled' && (
           <EnrollmentBanner enrollment={enrollment} classId={classData.id} onLeave={() => setShowLeaveConfirm(true)} />
         )}
       </div>
 
-      {/* Bottom CTA — enrollment or 2x */}
+      {/* Bottom CTA — for authenticated enrolled students or guests */}
       {!isTeacher && (!enrollment || enrollment.status === 'cancelled') && canEnrollDirectly && (
         <div className="sticky bottom-16 left-0 right-0 border-t border-gray-100 dark:border-dark-border bg-white/90 dark:bg-dark-surface/90 backdrop-blur-md px-4 py-3">
           <div className="flex items-start justify-between gap-3">
@@ -546,22 +580,31 @@ export default function ClassDetailClient({
               )}
             </div>
 
-            <button
-              onClick={handleEnroll}
-              disabled={enrolling || isFull}
-              className={cn('btn-primary px-6 py-3 text-base flex-shrink-0', isFull && 'opacity-50 cursor-not-allowed')}
-            >
-              {enrolling ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Reservando...
-                </span>
-              ) : isFull ? 'Sin cupos' : 'Reservar cupo'}
-            </button>
+            {!currentUser ? (
+              <Link
+                href="/auth/login"
+                className="btn-primary px-6 py-3 text-base flex-shrink-0"
+              >
+                Inicia sesión para reservar
+              </Link>
+            ) : (
+              <button
+                onClick={handleEnroll}
+                disabled={enrolling || isFull}
+                className={cn('btn-primary px-6 py-3 text-base flex-shrink-0', isFull && 'opacity-50 cursor-not-allowed')}
+              >
+                {enrolling ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Reservando...
+                  </span>
+                ) : isFull ? 'Sin cupos' : 'Reservar cupo'}
+              </button>
+            )}
           </div>
 
-          {/* 2x button — shown if price_2x or price_suelta_2x exists */}
-          {(classData.price_2x || classData.price_suelta_2x) && !isFull && (
+          {/* 2x button — only for logged-in users */}
+          {currentUser && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
             <div className="mt-1">
               <TwoxRequestButton
                 classId={classData.id}
@@ -604,4 +647,3 @@ function EnrollmentBanner({ enrollment, classId, onLeave }: { enrollment: any; c
     </div>
   )
 }
-

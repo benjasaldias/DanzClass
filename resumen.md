@@ -1180,6 +1180,51 @@ Pantallas migradas (todos los tokens `dark:bg-dark-*`, `dark:text-dark-*`, `dark
 
 ---
 
+## Sesión 2026-05-22 — Compartir clase e Historial de pagos
+
+### ✅ Compartir clase (web + mobile)
+
+**Web — `ClassDetailClient.tsx`:**
+- Botón "Compartir" en el header de la clase (junto a los demás botones del lado derecho)
+- Copia `${window.location.origin}/class/${classId}` al portapapeles con `navigator.clipboard.writeText`
+- Feedback visual: cambia a "¡Enlace copiado!" por 2 segundos con estilo verde, luego vuelve a "Compartir"
+- Ícono `Share2` de lucide-react
+- Visible para todos los usuarios (profesor, alumno, visitante)
+
+**Web — acceso anónimo a `/class/[id]`:**
+- `middleware.ts`: `/class/` agregada como prefijo público — las rutas bajo `/class/` no requieren login
+- `class/[id]/page.tsx`: ya no redirige a login si no hay sesión; las queries user-específicas (enrollment, follow, audition, friends 2x) solo se ejecutan cuando hay `user`; `spots` siempre se consulta
+- `ClassDetailClient.tsx`: `currentUser: User | null` (antes `User`); cuando es null: oculta botones de acción (Reservar, Editar, Descuento, 2x, Postularme, Reportar, Seguir, sección amigos 2x, enrollment banner); muestra CTA "Inicia sesión para reservar" (Link a `/auth/login`) en el sticky bottom; el botón Compartir sigue visible
+
+**Mobile — `class/[id]/index.tsx`:**
+- Botón `Share2` (gris-humo) en el header, visible para todos
+- Toca → `Share.share({ message: "${cls.title} — ${WEB_URL}/class/${cls.id}", title: cls.title })`
+- Native share sheet de iOS/Android se encarga del destino
+
+### ✅ Historial de pagos (web + mobile)
+
+**Web — `MyClassesClient.tsx`:**
+- Nuevo tab "Historial" (tercer tab junto a "Clases que tomo" / "Clases que dicto")
+- Tabs redimensionados a `text-xs` para caber los tres sin overflow
+- `HistoryTab` componente nuevo:
+  - **Vista alumno** ("Mis pagos"): cada enrollment con nombre de clase, badge de estilo, monto del pago o "Sin pago registrado", pill de estado (Confirmado/Rechazado/Pendiente/Sin pago), fecha
+  - **Vista profesor** ("Pagos recibidos"): avatar + nombre del alumno, nombre de la clase, monto, pill de estado, fecha + resumen mensual agrupado por mes calendario con total confirmado
+  - Si el usuario tiene ambos roles: muestra ambas secciones con subtítulos dentro del mismo tab
+  - Si no hay datos: empty state con ícono `History`
+  - Resumen mensual: ícono `Receipt`, card por mes con total y count de pagos confirmados
+- **No requiere nuevas queries**: usa los mismos `enrollments` y `teachingClasses` ya cargados en `page.tsx`
+- Lógica de estado de pago: `confirmed` (enrollmentStatus='confirmed') → verde; `rejected` (payment.status='rejected') → rojo; `pending` (payment_submitted o hay payment) → amarillo; `no_payment` → gris
+
+**Mobile — `my-classes.tsx`:**
+- Nuevo tab "Historial" (tercer tab); los dos anteriores usan texto abreviado: "Que tomo" / "Que dicto" para caber los tres
+- `HistoryTab` con las mismas dos secciones (alumno + profesor) y el resumen mensual
+- Pills de estado con colores inline (bg/text/border) para compatibilidad NativeWind
+- Resumen mensual: fondo `bg-violet-50 dark:bg-dark-surface2`, texto verde para el total
+- Query de enrollments actualizada para incluir `payment:payments(*)` al nivel del enrollment (además del `class:classes(...)`)
+- Iconos `History` y `Receipt` de lucide-react-native
+
+---
+
 ## Sesión 2026-05-21 — Rutas públicas legales, favicon y política de privacidad
 
 ### ✅ Rutas públicas (`/terms` y `/privacy`)

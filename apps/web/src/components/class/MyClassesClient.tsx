@@ -6,7 +6,7 @@ import Image from 'next/image'
 import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
-  AlertTriangle, ShieldAlert, ClipboardList,
+  AlertTriangle, ShieldAlert, ClipboardList, History, Receipt,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -452,6 +452,165 @@ function TeachingTab({
   )
 }
 
+// ─── History tab ─────────────────────────────────────────────────────────────
+
+const PAYMENT_PILL = {
+  confirmed: 'bg-green-50 border-green-200 text-green-700',
+  rejected: 'bg-red-50 border-red-200 text-red-600',
+  pending: 'bg-yellow-50 border-yellow-200 text-yellow-700',
+  no_payment: 'bg-gray-50 border-gray-200 text-gray-500',
+}
+
+function paymentStatusLabel(enrollment: any): { key: keyof typeof PAYMENT_PILL; label: string } {
+  const payment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
+  if (enrollment.status === 'confirmed') return { key: 'confirmed', label: 'Confirmado' }
+  if (payment?.status === 'rejected') return { key: 'rejected', label: 'Rechazado' }
+  if (enrollment.status === 'payment_submitted' || payment) return { key: 'pending', label: 'Pendiente' }
+  return { key: 'no_payment', label: 'Sin pago' }
+}
+
+function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teachingClasses: any[] }) {
+  const teacherRows = teachingClasses.flatMap((cls: any) =>
+    (cls.enrollments ?? [])
+      .filter((e: any) => e.status !== 'cancelled')
+      .map((e: any) => ({
+        id: e.id,
+        classId: cls.id,
+        classTitle: cls.title,
+        classDanceStyle: cls.dance_style,
+        student: e.student,
+        payment: Array.isArray(e.payment) ? e.payment[0] : e.payment,
+        enrollmentStatus: e.status,
+        createdAt: e.created_at,
+      }))
+  )
+
+  const hasStudent = enrollments.length > 0
+  const hasTeacher = teacherRows.length > 0
+
+  // Monthly summary for teacher view
+  const monthlyMap: Record<string, { total: number; count: number }> = {}
+  for (const row of teacherRows) {
+    if (row.enrollmentStatus !== 'confirmed') continue
+    const amount = row.payment?.amount ?? 0
+    const month = new Date(row.createdAt).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+    if (!monthlyMap[month]) monthlyMap[month] = { total: 0, count: 0 }
+    monthlyMap[month].total += amount
+    monthlyMap[month].count++
+  }
+  const monthlySummary = Object.entries(monthlyMap)
+
+  if (!hasStudent && !hasTeacher) {
+    return (
+      <div className="flex flex-col items-center py-16 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-surface mb-4">
+          <History className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
+        </div>
+        <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin historial</h3>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">Aquí verás tus pagos al inscribirte en clases</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Student history */}
+      {hasStudent && (
+        <div>
+          {hasTeacher && (
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text2 mb-3">Mis pagos</h3>
+          )}
+          <div className="space-y-2">
+            {enrollments.map((e: any) => {
+              const cls = e.class as any
+              const payment = Array.isArray(e.payment) ? e.payment[0] : e.payment
+              const { key, label } = paymentStatusLabel(e)
+              return (
+                <Link key={e.id} href={`/class/${cls?.id}`} className="card p-4 flex items-center gap-3 hover:shadow-md transition-shadow">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls?.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {cls?.dance_style && (
+                        <span className="inline-flex items-center rounded-full bg-brand-50 dark:bg-brand-950/30 px-2 py-0.5 text-xs font-medium text-brand-700 dark:text-brand-300">
+                          {cls.dance_style}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400 dark:text-dark-text2">{formatDate(e.created_at)}</span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-dark-text mt-1">
+                      {payment?.amount ? formatCLP(payment.amount) : 'Sin pago registrado'}
+                    </p>
+                  </div>
+                  <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium flex-shrink-0', PAYMENT_PILL[key])}>
+                    {label}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Teacher history */}
+      {hasTeacher && (
+        <div>
+          {hasStudent && (
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text2 mb-3">Pagos recibidos</h3>
+          )}
+          <div className="space-y-2">
+            {teacherRows.map((row: any) => {
+              const statusKey = row.enrollmentStatus === 'confirmed' ? 'confirmed'
+                : row.payment?.status === 'rejected' ? 'rejected'
+                : row.enrollmentStatus === 'payment_submitted' || row.payment ? 'pending'
+                : 'no_payment'
+              const label = { confirmed: 'Confirmado', rejected: 'Rechazado', pending: 'Pendiente', no_payment: 'Sin pago' }[statusKey]
+              return (
+                <div key={row.id} className="card p-4 flex items-center gap-3">
+                  <Avatar src={row.student?.avatar_url} name={row.student?.full_name ?? '?'} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{row.student?.full_name}</p>
+                    <p className="text-xs text-gray-500 dark:text-dark-text2 truncate">{row.classTitle}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-dark-text mt-0.5">
+                      {row.payment?.amount ? formatCLP(row.payment.amount) : '—'}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium', PAYMENT_PILL[statusKey as keyof typeof PAYMENT_PILL])}>
+                      {label}
+                    </span>
+                    <span className="text-xs text-gray-400 dark:text-dark-text2">{formatDate(row.createdAt)}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Monthly summary */}
+          {monthlySummary.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Receipt className="h-4 w-4 text-gray-400" />
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Resumen mensual</h4>
+              </div>
+              <div className="space-y-2">
+                {monthlySummary.map(([month, { total, count }]) => (
+                  <div key={month} className="card px-4 py-3 flex items-center justify-between">
+                    <p className="text-sm text-gray-700 dark:text-dark-text capitalize">{month}</p>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-green-700">{formatCLP(total)}</p>
+                      <p className="text-xs text-gray-400 dark:text-dark-text2">{count} pago{count !== 1 ? 's' : ''} confirmado{count !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface MyClassesClientProps {
@@ -469,7 +628,7 @@ export default function MyClassesClient({
   currentUserId,
   dismissedStudentIds,
 }: MyClassesClientProps) {
-  const [tab, setTab] = useState<'enrolled' | 'teaching'>(defaultTab)
+  const [tab, setTab] = useState<'enrolled' | 'teaching' | 'history'>(defaultTab)
 
   return (
     <div className="px-4 py-4">
@@ -480,13 +639,13 @@ export default function MyClassesClient({
         <button
           onClick={() => setTab('enrolled')}
           className={cn(
-            'flex-1 rounded-lg py-2 text-sm font-semibold transition-colors',
+            'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
             tab === 'enrolled' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
           )}
         >
           Clases que tomo
           {enrollments.length > 0 && (
-            <span className={cn('ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
+            <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
               tab === 'enrolled' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
             )}>
               {enrollments.length}
@@ -496,29 +655,41 @@ export default function MyClassesClient({
         <button
           onClick={() => setTab('teaching')}
           className={cn(
-            'flex-1 rounded-lg py-2 text-sm font-semibold transition-colors',
+            'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
             tab === 'teaching' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
           )}
         >
           Clases que dicto
           {teachingClasses.length > 0 && (
-            <span className={cn('ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
+            <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
               tab === 'teaching' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
             )}>
               {teachingClasses.length}
             </span>
           )}
         </button>
+        <button
+          onClick={() => setTab('history')}
+          className={cn(
+            'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
+            tab === 'history' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
+          )}
+        >
+          Historial
+        </button>
       </div>
 
-      {tab === 'enrolled'
-        ? <EnrolledTab enrollments={enrollments} />
-        : <TeachingTab
-            initialClasses={teachingClasses}
-            currentUserId={currentUserId}
-            dismissedStudentIds={dismissedStudentIds}
-          />
-      }
+      {tab === 'enrolled' && <EnrolledTab enrollments={enrollments} />}
+      {tab === 'teaching' && (
+        <TeachingTab
+          initialClasses={teachingClasses}
+          currentUserId={currentUserId}
+          dismissedStudentIds={dismissedStudentIds}
+        />
+      )}
+      {tab === 'history' && (
+        <HistoryTab enrollments={enrollments} teachingClasses={teachingClasses} />
+      )}
     </div>
   )
 }

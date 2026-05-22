@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import {
   View, Text, TouchableOpacity, ActivityIndicator, ScrollView,
-  Image, Modal, Pressable, Alert, Dimensions, TextInput, KeyboardAvoidingView, Platform,
+  Image, Modal, Pressable, Alert, Dimensions, TextInput, KeyboardAvoidingView, Platform, Share,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker'
 import {
   ChevronLeft, MapPin, Clock, Users, Calendar, ChevronDown,
   ChevronRight, CheckCircle2, Tag, Music2, AlertCircle,
-  UserPlus, X, Loader2, ArrowRight, Send, Video,
+  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2,
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
@@ -516,6 +516,19 @@ export default function ClassDetailScreen() {
     load()
   }, [id])
 
+  // ─── Share handler ────────────────────────────────────────────────────────
+  async function handleShare() {
+    if (!cls) return
+    try {
+      await Share.share({
+        message: `${cls.title} — ${WEB_URL}/class/${cls.id}`,
+        title: cls.title,
+      })
+    } catch {
+      // user cancelled or error — no action needed
+    }
+  }
+
   // ─── 2x handlers ─────────────────────────────────────────────────────────
   async function handle2xCreate() {
     if (!userId) return
@@ -671,6 +684,10 @@ export default function ClassDetailScreen() {
           <ChevronLeft size={24} stroke="#374151" />
         </TouchableOpacity>
         <Text className="text-base font-bold text-gray-900 dark:text-dark-text flex-1" numberOfLines={1}>{cls.title}</Text>
+        {/* Share button — visible for all users */}
+        <TouchableOpacity onPress={handleShare} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Share2 size={20} stroke="#6B6880" />
+        </TouchableOpacity>
         {isTeacher && (
           <View className="flex-row items-center gap-2">
             <TouchableOpacity

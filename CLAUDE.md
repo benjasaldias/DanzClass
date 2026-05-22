@@ -157,6 +157,9 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 - **Deudores:** notificación al profesor + `dismissed_debts`
 - **Cron limpieza:** `/api/cron/cleanup-classes` diario a las 03:00 UTC
 - **Cloudinary:** videos de posts; fallback a Supabase Storage si no configurado
+- **Compartir clase:** botón "Compartir" en `ClassDetailClient` copia URL al portapapeles; visible para todos incluso sin sesión
+- **Acceso anónimo a clases:** `/class/*` es ruta pública (middleware); `ClassDetailClient` acepta `currentUser: User | null`; sin sesión: oculta acciones y muestra "Inicia sesión para reservar"
+- **Historial de pagos:** tercer tab "Historial" en `/my-classes`; vista alumno (mis pagos) + vista profesor (pagos recibidos + resumen mensual); sin nuevas tablas
 
 ---
 
@@ -182,7 +185,7 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 | `feed/ExploreClient.tsx` | Búsqueda con filtros de usuarios |
 | `feed/UserCard.tsx` | Card usuario con follow + amistad |
 | `feed/CreatePostModal.tsx` | Modal crear video con visibilidad; Cloudinary o fallback |
-| `class/ClassDetailClient.tsx` | Carrusel sin crop; dropdown amigos 2x; `TwoxRequestButton`; botón "Ver fechas" |
+| `class/ClassDetailClient.tsx` | Carrusel sin crop; dropdown amigos 2x; `TwoxRequestButton`; botón "Ver fechas"; botón Compartir; soporte anónimo |
 | `class/CustomDatesCalendar.tsx` | Calendar modal solo lectura con fechas destacadas |
 | `class/CreateClassForm.tsx` | Form con `DateInput`, `class_type` opcional, `onWheel` desactivado en números |
 | `class/EditClassForm.tsx` | Ídem + zona peligrosa con eliminar |
@@ -191,7 +194,7 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 | `class/AuditionsListClient.tsx` | Decisiones locales en borrador; batch "Publicar resultados" |
 | `class/DiscountModal.tsx` | Modal descuento profesor; llama `/api/class/discount` |
 | `class/AuditionModal.tsx` | Formulario postulación alumno |
-| `class/MyClassesClient.tsx` | Tabs tomo/dicto, deudores, banner eliminación |
+| `class/MyClassesClient.tsx` | Tabs tomo/dicto/historial, deudores, banner eliminación, resumen mensual profesor |
 | `class/DashboardClient.tsx` | Dashboard profesor |
 | `notifications/NotificationsClient.tsx` | Lista con todos los tipos de notificación |
 | `payment/PaymentClient.tsx` | Comprobante; detecta 2x; botón transferir turno |

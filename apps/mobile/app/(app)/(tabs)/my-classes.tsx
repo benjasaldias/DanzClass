@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap } from 'lucide-react-native'
+import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap, History, Receipt } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
@@ -387,11 +387,194 @@ function TeachingTab({
   )
 }
 
+// ─── History tab ──────────────────────────────────────────────────────────────
+
+const PAYMENT_PILL_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  confirmed: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+  rejected: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+  pending: { bg: '#fefce8', text: '#a16207', border: '#fef08a' },
+  no_payment: { bg: '#f9fafb', text: '#6b7280', border: '#e5e7eb' },
+}
+
+function getPaymentKey(enrollment: any): keyof typeof PAYMENT_PILL_COLORS {
+  const payment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
+  if (enrollment.status === 'confirmed') return 'confirmed'
+  if (payment?.status === 'rejected') return 'rejected'
+  if (enrollment.status === 'payment_submitted' || payment) return 'pending'
+  return 'no_payment'
+}
+
+const PAYMENT_KEY_LABEL: Record<string, string> = {
+  confirmed: 'Confirmado',
+  rejected: 'Rechazado',
+  pending: 'Pendiente',
+  no_payment: 'Sin pago',
+}
+
+function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teachingClasses: any[] }) {
+  const teacherRows = teachingClasses.flatMap((cls: any) =>
+    (cls.enrollments ?? [])
+      .filter((e: any) => e.status !== 'cancelled')
+      .map((e: any) => ({
+        id: e.id,
+        classId: cls.id,
+        classTitle: cls.title,
+        classDanceStyle: cls.dance_style,
+        student: e.student,
+        payment: Array.isArray(e.payment) ? e.payment[0] : e.payment,
+        enrollmentStatus: e.status,
+        createdAt: e.created_at,
+      }))
+  )
+
+  const hasStudent = enrollments.length > 0
+  const hasTeacher = teacherRows.length > 0
+
+  // Monthly summary for teacher view (only confirmed payments)
+  const monthlyMap: Record<string, { total: number; count: number }> = {}
+  for (const row of teacherRows) {
+    if (row.enrollmentStatus !== 'confirmed') continue
+    const amount = row.payment?.amount ?? 0
+    const month = new Date(row.createdAt).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
+    if (!monthlyMap[month]) monthlyMap[month] = { total: 0, count: 0 }
+    monthlyMap[month].total += amount
+    monthlyMap[month].count++
+  }
+  const monthlySummary = Object.entries(monthlyMap)
+
+  if (!hasStudent && !hasTeacher) {
+    return (
+      <View className="items-center py-16">
+        <View className="mb-3">
+          <Icon icon={History} size={32} />
+        </View>
+        <Text className="text-gray-500 dark:text-dark-text2 text-sm font-medium">Sin historial de pagos</Text>
+        <Text className="text-gray-400 dark:text-dark-text2/60 text-xs mt-1 text-center px-8">
+          Aquí verás tus pagos al inscribirte en clases
+        </Text>
+      </View>
+    )
+  }
+
+  return (
+    <View className="gap-5 pb-8">
+      {/* Student section */}
+      {hasStudent && (
+        <View>
+          {hasTeacher && (
+            <Text className="text-sm font-semibold text-gray-600 dark:text-dark-text2 mb-3">Mis pagos</Text>
+          )}
+          <View className="gap-2">
+            {enrollments.map((e: any) => {
+              const cls = e.class
+              const payment = Array.isArray(e.payment) ? e.payment[0] : e.payment
+              const statusKey = getPaymentKey(e)
+              const pill = PAYMENT_PILL_COLORS[statusKey]
+              return (
+                <View key={e.id} className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border shadow-sm">
+                  <View className="flex-row items-start justify-between gap-2">
+                    <View className="flex-1 min-w-0">
+                      <Text className="font-bold text-gray-900 dark:text-dark-text text-sm" numberOfLines={1}>{cls?.title}</Text>
+                      {cls?.dance_style && (
+                        <View className="bg-brand-50 self-start rounded-full px-2 py-0.5 mt-0.5">
+                          <Text className="text-brand-700 text-xs font-medium">{cls.dance_style}</Text>
+                        </View>
+                      )}
+                      <Text className="text-sm font-semibold text-gray-800 dark:text-dark-text mt-1">
+                        {payment?.amount ? formatCLP(payment.amount) : 'Sin pago registrado'}
+                      </Text>
+                      <Text className="text-xs text-gray-400 dark:text-dark-text2 mt-0.5">
+                        {new Date(e.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </Text>
+                    </View>
+                    <View className="rounded-full px-2.5 py-1 border" style={{ backgroundColor: pill.bg, borderColor: pill.border }}>
+                      <Text className="text-xs font-medium" style={{ color: pill.text }}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
+                    </View>
+                  </View>
+                </View>
+              )
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Teacher section */}
+      {hasTeacher && (
+        <View>
+          {hasStudent && (
+            <Text className="text-sm font-semibold text-gray-600 dark:text-dark-text2 mb-3">Pagos recibidos</Text>
+          )}
+          <View className="gap-2">
+            {teacherRows.map((row: any) => {
+              const statusKey = row.enrollmentStatus === 'confirmed' ? 'confirmed'
+                : row.payment?.status === 'rejected' ? 'rejected'
+                : row.enrollmentStatus === 'payment_submitted' || row.payment ? 'pending'
+                : 'no_payment'
+              const pill = PAYMENT_PILL_COLORS[statusKey]
+              return (
+                <View key={row.id} className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border shadow-sm flex-row items-center gap-3">
+                  <View className="w-9 h-9 rounded-full bg-lavanda-suave items-center justify-center flex-shrink-0">
+                    <Text className="text-xs font-bold" style={{ color: '#534AB7' }}>
+                      {row.student?.full_name?.charAt(0) ?? '?'}
+                    </Text>
+                  </View>
+                  <View className="flex-1 min-w-0">
+                    <Text className="font-semibold text-sm text-gray-900 dark:text-dark-text" numberOfLines={1}>
+                      {row.student?.full_name}
+                    </Text>
+                    <Text className="text-xs text-gray-500 dark:text-dark-text2" numberOfLines={1}>{row.classTitle}</Text>
+                    <Text className="text-sm font-semibold text-gray-800 dark:text-dark-text mt-0.5">
+                      {row.payment?.amount ? formatCLP(row.payment.amount) : '—'}
+                    </Text>
+                  </View>
+                  <View className="items-end gap-1">
+                    <View className="rounded-full px-2.5 py-1 border" style={{ backgroundColor: pill.bg, borderColor: pill.border }}>
+                      <Text className="text-xs font-medium" style={{ color: pill.text }}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
+                    </View>
+                    <Text className="text-xs text-gray-400 dark:text-dark-text2">
+                      {new Date(row.createdAt).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                </View>
+              )
+            })}
+          </View>
+
+          {/* Monthly summary */}
+          {monthlySummary.length > 0 && (
+            <View className="mt-4">
+              <View className="flex-row items-center gap-2 mb-3">
+                <Receipt size={15} stroke="#9ca3af" />
+                <Text className="text-sm font-semibold text-gray-600 dark:text-dark-text2">Resumen mensual</Text>
+              </View>
+              <View className="gap-2">
+                {monthlySummary.map(([month, { total, count }]) => (
+                  <View key={month} className="rounded-2xl px-4 py-3 bg-violet-50 dark:bg-dark-surface2 border border-violet-100 dark:border-dark-border">
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-sm text-gray-700 dark:text-dark-text capitalize">{month}</Text>
+                      <View className="items-end">
+                        <Text className="text-sm font-bold text-green-600 dark:text-green-400">{formatCLP(total)}</Text>
+                        <Text className="text-xs text-gray-500 dark:text-dark-text2">
+                          {count} pago{count !== 1 ? 's' : ''} confirmado{count !== 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  )
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function MyClassesScreen() {
   const router = useRouter()
-  const [tab, setTab] = useState<'enrolled' | 'teaching'>('enrolled')
+  const [tab, setTab] = useState<'enrolled' | 'teaching' | 'history'>('enrolled')
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [teachingClasses, setTeachingClasses] = useState<any[]>([])
   const [userId, setUserId] = useState<string | null>(null)
@@ -406,7 +589,7 @@ export default function MyClassesScreen() {
     const [enrollRes, teachRes, dismissedRes] = await Promise.all([
       supabase
         .from('enrollments')
-        .select('*, class:classes(*, teacher:profiles!teacher_id(*))')
+        .select('*, class:classes(*, teacher:profiles!teacher_id(*)), payment:payments(*)')
         .eq('student_id', user.id)
         .neq('status', 'cancelled')
         .order('created_at', { ascending: false }),
@@ -449,34 +632,43 @@ export default function MyClassesScreen() {
             onPress={() => setTab('enrolled')}
             className={`flex-1 rounded-lg py-2 items-center ${tab === 'enrolled' ? 'bg-white dark:bg-dark-surface shadow-sm' : ''}`}
           >
-            <Text className={`text-sm font-semibold ${tab === 'enrolled' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
-              Clases que tomo
-              {enrollments.length > 0 ? ` (${enrollments.length})` : ''}
+            <Text className={`text-xs font-semibold ${tab === 'enrolled' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
+              Que tomo{enrollments.length > 0 ? ` (${enrollments.length})` : ''}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setTab('teaching')}
             className={`flex-1 rounded-lg py-2 items-center ${tab === 'teaching' ? 'bg-white dark:bg-dark-surface shadow-sm' : ''}`}
           >
-            <Text className={`text-sm font-semibold ${tab === 'teaching' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
-              Clases que dicto
-              {teachingClasses.length > 0 ? ` (${teachingClasses.length})` : ''}
+            <Text className={`text-xs font-semibold ${tab === 'teaching' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
+              Que dicto{teachingClasses.length > 0 ? ` (${teachingClasses.length})` : ''}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setTab('history')}
+            className={`flex-1 rounded-lg py-2 items-center ${tab === 'history' ? 'bg-white dark:bg-dark-surface shadow-sm' : ''}`}
+          >
+            <Text className={`text-xs font-semibold ${tab === 'history' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
+              Historial
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
-        {tab === 'enrolled'
-          ? <EnrolledTab
-              enrollments={enrollments}
-              onPressClass={(id) => router.push(`/(app)/class/${id}` as any)}
-              onPressPayment={(id) => router.push(`/(app)/payment/${id}` as any)}
-            />
-          : userId
-            ? <TeachingTab classes={teachingClasses} currentUserId={userId} dismissedIds={dismissedIds} />
-            : null
-        }
+        {tab === 'enrolled' && (
+          <EnrolledTab
+            enrollments={enrollments}
+            onPressClass={(id) => router.push(`/(app)/class/${id}` as any)}
+            onPressPayment={(id) => router.push(`/(app)/payment/${id}` as any)}
+          />
+        )}
+        {tab === 'teaching' && userId && (
+          <TeachingTab classes={teachingClasses} currentUserId={userId} dismissedIds={dismissedIds} />
+        )}
+        {tab === 'history' && (
+          <HistoryTab enrollments={enrollments} teachingClasses={teachingClasses} />
+        )}
       </ScrollView>
     </SafeAreaView>
   )
