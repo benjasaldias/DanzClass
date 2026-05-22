@@ -57,7 +57,7 @@ export default function ProfileScreen() {
     }
   }, [])
 
-  useFocusEffect(load)
+  useFocusEffect(useCallback(() => { load() }, [load]))
 
   async function handleLogout() {
     Alert.alert('Cerrar sesión', '¿Estás seguro?', [
