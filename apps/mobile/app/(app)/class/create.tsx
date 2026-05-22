@@ -104,6 +104,11 @@ export default function CreateClassScreen() {
       Alert.alert('Límite', `Puedes subir máximo ${mediaLimit} archivo${mediaLimit > 1 ? 's' : ''}`)
       return
     }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitas dar acceso a tu galería para seleccionar archivos.')
+      return
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: canUploadVideo(tier) ? ['images', 'videos'] : ['images'],
       allowsMultipleSelection: false,

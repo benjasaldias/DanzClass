@@ -69,6 +69,11 @@ export default function CreatePostScreen() {
   }, [])
 
   async function pickVideo() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitas dar acceso a tu galería para seleccionar videos.')
+      return
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       allowsMultipleSelection: false,

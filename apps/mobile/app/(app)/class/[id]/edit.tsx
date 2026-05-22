@@ -130,6 +130,11 @@ export default function EditClassScreen() {
 
   async function pickMedia() {
     if (totalMedia >= 5) { Alert.alert('Límite', 'Puedes subir máximo 5 archivos'); return }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitas dar acceso a tu galería para seleccionar archivos.')
+      return
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: false,
