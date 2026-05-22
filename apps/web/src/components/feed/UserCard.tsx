@@ -150,12 +150,12 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
             disabled={loadingFriend || friendStatus === 'pending_sent'}
             className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${
               friendStatus === 'accepted'
-                ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700'
+                ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-red-900/30 dark:hover:text-red-400'
                 : friendStatus === 'pending_sent'
-                ? 'bg-gray-100 text-gray-500 cursor-default'
+                ? 'bg-gray-100 text-gray-500 cursor-default dark:bg-dark-surface2 dark:text-dark-text2'
                 : friendStatus === 'pending_received'
-                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-dark-surface2 dark:text-dark-text2 dark:hover:bg-dark-border'
             }`}
           >
             <FriendIcon className="h-3 w-3" />

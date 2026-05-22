@@ -31,10 +31,10 @@ function classSchedule(cls: any) {
 }
 
 const ENROLL_STATUS: Record<string, { label: string; color: string }> = {
-  pending_payment: { label: 'Pendiente de pago', color: 'text-gray-500' },
-  payment_submitted: { label: 'Verificando pago', color: 'text-yellow-600' },
-  confirmed: { label: '✓ Confirmado', color: 'text-green-600' },
-  cancelled: { label: 'Cancelado', color: 'text-red-500' },
+  pending_payment: { label: 'Pendiente de pago', color: 'text-gray-500 dark:text-gray-400' },
+  payment_submitted: { label: 'Verificando pago', color: 'text-yellow-600 dark:text-yellow-400' },
+  confirmed: { label: '✓ Confirmado', color: 'text-green-600 dark:text-green-400' },
+  cancelled: { label: 'Cancelado', color: 'text-red-500 dark:text-red-400' },
 }
 
 // ─── Enrolled tab ─────────────────────────────────────────────────────────────
@@ -214,8 +214,8 @@ function TeachingTab({
   return (
     <View className="gap-3 pb-8">
       {pendingPayments > 0 && (
-        <View className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3">
-          <Text className="text-yellow-700 text-sm font-semibold">
+        <View className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-2xl px-4 py-3">
+          <Text className="text-yellow-700 dark:text-yellow-400 text-sm font-semibold">
             {pendingPayments} pago{pendingPayments !== 1 ? 's' : ''} por verificar
           </Text>
         </View>
@@ -223,12 +223,12 @@ function TeachingTab({
 
       {/* Debtors section */}
       {debtors.length > 0 && (
-        <View className="bg-red-50 border border-red-200 rounded-2xl p-4 gap-3">
+        <View className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 gap-3">
           <View className="flex-row items-center gap-2">
             <ShieldAlert size={15} stroke="#dc2626" />
-            <Text className="text-red-700 font-semibold text-sm">Pagos pendientes de clases pasadas</Text>
+            <Text className="text-red-700 dark:text-red-400 font-semibold text-sm">Pagos pendientes de clases pasadas</Text>
           </View>
-          <Text className="text-red-600 text-xs">Resuelve estos pagos directamente con el alumno.</Text>
+          <Text className="text-red-600 dark:text-red-400 text-xs">Resuelve estos pagos directamente con el alumno.</Text>
           <View className="gap-2">
             {debtors.map((d) => (
               <View key={d.enrollmentId} className="bg-white dark:bg-dark-surface border border-red-100 dark:border-red-900/40 rounded-xl p-3 flex-row items-center gap-3">
@@ -273,11 +273,11 @@ function TeachingTab({
                   <Text className="font-bold text-gray-900 dark:text-dark-text text-sm">{cls.title}</Text>
                   <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">{classSchedule(cls)}</Text>
                   <View className="flex-row gap-3 mt-1.5 flex-wrap">
-                    <Text className="text-xs text-green-700 font-medium">{confirmed} confirmados</Text>
+                    <Text className="text-xs text-green-700 dark:text-green-400 font-medium">{confirmed} confirmados</Text>
                     {pending > 0 && (
-                      <Text className="text-xs text-yellow-700 font-medium">• {pending} por verificar</Text>
+                      <Text className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">• {pending} por verificar</Text>
                     )}
-                    <Text className="text-xs text-gris-humo">{total}/{cls.max_spots} cupos</Text>
+                    <Text className="text-xs text-gris-humo dark:text-dark-text2">{total}/{cls.max_spots} cupos</Text>
                   </View>
 
                   {/* Deletion warning */}
@@ -368,7 +368,7 @@ function TeachingTab({
                                   className={`flex-row items-center gap-1.5 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 ${isLoading ? 'opacity-50' : ''}`}
                                 >
                                   <XCircle size={13} stroke="#ef4444" />
-                                  <Text className="text-red-600 text-xs font-semibold">Rechazar</Text>
+                                  <Text className="text-red-600 dark:text-red-400 text-xs font-semibold">Rechazar</Text>
                                 </TouchableOpacity>
                               </View>
                             </View>
@@ -389,11 +389,11 @@ function TeachingTab({
 
 // ─── History tab ──────────────────────────────────────────────────────────────
 
-const PAYMENT_PILL_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  confirmed: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
-  rejected: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
-  pending: { bg: '#fefce8', text: '#a16207', border: '#fef08a' },
-  no_payment: { bg: '#f9fafb', text: '#6b7280', border: '#e5e7eb' },
+const PAYMENT_PILL_COLORS: Record<string, { container: string; text: string }> = {
+  confirmed: { container: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800', text: 'text-green-700 dark:text-green-400' },
+  rejected: { container: 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-800', text: 'text-red-600 dark:text-red-400' },
+  pending: { container: 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800', text: 'text-yellow-800 dark:text-yellow-400' },
+  no_payment: { container: 'bg-gray-50 dark:bg-dark-surface2 border-gray-200 dark:border-dark-border', text: 'text-gray-500 dark:text-dark-text2' },
 }
 
 function getPaymentKey(enrollment: any): keyof typeof PAYMENT_PILL_COLORS {
@@ -487,8 +487,8 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
                         {new Date(e.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </Text>
                     </View>
-                    <View className="rounded-full px-2.5 py-1 border" style={{ backgroundColor: pill.bg, borderColor: pill.border }}>
-                      <Text className="text-xs font-medium" style={{ color: pill.text }}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
+                    <View className={`rounded-full px-2.5 py-1 border ${pill.container}`}>
+                      <Text className={`text-xs font-medium ${pill.text}`}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
                     </View>
                   </View>
                 </View>
@@ -528,8 +528,8 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
                     </Text>
                   </View>
                   <View className="items-end gap-1">
-                    <View className="rounded-full px-2.5 py-1 border" style={{ backgroundColor: pill.bg, borderColor: pill.border }}>
-                      <Text className="text-xs font-medium" style={{ color: pill.text }}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
+                    <View className={`rounded-full px-2.5 py-1 border ${pill.container}`}>
+                      <Text className={`text-xs font-medium ${pill.text}`}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
                     </View>
                     <Text className="text-xs text-gray-400 dark:text-dark-text2">
                       {new Date(row.createdAt).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}

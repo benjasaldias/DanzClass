@@ -91,7 +91,7 @@ const NOTIF_CONFIG: Record<string, {
   },
   payment_confirmed: {
     icon: CheckCircle2,
-    color: 'text-green-500 bg-green-50',
+    color: 'text-green-500 bg-green-50 dark:bg-green-950/30 dark:text-green-400',
     label: () => 'Tu pago fue confirmado. ¡Cupo reservado!',
     href: () => '/my-classes',
   },
@@ -103,13 +103,13 @@ const NOTIF_CONFIG: Record<string, {
   },
   '2x_request': {
     icon: Users,
-    color: 'text-coral-fuego bg-coral-fuego/10',
+    color: 'text-coral-fuego bg-coral-fuego/10 dark:bg-coral-fuego/20',
     label: () => 'Alguien busca compañer@ para tu clase 2x',
     href: () => '/feed',
   },
   '2x_match': {
     icon: Users,
-    color: 'text-coral-fuego bg-coral-fuego/10',
+    color: 'text-coral-fuego bg-coral-fuego/20',
     label: () => '¡Encontraste compañer@ para ir 2x!',
     href: () => '/feed',
   },
@@ -121,7 +121,7 @@ const NOTIF_CONFIG: Record<string, {
   },
   new_report: {
     icon: Flag,
-    color: 'text-coral-fuego bg-coral-fuego/10',
+    color: 'text-coral-fuego bg-coral-fuego/20',
     label: (data) => {
       const type = data.content_type === 'post' ? 'video' : 'clase'
       const reason = data.reason ?? ''
@@ -138,13 +138,13 @@ const NOTIF_CONFIG: Record<string, {
   },
   class_discount: {
     icon: Bell,
-    color: 'text-coral-fuego bg-coral-fuego/10',
+    color: 'text-coral-fuego bg-coral-fuego/20',
     label: (data) => `🏷️ Descuento en "${data.class_title ?? 'una clase'}"`,
     href: (data) => data.class_id ? `/class/${data.class_id}` : '/feed',
   },
   audition_accepted: {
     icon: CheckCircle2,
-    color: 'text-green-500 bg-green-50',
+    color: 'text-green-500 bg-green-50 dark:bg-green-950/30 dark:text-green-400',
     label: (data) => `¡Felicidades! Fuiste aceptad@ en "${data.class_title ?? 'el entrenamiento'}"`,
     href: (data) => data.class_id ? `/class/${data.class_id}` : '/feed',
   },

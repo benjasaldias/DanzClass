@@ -66,7 +66,7 @@ export default function CityCombobox({ value, onChange, placeholder = 'Ciudad', 
       </div>
 
       {open && (
-        <ul className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+        <ul className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-lg overflow-hidden max-h-56 overflow-y-auto">
           {filtered.length > 0 ? (
             filtered.map((city) => (
               <li key={city}>
@@ -74,8 +74,8 @@ export default function CityCombobox({ value, onChange, placeholder = 'Ciudad', 
                   type="button"
                   onClick={() => handleSelect(city)}
                   className={cn(
-                    'w-full text-left px-4 py-2.5 text-sm hover:bg-brand-50 hover:text-brand-700 transition-colors',
-                    inputVal === city && 'bg-brand-50 text-brand-700 font-medium'
+                    'w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-dark-text hover:bg-brand-50 dark:hover:bg-dark-surface2 hover:text-brand-700 dark:hover:text-brand-300 transition-colors',
+                    inputVal === city && 'bg-brand-50 dark:bg-dark-surface2 text-brand-700 dark:text-brand-300 font-medium'
                   )}
                 >
                   {city}
@@ -83,14 +83,14 @@ export default function CityCombobox({ value, onChange, placeholder = 'Ciudad', 
               </li>
             ))
           ) : (
-            <li className="px-4 py-2.5 text-sm text-gray-400">Usar "{inputVal}" como ciudad</li>
+            <li className="px-4 py-2.5 text-sm text-gray-400 dark:text-dark-text2">Usar "{inputVal}" como ciudad</li>
           )}
           {inputVal && !CHILEAN_CITIES.includes(inputVal as any) && filtered.length > 0 && (
             <li>
               <button
                 type="button"
                 onClick={() => handleSelect(inputVal)}
-                className="w-full text-left px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-50 border-t border-gray-100"
+                className="w-full text-left px-4 py-2.5 text-sm text-gray-500 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2 border-t border-gray-100 dark:border-dark-border"
               >
                 Usar "{inputVal}"
               </button>

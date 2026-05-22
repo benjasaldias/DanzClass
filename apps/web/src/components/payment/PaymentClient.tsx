@@ -154,11 +154,11 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
       </div>
 
       {missing2xPrice && (
-        <div className="card p-4 bg-yellow-50 border-yellow-200 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div className="card p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-yellow-900">El profesor no configuró precio 2x</p>
-            <p className="text-xs text-yellow-700 mt-0.5">
+            <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-300">El profesor no configuró precio 2x</p>
+            <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-0.5">
               Contacta al profesor — el monto que se muestra es el precio individual, no el 2x.
             </p>
           </div>
@@ -167,26 +167,26 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
 
       {/* Partner pays — this user is not the payment assignee */}
       {is2x && !isMyTurnToPay && (
-        <div className="card p-5 bg-amber-50 border-amber-200 space-y-3">
+        <div className="card p-5 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 space-y-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-              <Users className="h-5 w-5 text-amber-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+              <Users className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-amber-900">Tu compañer@ va a pagar</p>
-              <p className="text-xs text-amber-700 mt-0.5">El monto 2x ({formatCLP(amount)}) está asignado a tu amig@.</p>
+              <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">Tu compañer@ va a pagar</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">El monto 2x ({formatCLP(amount)}) está asignado a tu amig@.</p>
             </div>
           </div>
-          <p className="text-xs text-amber-600">Si quieres pagar tú, pídele a tu compañer@ que te transfiera el turno desde la página de la clase.</p>
+          <p className="text-xs text-amber-600 dark:text-amber-400">Si quieres pagar tú, pídele a tu compañer@ que te transfiera el turno desde la página de la clase.</p>
         </div>
       )}
 
       {/* Amount — shown only when it's this user's turn */}
       {isMyTurnToPay && (
-        <div className="card p-5 bg-brand-50 border-brand-100">
-          <p className="text-sm text-brand-700 font-medium mb-1">Monto a transferir</p>
-          <p className="text-4xl font-bold text-brand-900">{formatCLP(amount)}</p>
-          {is2x && <p className="text-xs text-brand-600 mt-1">Precio 2x — cubre a ambos</p>}
+        <div className="card p-5 bg-brand-50 dark:bg-brand-950/30 border-brand-100 dark:border-brand-900/50">
+          <p className="text-sm text-brand-700 dark:text-brand-300 font-medium mb-1">Monto a transferir</p>
+          <p className="text-4xl font-bold text-brand-900 dark:text-brand-200">{formatCLP(amount)}</p>
+          {is2x && <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">Precio 2x — cubre a ambos</p>}
         </div>
       )}
 
@@ -223,7 +223,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
           ))}
         </div>
       ) : isMyTurnToPay ? (
-        <div className="card p-4 text-center text-sm text-gray-500">
+        <div className="card p-4 text-center text-sm text-gray-500 dark:text-dark-text2">
           El profesor aún no ha configurado sus datos bancarios. Contáctalo directamente.
         </div>
       ) : null}
@@ -246,8 +246,8 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
                 {...getRootProps()}
                 className={cn(
                   'relative rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors',
-                  isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 hover:bg-gray-50',
-                  receipt && 'border-green-400 bg-green-50'
+                  isDragActive ? 'border-brand-400 bg-brand-50 dark:bg-brand-950/30' : 'border-gray-200 dark:border-dark-border hover:border-brand-300 hover:bg-gray-50 dark:hover:bg-dark-surface',
+                  receipt && 'border-green-400 bg-green-50 dark:bg-green-950/20'
                 )}
               >
                 <input {...getInputProps()} />
@@ -258,20 +258,20 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
                       <img src={receiptPreview} alt="Comprobante" className="mx-auto max-h-48 rounded-xl object-contain" />
                     ) : (
                       <div className="flex items-center gap-3 justify-center">
-                        <FileImage className="h-8 w-8 text-gray-400" />
+                        <FileImage className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
                         <p className="text-sm font-medium text-gray-700 dark:text-dark-text2">{receipt?.name}</p>
                       </div>
                     )}
-                    <p className="text-xs text-green-700 font-medium">✓ Archivo listo para enviar</p>
-                    <p className="text-xs text-gray-500">Haz clic para cambiar</p>
+                    <p className="text-xs text-green-700 dark:text-green-400 font-medium">✓ Archivo listo para enviar</p>
+                    <p className="text-xs text-gray-500 dark:text-dark-text2">Haz clic para cambiar</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Upload className="h-10 w-10 text-gray-300 mx-auto" />
-                    <p className="text-sm font-medium text-gray-700">
+                    <Upload className="h-10 w-10 text-gray-300 dark:text-dark-border mx-auto" />
+                    <p className="text-sm font-medium text-gray-700 dark:text-dark-text2">
                       {isDragActive ? 'Suelta aquí' : 'Arrastra o haz clic para subir'}
                     </p>
-                    <p className="text-xs text-gray-400">JPG, PNG o PDF · Máx 10 MB</p>
+                    <p className="text-xs text-gray-400 dark:text-dark-text2">JPG, PNG o PDF · Máx 10 MB</p>
                   </div>
                 )}
               </div>
@@ -300,7 +300,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
         <button
           onClick={handleTransfer}
           disabled={transferring}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-dark-border py-3 text-sm font-medium text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"
         >
           {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
           Que pague mi compañer@

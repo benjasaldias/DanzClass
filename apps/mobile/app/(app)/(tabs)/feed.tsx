@@ -7,6 +7,7 @@ import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
 import TopBar from '../../../components/ui/TopBar'
+import { useTheme } from '../../../context/ThemeContext'
 import type { FeedFilter } from '@danceclass/shared'
 
 const FEED_FILTERS: { key: FeedFilter; label: string }[] = [
@@ -23,6 +24,7 @@ const CONTENT_FILTERS: { key: ContentFilter; label: string }[] = [
 ]
 
 export default function FeedScreen() {
+  const { isDark } = useTheme()
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('global')
   const [contentFilter, setContentFilter] = useState<ContentFilter>('all')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -157,7 +159,7 @@ export default function FeedScreen() {
           className="flex-row items-center gap-1 border border-gray-200 dark:border-dark-border rounded-xl px-3 py-1.5 bg-white dark:bg-dark-surface2"
         >
           <Text className="text-sm text-gray-700 dark:text-dark-text2">{currentLabel}</Text>
-          <ChevronDown size={14} stroke="#374151" />
+          <ChevronDown size={14} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
       </View>
 

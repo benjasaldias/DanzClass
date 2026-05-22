@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useTheme } from '../../../../context/ThemeContext'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import * as ImagePicker from 'expo-image-picker'
 import {
@@ -397,6 +398,7 @@ function AuditionModal({
 export default function ClassDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
+  const { isDark } = useTheme()
   const [cls, setCls] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
@@ -681,7 +683,7 @@ export default function ClassDetailScreen() {
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <Text className="text-base font-bold text-gray-900 dark:text-dark-text flex-1" numberOfLines={1}>{cls.title}</Text>
         {/* Share button — visible for all users */}
@@ -791,7 +793,7 @@ export default function ClassDetailScreen() {
 
         {/* Friends looking for 2x — collapsible */}
         {!isTeacher && friendsTwox.length > 0 && (
-          <View className="border-b border-gray-100 dark:border-dark-border" style={{ backgroundColor: '#f5f3ff' }}>
+          <View className="border-b border-gray-100 dark:border-dark-border bg-blanco-violeta dark:bg-dark-surface2">
             <TouchableOpacity
               onPress={() => setFriendsOpen((o) => !o)}
               className="flex-row items-center justify-between px-4 py-3"
@@ -966,16 +968,16 @@ export default function ClassDetailScreen() {
           )}
 
           {/* Price section */}
-          <View className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 gap-2">
+          <View className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900/40 gap-2">
             <View className="flex-row items-end gap-3">
               <Text className="text-2xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(activePrice)}</Text>
               {hasDiscount && (
-                <Text className="text-sm text-gray-400 line-through mb-0.5">{formatCLP(cls.price)}</Text>
+                <Text className="text-sm text-gray-400 dark:text-dark-text2 line-through mb-0.5">{formatCLP(cls.price)}</Text>
               )}
-              {isPeriodic && <Text className="text-sm text-gray-500 mb-0.5">/mes</Text>}
+              {isPeriodic && <Text className="text-sm text-gray-500 dark:text-dark-text2 mb-0.5">/mes</Text>}
             </View>
             {isPeriodic && cls.price_suelta && (
-              <Text className="text-sm text-gray-600">
+              <Text className="text-sm text-gray-600 dark:text-dark-text2">
                 Suelta: {formatCLP(discountData.discount_price ?? cls.price_suelta)}
                 {discountData.discount_price && discountData.discount_price < cls.price_suelta && (
                   <Text className="text-gray-400 line-through"> {formatCLP(cls.price_suelta)}</Text>

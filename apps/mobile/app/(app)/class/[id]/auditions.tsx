@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useTheme } from '../../../../context/ThemeContext'
 import {
   ChevronLeft, CheckCircle2, XCircle, Video, Send, Loader2,
 } from 'lucide-react-native'
@@ -123,6 +124,7 @@ function AuditionCard({
 }
 
 export default function AuditionsScreen() {
+  const { isDark } = useTheme()
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -237,7 +239,7 @@ export default function AuditionsScreen() {
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <View className="flex-1">
           <Text className="text-base font-bold text-gray-900 dark:text-dark-text">Postulaciones</Text>

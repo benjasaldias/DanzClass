@@ -153,14 +153,14 @@ export default function TeacherProfileClient({
             <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesCount}</span>
             <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
           </div>
-          <div className="h-7 w-px bg-gray-200" />
+          <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
           <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-gray-900">{paidSpotsCount}</span>
+            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{paidSpotsCount}</span>
             <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
           </div>
-          <div className="h-7 w-px bg-gray-200" />
+          <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
           <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-green-700">{trustCount}</span>
+            <span className="text-base font-bold text-green-700 dark:text-green-400">{trustCount}</span>
             <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
           </div>
         </div>
@@ -187,9 +187,9 @@ export default function TeacherProfileClient({
             <button onClick={handleFriendAction}
               disabled={loadingFriend || friendStatus === 'pending_sent'}
               className={cn('flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border transition-colors',
-                friendStatus === 'accepted' ? 'border-green-200 bg-green-50 text-green-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600' :
+                friendStatus === 'accepted' ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:border-red-200 dark:hover:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400' :
                 friendStatus === 'pending_sent' ? 'border-gray-200 dark:border-dark-border text-gray-400 dark:text-dark-text2/50 cursor-default' :
-                friendStatus === 'pending_received' ? 'bg-yellow-100 border-yellow-300 text-yellow-800 hover:bg-yellow-200' :
+                friendStatus === 'pending_received' ? 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-800 text-yellow-800 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50' :
                 'border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 hover:text-brand-700'
               )}>
               <FriendIcon className="h-4 w-4" />
@@ -280,8 +280,8 @@ export default function TeacherProfileClient({
       )}
 
       {classes.length === 0 && enrolledClasses.length === 0 && posts.length === 0 && (
-        <div className="flex flex-col items-center py-10 text-center text-gray-500 border-t border-gray-100">
-          <Music2 className="h-10 w-10 text-gray-300 mb-3" />
+        <div className="flex flex-col items-center py-10 text-center text-gray-500 dark:text-dark-text2 border-t border-gray-100 dark:border-dark-border">
+          <Music2 className="h-10 w-10 text-gray-300 dark:text-dark-border mb-3" />
           <p className="text-sm">Sin actividad pública aún</p>
         </div>
       )}
@@ -321,7 +321,7 @@ function ClassMiniCard({ cls }: { cls: any }) {
         <p className="text-xs text-gray-500 dark:text-dark-text2 mt-1">{schedule}</p>
         <p className="mt-1 text-sm font-bold text-gray-900 dark:text-dark-text">{formatCLP(cls.price)}</p>
         {cls.price_suelta && (
-          <p className="text-xs text-gray-400">Suelta: {formatCLP(cls.price_suelta)}</p>
+          <p className="text-xs text-gray-400 dark:text-dark-text2/60">Suelta: {formatCLP(cls.price_suelta)}</p>
         )}
       </div>
     </Link>

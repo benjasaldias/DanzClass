@@ -13,6 +13,7 @@ import MobileSelect from '../../../../components/ui/MobileSelect'
 import MobileDateInput from '../../../../components/ui/MobileDateInput'
 import MobileCityPicker from '../../../../components/ui/MobileCityPicker'
 import MobileMonthCalendar from '../../../../components/ui/MobileMonthCalendar'
+import { useTheme } from '../../../../context/ThemeContext'
 
 type NewMediaItem = { uri: string; type: 'image' | 'video'; mimeType: string; fileName: string }
 type ExistingMedia = { id: string; url: string; type: 'image' | 'video'; order_index: number }
@@ -38,6 +39,7 @@ const STYLE_OPTIONS = DANCE_STYLES.map((s) => ({ value: s, label: s }))
 
 export default function EditClassScreen() {
   const router = useRouter()
+  const { isDark } = useTheme()
   const { id } = useLocalSearchParams<{ id: string }>()
 
   const [loading, setLoading] = useState(true)
@@ -302,7 +304,7 @@ export default function EditClassScreen() {
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Editar clase</Text>
       </View>

@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useTheme } from '../../../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, X, ImagePlus, AlertCircle } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
@@ -40,6 +41,7 @@ const STYLE_OPTIONS = DANCE_STYLES.map((s) => ({ value: s, label: s }))
 
 export default function CreateClassScreen() {
   const router = useRouter()
+  const { isDark } = useTheme()
   const { type: typeParam } = useLocalSearchParams<{ type?: string }>()
 
   const classType = (typeParam as 'suelta' | 'periodica' | 'entrenamiento') ?? 'suelta'
@@ -278,7 +280,7 @@ export default function CreateClassScreen() {
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Publicar clase</Text>
       </View>

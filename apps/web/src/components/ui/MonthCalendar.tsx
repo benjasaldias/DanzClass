@@ -66,39 +66,39 @@ export default function MonthCalendar({ selected, onChange, disablePast = false 
   while (cells.length % 7 !== 0) cells.push(null)
 
   return (
-    <div className="rounded-xl border border-gray-200 overflow-hidden select-none">
+    <div className="rounded-xl border border-gray-200 dark:border-dark-border overflow-hidden select-none">
       {/* Month nav */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border">
         <button
           type="button"
           onClick={prevMonth}
-          className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-dark-surface2 transition-colors"
         >
-          <ChevronLeft className="h-4 w-4 text-gray-600" />
+          <ChevronLeft className="h-4 w-4 text-gray-600 dark:text-dark-text2" />
         </button>
-        <span className="font-semibold text-sm text-gray-800">
+        <span className="font-semibold text-sm text-gray-800 dark:text-dark-text">
           {MONTH_NAMES[month]} {year}
         </span>
         <button
           type="button"
           onClick={nextMonth}
-          className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+          className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-dark-surface2 transition-colors"
         >
-          <ChevronRight className="h-4 w-4 text-gray-600" />
+          <ChevronRight className="h-4 w-4 text-gray-600 dark:text-dark-text2" />
         </button>
       </div>
 
       {/* Day headers */}
-      <div className="grid grid-cols-7 bg-white border-b border-gray-100">
+      <div className="grid grid-cols-7 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         {DAY_HEADERS.map((d) => (
-          <div key={d} className="py-2 text-center text-xs font-medium text-gray-400">
+          <div key={d} className="py-2 text-center text-xs font-medium text-gray-400 dark:text-dark-text2">
             {d}
           </div>
         ))}
       </div>
 
       {/* Day cells */}
-      <div className="grid grid-cols-7 bg-white">
+      <div className="grid grid-cols-7 bg-white dark:bg-dark-surface">
         {cells.map((day, i) => {
           if (!day) return <div key={`empty-${i}`} className="py-2" />
           const iso = toISO(day)
@@ -113,10 +113,10 @@ export default function MonthCalendar({ selected, onChange, disablePast = false 
               className={cn(
                 'py-2.5 text-sm font-medium transition-colors',
                 disabled
-                  ? 'text-gray-300 cursor-not-allowed'
+                  ? 'text-gray-300 dark:text-dark-border cursor-not-allowed'
                   : isSelected
                     ? 'bg-brand-600 text-white'
-                    : 'text-gray-700 hover:bg-brand-50 hover:text-brand-700',
+                    : 'text-gray-700 dark:text-dark-text hover:bg-brand-50 dark:hover:bg-brand-950/30 hover:text-brand-700',
               )}
             >
               {day}
@@ -126,7 +126,7 @@ export default function MonthCalendar({ selected, onChange, disablePast = false 
       </div>
 
       {/* Summary */}
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-500 min-h-[2rem] flex items-center">
+      <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface border-t border-gray-100 dark:border-dark-border text-xs text-gray-500 dark:text-dark-text2 min-h-[2rem] flex items-center">
         {selected.length === 0
           ? 'Toca los días para seleccionar fechas'
           : `${selected.length} fecha${selected.length !== 1 ? 's' : ''} seleccionada${selected.length !== 1 ? 's' : ''}`}

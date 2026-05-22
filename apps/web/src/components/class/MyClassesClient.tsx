@@ -6,7 +6,7 @@ import Image from 'next/image'
 import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
-  AlertTriangle, ShieldAlert, ClipboardList, History, Receipt,
+  AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -29,10 +29,10 @@ function isDeleted(deletionDate: string | null): boolean {
 // ─── Enrolled tab ────────────────────────────────────────────────────────────
 
 const ENROLL_STATUS = {
-  pending_payment: { label: 'Pendiente de pago', icon: AlertCircle, color: 'text-gray-500 bg-gray-50 border-gray-200' },
-  payment_submitted: { label: 'Verificando pago', icon: Clock, color: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
-  confirmed: { label: 'Confirmado', icon: CheckCircle2, color: 'text-green-700 bg-green-50 border-green-200' },
-  cancelled: { label: 'Cancelado', icon: AlertCircle, color: 'text-red-600 bg-red-50 border-red-200' },
+  pending_payment: { label: 'Pendiente de pago', icon: AlertCircle, color: 'text-gray-500 bg-gray-50 border-gray-200 dark:bg-gray-800/50 dark:border-gray-700 dark:text-gray-400' },
+  payment_submitted: { label: 'Verificando pago', icon: Clock, color: 'text-yellow-700 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-400' },
+  confirmed: { label: 'Confirmado', icon: CheckCircle2, color: 'text-green-700 bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' },
+  cancelled: { label: 'Cancelado', icon: AlertCircle, color: 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' },
 }
 
 function EnrolledTab({ enrollments }: { enrollments: any[] }) {
@@ -66,8 +66,8 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
             <Avatar src={teacher?.avatar_url} name={teacher?.full_name ?? '?'} size="md" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls?.title}</p>
-              <p className="text-xs text-gray-500">{teacher?.full_name}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{schedule}</p>
+              <p className="text-xs text-gray-500 dark:text-dark-text2">{teacher?.full_name}</p>
+              <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">{schedule}</p>
               <div className={cn('mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium', config.color)}>
                 <Icon className="h-3 w-3" />
                 {config.label}
@@ -78,7 +78,7 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
                 </p>
               )}
             </div>
-            <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0 self-center" />
+            <ChevronRight className="h-4 w-4 text-gray-300 dark:text-dark-border flex-shrink-0 self-center" />
           </Link>
         )
       })}
@@ -89,10 +89,10 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
 // ─── Teaching tab ─────────────────────────────────────────────────────────────
 
 const PAYMENT_STATUS = {
-  pending_payment: { label: 'Sin pago', color: 'text-gray-500', dot: 'bg-gray-300' },
-  payment_submitted: { label: 'Pago enviado', color: 'text-yellow-700', dot: 'bg-yellow-400' },
-  confirmed: { label: 'Confirmado', color: 'text-green-700', dot: 'bg-green-500' },
-  cancelled: { label: 'Cancelado', color: 'text-red-600', dot: 'bg-red-400' },
+  pending_payment: { label: 'Sin pago', color: 'text-gray-500 dark:text-gray-400', dot: 'bg-gray-300 dark:bg-gray-600' },
+  payment_submitted: { label: 'Pago enviado', color: 'text-yellow-700 dark:text-yellow-400', dot: 'bg-yellow-400' },
+  confirmed: { label: 'Confirmado', color: 'text-green-700 dark:text-green-400', dot: 'bg-green-500' },
+  cancelled: { label: 'Cancelado', color: 'text-red-600 dark:text-red-400', dot: 'bg-red-400' },
 }
 
 function TeachingTab({
@@ -110,6 +110,13 @@ function TeachingTab({
   const [removeConfirm, setRemoveConfirm] = useState<{ enrollmentId: string; name: string } | null>(null)
   const [removing, setRemoving] = useState(false)
   const [dismissedIds, setDismissedIds] = useState<string[]>(initialDismissed)
+  const [copiedClassId, setCopiedClassId] = useState<string | null>(null)
+
+  function copyClassLink(classId: string) {
+    navigator.clipboard.writeText(`${window.location.origin}/class/${classId}`)
+    setCopiedClassId(classId)
+    setTimeout(() => setCopiedClassId(null), 2000)
+  }
 
   async function handlePaymentAction(enrollmentId: string, paymentId: string, action: 'verified' | 'rejected') {
     setLoadingEnrollment(enrollmentId)
@@ -224,7 +231,7 @@ function TeachingTab({
       )}
 
       {pendingPayments > 0 && (
-        <p className="text-sm text-yellow-700 font-medium mb-3">
+        <p className="text-sm text-yellow-700 dark:text-yellow-400 font-medium mb-3">
           {pendingPayments} pago{pendingPayments !== 1 ? 's' : ''} por verificar
         </p>
       )}
@@ -244,8 +251,8 @@ function TeachingTab({
               <div key={d.enrollmentId} className="flex items-center gap-3 rounded-lg bg-white dark:bg-dark-surface border border-red-100 dark:border-red-900/40 p-3">
                 <Avatar src={d.student?.avatar_url} name={d.student?.full_name ?? '?'} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{d.student?.full_name}</p>
-                  <p className="text-xs text-gray-500 truncate">@{d.student?.username} · {d.classTitle}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-dark-text truncate">{d.student?.full_name}</p>
+                  <p className="text-xs text-gray-500 dark:text-dark-text2 truncate">@{d.student?.username} · {d.classTitle}</p>
                 </div>
                 <button
                   onClick={() => handleDebtConfirmed(d.studentId)}
@@ -274,26 +281,26 @@ function TeachingTab({
 
           return (
             <div key={cls.id} className="card overflow-hidden">
-              <button
+              <div
                 onClick={() => setExpandedClass(isExpanded ? null : cls.id)}
-                className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
+                className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors cursor-pointer"
               >
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">
                     {cls.type === 'suelta'
                       ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
                       : `${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`}
                   </p>
                   <div className="flex items-center gap-3 mt-1.5">
-                    <span className="text-xs text-green-700 font-medium">{confirmed} confirmados</span>
+                    <span className="text-xs text-green-700 dark:text-green-400 font-medium">{confirmed} confirmados</span>
                     {pending > 0 && (
-                      <span className="text-xs font-medium text-yellow-700 flex items-center gap-1">
+                      <span className="text-xs font-medium text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse" />
                         {pending} por verificar
                       </span>
                     )}
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-dark-text2">
                       {enrollments.filter((e: any) => e.status !== 'cancelled').length}/{cls.max_spots} cupos
                     </span>
                   </div>
@@ -321,16 +328,25 @@ function TeachingTab({
                     </p>
                   )}
                   {deleted && (
-                    <p className="mt-1.5 text-xs text-gray-400 flex items-center gap-1">
+                    <p className="mt-1.5 text-xs text-gray-400 dark:text-dark-text2 flex items-center gap-1">
                       <Trash2 className="h-3 w-3" />
                       Archivos eliminados
                     </p>
                   )}
                 </div>
-                <div className="flex-shrink-0 text-gray-400">
-                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); copyClassLink(cls.id) }}
+                    title={copiedClassId === cls.id ? '¡Copiado!' : 'Compartir enlace'}
+                    className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-dark-border transition-colors"
+                  >
+                    <Share2 className={cn('h-3.5 w-3.5', copiedClassId === cls.id ? 'text-green-500' : 'text-gray-400 dark:text-dark-text2')} />
+                  </button>
+                  <div className="text-gray-400 dark:text-dark-text2">
+                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
                 </div>
-              </button>
+              </div>
 
               {isExpanded && (
                 <div className="border-t border-gray-100 dark:border-dark-border">
@@ -344,7 +360,7 @@ function TeachingTab({
                       {enrollments
                         .filter((e: any) => e.status === 'pending_payment' && !dismissedIds.includes(e.student?.id ?? e.student_id))
                         .length === 0 ? (
-                        <p className="text-xs text-gray-500">Sin pagos pendientes.</p>
+                        <p className="text-xs text-gray-500 dark:text-dark-text2">Sin pagos pendientes.</p>
                       ) : (
                         <div className="space-y-2">
                           {enrollments
@@ -367,7 +383,7 @@ function TeachingTab({
                   )}
 
                   {enrollments.filter((e: any) => e.status !== 'cancelled').length === 0 ? (
-                    <p className="text-center text-sm text-gray-400 py-6">Sin inscripciones aún</p>
+                    <p className="text-center text-sm text-gray-400 dark:text-dark-text2 py-6">Sin inscripciones aún</p>
                   ) : (
                     <div className="divide-y divide-gray-50 dark:divide-dark-border">
                       {enrollments
@@ -398,7 +414,7 @@ function TeachingTab({
                                     Eliminar
                                   </button>
                                 </div>
-                                <p className="text-xs text-gray-500">@{student?.username}</p>
+                                <p className="text-xs text-gray-500 dark:text-dark-text2">@{student?.username}</p>
 
                                 {enrollment.status === 'payment_submitted' && payment && (
                                   <div className="mt-2 space-y-2">
@@ -409,7 +425,7 @@ function TeachingTab({
                                         <ExternalLink className="h-3 w-3" />
                                       </a>
                                     )}
-                                    <p className="text-xs text-gray-500">Monto: {formatCLP(payment.amount)}</p>
+                                    <p className="text-xs text-gray-500 dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</p>
                                     <div className="flex gap-2">
                                       <button
                                         onClick={() => handlePaymentAction(enrollment.id, payment.id, 'verified')}
@@ -455,10 +471,10 @@ function TeachingTab({
 // ─── History tab ─────────────────────────────────────────────────────────────
 
 const PAYMENT_PILL = {
-  confirmed: 'bg-green-50 border-green-200 text-green-700',
-  rejected: 'bg-red-50 border-red-200 text-red-600',
-  pending: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-  no_payment: 'bg-gray-50 border-gray-200 text-gray-500',
+  confirmed: 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400',
+  rejected: 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400',
+  pending: 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-400',
+  no_payment: 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-800/50 dark:border-gray-700 dark:text-gray-400',
 }
 
 function paymentStatusLabel(enrollment: any): { key: keyof typeof PAYMENT_PILL; label: string } {
@@ -589,7 +605,7 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
           {monthlySummary.length > 0 && (
             <div className="mt-4">
               <div className="flex items-center gap-2 mb-3">
-                <Receipt className="h-4 w-4 text-gray-400" />
+                <Receipt className="h-4 w-4 text-gray-400 dark:text-dark-text2" />
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Resumen mensual</h4>
               </div>
               <div className="space-y-2">
@@ -597,7 +613,7 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
                   <div key={month} className="card px-4 py-3 flex items-center justify-between">
                     <p className="text-sm text-gray-700 dark:text-dark-text capitalize">{month}</p>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-green-700">{formatCLP(total)}</p>
+                      <p className="text-sm font-semibold text-green-700 dark:text-green-400">{formatCLP(total)}</p>
                       <p className="text-xs text-gray-400 dark:text-dark-text2">{count} pago{count !== 1 ? 's' : ''} confirmado{count !== 1 ? 's' : ''}</p>
                     </div>
                   </div>

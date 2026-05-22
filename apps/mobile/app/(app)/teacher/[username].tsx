@@ -6,12 +6,14 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
+import { useTheme } from '../../../context/ThemeContext'
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
 
 export default function TeacherProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const router = useRouter()
+  const { isDark } = useTheme()
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -185,7 +187,7 @@ export default function TeacherProfileScreen() {
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <Text className="text-base font-bold text-gray-900 dark:text-dark-text">@{profile.username}</Text>
       </View>

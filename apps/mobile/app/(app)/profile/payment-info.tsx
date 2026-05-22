@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { ChevronLeft, CheckCircle2 } from 'lucide-react-native'
+import { useTheme } from '../../../context/ThemeContext'
 import { supabase } from '../../../lib/supabase'
 import { CHILEAN_BANKS } from '@danceclass/shared'
 import MobileSelect from '../../../components/ui/MobileSelect'
@@ -20,6 +21,7 @@ const ACCOUNT_TYPE_OPTIONS = [
 
 export default function PaymentInfoScreen() {
   const router = useRouter()
+  const { isDark } = useTheme()
 
   const [teacherId, setTeacherId] = useState<string | null>(null)
   const [existingId, setExistingId] = useState<string | null>(null)
@@ -115,7 +117,7 @@ export default function PaymentInfoScreen() {
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Datos Transferencia</Text>
       </View>

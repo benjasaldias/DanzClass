@@ -5,6 +5,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { useTheme } from '../../../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, Camera, Eye, EyeOff } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
@@ -45,6 +46,7 @@ function StylesPicker({
 
 export default function EditProfileScreen() {
   const router = useRouter()
+  const { isDark } = useTheme()
 
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -178,7 +180,7 @@ export default function EditProfileScreen() {
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <View className="flex-row items-center px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Editar perfil</Text>
       </View>

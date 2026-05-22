@@ -38,10 +38,10 @@ type FollowInsert = { follower_id: string; following_id: string }
 type NotificationInsert = { user_id: string; type: 'follow' | 'class_cancelled'; data: Record<string, unknown> }
 
 const LEVEL_COLORS = {
-  principiante: 'bg-green-100 text-green-700',
-  intermedio: 'bg-yellow-100 text-yellow-700',
-  avanzado: 'bg-red-100 text-red-700',
-  todos: 'bg-blue-100 text-blue-700',
+  principiante: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  intermedio: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  avanzado: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  todos: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 }
 
 export default function ClassDetailClient({
@@ -447,13 +447,13 @@ export default function ClassDetailClient({
               <MapPin className="h-4 w-4 text-brand-500 flex-shrink-0" />
               <div>
                 <p className="text-gray-700 dark:text-dark-text2">{classData.location_name}</p>
-                {classData.location_address && <p className="text-xs text-gray-500">{classData.location_address}</p>}
+                {classData.location_address && <p className="text-xs text-gray-500 dark:text-dark-text2">{classData.location_address}</p>}
               </div>
             </div>
           )}
           <div className="flex items-center gap-3 text-sm">
             <Users className="h-4 w-4 text-brand-500 flex-shrink-0" />
-            <span className={cn('font-medium', isFull ? 'text-red-600' : spotsAvailable <= 3 ? 'text-coral-fuego' : 'text-gray-700')}>
+            <span className={cn('font-medium', isFull ? 'text-red-600 dark:text-red-400' : spotsAvailable <= 3 ? 'text-coral-fuego' : 'text-gray-700 dark:text-dark-text2')}>
               {isFull ? 'Sin cupos disponibles' : `${spotsAvailable} cupo${spotsAvailable !== 1 ? 's' : ''} disponible${spotsAvailable !== 1 ? 's' : ''}`}
             </span>
           </div>
@@ -492,11 +492,11 @@ export default function ClassDetailClient({
                   <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2 py-1">{matchError}</p>
                 )}
                 {friendsTwox.map((entry: any) => (
-                  <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-white border border-brand-100 px-3 py-2">
+                  <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-white dark:bg-dark-surface border border-brand-100 dark:border-dark-border px-3 py-2">
                     <Avatar src={entry.user?.avatar_url} name={entry.user?.full_name ?? ''} size="sm" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{entry.user?.full_name}</p>
-                      <p className="text-xs text-gray-500">@{entry.user?.username}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-dark-text truncate">{entry.user?.full_name}</p>
+                      <p className="text-xs text-gray-500 dark:text-dark-text2">@{entry.user?.username}</p>
                     </div>
                     <button
                       onClick={() => handleJoin2x(entry.id)}

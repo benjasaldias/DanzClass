@@ -289,6 +289,56 @@ Todos los `<input type="number">` tienen `onWheel={(e) => (e.target as HTMLInput
 - Mismos tokens dark que web: `dark-bg`, `dark-surface`, `dark-surface2`, `dark-border`, `dark-text`, `dark-text2`
 - Todas las pantallas mobile migradas ✅
 
+**Reglas obligatorias para evitar texto invisible en dark mode (sesión 2026-05-22):**
+
+Al agregar cualquier texto, borde, ícono o fondo de color en la app, respetar estas reglas sin excepción:
+
+1. **Objetos de colores estáticos** — los objetos tipo `const STATUS_COLORS = { pending: 'bg-yellow-50 text-yellow-700 border-yellow-200' }` solo funcionan en light mode. Siempre agregar variantes dark en la misma string:
+
+   ```ts
+   pending: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400'
+   ```
+
+   Aplica a: `LEVEL_COLORS`, `ENROLL_STATUS`, `PAYMENT_STATUS`, `PAYMENT_PILL`, `NOTIF_CONFIG`, y cualquier mapa similar.
+
+2. **Inline `style` con colores** — `style={{ backgroundColor: '#f5f3ff' }}` no soporta dark mode. Convertir siempre a NativeWind `className` equivalente: `className="bg-blanco-violeta dark:bg-dark-surface2"`. Nunca usar hex hardcodeado en `style` para fondos o textos que deban ser distintos en dark.
+
+3. **Stroke de íconos Lucide en mobile** — `stroke="#374151"` es gris oscuro: invisible sobre fondo oscuro. Siempre usar `stroke={isDark ? '#EEEDFE' : '#374151'}` requiriendo `const { isDark } = useTheme()`. Importar desde la ruta correcta según profundidad:
+   - `app/(app)/(tabs)/` → `'../../../context/ThemeContext'`
+   - `app/(app)/class/[id]/` → `'../../../../context/ThemeContext'`
+   - `app/(app)/class/` o `app/(app)/profile/` o `app/(app)/teacher/` → `'../../../context/ThemeContext'`
+   - `components/` → `'../../context/ThemeContext'`
+
+4. **Cards de alerta con color** (amarillo, rojo, azul, verde) — siempre incluir dark en bg, border Y texto. Patrón:
+
+   ```tsx
+   // Amarillo
+   className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+   // texto: text-yellow-700 dark:text-yellow-400, título: text-yellow-900 dark:text-yellow-300
+   
+   // Rojo
+   className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+   // texto: text-red-700 dark:text-red-400 / text-red-600 dark:text-red-400
+   
+   // Verde
+   className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+   // texto: text-green-700 dark:text-green-400
+   
+   // Azul
+   className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800"
+   // texto: text-blue-700 dark:text-blue-400
+   
+   // Brand/violeta
+   className="bg-brand-50 dark:bg-brand-950/30 border border-brand-100 dark:border-brand-900/50"
+   // texto: text-brand-700 dark:text-brand-300, valor: text-brand-900 dark:text-brand-200
+   ```
+
+5. **Divisores** — `<div className="h-7 w-px bg-gray-200" />` es invisible sobre `dark-bg`. Siempre: `bg-gray-200 dark:bg-dark-border`.
+
+6. **Texto `text-gray-900`** sin dark — en dark mode es negro sobre negro. Toda aparición de `text-gray-900` debe llevar `dark:text-dark-text`. Igual para `text-gray-700` → `dark:text-dark-text2`, `text-gray-500` → `dark:text-dark-text2`, `text-gray-400` → `dark:text-dark-text2/60`.
+
+7. **Pills de estado en mobile con `style` inline** — `PAYMENT_PILL_COLORS` con hex en `style={{ backgroundColor, color, borderColor }}` no adapta al dark mode. Usar NativeWind class strings y `className` en su lugar (ver implementación actual en `my-classes.tsx`).
+
 **Explore web — filtros colapsables (sesión 2026-05-19):**
 
 - Ícono `SlidersHorizontal` con badge de count de filtros activos; panel expandible/colapsable

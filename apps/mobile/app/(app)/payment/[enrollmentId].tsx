@@ -201,30 +201,30 @@ export default function PaymentScreen() {
         <View className="p-4 gap-4">
           {/* Missing 2x price warning */}
           {missing2xPrice && (
-            <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex-row gap-3">
+            <View className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-2xl p-4 flex-row gap-3">
               <AlertTriangle size={18} stroke="#ca8a04" />
               <View className="flex-1">
-                <Text className="text-sm font-semibold text-yellow-900">El profesor no configuró precio 2x</Text>
-                <Text className="text-xs text-yellow-700 mt-0.5">Se muestra el precio individual, no el 2x.</Text>
+                <Text className="text-sm font-semibold text-yellow-900 dark:text-yellow-300">El profesor no configuró precio 2x</Text>
+                <Text className="text-xs text-yellow-700 dark:text-yellow-400 mt-0.5">Se muestra el precio individual, no el 2x.</Text>
               </View>
             </View>
           )}
 
           {/* Partner pays banner */}
           {is2x && !isMyTurnToPay && (
-            <View className="bg-amber-50 border border-amber-200 rounded-2xl p-5 gap-3">
+            <View className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 gap-3">
               <View className="flex-row items-center gap-3">
-                <View className="w-10 h-10 rounded-full bg-amber-100 items-center justify-center">
+                <View className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 items-center justify-center">
                   <Users size={18} stroke="#d97706" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-semibold text-amber-900">Tu compañer@ va a pagar</Text>
-                  <Text className="text-xs text-amber-700 mt-0.5">
+                  <Text className="text-sm font-semibold text-amber-900 dark:text-amber-300">Tu compañer@ va a pagar</Text>
+                  <Text className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                     El monto 2x ({formatCLP(amount)}) está asignado a tu amig@.
                   </Text>
                 </View>
               </View>
-              <Text className="text-xs text-amber-600">
+              <Text className="text-xs text-amber-600 dark:text-amber-400">
                 Si quieres pagar tú, pídele que te transfiera el turno.
               </Text>
             </View>
@@ -232,10 +232,10 @@ export default function PaymentScreen() {
 
           {/* Amount — only when it's this user's turn */}
           {isMyTurnToPay && (
-            <View className="bg-brand-50 rounded-2xl p-5 border border-brand-100">
-              <Text className="text-brand-700 font-medium text-sm mb-1">Monto a transferir</Text>
-              <Text className="text-4xl font-bold text-brand-900">{formatCLP(amount)}</Text>
-              {is2x && <Text className="text-xs text-brand-600 mt-1">Precio 2x — cubre a ambos</Text>}
+            <View className="bg-brand-50 dark:bg-brand-950/30 rounded-2xl p-5 border border-brand-100 dark:border-brand-900/50">
+              <Text className="text-brand-700 dark:text-brand-300 font-medium text-sm mb-1">Monto a transferir</Text>
+              <Text className="text-4xl font-bold text-brand-900 dark:text-brand-200">{formatCLP(amount)}</Text>
+              {is2x && <Text className="text-xs text-brand-600 dark:text-brand-400 mt-1">Precio 2x — cubre a ambos</Text>}
             </View>
           )}
 
@@ -266,7 +266,7 @@ export default function PaymentScreen() {
           )}
 
           {isMyTurnToPay && !paymentInfo && (
-            <View className="bg-white rounded-2xl p-4 border border-gray-100 items-center">
+            <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border items-center">
               <Text className="text-sm text-gray-500 dark:text-dark-text2">El profesor aún no configuró sus datos bancarios.</Text>
             </View>
           )}
@@ -279,9 +279,9 @@ export default function PaymentScreen() {
               </Text>
 
               {alreadySubmitted ? (
-                <View className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex-row items-center gap-2">
+                <View className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-3 flex-row items-center gap-2">
                   <Check size={16} stroke="#1d4ed8" />
-                  <Text className="text-sm text-blue-700 flex-1">Tu comprobante fue enviado. El profesor lo está revisando.</Text>
+                  <Text className="text-sm text-blue-700 dark:text-blue-400 flex-1">Tu comprobante fue enviado. El profesor lo está revisando.</Text>
                 </View>
               ) : receipt ? (
                 <View className="gap-2">

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { MapPin, Clock, Users, ChevronRight, Music2, Calendar } from 'lucide-react'
+import { MapPin, Clock, Users, ChevronRight, Music2, Calendar, Share2 } from 'lucide-react'
 import { cn, timeAgo, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
@@ -15,14 +15,23 @@ interface ClassCardProps {
 }
 
 const LEVEL_COLORS = {
-  principiante: 'bg-green-100 text-green-700',
-  intermedio: 'bg-yellow-100 text-yellow-700',
-  avanzado: 'bg-red-100 text-red-700',
-  todos: 'bg-blue-100 text-blue-700',
+  principiante: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  intermedio: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  avanzado: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  todos: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 }
 
 export default function ClassCard({ classData, currentUserId, currentUserRole }: ClassCardProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
+  const [copied, setCopied] = useState(false)
+
+  async function handleShare(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    await navigator.clipboard.writeText(`${window.location.origin}/class/${classData.id}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
   const teacher = classData.teacher
   const media: any[] = classData.media ?? []
   const sortedMedia = media.sort((a: any, b: any) => a.order_index - b.order_index)
@@ -117,9 +126,18 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         {/* Title + level */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-bold text-gray-900 dark:text-dark-text leading-snug">{classData.title}</h3>
-          <span className={cn('badge flex-shrink-0', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600')}>
-            {classData.level}
-          </span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={handleShare}
+              title={copied ? '¡Copiado!' : 'Compartir clase'}
+              className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors"
+            >
+              <Share2 className={cn('h-4 w-4', copied ? 'text-green-500' : 'text-gris-humo dark:text-dark-text2')} />
+            </button>
+            <span className={cn('badge', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400')}>
+              {classData.level}
+            </span>
+          </div>
         </div>
 
         {/* Description */}
@@ -158,7 +176,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
         <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-100 dark:bg-emerald-900/30 border-t border-emerald-200 dark:border-emerald-900/50">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs text-gris-humo">
+              <p className="text-xs text-gris-humo dark:text-dark-text2">
                 {classData.type === 'periodica' || classData.type === 'entrenamiento' ? 'Precio mensual' : 'Precio'}
               </p>
               {/* Main price + 2x inline */}
@@ -183,7 +201,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole }:
               {/* Suelta price + suelta 2x inline */}
               {classData.price_suelta && (
                 <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                  <span className="text-xs text-gris-humo">Suelta:</span>
+                  <span className="text-xs text-gris-humo dark:text-dark-text2">Suelta:</span>
                   {classData.discount_price ? (
                     <>
                       <span className="text-xs font-medium text-coral-fuego">{formatCLP(classData.discount_price)}</span>

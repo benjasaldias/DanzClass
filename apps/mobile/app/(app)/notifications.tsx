@@ -5,6 +5,7 @@ import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCirc
 import type { LucideIcon } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useTheme } from '../../context/ThemeContext'
 
 function timeAgo(date: string): string {
   const diff = Date.now() - new Date(date).getTime()
@@ -119,6 +120,7 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
 
 export default function NotificationsScreen() {
   const router = useRouter()
+  const { isDark } = useTheme()
   const [notifications, setNotifications] = useState<any[]>([])
   const [profileMap, setProfileMap] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(true)
@@ -182,7 +184,7 @@ export default function NotificationsScreen() {
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <View className="flex-row items-center gap-3 px-4 py-3 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} stroke="#374151" />
+          <ChevronLeft size={24} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Notificaciones</Text>
       </View>

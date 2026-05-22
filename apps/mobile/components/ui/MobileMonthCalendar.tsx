@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { useTheme } from '../../context/ThemeContext'
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function MobileMonthCalendar({ selected, onChange, disablePast }: Props) {
+  const { isDark } = useTheme()
   const today = new Date()
   const [month, setMonth] = useState(today.getMonth())
   const [year, setYear] = useState(today.getFullYear())
@@ -54,14 +56,14 @@ export default function MobileMonthCalendar({ selected, onChange, disablePast }:
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7))
 
   return (
-    <View className="bg-white border border-gray-200 rounded-xl p-3">
+    <View className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl p-3">
       <View className="flex-row items-center justify-between mb-3">
         <TouchableOpacity onPress={prevMonth} className="p-1">
-          <ChevronLeft size={20} stroke="#374151" />
+          <ChevronLeft size={20} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
-        <Text className="text-sm font-bold text-gray-900">{MONTH_NAMES[month]} {year}</Text>
+        <Text className="text-sm font-bold text-gray-900 dark:text-dark-text">{MONTH_NAMES[month]} {year}</Text>
         <TouchableOpacity onPress={nextMonth} className="p-1">
-          <ChevronRight size={20} stroke="#374151" />
+          <ChevronRight size={20} stroke={isDark ? '#EEEDFE' : '#374151'} />
         </TouchableOpacity>
       </View>
 

@@ -1180,6 +1180,58 @@ Pantallas migradas (todos los tokens `dark:bg-dark-*`, `dark:text-dark-*`, `dark
 
 ---
 
+## Sesión 2026-05-22 (2) — Dark mode: visibilidad de texto e íconos
+
+### ✅ Auditoría y corrección completa de visibilidad en dark mode
+
+Se identificaron y corrigieron todos los casos donde texto, íconos o fondos eran invisibles o tenían bajo contraste en dark mode, tanto en web como en mobile.
+
+#### Web — archivos corregidos
+
+| Componente | Problemas corregidos |
+|---|---|
+| `ClassDetailClient.tsx` | `LEVEL_COLORS` sin variantes dark; texto de ubicación, cupos, tarjeta amigos 2x |
+| `ClassCard.tsx` | `LEVEL_COLORS`; badge fallback; labels de precio |
+| `NotificationsClient.tsx` | `NOTIF_CONFIG`: colores de íconos de notificación sin dark |
+| `MyClassesClient.tsx` | `ENROLL_STATUS`, `PAYMENT_STATUS`, `PAYMENT_PILL` completos; textos de teacher, schedule, contadores, resumen mensual |
+| `MonthCalendar.tsx` | Navegación, celdas, encabezados, días deshabilitados, resumen |
+| `CityCombobox.tsx` | Dropdown, ítems, seleccionado, mensaje vacío, botón texto libre |
+| `UserCard.tsx` | Estados de amistad accepted/pending_received/none sin dark |
+| `PaymentClient.tsx` | Cards amarilla, ámbar, brand; dropzone; botón transferir |
+| `TeacherProfileClient.tsx` | Stats (`paidSpotsCount`, `trustCount`); divisores; botón amistad accepted/pending_received; `price_suelta`; empty state |
+
+#### Mobile — archivos corregidos
+
+| Pantalla | Problemas corregidos |
+| --- | --- |
+| `(tabs)/feed.tsx` | `ChevronDown` con stroke hardcodeado |
+| `notifications.tsx` | `ChevronLeft` con stroke hardcodeado |
+| `class/[id]/index.tsx` | `ChevronLeft`; fondo amigos 2x (`style` inline → `className`); sección precio |
+| `teacher/[username].tsx` | `ChevronLeft`; stats contadores |
+| `class/[id]/edit.tsx` | `ChevronLeft` |
+| `class/create-post.tsx` | `ChevronLeft` |
+| `class/create.tsx` | `ChevronLeft` |
+| `class/[id]/auditions.tsx` | `ChevronLeft` |
+| `profile/edit.tsx` | `ChevronLeft` |
+| `profile/payment-info.tsx` | `ChevronLeft` |
+| `(tabs)/my-classes.tsx` | Sección deudores (`bg-red-50`); textos rojos sin dark; "Rechazar" button; cupos sin dark; `PAYMENT_PILL_COLORS` convertido de `style` inline a NativeWind class strings |
+| `payment/[enrollmentId].tsx` | Cards amarilla (precio 2x faltante), ámbar (compañero paga), brand (monto), azul (comprobante enviado); tarjeta sin datos bancarios |
+| `components/ui/MobileMonthCalendar.tsx` | `ChevronLeft`/`ChevronRight`; fondo y texto del calendario |
+
+#### Patrones de error más frecuentes
+
+1. **`PAYMENT_PILL_COLORS` con hex en `style` inline** — no responde a dark mode; convertido a NativeWind class strings aplicadas via `className`.
+2. **Stroke hardcodeado `"#374151"` en íconos Lucide** — negro sobre fondo oscuro; requiere `stroke={isDark ? '#EEEDFE' : '#374151'}` con `useTheme()`.
+3. **Objetos de color sin variantes dark** (`LEVEL_COLORS`, `ENROLL_STATUS`, etc.) — strings con solo clases light; se agrega `dark:*` a cada valor.
+4. **Cards de alerta de colores** (amarillo/rojo/azul/verde) — faltaban dark en bg, border y texto simultáneamente.
+5. **`style={{ backgroundColor: '#f5f3ff' }}`** — reemplazado por `className="bg-blanco-violeta dark:bg-dark-surface2"`.
+
+#### Reglas agregadas a CLAUDE.md
+
+Se documentaron 7 reglas obligatorias en la sección "Modo oscuro (mobile)" de CLAUDE.md con patrones concretos de código para cada caso, para evitar recurrencia en nuevas pantallas.
+
+---
+
 ## Sesión 2026-05-22 — Compartir clase e Historial de pagos
 
 ### ✅ Compartir clase (web + mobile)
