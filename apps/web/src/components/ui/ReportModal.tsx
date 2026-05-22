@@ -73,12 +73,12 @@ export default function ReportModal({ contentType, contentId, reporterId: _repor
   if (success) {
     return (
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
-        <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white p-6 shadow-2xl text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Flag className="h-6 w-6 text-green-600" />
+        <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white dark:bg-dark-surface p-6 shadow-2xl text-center">
+          <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Flag className="h-6 w-6 text-green-600 dark:text-green-400" />
           </div>
-          <h3 className="text-base font-bold text-gray-900 mb-1">Reporte enviado</h3>
-          <p className="text-sm text-gray-500 mb-5">
+          <h3 className="text-base font-bold text-gray-900 dark:text-dark-text mb-1">Reporte enviado</h3>
+          <p className="text-sm text-gray-500 dark:text-dark-text2 mb-5">
             Gracias por ayudarnos a mantener la comunidad segura. Revisaremos tu reporte a la brevedad.
           </p>
           <button onClick={onClose} className="btn-primary w-full py-2.5">Cerrar</button>
@@ -89,10 +89,10 @@ export default function ReportModal({ contentType, contentId, reporterId: _repor
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white dark:bg-dark-surface p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-bold text-gray-900">Reportar contenido</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Reportar contenido</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-dark-text2 hover:text-gray-600 dark:hover:text-dark-text">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -106,19 +106,19 @@ export default function ReportModal({ contentType, contentId, reporterId: _repor
                 onClick={() => setReason(value)}
                 className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
                   reason === value
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    ? 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+                    : 'border-gray-200 dark:border-dark-border hover:border-gray-300 dark:hover:border-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2'
                 }`}
               >
-                <p className="text-sm font-medium text-gray-900">{label}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{label}</p>
+                <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">{desc}</p>
               </button>
             ))}
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Detalles adicionales <span className="text-gray-400 font-normal">(opcional)</span>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+              Detalles adicionales <span className="text-gray-400 dark:text-dark-text2/60 font-normal">(opcional)</span>
             </label>
             <textarea
               value={description}
@@ -130,7 +130,7 @@ export default function ReportModal({ contentType, contentId, reporterId: _repor
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <button
             type="submit"

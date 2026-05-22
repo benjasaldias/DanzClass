@@ -44,7 +44,8 @@ function formatTime(time: string): string {
 }
 
 function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
 }
 
 export default function MobileClassCard({ classData, currentUserId, compact = false, teacherRating }: MobileClassCardProps) {

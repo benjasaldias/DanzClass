@@ -12,7 +12,12 @@ export function timeAgo(date: string): string {
 }
 
 export function formatDate(date: string): string {
-  return format(new Date(date), "d 'de' MMMM, yyyy", { locale: es })
+  // Date-only strings (YYYY-MM-DD) parse as UTC midnight, which shifts to the previous day in UTC- timezones.
+  // Parse them as local time by constructing the Date from parts.
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? (() => { const [y, m, day] = date.split('-').map(Number); return new Date(y, m - 1, day) })()
+    : new Date(date)
+  return format(d, "d 'de' MMMM, yyyy", { locale: es })
 }
 
 export function formatTime(time: string): string {

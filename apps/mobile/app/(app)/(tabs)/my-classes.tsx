@@ -11,7 +11,8 @@ import { supabase } from '../../../lib/supabase'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
 }
 function formatTime(time: string) {
   const [h, m] = time.split(':').map(Number)

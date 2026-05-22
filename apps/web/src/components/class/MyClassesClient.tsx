@@ -148,7 +148,9 @@ function TeachingTab({
           return {
             ...e,
             status: newEnrollmentStatus,
-            payment: e.payment.map((p: any) => p.id === paymentId ? { ...p, status: action } : p),
+            payment: Array.isArray(e.payment)
+              ? e.payment.map((p: any) => p.id === paymentId ? { ...p, status: action } : p)
+              : e.payment,
           }
         }),
       }))

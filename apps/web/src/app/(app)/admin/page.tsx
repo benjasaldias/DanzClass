@@ -14,12 +14,20 @@ export default async function AdminPage() {
 
   const admin = createAdminClient()
 
-  const { data: reports } = await (admin as any)
+  const { data: rawReports } = await (admin as any)
     .from('reports')
-    .select('*, reporter:profiles!reporter_id(id, username, full_name, avatar_url)')
+    .select('*')
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(100)
+
+  // Fetch reporter profiles separately (reporter_id FKs to auth.users, not profiles)
+  const reporterIds = [...new Set(((rawReports ?? []) as any[]).map((r: any) => r.reporter_id).filter(Boolean))]
+  const { data: reporters } = reporterIds.length > 0
+    ? await admin.from('profiles').select('id, username, full_name, avatar_url').in('id', reporterIds as string[])
+    : { data: [] }
+  const reporterMap = Object.fromEntries(((reporters as any[]) ?? []).map((p: any) => [p.id, p]))
+  const reports = ((rawReports ?? []) as any[]).map((r: any) => ({ ...r, reporter: reporterMap[r.reporter_id] ?? null }))
 
   return (
     <div className="flex flex-col min-h-screen">
