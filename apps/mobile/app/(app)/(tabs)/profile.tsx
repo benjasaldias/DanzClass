@@ -3,7 +3,8 @@ import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { MapPin, Users, Music2, ShieldCheck, AtSign, Sun, Moon } from 'lucide-react-native'
+import { MapPin, Users, Music2, AtSign, Sun, Moon } from 'lucide-react-native'
+import StarRating from '../../../components/ui/StarRating'
 import { supabase } from '../../../lib/supabase'
 import { canTeach } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
@@ -25,7 +26,8 @@ export default function ProfileScreen() {
   const [tier, setTier] = useState<SubscriptionTier>('none')
   const [userId, setUserId] = useState<string | null>(null)
   const [followers, setFollowers] = useState(0)
-  const [trustCount, setTrustCount] = useState(0)
+  const [avgRating, setAvgRating] = useState(0)
+  const [ratingCount, setRatingCount] = useState(0)
   const [classes, setClasses] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [showAllClasses, setShowAllClasses] = useState(false)
@@ -37,19 +39,26 @@ export default function ProfileScreen() {
       if (!user) return
       setUserId(user.id)
 
-      const [profileRes, subRes, followersRes, trustRes, classesRes, postsRes] = await Promise.all([
+      const [profileRes, subRes, followersRes, ratingsRes, classesRes, postsRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').single(),
         supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', user.id),
-        (supabase as any).from('trust_endorsements').select('endorser_id', { count: 'exact', head: true }).eq('endorsed_id', user.id),
+        (supabase as any).from('ratings').select('stars').eq('rated_user_id', user.id),
         (supabase as any).from('classes').select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id,status)').eq('teacher_id', user.id).eq('status', 'active'),
         (supabase as any).from('posts').select('*, author:profiles!user_id(id, username, full_name, avatar_url)').eq('user_id', user.id).order('created_at', { ascending: false }),
       ])
 
+      const ratingRows: any[] = ratingsRes.data ?? []
+      const count = ratingRows.length
+      const avg = count > 0
+        ? Math.round((ratingRows.reduce((a: number, r: any) => a + Number(r.stars), 0) / count) * 10) / 10
+        : 0
+
       setProfile(profileRes.data)
       setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
       setFollowers(followersRes.count ?? 0)
-      setTrustCount(trustRes.count ?? 0)
+      setRatingCount(count)
+      setAvgRating(avg)
       setClasses(classesRes.data ?? [])
       setPosts(postsRes.data ?? [])
     } catch {
@@ -146,14 +155,17 @@ export default function ProfileScreen() {
                 <Text className="text-xs text-gris-humo dark:text-dark-text2">clases</Text>
               </View>
             </View>
-            <View className="w-px bg-gray-100 dark:bg-dark-border" />
-            <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{trustCount}</Text>
-              <View className="flex-row items-center gap-1">
-                <ShieldCheck size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo dark:text-dark-text2">confían</Text>
-              </View>
-            </View>
+            {canTeach(tier) && (
+              <>
+                <View className="w-px bg-gray-100 dark:bg-dark-border" />
+                <View className="items-center justify-center">
+                  {ratingCount > 0
+                    ? <StarRating value={avgRating} count={ratingCount} size="sm" />
+                    : <Text className="text-xs text-gris-humo dark:text-dark-text2">Sin valoraciones</Text>
+                  }
+                </View>
+              </>
+            )}
           </View>
 
           {/* Plan badge */}

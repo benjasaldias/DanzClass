@@ -136,9 +136,9 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
         </View>
         <View className="flex-1">
           <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{teacher.full_name}</Text>
-          <View className="flex-row items-center gap-1">
+          <View className="flex-row items-center gap-1.5">
             {teacherRating && teacherRating.rating_count > 0 && (
-              <StarRating value={teacherRating.avg_stars} readOnly size="sm" instanceId={`card-${classData.id}`} showCount count={teacherRating.rating_count} />
+              <StarRating value={teacherRating.avg_stars} count={teacherRating.rating_count} size="sm" />
             )}
             <Text className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</Text>
           </View>

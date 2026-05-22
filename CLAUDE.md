@@ -137,8 +137,8 @@ Esta referencia define el baseline visual. Los cambios de color deben ser aditiv
 Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `new_class`, `class_updated`, `class_cancelled`, `payment_confirmed`, `payment_rejected`, `2x_request`, `2x_match`, `2x_payment_turn`, `debt_warning`, `new_report`, `class_discount`, `audition_accepted`, `audition_rejected`
 
 ### Perfiles
-- `/teacher/[username]` — stats, trust, follow/amistad, posts con filtro de visibilidad por relación
-- `/profile` — mismo layout rico, botones como pills, plan, estilos, clases propias, mis publicaciones
+- `/teacher/[username]` — stats (avg stars con `StarRating`), follow/amistad, posts con filtro de visibilidad por relación
+- `/profile` — mismo layout rico, botones como pills, plan, estilos, clases propias, mis publicaciones; avg stars bajo guard `canTeach(tier)`
 - `/profile/edit` — avatar, estilos, ciudad
 - `/profile/payment-info` — datos bancarios del profesor
 
@@ -150,7 +150,7 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 - **Sistema 2x:** buscar compañer@ de baile; race condition manejada con 404
 - **Descuentos espontáneos:** `DiscountModal` + API + notificación a seguidores
 - **Tipo Entrenamiento:** audiciones con decisiones en borrador + publicación batch
-- **Sistema de confianza:** `TrustButton` + `EndorsementPopup` post-clase
+- **Valoraciones de profesores:** `StarRating` + `RatingModal`/`RatingPopup` + `/api/ratings/upsert`; reemplaza el sistema de confianza (TrustButton/EndorsementPopup eliminados)
 - **Denuncias:** `ReportModal` → `/api/reports` → notifica superadmin
 - **Panel superadmin:** `/admin` solo para `SUPERADMIN_USER_ID` env var
 - **Términos de uso:** `/terms` público, aceptación obligatoria en registro
@@ -173,10 +173,11 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 | `ui/ConfirmDialog.tsx` | Modal de confirmación con backdrop, modo destructivo |
 | `ui/MonthCalendar.tsx` | Calendario para fechas custom; prop `disablePast` para crear clase |
 | `ui/CityCombobox.tsx` | Combobox con ciudades chilenas + texto libre |
-| `ui/TrustButton.tsx` | Toggle endorse con count en tiempo real |
-| `ui/EndorsementPopup.tsx` | Popup post-clase pidiendo recomendación |
+| `ui/StarRating.tsx` | Display mode: texto `★ 4.7 (23 valoraciones)` en amarillo; interactive: 5 estrellas ★ clicables con hover. Props: `value, count?, size?, interactive?, onChange?` |
+| `ui/RatingModal.tsx` | Modal para calificar un profesor; llama `/api/ratings/upsert`; solo enteros 1–5 |
+| `ui/RatingPopup.tsx` (web) | Popup post-clase que verifica inscripciones pendientes de calificar; llama `/api/ratings/upsert` |
 | `ui/LogoutButton.tsx` | Cerrar sesión; prop `asButton` para renderizar como pill |
-| `ui/ReportModal.tsx` | Modal denuncia; llama `/api/reports` (no inserta directo) |
+| `ui/ReportModal.tsx` | Modal denuncia; llama `/api/reports` (no inserta directo); dark mode completo |
 | `ui/DateInput.tsx` | Fecha en DD/MM/AAAA; almacena YYYY-MM-DD; sin `type="date"` |
 | `ui/LogoIcon.tsx` | SVG del logo oficial; usa `fill="currentColor"` — controlar color con className |
 | `feed/ClassCard.tsx` | Card clase: tono lila, cupos x/y, badge, precios 2x, fondo emerald en precio |
@@ -201,7 +202,7 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 | `plans/SubscribeButton.tsx` | Mensual (crédito) y anual (cualquier medio vía MP) |
 | `publish/PublishChoiceClient.tsx` | Elección Clase vs Video |
 | `profile/EditProfileForm.tsx` | Edición completa perfil |
-| `profile/TeacherProfileClient.tsx` | Perfil público: trust, stats, amistad, posts filtrados |
+| `profile/TeacherProfileClient.tsx` | Perfil público: ratings (avg stars), stats, amistad, posts filtrados |
 | `profile/PaymentInfoForm.tsx` | Datos bancarios del profesor |
 | `admin/AdminReportsClient.tsx` | Reportes pendientes con acciones delete/dismiss |
 
@@ -338,6 +339,30 @@ Al agregar cualquier texto, borde, ícono o fondo de color en la app, respetar e
 6. **Texto `text-gray-900`** sin dark — en dark mode es negro sobre negro. Toda aparición de `text-gray-900` debe llevar `dark:text-dark-text`. Igual para `text-gray-700` → `dark:text-dark-text2`, `text-gray-500` → `dark:text-dark-text2`, `text-gray-400` → `dark:text-dark-text2/60`.
 
 7. **Pills de estado en mobile con `style` inline** — `PAYMENT_PILL_COLORS` con hex en `style={{ backgroundColor, color, borderColor }}` no adapta al dark mode. Usar NativeWind class strings y `className` en su lugar (ver implementación actual en `my-classes.tsx`).
+
+**Sistema de valoraciones (ratings) — reemplaza TrustButton/EndorsementPopup (sesión 2026-05-22):**
+
+- Tabla `ratings` en Supabase (migration 019): `(rater_id, rated_user_id, enrollment_id, stars)` UNIQUE por rater+rated
+- `TrustButton.tsx` y `EndorsementPopup.tsx` (web) **eliminados** — reemplazados por sistema de estrellas
+- `StarRating` rediseñado: display = texto `★ 4.7 (23 valoraciones)` en `text-yellow-500`; interactive = 5 ★ unicode clicables con hover amarillo. Sin SVG ni LinearGradient.
+- API route `/api/ratings/upsert`: soporta Bearer token (mobile) y cookies (web); verifica inscripción confirmada con el profesor antes de permitir el upsert; retorna `{ ok, avgRating, ratingCount }`
+- `RatingModal` + `RatingPopup` (web) usan la API route (no insertan directo)
+- Mobile: `components/ui/RatingPopup.tsx` — slide-up Modal que verifica clases finalizadas pendientes de calificar; llama a la API route
+- Feed mobile: batch-fetch de ratings de profesores al cargar clases; se pasa como prop `teacherRating` a `MobileClassCard`
+- Perfiles (`/profile` web + `(tabs)/profile.tsx` mobile): muestran `StarRating` bajo `canTeach(tier)` guard; reemplazaron la query de `trust_endorsements`
+- `TeacherProfileClient.tsx`: stats row muestra avg stars con count
+
+**Admin reports — join FK a auth.users (sesión 2026-05-22):**
+
+`reporter:profiles!reporter_id` falla silenciosamente porque `reporter_id` tiene FK a `auth.users`, no a `profiles`. Fix en `/admin/page.tsx`: fetch de reports sin join, luego fetch separado de profiles por IDs y merge manual en `reporterMap`.
+
+**Fechas YYYY-MM-DD — off-by-one (sesión 2026-05-22):**
+
+`new Date('YYYY-MM-DD')` parsea como UTC midnight → en Chile (UTC-3/UTC-4) muestra el día anterior. Fix: detectar string de solo fecha con regex y construir con `new Date(y, m-1, d)` (tiempo local). Aplica en `apps/web/src/lib/utils.ts` → `formatDate()` y en todas las funciones `formatDate` en mobile.
+
+**payment.map crash al confirmar inscripción (sesión 2026-05-22):**
+
+`e.payment` en enrollments puede ser un objeto single (no array) cuando Supabase devuelve un join one-to-one. Fix en `MyClassesClient.tsx`: `Array.isArray(e.payment) ? e.payment.map(...) : e.payment`.
 
 **Explore web — filtros colapsables (sesión 2026-05-19):**
 

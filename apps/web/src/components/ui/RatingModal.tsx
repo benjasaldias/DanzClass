@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { X, Star } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import StarRating from './StarRating'
 
 interface RatingModalProps {
@@ -32,13 +31,14 @@ export default function RatingModal({
     if (selected < 1) { setError('Selecciona al menos 1 estrella'); return }
     setLoading(true)
     setError(null)
-    const supabase = createClient()
 
-    const { error: dbError } = isEdit
-      ? await (supabase as any).from('ratings').update({ stars: selected }).eq('rater_id', raterId).eq('rated_user_id', teacherId)
-      : await (supabase as any).from('ratings').insert({ rater_id: raterId, rated_user_id: teacherId, stars: selected })
+    const res = await fetch('/api/ratings/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rated_user_id: teacherId, stars: selected }),
+    })
 
-    if (dbError) {
+    if (!res.ok) {
       setError('No se pudo guardar la valoración. Intenta de nuevo.')
       setLoading(false)
       return
@@ -49,8 +49,7 @@ export default function RatingModal({
   }
 
   const labels: Record<number, string> = {
-    0.5: 'Muy malo', 1: 'Malo', 1.5: 'Malo', 2: 'Regular', 2.5: 'Regular',
-    3: 'Bueno', 3.5: 'Bueno', 4: 'Muy bueno', 4.5: 'Excelente', 5: 'Excelente',
+    1: 'Malo', 2: 'Regular', 3: 'Bueno', 4: 'Muy bueno', 5: 'Excelente',
   }
 
   return (

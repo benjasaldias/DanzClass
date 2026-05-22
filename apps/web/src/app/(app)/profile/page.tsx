@@ -4,11 +4,12 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, ShieldCheck, Instagram, Music2, Video } from 'lucide-react'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import PostCard from '@/components/feed/PostCard'
+import StarRating from '@/components/ui/StarRating'
 import { formatCLP, formatDate, formatTime } from '@/lib/utils'
 
 const TIER_LABELS: Record<string, string> = {
@@ -29,7 +30,7 @@ export default async function ProfilePage() {
     { count: followersCount },
     { count: classesCount },
     { count: paidSpotsCount },
-    { count: trustCount },
+    { data: ratingRows },
     { data: classes },
     { data: enrolledData },
     { data: ownPostsData },
@@ -43,7 +44,7 @@ export default async function ProfilePage() {
       .select('*, class:classes!inner(*)', { count: 'exact', head: true })
       .eq('class.teacher_id', user.id)
       .eq('status', 'confirmed'),
-    supabase.from('trust_endorsements' as any).select('*', { count: 'exact', head: true }).eq('endorsed_id', user.id),
+    (supabase as any).from('ratings').select('stars').eq('rated_user_id', user.id),
     (supabase as any)
       .from('classes')
       .select('*, media:class_media(*)')
@@ -69,6 +70,11 @@ export default async function ProfilePage() {
   const planInfo = SUBSCRIPTION_PLANS.find((p) => p.tier === tier)
   const enrolledClasses = (enrolledData as any[]) ?? []
   const ownPosts = (ownPostsData as any[]) ?? []
+  const ratingList = (ratingRows as any[]) ?? []
+  const ratingCount = ratingList.length
+  const avgRating = ratingCount > 0
+    ? Math.round((ratingList.reduce((a: number, r: any) => a + Number(r.stars), 0) / ratingCount) * 10) / 10
+    : 0
 
   return (
     <div className="flex flex-col">
@@ -111,11 +117,17 @@ export default async function ProfilePage() {
             <span className="text-base font-bold text-gray-900 dark:text-dark-text">{paidSpotsCount ?? 0}</span>
             <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
           </div>
-          <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
-          <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-green-700 dark:text-emerald-400">{trustCount ?? 0}</span>
-            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><ShieldCheck className="h-3 w-3" /> confían</span>
-          </div>
+          {canTeach(tier) && (
+            <>
+              <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
+              <div className="flex flex-col items-center">
+                {ratingCount > 0
+                  ? <StarRating value={avgRating} count={ratingCount} size="sm" />
+                  : <span className="text-xs text-gray-400 dark:text-dark-text2">Sin valoraciones</span>
+                }
+              </div>
+            </>
+          )}
         </div>
 
         {profile?.instagram_handle && (

@@ -195,11 +195,7 @@ export default function TeacherProfileClient({
             <>
               <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
               <div className="flex flex-col items-center">
-                <div className="flex items-center gap-1">
-                  <span className="text-base font-bold text-brand-600">{avgStars.toFixed(1)}</span>
-                  <StarRating value={avgStars} readOnly size="sm" />
-                </div>
-                <span className="text-[11px] text-gray-500 dark:text-dark-text2">{ratingCount} valoracion{ratingCount !== 1 ? 'es' : ''}</span>
+                <StarRating value={avgStars} count={ratingCount} size="md" />
               </div>
             </>
           )}

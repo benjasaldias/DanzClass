@@ -5,6 +5,7 @@ import { X, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import StarRating from './StarRating'
 
+
 export interface PendingRating {
   teacherId: string
   teacherName: string
@@ -62,18 +63,16 @@ function RatingPopupInner({ pending, userId, onDone }: RatingPopupInnerProps) {
   const [loading, setLoading] = useState(false)
 
   const labels: Record<number, string> = {
-    0.5: 'Muy malo', 1: 'Malo', 1.5: 'Malo', 2: 'Regular', 2.5: 'Regular',
-    3: 'Bueno', 3.5: 'Bueno', 4: 'Muy bueno', 4.5: 'Excelente', 5: 'Excelente',
+    1: 'Malo', 2: 'Regular', 3: 'Bueno', 4: 'Muy bueno', 5: 'Excelente',
   }
 
   async function handleRate() {
     if (selected < 1) return
     setLoading(true)
-    const supabase = createClient()
-    await (supabase as any).from('ratings').insert({
-      rater_id: userId,
-      rated_user_id: pending.teacherId,
-      stars: selected,
+    await fetch('/api/ratings/upsert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rated_user_id: pending.teacherId, stars: selected }),
     })
     onDone()
   }

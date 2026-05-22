@@ -84,9 +84,8 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
             <span className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{teacher.full_name}</span>
           </Link>
           {teacherRating && teacherRating.rating_count > 0 && (
-            <div className="flex items-center gap-1 mt-0.5">
-              <StarRating value={teacherRating.avg_stars} readOnly size="sm" />
-              <span className="text-xs text-gray-400 dark:text-dark-text2">({teacherRating.rating_count})</span>
+            <div className="mt-0.5">
+              <StarRating value={teacherRating.avg_stars} count={teacherRating.rating_count} size="sm" />
             </div>
           )}
           <p className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</p>
