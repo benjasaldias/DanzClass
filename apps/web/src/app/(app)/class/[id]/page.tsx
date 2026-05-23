@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ClassDetailClient from '@/components/class/ClassDetailClient'
+import { getActiveTier } from '@/lib/subscription'
 import type { ClassWithTeacher } from '@danceclass/shared'
 
 interface Props {
@@ -41,6 +42,8 @@ export default async function ClassDetailPage({ params }: Props) {
   let followData = null
   let myAudition = null
   let friendsTwox: any[] = []
+  let isInWaitlist = false
+  const userTier = user ? await getActiveTier(user.id, supabase) : 'none'
 
   if (user) {
     const [profileRes, enrollmentRes, followRes] = await Promise.all([
@@ -96,6 +99,15 @@ export default async function ClassDetailPage({ params }: Props) {
       : { data: [] }
 
     friendsTwox = (friendsTwoxData as any[]) ?? []
+
+    // Waitlist entry
+    const { data: waitlistEntry } = await (supabase as any)
+      .from('waitlist')
+      .select('id')
+      .eq('class_id', params.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    isInWaitlist = !!waitlistEntry
   }
 
   return (
@@ -108,6 +120,8 @@ export default async function ClassDetailPage({ params }: Props) {
       isFollowing={!!followData}
       myAudition={myAudition}
       friendsTwoxRequests={friendsTwox}
+      isInWaitlist={isInWaitlist}
+      userTier={userTier}
     />
   )
 }

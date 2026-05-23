@@ -79,11 +79,16 @@ export default function FeedClient({
   const loadFeed = useCallback(async (filter: FeedFilter) => {
     setLoading(true)
     const supabase = createClient()
+    const today = new Date().toISOString().split('T')[0]
 
     let classQuery = supabase
       .from('classes')
       .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
       .eq('status', 'active')
+      // Exclude expired sueltas
+      .or(`type.neq.suelta,date.gte.${today}`)
+      // Exclude expired periodica/entrenamiento
+      .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${today}`)
       .order('created_at', { ascending: false })
       .limit(20)
 
@@ -109,7 +114,14 @@ export default function FeedClient({
     }
 
     const [{ data: classData }, { data: postData }] = await Promise.all([classQuery, postQuery])
-    const newClasses = classData ?? []
+    // Client-side: filter custom-recurrence classes where all dates have passed
+    const todayStr = new Date().toISOString().split('T')[0]
+    const newClasses = (classData ?? []).filter((c: any) => {
+      if (c.recurrence === 'custom') {
+        return (c.custom_dates ?? []).some((d: string) => d >= todayStr)
+      }
+      return true
+    })
     setClasses(newClasses)
     setPosts((postData as any[]) ?? [])
 

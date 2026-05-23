@@ -228,7 +228,15 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
           )}
           <View className="flex-row items-center gap-2">
             <Users size={14} stroke="#9ca3af" />
-            <Text className="text-sm text-gris-humo dark:text-dark-text2">Cupos: {classData.max_spots}</Text>
+            {(() => {
+              const taken = (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
+              const available = Math.max(0, (classData.max_spots ?? 0) - taken)
+              return (
+                <Text className={`text-sm ${available <= 0 ? 'text-red-500 dark:text-red-400 font-medium' : 'text-gris-humo dark:text-dark-text2'}`}>
+                  {available <= 0 ? 'Sin cupos disponibles' : `${available}/${classData.max_spots} cupos`}
+                </Text>
+              )
+            })()}
           </View>
         </View>
 

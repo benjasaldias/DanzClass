@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   MapPin, Clock, Users, Calendar, ChevronLeft, ChevronRight, UserPlus, UserMinus,
   AlertCircle, CheckCircle2, Pencil, Trash2, Flag, Tag, ClipboardList,
-  ChevronDown, ChevronUp, Share2,
+  ChevronDown, ChevronUp, Share2, Bell,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -20,7 +20,8 @@ import DiscountModal from '@/components/class/DiscountModal'
 import TwoxRequestButton from '@/components/class/TwoxRequestButton'
 import AuditionModal from '@/components/class/AuditionModal'
 import type { User } from '@supabase/supabase-js'
-import type { Profile } from '@danceclass/shared'
+import type { Profile, SubscriptionTier } from '@danceclass/shared'
+import { canEnroll } from '@danceclass/shared'
 
 interface ClassDetailClientProps {
   classData: any
@@ -31,9 +32,10 @@ interface ClassDetailClientProps {
   isFollowing: boolean
   myAudition?: any
   friendsTwoxRequests?: any[]
+  isInWaitlist?: boolean
+  userTier?: SubscriptionTier
 }
 
-type EnrollmentInsert = { student_id: string; class_id: string; session_id: string | null; status: 'pending_payment' }
 type FollowInsert = { follower_id: string; following_id: string }
 type NotificationInsert = { user_id: string; type: 'follow' | 'class_cancelled'; data: Record<string, unknown> }
 
@@ -47,7 +49,8 @@ const LEVEL_COLORS = {
 export default function ClassDetailClient({
   classData, currentUser, currentProfile, enrollment: initialEnrollment,
   spots: initialSpots, isFollowing: initialIsFollowing, myAudition,
-  friendsTwoxRequests = [],
+  friendsTwoxRequests = [], isInWaitlist: initialIsInWaitlist = false,
+  userTier = 'none',
 }: ClassDetailClientProps) {
   const router = useRouter()
 
@@ -78,6 +81,8 @@ export default function ClassDetailClient({
   const [matchingId, setMatchingId] = useState<string | null>(null)
   const [matchError, setMatchError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [isInWaitlist, setIsInWaitlist] = useState(initialIsInWaitlist)
+  const [waitlistLoading, setWaitlistLoading] = useState(false)
 
   const teacher = classData.teacher
   const media = [...(classData.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
@@ -120,22 +125,22 @@ export default function ClassDetailClient({
   async function handleEnroll() {
     if (!currentUser || isFull) return
     setEnrolling(true)
-    const supabase = createClient()
-    const enrollmentPayload: EnrollmentInsert = { student_id: currentUser.id, class_id: classData.id, session_id: null, status: 'pending_payment' }
-    const { data, error } = await supabase.from('enrollments' as any).insert(enrollmentPayload as any).select('*, payment:payments(*)').single()
-    if (!error && data) {
-      setEnrollment(data)
+    const res = await fetch('/api/class/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: classData.id }),
+    })
+    if (res.ok) {
+      const json = await res.json()
+      setEnrollment(json.enrollment)
       setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available - 1, spots_taken: prev.spots_taken + 1 } : prev)
-      const today = new Date().toISOString().split('T')[0]
-      const { data: debts } = await supabase.from('enrollments').select('id, class:classes!inner(id, teacher_id, date, type)').eq('student_id', currentUser.id).eq('status', 'pending_payment').neq('class_id', classData.id) as any
-      const hasDebt = (debts as any[] ?? []).some((e: any) => {
-        const cls = e.class
-        return cls?.teacher_id === classData.teacher_id && cls?.type === 'suelta' && cls?.date && cls.date < today
-      })
-      if (hasDebt) {
-        await supabase.from('notifications' as any).insert({ user_id: classData.teacher_id, type: 'debt_warning', data: { student_id: currentUser.id, student_name: currentProfile?.username ?? currentUser.email, class_id: classData.id } } as any)
+      router.push(`/payment/${json.enrollment.id}`)
+    } else {
+      const json = await res.json().catch(() => ({}))
+      if (json.error === 'subscription_required') {
+        router.push('/plans')
       }
-      router.push(`/payment/${data.id}`)
+      // no_spots and already_enrolled are handled by UI guards; other errors fail silently
     }
     setEnrolling(false)
   }
@@ -158,12 +163,41 @@ export default function ClassDetailClient({
 
   async function handleLeaveClass() {
     setLeaving(true)
-    const supabase = createClient()
-    await supabase.from('enrollments' as any).update({ status: 'cancelled' } as any).eq('id', enrollment.id)
-    setEnrollment(null)
-    setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available + 1, spots_taken: prev.spots_taken - 1 } : prev)
+    const res = await fetch('/api/class/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enrollmentId: enrollment.id }),
+    })
+    if (res.ok) {
+      setEnrollment(null)
+      setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available + 1, spots_taken: prev.spots_taken - 1 } : prev)
+    }
     setLeaving(false)
     setShowLeaveConfirm(false)
+  }
+
+  async function handleJoinWaitlist() {
+    if (!currentUser) return
+    setWaitlistLoading(true)
+    const res = await fetch('/api/class/waitlist/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: classData.id }),
+    })
+    if (res.ok) setIsInWaitlist(true)
+    setWaitlistLoading(false)
+  }
+
+  async function handleLeaveWaitlist() {
+    if (!currentUser) return
+    setWaitlistLoading(true)
+    const res = await fetch('/api/class/waitlist/leave', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: classData.id }),
+    })
+    if (res.ok) setIsInWaitlist(false)
+    setWaitlistLoading(false)
   }
 
   async function handleDeleteClass() {
@@ -214,6 +248,7 @@ export default function ClassDetailClient({
     : `¿Seguro que quieres salirte de "${classData.title}"? Tu cupo quedará libre.`
 
   const canEnrollDirectly = !isEntrenamiento || classData.audition_closed || !classData.requires_audition
+  const canUserEnroll = canEnroll(userTier)
 
   const shareButtonClasses = "flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium transition-colors"
   const shareButtonActiveClasses = copied
@@ -580,30 +615,67 @@ export default function ClassDetailClient({
               )}
             </div>
 
-            {!currentUser ? (
-              <Link
-                href="/auth/login"
-                className="btn-primary px-6 py-3 text-base flex-shrink-0"
-              >
+            {/* Waitlist flow when class is full */}
+            {isFull && currentUser ? (
+              <div className="flex flex-col items-end gap-1.5">
+                {isInWaitlist ? (
+                  <>
+                    <p className="text-xs text-gray-500 dark:text-dark-text2 flex items-center gap-1">
+                      <Bell className="h-3.5 w-3.5 text-brand-500" />
+                      Estás en la lista de espera
+                    </p>
+                    <button
+                      onClick={handleLeaveWaitlist}
+                      disabled={waitlistLoading}
+                      className="text-xs text-gray-400 hover:text-red-500 font-medium underline disabled:opacity-50"
+                    >
+                      Salir de la lista
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleJoinWaitlist}
+                    disabled={waitlistLoading}
+                    className="flex items-center gap-1.5 rounded-xl border border-gray-300 dark:border-dark-border bg-transparent px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"
+                  >
+                    {waitlistLoading ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                    ) : (
+                      <Bell className="h-4 w-4" />
+                    )}
+                    Avisarme si hay cupo
+                  </button>
+                )}
+              </div>
+            ) : isFull && !currentUser ? (
+              <Link href="/auth/login" className="btn-primary px-6 py-3 text-base flex-shrink-0">
                 Inicia sesión para reservar
+              </Link>
+            ) : !currentUser ? (
+              <Link href="/auth/login" className="btn-primary px-6 py-3 text-base flex-shrink-0">
+                Inicia sesión para reservar
+              </Link>
+            ) : !canUserEnroll ? (
+              <Link href="/plans" className="btn-primary px-6 py-3 text-base flex-shrink-0">
+                Obtener plan para reservar
               </Link>
             ) : (
               <button
                 onClick={handleEnroll}
-                disabled={enrolling || isFull}
-                className={cn('btn-primary px-6 py-3 text-base flex-shrink-0', isFull && 'opacity-50 cursor-not-allowed')}
+                disabled={enrolling}
+                className="btn-primary px-6 py-3 text-base flex-shrink-0"
               >
                 {enrolling ? (
                   <span className="flex items-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Reservando...
                   </span>
-                ) : isFull ? 'Sin cupos' : 'Reservar cupo'}
+                ) : 'Reservar cupo'}
               </button>
             )}
           </div>
 
-          {/* 2x button — only for logged-in users */}
+          {/* 2x button — only for logged-in users when spots available */}
           {currentUser && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
             <div className="mt-1">
               <TwoxRequestButton

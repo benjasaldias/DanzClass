@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker'
 import {
   ChevronLeft, MapPin, Clock, Users, Calendar, ChevronDown,
   ChevronRight, CheckCircle2, Tag, Music2, AlertCircle,
-  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2,
+  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell,
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
@@ -429,6 +429,10 @@ export default function ClassDetailScreen() {
   const [showAuditionModal, setShowAuditionModal] = useState(false)
   const [auditionSubmitted, setAuditionSubmitted] = useState(false)
 
+  // Waitlist state
+  const [isInWaitlist, setIsInWaitlist] = useState(false)
+  const [waitlistLoading, setWaitlistLoading] = useState(false)
+
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -513,6 +517,15 @@ export default function ClassDetailScreen() {
         }
       }
 
+      // Waitlist check
+      const { data: waitlistEntry } = await (supabase as any)
+        .from('waitlist')
+        .select('id')
+        .eq('class_id', id)
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+      setIsInWaitlist(!!waitlistEntry)
+
       setLoading(false)
     }
     load()
@@ -590,26 +603,54 @@ export default function ClassDetailScreen() {
 
   // ─── Enrollment handlers ──────────────────────────────────────────────────
   async function handleEnroll() {
-    if (!userId || isFull) return
-    setEnrolling(true)
-    const { data, error } = await (supabase as any)
-      .from('enrollments')
-      .insert({ student_id: userId, class_id: cls.id, session_id: null, status: 'pending_payment' })
-      .select('*, payment:payments(*)')
-      .single()
-    if (error) {
-      Alert.alert('Error', 'No se pudo inscribir. Intenta nuevamente.')
-      setEnrolling(false)
+    if (!userId || !token || isFull) return
+    if (!canEnroll(tier)) {
+      Alert.alert(
+        'Plan requerido',
+        'Necesitas un plan activo para inscribirte en clases.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Ver planes', onPress: () => router.push('/(app)/plans' as any) },
+        ]
+      )
       return
     }
-    setEnrollment(data)
-    setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available - 1 } : prev)
-    setEnrolling(false)
-    router.push(`/(app)/payment/${data.id}` as any)
+    setEnrolling(true)
+    const res = await fetch(`${WEB_URL}/api/class/enroll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ classId: cls.id }),
+    })
+    if (res.ok) {
+      const json = await res.json()
+      setEnrollment(json.enrollment)
+      setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available - 1 } : prev)
+      setEnrolling(false)
+      router.push(`/(app)/payment/${json.enrollment.id}` as any)
+    } else {
+      setEnrolling(false)
+      const json = await res.json().catch(() => ({}))
+      if (json.error === 'subscription_required') {
+        Alert.alert(
+          'Plan requerido',
+          'Necesitas un plan activo para inscribirte en clases.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Ver planes', onPress: () => router.push('/(app)/plans' as any) },
+          ]
+        )
+      } else if (json.error === 'already_enrolled') {
+        Alert.alert('Ya inscrito', 'Ya tienes una inscripción activa en esta clase.')
+      } else if (json.error === 'no_spots') {
+        Alert.alert('Sin cupos', 'No hay cupos disponibles.')
+      } else {
+        Alert.alert('Error', 'No se pudo inscribir. Intenta nuevamente.')
+      }
+    }
   }
 
   async function handleLeave() {
-    if (!userId || !enrollment) return
+    if (!userId || !enrollment || !token) return
     Alert.alert(
       'Salir de la clase',
       '¿Estás seguro? Perderás tu lugar y deberás reinscribirte.',
@@ -619,7 +660,11 @@ export default function ClassDetailScreen() {
           text: 'Salir', style: 'destructive',
           onPress: async () => {
             setLeaving(true)
-            await supabase.from('enrollments').update({ status: 'cancelled' }).eq('id', enrollment.id)
+            await fetch(`${WEB_URL}/api/class/leave`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ enrollmentId: enrollment.id }),
+            })
             setEnrollment(null)
             setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available + 1 } : prev)
             setLeaving(false)
@@ -627,6 +672,30 @@ export default function ClassDetailScreen() {
         },
       ]
     )
+  }
+
+  async function handleJoinWaitlist() {
+    if (!token) return
+    setWaitlistLoading(true)
+    const res = await fetch(`${WEB_URL}/api/class/waitlist/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ classId: cls.id }),
+    })
+    if (res.ok) setIsInWaitlist(true)
+    setWaitlistLoading(false)
+  }
+
+  async function handleLeaveWaitlist() {
+    if (!token) return
+    setWaitlistLoading(true)
+    const res = await fetch(`${WEB_URL}/api/class/waitlist/leave`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ classId: cls.id }),
+    })
+    if (res.ok) setIsInWaitlist(false)
+    setWaitlistLoading(false)
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -1011,15 +1080,42 @@ export default function ClassDetailScreen() {
                     <Text className="text-xs text-red-500">{leaving ? 'Saliendo...' : 'Salir de la clase'}</Text>
                   </TouchableOpacity>
                 </View>
+              ) : isFull ? (
+                <View className="mt-2 items-center gap-2">
+                  {isInWaitlist ? (
+                    <>
+                      <View className="flex-row items-center gap-2 bg-brand-50 border border-brand-200 rounded-xl px-3 py-2 w-full">
+                        <Bell size={14} stroke="#c026d3" />
+                        <Text className="text-xs text-brand-700 font-medium flex-1">Estás en la lista de espera</Text>
+                      </View>
+                      <TouchableOpacity onPress={handleLeaveWaitlist} disabled={waitlistLoading} className="py-1">
+                        <Text className="text-xs text-gray-400 underline">
+                          {waitlistLoading ? 'Procesando...' : 'Salir de la lista'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={handleJoinWaitlist}
+                      disabled={waitlistLoading || !userId}
+                      className="flex-row items-center gap-2 rounded-xl border border-gray-300 bg-transparent py-3 px-4 w-full justify-center"
+                    >
+                      {waitlistLoading
+                        ? <ActivityIndicator size="small" color="#6B6880" />
+                        : <Bell size={16} stroke="#6B6880" />
+                      }
+                      <Text className="font-semibold text-gray-600">Avisarme si hay cupo</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               ) : (
                 <TouchableOpacity
                   onPress={handleEnroll}
-                  disabled={enrolling || isFull || !canEnroll(tier)}
-                  className={`rounded-xl py-3 items-center mt-1 ${isFull || !canEnroll(tier) ? 'bg-gray-200' : 'bg-brand-600'}`}
+                  disabled={enrolling || !canEnroll(tier)}
+                  className={`rounded-xl py-3 items-center mt-1 ${!canEnroll(tier) ? 'bg-gray-200' : 'bg-brand-600'}`}
                 >
-                  <Text className={`font-semibold ${isFull || !canEnroll(tier) ? 'text-gray-500' : 'text-white'}`}>
+                  <Text className={`font-semibold ${!canEnroll(tier) ? 'text-gray-500' : 'text-white'}`}>
                     {enrolling ? 'Inscribiendo...' :
-                     isFull ? 'Sin cupos' :
                      !canEnroll(tier) ? 'Necesitas un plan' :
                      'Reservar lugar'}
                   </Text>

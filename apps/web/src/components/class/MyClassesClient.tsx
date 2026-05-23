@@ -6,7 +6,7 @@ import Image from 'next/image'
 import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
-  AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2,
+  AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2, Bell,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -35,7 +35,7 @@ const ENROLL_STATUS = {
   cancelled: { label: 'Cancelado', icon: AlertCircle, color: 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' },
 }
 
-function EnrolledTab({ enrollments }: { enrollments: any[] }) {
+function EnrolledTab({ enrollments, onGoToHistory }: { enrollments: any[]; onGoToHistory: () => void }) {
   if (enrollments.length === 0) {
     return (
       <div className="flex flex-col items-center py-16 text-center">
@@ -49,8 +49,22 @@ function EnrolledTab({ enrollments }: { enrollments: any[] }) {
     )
   }
 
+  const pendingCount = enrollments.filter(
+    (e) => e.status === 'pending_payment' || e.status === 'payment_submitted'
+  ).length
+
   return (
     <div className="space-y-3">
+      {pendingCount > 0 && (
+        <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4 flex items-start gap-3">
+          <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-yellow-700 dark:text-yellow-400">
+            Tienes {pendingCount} pago{pendingCount !== 1 ? 's' : ''} pendiente{pendingCount !== 1 ? 's' : ''}.{' '}
+            <button onClick={onGoToHistory} className="underline font-medium">Ver en Historial</button>
+            ; debes resolverlo con tu profesor/a.
+          </p>
+        </div>
+      )}
       {enrollments.map((enrollment) => {
         const cls = enrollment.class as any
         const teacher = cls?.teacher
@@ -321,6 +335,19 @@ function TeachingTab({
                       )}
                     </Link>
                   )}
+
+                  {/* Waitlist count badge */}
+                  {(() => {
+                    const waitlistCount = Array.isArray(cls.waitlist)
+                      ? (cls.waitlist[0]?.count ?? 0)
+                      : 0
+                    return waitlistCount > 0 ? (
+                      <p className="mt-1.5 text-xs text-gris-humo dark:text-dark-text2 flex items-center gap-1">
+                        <Bell className="h-3 w-3" />
+                        {waitlistCount} en lista de espera
+                      </p>
+                    ) : null
+                  })()}
 
                   {/* Deletion warning */}
                   {deletionDate && !deleted && (
@@ -697,7 +724,7 @@ export default function MyClassesClient({
         </button>
       </div>
 
-      {tab === 'enrolled' && <EnrolledTab enrollments={enrollments} />}
+      {tab === 'enrolled' && <EnrolledTab enrollments={enrollments} onGoToHistory={() => setTab('history')} />}
       {tab === 'teaching' && (
         <TeachingTab
           initialClasses={teachingClasses}

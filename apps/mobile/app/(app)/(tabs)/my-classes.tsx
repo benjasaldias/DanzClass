@@ -5,10 +5,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap, History, Receipt } from 'lucide-react-native'
+import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap, History, Receipt, Bell } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
+import { useTheme } from '../../../context/ThemeContext'
 
 function formatDate(date: string) {
   const [y, m, d] = date.split('-').map(Number)
@@ -40,11 +41,14 @@ const ENROLL_STATUS: Record<string, { label: string; color: string }> = {
 
 // ─── Enrolled tab ─────────────────────────────────────────────────────────────
 
-function EnrolledTab({ enrollments, onPressClass, onPressPayment }: {
+function EnrolledTab({ enrollments, onPressClass, onPressPayment, onGoToHistory }: {
   enrollments: any[]
   onPressClass: (classId: string) => void
   onPressPayment: (enrollmentId: string) => void
+  onGoToHistory: () => void
 }) {
+  const { isDark } = useTheme()
+
   if (enrollments.length === 0) {
     return (
       <View className="items-center py-16">
@@ -57,8 +61,29 @@ function EnrolledTab({ enrollments, onPressClass, onPressPayment }: {
     )
   }
 
+  const pendingCount = enrollments.filter(
+    (e) => e.status === 'pending_payment' || e.status === 'payment_submitted'
+  ).length
+
   return (
     <View className="gap-3 pb-8">
+      {pendingCount > 0 && (
+        <View className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-2xl p-4 flex-row items-start gap-3">
+          <AlertTriangle size={16} stroke={isDark ? '#fbbf24' : '#ca8a04'} />
+          <View className="flex-1">
+            <Text className="text-yellow-700 dark:text-yellow-400 text-sm">
+              Tienes {pendingCount} pago{pendingCount !== 1 ? 's' : ''} pendiente{pendingCount !== 1 ? 's' : ''}.{' '}
+              <Text
+                className="underline font-semibold text-yellow-700 dark:text-yellow-400"
+                onPress={onGoToHistory}
+              >
+                Ver en Historial
+              </Text>
+              {'; '}debes resolverlo con tu profesor/a.
+            </Text>
+          </View>
+        </View>
+      )}
       {enrollments.map((enrollment) => {
         const cls = enrollment.class
         const teacher = cls?.teacher
@@ -280,6 +305,17 @@ function TeachingTab({
                     )}
                     <Text className="text-xs text-gris-humo dark:text-dark-text2">{total}/{cls.max_spots} cupos</Text>
                   </View>
+
+                  {/* Waitlist badge */}
+                  {(() => {
+                    const wc = Array.isArray(cls.waitlist) ? (cls.waitlist[0]?.count ?? 0) : 0
+                    return wc > 0 ? (
+                      <View className="flex-row items-center gap-1 mt-1.5">
+                        <Bell size={11} stroke="#6B6880" />
+                        <Text className="text-xs text-gris-humo dark:text-dark-text2">{wc} en lista de espera</Text>
+                      </View>
+                    ) : null
+                  })()}
 
                   {/* Deletion warning */}
                   {cls.deletion_date && !deleted && (
@@ -596,7 +632,7 @@ export default function MyClassesScreen() {
         .order('created_at', { ascending: false }),
       (supabase as any)
         .from('classes')
-        .select('*, enrollments(*, student:profiles!student_id(id, full_name, username, avatar_url), payment:payments(*))')
+        .select('*, enrollments(*, student:profiles!student_id(id, full_name, username, avatar_url), payment:payments(*)), waitlist(count)')
         .eq('teacher_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false }),
@@ -662,6 +698,7 @@ export default function MyClassesScreen() {
             enrollments={enrollments}
             onPressClass={(id) => router.push(`/(app)/class/${id}` as any)}
             onPressPayment={(id) => router.push(`/(app)/payment/${id}` as any)}
+            onGoToHistory={() => setTab('history')}
           />
         )}
         {tab === 'teaching' && userId && (

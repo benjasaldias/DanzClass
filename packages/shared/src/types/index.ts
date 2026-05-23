@@ -28,6 +28,8 @@ export type NotificationType =
   | 'audition_accepted'
   | 'audition_rejected'
   | 'new_audition'
+  | 'class_reminder'
+  | 'waitlist_available'
 
 export type ClassType = 'suelta' | 'periodica' | 'entrenamiento'
 export type AuditionStatus = 'pending' | 'accepted' | 'rejected'

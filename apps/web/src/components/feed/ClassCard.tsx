@@ -44,8 +44,8 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
   const sortedMedia = media.sort((a: any, b: any) => a.order_index - b.order_index)
   const isTeacher = classData.teacher_id === currentUserId
 
-  const confirmedCount = (classData.enrollments ?? []).filter((e: any) => e.status === 'confirmed').length
-  const spotsAvailable = (classData.max_spots ?? 0) - confirmedCount
+  const takenCount = (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
+  const spotsAvailable = Math.max(0, (classData.max_spots ?? 0) - takenCount)
 
   const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
 

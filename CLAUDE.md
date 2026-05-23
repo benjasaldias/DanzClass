@@ -95,6 +95,7 @@ Esta referencia define el baseline visual. Los cambios de color deben ser aditiv
 | `013_2x_requests.sql` | Tabla `class_2x_requests` (user_id, class_id, matched_with, status, payment_assignee). `is_2x BOOLEAN`, `partner_enrollment_id UUID` en `enrollments`. `price_suelta_2x INTEGER` en `classes`. Notificación `2x_payment_turn`. |
 | `014_discounts.sql` | `discount_price INTEGER`, `discount_price_monthly INTEGER` en `classes`. Notificación `class_discount`. |
 | `015_entrenamiento.sql` | Tipo `'entrenamiento'` en `classes`. `requires_audition`, `audition_closed`, `ends_at DATE`, `ends_indefinitely BOOLEAN` en `classes`. Tabla `auditions`. Bucket `audition-videos` (privado, 100MB). Notificaciones `audition_accepted`, `audition_rejected`. |
+| `020_reminders_and_waitlist.sql` | Extiende constraint notifications con `class_reminder` y `waitlist_available`. Tabla `waitlist` (class_id, user_id, UNIQUE(class_id,user_id)) con RLS. |
 
 **Antes de proponer cualquier migración nueva:** verificar que el constraint de `notification_type` en la última migración incluya todos los tipos anteriores, ya que cada migración lo reescribe completo.
 
@@ -134,7 +135,7 @@ Esta referencia define el baseline visual. Los cambios de color deben ser aditiv
 - Banner naranja con fecha de eliminación de archivos
 
 ### Notificaciones (`/notifications`)
-Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `new_class`, `class_updated`, `class_cancelled`, `payment_confirmed`, `payment_rejected`, `2x_request`, `2x_match`, `2x_payment_turn`, `debt_warning`, `new_report`, `class_discount`, `audition_accepted`, `audition_rejected`
+Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `new_class`, `class_updated`, `class_cancelled`, `payment_confirmed`, `payment_rejected`, `2x_request`, `2x_match`, `2x_payment_turn`, `debt_warning`, `new_report`, `class_discount`, `audition_accepted`, `audition_rejected`, `new_audition`, `class_reminder`, `waitlist_available`
 
 ### Perfiles
 - `/teacher/[username]` — stats (avg stars con `StarRating`), follow/amistad, posts con filtro de visibilidad por relación
@@ -160,6 +161,12 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 - **Compartir clase:** botón "Compartir" en `ClassDetailClient` copia URL al portapapeles; visible para todos incluso sin sesión
 - **Acceso anónimo a clases:** `/class/*` es ruta pública (middleware); `ClassDetailClient` acepta `currentUser: User | null`; sin sesión: oculta acciones y muestra "Inicia sesión para reservar"
 - **Historial de pagos:** tercer tab "Historial" en `/my-classes`; vista alumno (mis pagos) + vista profesor (pagos recibidos + resumen mensual); sin nuevas tablas
+- **Recordatorios 24h antes:** cron en `/api/cron/cleanup-classes` calcula clases de mañana (sueltas, sessions, custom, periódicas) y envía `class_reminder` a alumnos confirmados; deduplicación por Set
+- **Lista de espera:** tabla `waitlist` + rutas `/api/class/waitlist/join`, `/api/class/waitlist/leave`, `/api/class/leave`; UI en `ClassDetailClient` (cuando `isFull`: "Avisarme si hay cupo" / "Estás en la lista de espera"); badge "N en lista de espera" en `MyClassesClient` tab Dicto; notificación `waitlist_available` al primer en lista cuando alguien cancela su inscripción
+- **Inscripción centralizada:** `POST /api/class/enroll` — valida tier (`canEnroll()`), soporta Bearer+cookie, upsert si había enrollment cancelado (evita violación UNIQUE), detecta deudas y notifica al profesor. `ClassDetailClient` llama esta ruta; mobile también vía `WEB_URL/api/class/enroll` con Bearer token.
+- **Filtro de clases vencidas en feed:** dos filtros `.or()` en la query Supabase: `(1) type.neq.suelta,date.gte.TODAY` y `(2) type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.TODAY`. Clases `recurrence='custom'` se filtran client-side por `custom_dates`. Aplicado en `feed/page.tsx`, `FeedClient.tsx` y `feed.tsx` (mobile).
+- **Cupos en feed:** `ClassCard.tsx` y `MobileClassCard.tsx` calculan cupos usando `status !== 'cancelled'` (no solo `confirmed`) para coincidir con la vista `class_spots`.
+- **Banner de pagos pendientes:** `EnrolledTab` en `MyClassesClient.tsx` (web) y `my-classes.tsx` (mobile) muestra un banner amarillo con count de `pending_payment + payment_submitted` y botón "Ver en Historial" que cambia el tab activo.
 
 ---
 
@@ -186,7 +193,7 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 | `feed/ExploreClient.tsx` | Búsqueda con filtros de usuarios |
 | `feed/UserCard.tsx` | Card usuario con follow + amistad |
 | `feed/CreatePostModal.tsx` | Modal crear video con visibilidad; Cloudinary o fallback |
-| `class/ClassDetailClient.tsx` | Carrusel sin crop; dropdown amigos 2x; `TwoxRequestButton`; botón "Ver fechas"; botón Compartir; soporte anónimo |
+| `class/ClassDetailClient.tsx` | Carrusel sin crop; dropdown amigos 2x; `TwoxRequestButton`; botón "Ver fechas"; botón Compartir; soporte anónimo; UI lista de espera cuando `isFull` |
 | `class/CustomDatesCalendar.tsx` | Calendar modal solo lectura con fechas destacadas |
 | `class/CreateClassForm.tsx` | Form con `DateInput`, `class_type` opcional, `onWheel` desactivado en números |
 | `class/EditClassForm.tsx` | Ídem + zona peligrosa con eliminar |
@@ -220,7 +227,8 @@ type NotificationType =
   | 'payment_confirmed' | 'payment_rejected'
   | 'follow' | 'new_class' | 'class_updated' | 'class_cancelled' | 'class_discount'
   | 'debt_warning' | 'new_report'
-  | 'audition_accepted' | 'audition_rejected'
+  | 'audition_accepted' | 'audition_rejected' | 'new_audition'
+  | 'class_reminder' | 'waitlist_available'
 
 canTeach(tier)          // basic | teacher | pro
 canTeachUnlimited(tier) // teacher | pro
@@ -269,6 +277,12 @@ API filtra `.eq('status', 'looking')`; si dos usuarios matchean simultáneo, el 
 
 **Notificaciones cross-user:**
 Política RLS `notifications_insert_any` con `WITH CHECK (true)`.
+
+**Lista de espera — `waitlist(count)` en queries Supabase:**
+Devuelve `[{ count: N }]` como array de un elemento. Extraer con `cls.waitlist[0]?.count ?? 0`. Usado en MyClassesClient (web) y my-classes.tsx (mobile).
+
+**`/api/class/leave` usa `createAdminClient`:**
+El alumno que se va necesita leer la tabla `waitlist` (cuya política RLS solo permite ver al propio usuario o al profesor de la clase) para notificar al primero en espera. Se usa service role para bypasear RLS en ese fetch puntual.
 
 **Scroll en campos numéricos:**
 Todos los `<input type="number">` tienen `onWheel={(e) => (e.target as HTMLInputElement).blur()}`.

@@ -1,7 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCircle2, XCircle, Flag, Tag, Bell, ClipboardList } from 'lucide-react-native'
+import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCircle2, XCircle, Flag, Tag, Bell, ClipboardList, CalendarClock, UserCheck2 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -115,6 +115,16 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
     icon: ClipboardList, bgColor: '#fdf4ff', iconColor: '#c026d3',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} se postuló a tu entrenamiento` : 'Recibiste una nueva postulación',
     route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/my-classes',
+  },
+  class_reminder: {
+    icon: CalendarClock, bgColor: '#fdf4ff', iconColor: '#c026d3',
+    label: (data) => `Mañana tienes ${data.class_title ?? 'una clase'}${data.session_time ? ` a las ${data.session_time}` : ''}`,
+    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/my-classes',
+  },
+  waitlist_available: {
+    icon: UserCheck2, bgColor: '#f0fdf4', iconColor: '#16a34a',
+    label: (data) => `¡Se liberó un cupo en ${data.class_title ?? 'una clase'}! Tienes 24h para inscribirte.`,
+    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed',
   },
 }
 

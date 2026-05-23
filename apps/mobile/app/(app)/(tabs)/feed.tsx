@@ -74,24 +74,35 @@ export default function FeedScreen() {
 
     // Fetch classes (if not posts-only)
     if (cf !== 'posts') {
+      const todayStr = new Date().toISOString().split('T')[0]
       let q = (supabase as any)
         .from('classes')
         .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
         .eq('status', 'active')
+        // Exclude expired sueltas
+        .or(`type.neq.suelta,date.gte.${todayStr}`)
+        // Exclude expired periodica/entrenamiento
+        .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${todayStr}`)
         .order('created_at', { ascending: false })
         .limit(20)
+
+      const filterCustom = (items: any[]) =>
+        items.filter((c: any) => {
+          if (c.recurrence === 'custom') return (c.custom_dates ?? []).some((d: string) => d >= todayStr)
+          return true
+        })
 
       if (ff === 'following') {
         if (followingIds.length === 0) {
           // No follows → skip query, show nothing
         } else {
           const { data } = await q.in('teacher_id', followingIds)
-          ;(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
+          filterCustom(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
         }
       } else {
         if (ff === 'nearby' && userCity) q = q.eq('city', userCity)
         const { data } = await q
-        ;(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
+        filterCustom(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
       }
     }
 

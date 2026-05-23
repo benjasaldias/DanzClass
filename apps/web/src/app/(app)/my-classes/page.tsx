@@ -42,7 +42,7 @@ export default async function MyClassesPage() {
       .neq('status', 'cancelled')
       .order('created_at', { ascending: false }),
 
-    supabase
+    (supabase as any)
       .from('classes')
       .select(`
         *,
@@ -51,7 +51,8 @@ export default async function MyClassesPage() {
           student:profiles!student_id(*),
           payment:payments(*)
         ),
-        auditions(id, status)
+        auditions(id, status),
+        waitlist(count)
       `)
       .eq('teacher_id', user.id)
       .in('status', ['active', 'completed'])

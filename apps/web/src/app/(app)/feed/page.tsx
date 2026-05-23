@@ -11,10 +11,15 @@ export default async function FeedPage() {
     (supabase as any).from('friendships').select('requester_id, addressee_id').eq('status', 'accepted').or(`requester_id.eq.${user!.id},addressee_id.eq.${user!.id}`),
   ])
 
+  const today = new Date().toISOString().split('T')[0]
   const classesQuery = supabase
     .from('classes')
     .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)' as any)
     .eq('status', 'active')
+    // Exclude expired sueltas (date passed)
+    .or(`type.neq.suelta,date.gte.${today}`)
+    // Exclude expired periodica/entrenamiento (ends_at passed and not indefinite)
+    .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${today}`)
     .order('created_at', { ascending: false })
     .limit(20)
 
@@ -47,10 +52,18 @@ export default async function FeedPage() {
     (r: any) => r.class?.teacher_id !== user!.id
   )
 
-  const [{ data: classes }, { data: posts }] = await Promise.all([classesQuery, postsQuery])
+  const [{ data: rawClasses }, { data: posts }] = await Promise.all([classesQuery, postsQuery])
+
+  // Client-side: filter custom-recurrence classes where all dates have passed
+  const classes = (rawClasses ?? []).filter((c: any) => {
+    if (c.recurrence === 'custom') {
+      return (c.custom_dates ?? []).some((d: string) => d >= today)
+    }
+    return true
+  })
 
   // Batch-fetch ratings for teachers of initial classes
-  const teacherIds = [...new Set((classes ?? []).map((c: any) => c.teacher_id as string))]
+  const teacherIds = [...new Set(classes.map((c: any) => c.teacher_id as string))]
   const ratingsRows = teacherIds.length > 0
     ? ((await (supabase as any).from('ratings').select('rated_user_id, stars').in('rated_user_id', teacherIds)).data ?? []) as { rated_user_id: string; stars: number }[]
     : []

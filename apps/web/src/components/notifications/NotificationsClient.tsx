@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import {
   UserPlus, UserCheck, Bell, Music2, AlertCircle,
-  CheckCircle2, XCircle, Users, Flag, ClipboardList,
+  CheckCircle2, XCircle, Users, Flag, ClipboardList, CalendarClock, UserCheck2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -162,6 +162,18 @@ const NOTIF_CONFIG: Record<string, {
       return p ? `@${p.username} se postuló a tu entrenamiento` : 'Recibiste una nueva postulación'
     },
     href: (data) => data.class_id ? `/class/${data.class_id}/auditions` : '/my-classes',
+  },
+  class_reminder: {
+    icon: CalendarClock,
+    color: 'text-brand-600 bg-brand-50 dark:bg-brand-950/30 dark:text-brand-300',
+    label: (data) => `Mañana tienes ${data.class_title ?? 'una clase'}${data.session_time ? ` a las ${data.session_time}` : ''}`,
+    href: (data) => data.class_id ? `/class/${data.class_id}` : '/my-classes',
+  },
+  waitlist_available: {
+    icon: UserCheck2,
+    color: 'text-green-500 bg-green-50 dark:bg-green-950/30 dark:text-green-400',
+    label: (data) => `¡Se liberó un cupo en ${data.class_title ?? 'una clase'}! Tienes 24h para inscribirte.`,
+    href: (data) => data.class_id ? `/class/${data.class_id}` : '/feed',
   },
 }
 

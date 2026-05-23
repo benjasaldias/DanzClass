@@ -1352,3 +1352,188 @@ El usuario entregó `icon-no-bg.svg` (logotipo en formato SVG con fondo transpar
 - TopBar mobile: `#c026d3` siempre (mismo que antes, visible sobre ambos fondos)
 - Auth screens (web y mobile): blanco — el contenedor ya tiene fondo `bg-white/10` translúcido sobre gradiente oscuro; blanco da mejor contraste que morado sobre morado
 - Terms/Privacy header: `text-white` sobre `bg-brand-600` sólido
+
+---
+
+## Sesión 2026-05-23 — Recordatorios 24h antes + lista de espera
+
+### ✅ Migración `020_reminders_and_waitlist.sql`
+
+- Extiende constraint `notifications_type_check` con los nuevos tipos `class_reminder` y `waitlist_available` (incluye todos los tipos anteriores)
+- Tabla `waitlist` (`id`, `class_id`, `user_id`, `created_at`, UNIQUE por par)
+- RLS: `waitlist_select_teacher` (propio o profesor de la clase), `waitlist_insert_own`, `waitlist_delete_own`
+- Tipo `NotificationType` en `packages/shared/src/types/index.ts` actualizado con los nuevos valores
+
+### ✅ Recordatorios automáticos 24h antes — cron
+
+**`apps/web/src/app/api/cron/cleanup-classes/route.ts`** — lógica añadida al mismo cron existente (03:00 UTC):
+
+- Calcula `tomorrowStr` (YYYY-MM-DD)
+- Agrupa 4 tipos de clases:
+  1. **Sueltas** con `date = mañana`
+  2. **Periódicas con `class_sessions`** explícitas para mañana
+  3. **Custom** — fetch completo + filter en JS por `custom_dates.includes(tomorrowStr)`
+  4. **Periódicas sin sesiones** — calcula diff de días desde `start_date` para weekly/biweekly/monthly
+- Para cada alumno `confirmed` en cada clase → inserta `class_reminder` en `notifications`
+- Evita duplicados: fetch de notificaciones `class_reminder` enviadas hoy + Set `userId:classId` antes de insertar
+- Retorna `{ deleted, errors, reminders }` en la respuesta JSON
+
+### ✅ API routes waitlist
+
+| Ruta | Método | Descripción |
+|---|---|---|
+| `/api/class/waitlist/join` | POST | `{ classId }` → inserta en waitlist; 409 ignorado si ya está; Bearer o cookie |
+| `/api/class/waitlist/leave` | DELETE | `{ classId }` → elimina de waitlist; Bearer o cookie |
+| `/api/class/leave` | POST | `{ enrollmentId }` → cancela enrollment + notifica primer usuario en waitlist con `waitlist_available` |
+
+**`/api/class/leave`** usa `createAdminClient` para bypasear RLS: necesita leer `waitlist` (donde solo el profesor o el propio usuario tiene SELECT) y enviar notificación cross-user.
+
+### ✅ UI lista de espera — web
+
+**`apps/web/src/app/(app)/class/[id]/page.tsx`:**
+- Fetch de `waitlist` entry para el usuario actual → `isInWaitlist` boolean
+- Pasado como prop a `ClassDetailClient`
+
+**`apps/web/src/components/class/ClassDetailClient.tsx`:**
+- Nueva prop `isInWaitlist?: boolean`
+- Estados `isInWaitlist`, `waitlistLoading`
+- Funciones `handleJoinWaitlist()` y `handleLeaveWaitlist()` — llaman `/api/class/waitlist/join` y `/api/class/waitlist/leave`
+- `handleLeaveClass()` — ahora llama `/api/class/leave` (en vez de directo a Supabase) para que se notifique al primer waitlister
+- **Bottom CTA cuando `isFull`:**
+  - Usuario logueado + `!isInWaitlist`: botón "Avisarme si hay cupo" (borde gris, ícono `Bell`)
+  - Usuario logueado + `isInWaitlist`: texto "Estás en la lista de espera" + botón "Salir de la lista"
+  - Usuario no logueado + `isFull`: Link "Inicia sesión para reservar" (igual que antes)
+  - Clase no llena: botón "Reservar cupo" normal (sin `isFull` deshabilitado)
+
+**`apps/web/src/app/(app)/my-classes/page.tsx`:**
+- Query de teaching classes incluye `waitlist(count)` para obtener el count en un solo fetch
+
+**`apps/web/src/components/class/MyClassesClient.tsx`:**
+- Badge "N en lista de espera" (ícono `Bell`, texto gris-humo) en la card de cada clase del tab Dicto
+- Extrae `cls.waitlist[0]?.count ?? 0`
+
+### ✅ Notificaciones — web y mobile
+
+**Web (`NotificationsClient.tsx`):**
+- `class_reminder`: ícono `CalendarClock`, color brand, texto "Mañana tienes X a las HH:MM", navega a `/class/:id`
+- `waitlist_available`: ícono `UserCheck2`, color verde, texto "¡Se liberó un cupo en X! Tienes 24h para inscribirte.", navega a `/class/:id`
+
+**Mobile (`notifications.tsx`):**
+- Mismos dos casos con los mismos íconos y textos, rutas `/(app)/class/:id`
+
+### ✅ UI lista de espera — mobile
+
+**`apps/mobile/app/(app)/class/[id]/index.tsx`:**
+- Estados `isInWaitlist`, `waitlistLoading`
+- Fetch de waitlist entry en `useEffect` al cargar la pantalla
+- `handleJoinWaitlist()` → `WEB_URL/api/class/waitlist/join` (Bearer)
+- `handleLeaveWaitlist()` → `WEB_URL/api/class/waitlist/leave` (DELETE, Bearer)
+- `handleLeave()` → ahora llama `WEB_URL/api/class/leave` (Bearer) en vez de Supabase directo
+- **CTA cuando `isFull` y `!enrollment`:**
+  - `isInWaitlist`: card brand con "Estás en la lista de espera" + botón "Salir de la lista"
+  - `!isInWaitlist`: botón outline "Avisarme si hay cupo" con ícono `Bell`
+
+**`apps/mobile/app/(app)/(tabs)/my-classes.tsx`:**
+- Query teaching classes incluye `waitlist(count)`
+- Badge "N en lista de espera" (ícono `Bell`, texto gris-humo) en la card de cada clase del tab Que dicto
+
+### Puntos de atención
+
+- **Deduplicación de recordatorios:** el cron evita duplicados buscando notificaciones `class_reminder` del mismo día, pero si el cron corre dos veces el mismo día (error → retry) podría insertar doble. La deduplicación por Set es suficiente para el MVP.
+- **Primer en waitlist recibe notificación al salir una persona:** el ordenamiento es por `created_at ASC` — FIFO justo. Solo el primero recibe la notificación; los demás tendrán que esperar a la siguiente salida.
+- **`waitlist(count)` en queries Supabase:** devuelve `[{ count: N }]` como array de un elemento; extraer con `cls.waitlist[0]?.count ?? 0`.
+- **`/api/class/leave` requiere service role** (via `createAdminClient`) porque la política RLS de `waitlist` no permite que el alumno que se va consulte la lista de espera de otros.
+
+---
+
+## Sesión 2026-05-23 (2) — Bugfixes críticos: feed, cupos, inscripción
+
+### ✅ Bug 1: Clases vencidas en feed
+
+**Web — `apps/web/src/app/(app)/feed/page.tsx` y `apps/web/src/components/feed/FeedClient.tsx`:**
+- Añadidos dos filtros `.or()` en la query de Supabase:
+  1. `type.neq.suelta,date.gte.${today}` — oculta sueltas con fecha pasada
+  2. `type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${today}` — oculta periódicas/entrenamientos con `ends_at` vencido
+- Filtro client-side para clases `recurrence='custom'`: solo se muestran si alguna de sus `custom_dates` es >= today
+
+**Mobile — `apps/mobile/app/(app)/(tabs)/feed.tsx`:**
+- Mismos dos filtros `.or()` + función `filterCustom()` aplicada sobre los resultados
+
+**Nota de datos:** clases ya vencidas que existan en DB seguirán apareciendo en `MyClassesClient` (tab "Que tomo") si el alumno tiene enrollment con `pending_payment` — esto es intencional para que pueda resolver el pago.
+
+### ✅ Bug 1 (complementario): Banner de pagos pendientes en "Mis clases"
+
+**Web — `apps/web/src/components/class/MyClassesClient.tsx`:**
+- `EnrolledTab` recibe prop `onGoToHistory: () => void`
+- Banner amarillo al inicio del tab "Clases que tomo" cuando hay enrollments con `pending_payment` o `payment_submitted`
+- Texto: "Tienes X pago/s pendiente/s. Ver en Historial; debes resolverlo con tu profesor/a."
+- "Ver en Historial" llama `onGoToHistory()` que cambia el tab a `'history'`
+
+**Mobile — `apps/mobile/app/(app)/(tabs)/my-classes.tsx`:**
+- `EnrolledTab` recibe prop `onGoToHistory: () => void`
+- Banner amarillo equivalente con `AlertTriangle` de lucide-react-native
+- Stroke: `isDark ? '#fbbf24' : '#ca8a04'` (dark mode correcto; requirió añadir `useTheme` al componente)
+- "Ver en Historial" llama `onGoToHistory()` que cambia el tab a `'history'`
+
+### ✅ Bug 2: Cupos inconsistentes entre feed y detalle
+
+**Causa raíz:** `ClassCard.tsx` (web) filtraba `status === 'confirmed'` para calcular cupos tomados, mientras que la vista `class_spots` cuenta todos los enrollments `status != 'cancelled'` (pending_payment + payment_submitted + confirmed).
+
+**Web — `apps/web/src/components/feed/ClassCard.tsx`:**
+```ts
+// Antes: status === 'confirmed'
+const takenCount = (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
+```
+
+**Mobile — `apps/mobile/components/feed/MobileClassCard.tsx`:**
+- Antes mostraba `Cupos: ${classData.max_spots}` (total, sin descontar inscritos)
+- Ahora calcula `taken = status !== 'cancelled'` y muestra `${available}/${max_spots} cupos` o `Sin cupos disponibles`
+
+### ✅ Bug 3: Usuarios sin suscripción pueden inscribirse
+
+**API — `apps/web/src/app/api/class/enroll/route.ts` (NUEVO):**
+- Endpoint centralizado `POST /api/class/enroll` con `{ classId }`
+- Soporta Bearer token (mobile) y cookie (web) para auth
+- Llama `getActiveTier()` + `canEnroll(tier)` → 403 `subscription_required` si no tiene plan
+- Verifica: clase activa, profesor no puede inscribirse en su propia clase, cupos disponibles (via `class_spots`)
+- Detecta y notifica al profesor si el alumno tiene deudas previas con él
+
+**Web — `apps/web/src/app/(app)/class/[id]/page.tsx`:**
+- Obtiene `userTier` con `getActiveTier()` y lo pasa a `ClassDetailClient`
+
+**Web — `apps/web/src/components/class/ClassDetailClient.tsx`:**
+- Nueva prop `userTier?: SubscriptionTier` (default `'none'`)
+- `canUserEnroll = canEnroll(userTier)` — controla la UI del CTA
+- Cuando `!currentUser`: "Inicia sesión para reservar" (Link a `/auth/login`)
+- Cuando `!canUserEnroll`: "Obtener plan para reservar" (Link a `/plans`)
+- `handleEnroll()` ahora llama `POST /api/class/enroll` en vez de insertar directo en Supabase
+
+**Mobile — `apps/mobile/app/(app)/class/[id]/index.tsx`:**
+- `handleEnroll()` primero verifica `canEnroll(tier)` y muestra `Alert` con link a planes
+- Si pasa el guard: llama `WEB_URL/api/class/enroll` con Bearer token
+- Maneja: `subscription_required`, `already_enrolled`, `no_spots`, error genérico
+
+### ✅ Bug 4: Re-inscripción bloqueada por UNIQUE constraint
+
+**API — `apps/web/src/app/api/class/enroll/route.ts`:**
+- Antes del INSERT, busca enrollments existentes para el par `(student_id, class_id, session_id IS NULL)`
+- Si existe con `status !== 'cancelled'`: 409 `already_enrolled`
+- Si existe con `status = 'cancelled'`: UPDATE a `pending_payment` (upsert) en vez de INSERT
+- Si no existe: INSERT fresco con spots check previo
+- Elimina el crash silencioso por violación de UNIQUE constraint
+
+### Archivos modificados
+
+| Archivo | Tipo | Cambio |
+|---|---|---|
+| `apps/web/src/app/(app)/feed/page.tsx` | Web | Filtros de clases vencidas |
+| `apps/web/src/components/feed/FeedClient.tsx` | Web | Filtros de clases vencidas en `loadFeed()` |
+| `apps/web/src/components/feed/ClassCard.tsx` | Web | Cupos: `!== 'cancelled'` en lugar de `=== 'confirmed'` |
+| `apps/web/src/app/(app)/class/[id]/page.tsx` | Web | Fetch + pass de `userTier` |
+| `apps/web/src/app/api/class/enroll/route.ts` | Web | NUEVO — endpoint centralizado con tier check + upsert |
+| `apps/web/src/components/class/ClassDetailClient.tsx` | Web | `userTier` prop, `canUserEnroll`, `handleEnroll` vía API |
+| `apps/web/src/components/class/MyClassesClient.tsx` | Web | Banner de pagos pendientes en `EnrolledTab` |
+| `apps/mobile/app/(app)/(tabs)/feed.tsx` | Mobile | Filtros de clases vencidas |
+| `apps/mobile/components/feed/MobileClassCard.tsx` | Mobile | Cupos: disponibles vs total |
+| `apps/mobile/app/(app)/class/[id]/index.tsx` | Mobile | `handleEnroll` vía API con tier check |
+| `apps/mobile/app/(app)/(tabs)/my-classes.tsx` | Mobile | Banner de pagos pendientes en `EnrolledTab` |
