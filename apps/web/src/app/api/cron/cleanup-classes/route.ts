@@ -91,7 +91,7 @@ export async function GET(request: Request) {
   const { data: sessions24 } = await supabase
     .from('class_sessions')
     .select('class_id, class:classes(id, title, status, teacher:profiles!teacher_id(username), enrollments(student_id, status))')
-    .eq('session_date', tomorrowStr) as any
+    .eq('date', tomorrowStr) as any
 
   for (const s of sessions24 ?? []) {
     const c = s.class
