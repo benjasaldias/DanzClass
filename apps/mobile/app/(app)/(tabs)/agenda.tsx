@@ -5,11 +5,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, ChevronDown } from 'lucide-react-native'
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, ChevronDown, Moon, Check } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import { getClassSessions, toYMD, formatTime } from '../../../lib/utils'
 import { useTheme } from '../../../context/ThemeContext'
-import { canTeach } from '@danceclass/shared'
+import { canTeach, isSleepHour } from '@danceclass/shared'
 import TopBar from '../../../components/ui/TopBar'
 
 const MONTHS_ES = [
@@ -47,7 +47,8 @@ function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-const DAYS_AVAIL = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const GRID_DAYS_SHORT = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+const ALL_HOURS = Array.from({ length: 24 }, (_, h) => h)
 
 export default function AgendaScreen() {
   const router = useRouter()
@@ -65,7 +66,13 @@ export default function AgendaScreen() {
   const [teachingClasses, setTeachingClasses] = useState<any[]>([])
   const [weekStart, setWeekStart] = useState(getWeekStart(today))
   const [availOpen, setAvailOpen] = useState(false)
-  const [availability, setAvailability] = useState<Record<string, boolean>>({})
+  const [availLoaded, setAvailLoaded] = useState(false)
+  const [availLoading, setAvailLoading] = useState(false)
+  const [busyBlocks, setBusyBlocks] = useState<Set<string>>(new Set())
+  const [sleepStart, setSleepStart] = useState(0)
+  const [sleepEnd, setSleepEnd] = useState(8)
+  const [savingSleep, setSavingSleep] = useState(false)
+  const [sleepSaved, setSleepSaved] = useState(false)
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -112,6 +119,76 @@ export default function AgendaScreen() {
     setRefreshing(true)
     await load()
     setRefreshing(false)
+  }
+
+  async function loadAvailability() {
+    setAvailLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setAvailLoading(false); return }
+
+    const [{ data: profile }, { data: blocks }] = await Promise.all([
+      supabase.from('profiles').select('sleep_start, sleep_end').eq('id', user.id).single(),
+      (supabase as any).from('user_busy_blocks').select('weekday, hour').eq('user_id', user.id),
+    ])
+
+    if (profile) {
+      setSleepStart((profile as any).sleep_start ?? 0)
+      setSleepEnd((profile as any).sleep_end ?? 8)
+    }
+    if (blocks) {
+      setBusyBlocks(new Set((blocks as any[]).map((b: any) => `${b.weekday}:${b.hour}`)))
+    }
+    setAvailLoaded(true)
+    setAvailLoading(false)
+  }
+
+  function handleAvailOpen() {
+    setAvailOpen((o) => {
+      if (!o && !availLoaded) loadAvailability()
+      return !o
+    })
+  }
+
+  async function toggleBlock(weekday: number, hour: number) {
+    if (isSleepHour(hour, sleepStart, sleepEnd)) return
+    const key = `${weekday}:${hour}`
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const wasBusy = busyBlocks.has(key)
+    setBusyBlocks((prev) => {
+      const next = new Set(prev)
+      if (wasBusy) next.delete(key)
+      else next.add(key)
+      return next
+    })
+
+    if (wasBusy) {
+      await (supabase as any)
+        .from('user_busy_blocks')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('weekday', weekday)
+        .eq('hour', hour)
+    } else {
+      await (supabase as any)
+        .from('user_busy_blocks')
+        .insert({ user_id: user.id, weekday, hour })
+    }
+  }
+
+  async function saveSleep() {
+    setSavingSleep(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ sleep_start: sleepStart, sleep_end: sleepEnd } as any)
+        .eq('id', user.id)
+    }
+    setSavingSleep(false)
+    setSleepSaved(true)
+    setTimeout(() => setSleepSaved(false), 2000)
   }
 
   // Build event map for current week ±4 weeks
@@ -312,16 +389,18 @@ export default function AgendaScreen() {
           })}
         </View>
 
-        {/* ── Disponibilidad personal ──────────────────── */}
+        {/* ── Horarios ocupados ────────────────────────── */}
         <View className="mx-3 mt-1 mb-4 border border-gray-100 dark:border-dark-border rounded-xl overflow-hidden">
           <TouchableOpacity
-            onPress={() => setAvailOpen((o) => !o)}
+            onPress={handleAvailOpen}
             className="flex-row items-center justify-between px-4 py-3 bg-gray-50 dark:bg-dark-surface2"
             activeOpacity={0.7}
           >
             <View>
-              <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">Mis días disponibles</Text>
-              <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">Marca los días en que puedes tomar clases</Text>
+              <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">Mis horarios ocupados</Text>
+              <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">
+                Marca cuándo no puedes bailar — el resto se asume libre
+              </Text>
             </View>
             <ChevronDown
               size={16}
@@ -329,32 +408,153 @@ export default function AgendaScreen() {
               style={{ transform: [{ rotate: availOpen ? '180deg' : '0deg' }] }}
             />
           </TouchableOpacity>
+
           {availOpen && (
-            <View className="px-4 py-3 bg-white dark:bg-dark-surface">
-              <View className="flex-row flex-wrap gap-2">
-                {DAYS_AVAIL.map((day) => (
-                  <TouchableOpacity
-                    key={day}
-                    onPress={() => setAvailability((p) => ({ ...p, [day]: !p[day] }))}
-                    className={`px-3 py-1.5 rounded-full border ${
-                      availability[day]
-                        ? 'bg-brand-600 border-brand-600'
-                        : 'border-gray-200 dark:border-dark-border'
-                    }`}
-                    activeOpacity={0.7}
-                  >
-                    <Text className={`text-xs font-medium ${availability[day] ? 'text-white' : 'text-gray-600 dark:text-dark-text2'}`}>
-                      {day}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-2">
-                Esta información se usará próximamente para sugerirte clases que calcen con tu horario.
-              </Text>
-              <Text className="text-xs text-gris-humo/60 dark:text-dark-text2/50 italic mt-1">
-                Nota: la disponibilidad aún no se guarda.
-              </Text>
+            <View className="bg-white dark:bg-dark-surface px-3 pt-4 pb-5">
+
+              {availLoading && (
+                <View className="items-center py-8">
+                  <ActivityIndicator color="#c026d3" />
+                </View>
+              )}
+
+              {availLoaded && (
+                <>
+                  {/* Sleep config */}
+                  <View className="flex-row items-center flex-wrap gap-2 mb-4">
+                    <Moon size={15} stroke="#818cf8" />
+                    <Text className="text-sm text-gray-700 dark:text-dark-text">Duermo de</Text>
+                    {/* sleepStart stepper */}
+                    <View className="flex-row items-center border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden">
+                      <TouchableOpacity
+                        onPress={() => setSleepStart((h) => (h === 0 ? 23 : h - 1))}
+                        className="px-2 py-1 bg-gray-50 dark:bg-dark-surface2"
+                        activeOpacity={0.7}
+                      >
+                        <Text className="text-base text-gray-700 dark:text-dark-text font-bold">−</Text>
+                      </TouchableOpacity>
+                      <Text className="px-2 text-sm font-medium text-gray-900 dark:text-dark-text">
+                        {String(sleepStart).padStart(2, '0')}:00
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setSleepStart((h) => (h === 23 ? 0 : h + 1))}
+                        className="px-2 py-1 bg-gray-50 dark:bg-dark-surface2"
+                        activeOpacity={0.7}
+                      >
+                        <Text className="text-base text-gray-700 dark:text-dark-text font-bold">+</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text className="text-sm text-gray-700 dark:text-dark-text">a</Text>
+                    {/* sleepEnd stepper */}
+                    <View className="flex-row items-center border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden">
+                      <TouchableOpacity
+                        onPress={() => setSleepEnd((h) => (h === 0 ? 23 : h - 1))}
+                        className="px-2 py-1 bg-gray-50 dark:bg-dark-surface2"
+                        activeOpacity={0.7}
+                      >
+                        <Text className="text-base text-gray-700 dark:text-dark-text font-bold">−</Text>
+                      </TouchableOpacity>
+                      <Text className="px-2 text-sm font-medium text-gray-900 dark:text-dark-text">
+                        {String(sleepEnd).padStart(2, '0')}:00
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setSleepEnd((h) => (h === 23 ? 0 : h + 1))}
+                        className="px-2 py-1 bg-gray-50 dark:bg-dark-surface2"
+                        activeOpacity={0.7}
+                      >
+                        <Text className="text-base text-gray-700 dark:text-dark-text font-bold">+</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                      onPress={saveSleep}
+                      disabled={savingSleep}
+                      className="ml-auto rounded-lg px-3 py-1.5"
+                      style={{ backgroundColor: sleepSaved ? '#d1fae5' : '#c026d3', opacity: savingSleep ? 0.6 : 1 }}
+                      activeOpacity={0.8}
+                    >
+                      {savingSleep ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : sleepSaved ? (
+                        <View className="flex-row items-center gap-1">
+                          <Check size={12} stroke="#059669" />
+                          <Text style={{ color: '#059669', fontSize: 12, fontWeight: '600' }}>Guardado</Text>
+                        </View>
+                      ) : (
+                        <Text className="text-white text-xs font-semibold">Guardar</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Legend */}
+                  <View className="flex-row items-center gap-4 mb-3">
+                    <View className="flex-row items-center gap-1.5">
+                      <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#c7d2fe' }} />
+                      <Text className="text-xs text-gris-humo dark:text-dark-text2">Sueño</Text>
+                    </View>
+                    <View className="flex-row items-center gap-1.5">
+                      <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#f87171', opacity: 0.6 }} />
+                      <Text className="text-xs text-gris-humo dark:text-dark-text2">Ocupado</Text>
+                    </View>
+                    <View className="flex-row items-center gap-1.5">
+                      <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: isDark ? '#2E1B5C' : '#f3f4f6', borderWidth: 1, borderColor: isDark ? '#3D2870' : '#e5e7eb' }} />
+                      <Text className="text-xs text-gris-humo dark:text-dark-text2">Libre</Text>
+                    </View>
+                  </View>
+
+                  {/* Grid */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled>
+                    <View>
+                      {/* Header row */}
+                      <View style={{ flexDirection: 'row', marginBottom: 2 }}>
+                        <View style={{ width: 32 }} />
+                        {GRID_DAYS_SHORT.map((d) => (
+                          <View key={d} style={{ width: 36, alignItems: 'center' }}>
+                            <Text style={{ fontSize: 10, fontWeight: '600', color: isDark ? '#A39BBF' : '#6B6880' }}>{d}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      {/* Hour rows */}
+                      {ALL_HOURS.map((hour) => (
+                        <View key={hour} style={{ flexDirection: 'row', marginBottom: 2, alignItems: 'center' }}>
+                          <View style={{ width: 32, alignItems: 'flex-end', paddingRight: 4 }}>
+                            <Text style={{ fontSize: 9, color: isDark ? '#A39BBF' : '#6B6880', lineHeight: 22 }}>
+                              {String(hour).padStart(2, '0')}
+                            </Text>
+                          </View>
+                          {GRID_DAYS_SHORT.map((_, weekday) => {
+                            const sleep = isSleepHour(hour, sleepStart, sleepEnd)
+                            const busy = !sleep && busyBlocks.has(`${weekday}:${hour}`)
+                            const bgColor = sleep
+                              ? '#c7d2fe'
+                              : busy
+                                ? 'rgba(216,90,48,0.55)'
+                                : isDark ? '#2E1B5C' : '#f3f4f6'
+                            return (
+                              <TouchableOpacity
+                                key={weekday}
+                                onPress={() => toggleBlock(weekday, hour)}
+                                disabled={sleep}
+                                activeOpacity={sleep ? 1 : 0.6}
+                                style={{
+                                  width: 34,
+                                  height: 22,
+                                  marginHorizontal: 1,
+                                  borderRadius: 3,
+                                  backgroundColor: bgColor,
+                                }}
+                              />
+                            )
+                          })}
+                        </View>
+                      ))}
+                    </View>
+                  </ScrollView>
+
+                  <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-3">
+                    Los cambios se guardan automáticamente al tocar cada bloque.
+                  </Text>
+                </>
+              )}
             </View>
           )}
         </View>

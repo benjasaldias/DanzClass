@@ -1604,7 +1604,7 @@ Reglas de cálculo por tipo:
 ### Pendientes (post-sesión 2026-05-24)
 
 - [ ] **FAB mobile para publicar:** botón flotante en el feed (`(tabs)/feed.tsx`) que navega a `/(tabs)/create`, reemplazando la experiencia anterior del tab eliminado
-- [ ] **Disponibilidad en mobile:** replicar la sección "Mis horarios ocupados" en `apps/mobile/app/(app)/(tabs)/agenda.tsx` usando la misma tabla `user_busy_blocks` y los utilitarios de `@danceclass/shared`
+- [x] **Disponibilidad en mobile:** ✅ implementado en sesión 2026-05-24 (3)
 - [ ] **Filtrado de clases por disponibilidad:** usar `user_busy_blocks` para marcar o filtrar clases en Explorar que choquen con horarios ocupados del usuario (feature futura)
 
 ### Archivos creados / modificados
@@ -1694,3 +1694,36 @@ Reglas de cálculo por tipo:
 | `packages/shared/src/lib/availability.ts` | NUEVO — utilitarios disponibilidad |
 | `packages/shared/src/index.ts` | Exporta availability |
 | `apps/web/src/components/agenda/AgendaClient.tsx` | AvailabilitySection → grid horario completo |
+
+---
+
+## Sesión 2026-05-24 (3) — Disponibilidad horaria en mobile
+
+### ✅ Sección "Mis horarios ocupados" en mobile
+
+Completado el pendiente de la sesión anterior: `apps/mobile/app/(app)/(tabs)/agenda.tsx` ahora tiene la misma funcionalidad de disponibilidad horaria que la web.
+
+**Cambios en `agenda.tsx`:**
+
+- Imports agregados: `Moon`, `Check` de lucide-react-native; `isSleepHour` de `@danceclass/shared`
+- Estado nuevo: `busyBlocks (Set<string>)`, `sleepStart`, `sleepEnd`, `availLoading`, `availLoaded`, `savingSleep`, `sleepSaved`
+- Eliminados: `DAYS_AVAIL`, estado `availability (Record<string, boolean>)` sin persistencia
+- Función `loadAvailability()`: carga lazy (solo al primer open) de `profiles.sleep_start/sleep_end` + `user_busy_blocks` del usuario
+- Función `handleAvailOpen()`: toggle open + dispara carga si aún no se ha cargado
+- Función `toggleBlock(weekday, hour)`: optimistic update en Set + delete/insert en Supabase
+- Función `saveSleep()`: guarda `sleep_start`/`sleep_end` en profiles; feedback visual "Guardado" 2 s
+
+**UI:**
+
+- Config de sueño: botones −/+ para ajustar hora de inicio y fin (wrappea 23 → 0 y viceversa); botón Guardar con estado de loading y feedback verde con check icon
+- Leyenda de colores: índigo (sueño), coral (ocupado), gris (libre)
+- Grid 7×24: `ScrollView horizontal` + `nestedScrollEnabled`; columna de etiquetas de hora (32px), 7 celdas de 34×22px con `borderRadius: 3`
+- Colores: sueño `#c7d2fe`, ocupado `rgba(216,90,48,0.55)`, libre `#f3f4f6` / `#2E1B5C` dark
+- Celdas de sueño: `disabled` (no se pueden tocar), `activeOpacity: 1`
+- Dark mode completo usando `isDark` para colores de fondo de celdas libres
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---|---|
+| `apps/mobile/app/(app)/(tabs)/agenda.tsx` | Disponibilidad horaria completa con persistencia |
