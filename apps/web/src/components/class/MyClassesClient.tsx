@@ -7,6 +7,7 @@ import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
   AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2, Bell,
+  CalendarDays,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -662,6 +663,146 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
   )
 }
 
+// ─── Rehearsals tab ──────────────────────────────────────────────────────────
+
+const MONTHS_ES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+function formatRehearsalDateShort(r: any): string {
+  if (r.date_mode === 'single' && r.rehearsal_date) {
+    const [, m, d] = r.rehearsal_date.split('-').map(Number)
+    return `${d} ${MONTHS_ES_SHORT[m - 1]}`
+  }
+  if (r.date_mode === 'custom' && r.custom_dates?.length) {
+    const sorted = [...r.custom_dates].sort()
+    if (sorted.length === 1) {
+      const [, m, d] = sorted[0].split('-').map(Number)
+      return `${d} ${MONTHS_ES_SHORT[m - 1]}`
+    }
+    return `${sorted.length} fechas`
+  }
+  if (r.date_mode === 'coordinate' && r.coordinate_month) {
+    const [, m] = r.coordinate_month.split('-').map(Number)
+    return `Coord. ${MONTHS_ES_SHORT[m - 1]}`
+  }
+  return 'Por coordinar'
+}
+
+function RehearsalCard({ rehearsal, inviteStatus }: { rehearsal: any; inviteStatus?: string }) {
+  const dateLabel = formatRehearsalDateShort(rehearsal)
+  const invites: any[] = rehearsal.invites ?? []
+  const accepted = invites.filter((i: any) => i.status === 'accepted').length
+  const pending = invites.filter((i: any) => i.status === 'pending').length
+
+  const isOwn = inviteStatus === undefined
+  const isPending = inviteStatus === 'pending'
+
+  return (
+    <Link
+      href={`/rehearsal/${rehearsal.id}`}
+      className="card p-4 flex gap-3 hover:shadow-md transition-shadow"
+    >
+      <div className="flex-shrink-0 mt-0.5">
+        <div className="w-10 h-10 rounded-xl bg-[#EEEDFE] dark:bg-dark-surface2 flex items-center justify-center">
+          <CalendarDays className="h-5 w-5 text-[#7F77DD]" />
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[#EEEDFE] dark:bg-dark-surface2 text-[#534AB7] dark:text-violet-300">
+            Ensayo
+          </span>
+          {isPending && (
+            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400">
+              Pendiente
+            </span>
+          )}
+          {inviteStatus === 'accepted' && (
+            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
+              Confirmado
+            </span>
+          )}
+        </div>
+        <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{rehearsal.title}</p>
+        <div className="flex items-center gap-3 mt-1 text-xs text-gris-humo dark:text-dark-text2 flex-wrap">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {dateLabel}
+            {rehearsal.rehearsal_time && ` · ${rehearsal.rehearsal_time.slice(0, 5)}`}
+          </span>
+          {isOwn && (
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {accepted} confirmado{accepted !== 1 ? 's' : ''}
+              {pending > 0 && `, ${pending} pendiente${pending !== 1 ? 's' : ''}`}
+            </span>
+          )}
+          {!isOwn && rehearsal.creator && (
+            <span>de @{rehearsal.creator.username}</span>
+          )}
+        </div>
+      </div>
+      <ChevronRight className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0 self-center" />
+    </Link>
+  )
+}
+
+function RehearsalsTab({ ownRehearsals, rehearsalInvites }: { ownRehearsals: any[]; rehearsalInvites: any[] }) {
+  const hasOwn = ownRehearsals.length > 0
+  const hasInvites = rehearsalInvites.length > 0
+
+  if (!hasOwn && !hasInvites) {
+    return (
+      <div className="flex flex-col items-center py-16 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-dark-surface mb-4">
+          <CalendarDays className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
+        </div>
+        <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin ensayos</h3>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">
+          Crea un ensayo desde "Publicar" o espera una invitación
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {hasOwn && (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gris-humo dark:text-dark-text2 mb-3">
+            Ensayos que organizo
+          </h2>
+          <div className="space-y-2">
+            {ownRehearsals.map((r: any) => (
+              <RehearsalCard key={r.id} rehearsal={r} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {hasInvites && (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gris-humo dark:text-dark-text2 mb-3">
+            Invitaciones
+          </h2>
+          <div className="space-y-2">
+            {rehearsalInvites.map((invite: any) => {
+              const rehearsal = invite.rehearsal
+              if (!rehearsal) return null
+              return (
+                <RehearsalCard
+                  key={invite.id}
+                  rehearsal={rehearsal}
+                  inviteStatus={invite.status}
+                />
+              )
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface MyClassesClientProps {
@@ -670,6 +811,8 @@ interface MyClassesClientProps {
   defaultTab: 'enrolled' | 'teaching'
   currentUserId: string
   dismissedStudentIds: string[]
+  ownRehearsals?: any[]
+  rehearsalInvites?: any[]
 }
 
 export default function MyClassesClient({
@@ -678,56 +821,80 @@ export default function MyClassesClient({
   defaultTab,
   currentUserId,
   dismissedStudentIds,
+  ownRehearsals = [],
+  rehearsalInvites = [],
 }: MyClassesClientProps) {
-  const [tab, setTab] = useState<'enrolled' | 'teaching' | 'history'>(defaultTab)
+  const [tab, setTab] = useState<'enrolled' | 'teaching' | 'history' | 'rehearsals'>(defaultTab)
+
+  const rehearsalCount = ownRehearsals.length + rehearsalInvites.length
 
   return (
     <div className="px-4 py-4">
       <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-4">Mis clases</h1>
 
-      {/* Tab toggle */}
-      <div className="flex gap-1 mb-5 bg-gray-100 dark:bg-dark-surface rounded-xl p-1">
-        <button
-          onClick={() => setTab('enrolled')}
-          className={cn(
-            'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
-            tab === 'enrolled' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
-          )}
-        >
-          Clases que tomo
-          {enrollments.length > 0 && (
-            <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
-              tab === 'enrolled' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
-            )}>
-              {enrollments.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab('teaching')}
-          className={cn(
-            'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
-            tab === 'teaching' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
-          )}
-        >
-          Clases que dicto
-          {teachingClasses.length > 0 && (
-            <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
-              tab === 'teaching' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
-            )}>
-              {teachingClasses.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab('history')}
-          className={cn(
-            'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
-            tab === 'history' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
-          )}
-        >
-          Historial
-        </button>
+      {/* Tab toggle — two rows to avoid overflow with 4 tabs */}
+      <div className="flex flex-col gap-1 mb-5">
+        <div className="flex gap-1 bg-gray-100 dark:bg-dark-surface rounded-xl p-1">
+          <button
+            onClick={() => setTab('enrolled')}
+            className={cn(
+              'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
+              tab === 'enrolled' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
+            )}
+          >
+            Clases que tomo
+            {enrollments.length > 0 && (
+              <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
+                tab === 'enrolled' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
+              )}>
+                {enrollments.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTab('teaching')}
+            className={cn(
+              'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
+              tab === 'teaching' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
+            )}
+          >
+            Clases que dicto
+            {teachingClasses.length > 0 && (
+              <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
+                tab === 'teaching' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
+              )}>
+                {teachingClasses.length}
+              </span>
+            )}
+          </button>
+        </div>
+        <div className="flex gap-1 bg-gray-100 dark:bg-dark-surface rounded-xl p-1">
+          <button
+            onClick={() => setTab('rehearsals')}
+            className={cn(
+              'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
+              tab === 'rehearsals' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
+            )}
+          >
+            Ensayos
+            {rehearsalCount > 0 && (
+              <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
+                tab === 'rehearsals' ? 'bg-[#EEEDFE] dark:bg-dark-surface text-[#534AB7] dark:text-violet-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
+              )}>
+                {rehearsalCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTab('history')}
+            className={cn(
+              'flex-1 rounded-lg py-2 text-xs font-semibold transition-colors',
+              tab === 'history' ? 'bg-white dark:bg-dark-surface2 text-gray-900 dark:text-dark-text shadow-sm' : 'text-gray-500 dark:text-dark-text2 hover:text-gray-700 dark:hover:text-dark-text'
+            )}
+          >
+            Historial
+          </button>
+        </div>
       </div>
 
       {tab === 'enrolled' && <EnrolledTab enrollments={enrollments} onGoToHistory={() => setTab('history')} />}
@@ -737,6 +904,9 @@ export default function MyClassesClient({
           currentUserId={currentUserId}
           dismissedStudentIds={dismissedStudentIds}
         />
+      )}
+      {tab === 'rehearsals' && (
+        <RehearsalsTab ownRehearsals={ownRehearsals} rehearsalInvites={rehearsalInvites} />
       )}
       {tab === 'history' && (
         <HistoryTab enrollments={enrollments} teachingClasses={teachingClasses} />

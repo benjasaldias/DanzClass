@@ -7,7 +7,7 @@ export default async function AgendaPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const [{ data: enrollments }, { data: teachingClasses }, { data: rehearsalData }] = await Promise.all([
+  const [{ data: enrollments }, { data: teachingClasses }, { data: rehearsalData }, { data: myInvites }] = await Promise.all([
     (supabase as any)
       .from('enrollments')
       .select(`
@@ -19,7 +19,7 @@ export default async function AgendaPage() {
         )
       `)
       .eq('student_id', user.id)
-      .eq('status', 'confirmed'),
+      .in('status', ['confirmed', 'pending_payment', 'payment_submitted']),
 
     (supabase as any)
       .from('classes')
@@ -31,11 +31,17 @@ export default async function AgendaPage() {
       .eq('teacher_id', user.id)
       .eq('status', 'active'),
 
-    // Ensayos: como creador o invitado aceptado
+    // Ensayos: RLS retorna solo los del creador + invitados (cualquier estado)
     (supabase as any)
       .from('rehearsals')
       .select('id, title, date_mode, rehearsal_date, rehearsal_time, custom_dates, coordinate_month, duration_minutes, creator_id')
       .eq('status', 'active'),
+
+    // Estado de invitaciones del usuario para filtrar rechazadas
+    (supabase as any)
+      .from('rehearsal_invites')
+      .select('rehearsal_id, status')
+      .eq('user_id', user.id),
   ])
 
   const enrolled = (enrollments as any[] ?? [])
@@ -48,9 +54,23 @@ export default async function AgendaPage() {
   const teachingIds = new Set(teaching.map((c: any) => c.id))
   const enrolledFiltered = enrolled.filter((c: any) => !teachingIds.has(c.id))
 
-  // Rehearsals with fixed dates only (date_mode single or custom)
-  // Coordinate mode has no confirmed date yet — show separately
+  // Build invite status map so we can filter rejected rehearsals
+  const inviteMap = new Map<string, string>(
+    (myInvites as any[] ?? []).map((i: any) => [i.rehearsal_id, i.status])
+  )
+
+  // Include rehearsals where: creator, OR invite accepted, OR invite pending
+  // Exclude: rejected invites
   const rehearsals = (rehearsalData as any[] ?? [])
+    .map((r: any) => ({
+      ...r,
+      invite_status: r.creator_id === user.id ? 'creator' : (inviteMap.get(r.id) ?? null),
+    }))
+    .filter((r: any) =>
+      r.invite_status === 'creator' ||
+      r.invite_status === 'accepted' ||
+      r.invite_status === 'pending'
+    )
 
   return (
     <AgendaClient

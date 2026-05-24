@@ -23,7 +23,7 @@ interface AgendaEvent {
   teacher?: { full_name: string; username: string }
   isTeaching: boolean
   isRehearsal?: boolean
-  isCreatingRehearsal?: boolean
+  inviteStatus?: 'creator' | 'accepted' | 'pending'
 }
 
 function toYMD(date: Date): string {
@@ -121,8 +121,9 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
     }
 
     // Rehearsals (only single and custom date modes have fixed dates)
+    // invite_status is 'creator' | 'accepted' | 'pending' (rejected already filtered out)
     for (const r of rehearsals) {
-      const isCreator = r.creator_id === currentUserId
+      const inviteStatus: 'creator' | 'accepted' | 'pending' = r.invite_status ?? 'pending'
       if (r.date_mode === 'single' && r.rehearsal_date) {
         const [ry, rm, rd] = r.rehearsal_date.split('-').map(Number)
         const d = new Date(ry, rm - 1, rd)
@@ -134,7 +135,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
             time: r.rehearsal_time ?? undefined,
             isTeaching: false,
             isRehearsal: true,
-            isCreatingRehearsal: isCreator,
+            inviteStatus,
           })
         }
       } else if (r.date_mode === 'custom' && r.custom_dates?.length) {
@@ -148,7 +149,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
               title: r.title,
               isTeaching: false,
               isRehearsal: true,
-              isCreatingRehearsal: isCreator,
+              inviteStatus,
             })
           }
         }
@@ -188,17 +189,26 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
   const selectedEvents = eventMap[selectedDay] ?? []
 
   function EventCard({ ev }: { ev: AgendaEvent }) {
-    const href = ev.isRehearsal ? '/feed' : `/class/${ev.classId}`
+    const href = ev.isRehearsal ? `/rehearsal/${ev.rehearsalId}` : `/class/${ev.classId}`
+    const isPending = ev.isRehearsal && ev.inviteStatus === 'pending'
     const barColor = ev.isRehearsal
-      ? 'bg-[#7F77DD]/70'
+      ? isPending ? 'bg-[#7F77DD]/40' : 'bg-[#7F77DD]/70'
       : ev.isTeaching
         ? 'bg-brand-600'
         : 'bg-[#7F77DD]'
     const cardBg = ev.isRehearsal
-      ? 'bg-[#EEEDFE]/60 dark:bg-dark-surface2 border-[#7F77DD]/30 dark:border-dark-border'
+      ? isPending
+        ? 'bg-[#EEEDFE]/30 dark:bg-dark-surface border-[#7F77DD]/20 dark:border-dark-border border-dashed opacity-80'
+        : 'bg-[#EEEDFE]/60 dark:bg-dark-surface2 border-[#7F77DD]/30 dark:border-dark-border'
       : ev.isTeaching
         ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-200 dark:border-brand-900/50'
         : 'bg-violet-50 dark:bg-dark-surface2 border-violet-200 dark:border-dark-border'
+
+    const rehearsalLabel = ev.inviteStatus === 'creator'
+      ? 'Organizas'
+      : ev.inviteStatus === 'pending'
+        ? 'Invitación pendiente'
+        : 'Invitad@'
 
     return (
       <Link
@@ -211,6 +221,11 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
             {ev.isRehearsal && (
               <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[#7F77DD]/20 dark:bg-dark-surface text-[#534AB7] dark:text-violet-300">
                 Ensayo
+              </span>
+            )}
+            {isPending && (
+              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800">
+                Pendiente
               </span>
             )}
           </div>
@@ -229,8 +244,8 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
             )}
           </div>
           {ev.isRehearsal ? (
-            <span className="inline-block mt-1 text-xs font-medium text-[#7F77DD]">
-              {ev.isCreatingRehearsal ? 'Organizas' : 'Invitad@'}
+            <span className={cn('inline-block mt-1 text-xs font-medium', isPending ? 'text-yellow-600 dark:text-yellow-400' : 'text-[#7F77DD]')}>
+              {rehearsalLabel}
             </span>
           ) : ev.isTeaching ? (
             <span className="inline-block mt-1 text-xs font-medium text-brand-600 dark:text-brand-300">Tú dictas</span>

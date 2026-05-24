@@ -26,7 +26,7 @@ export default async function MyClassesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const [{ data: enrollments }, { data: teachingClasses }, tier, { data: dismissedDebts }] = await Promise.all([
+  const [{ data: enrollments }, { data: teachingClasses }, tier, { data: dismissedDebts }, { data: ownRehearsals }, { data: rehearsalInvites }] = await Promise.all([
     supabase
       .from('enrollments')
       .select(`
@@ -65,6 +65,36 @@ export default async function MyClassesPage() {
       .from('dismissed_debts' as any)
       .select('student_id')
       .eq('teacher_id', user.id),
+
+    // Ensayos que creé
+    (supabase as any)
+      .from('rehearsals')
+      .select(`
+        id, title, description, date_mode, rehearsal_date, rehearsal_time,
+        custom_dates, coordinate_month, duration_minutes, status, created_at,
+        invites:rehearsal_invites(
+          id, user_id, status,
+          user:profiles!user_id(id, username, full_name, avatar_url)
+        )
+      `)
+      .eq('creator_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false }),
+
+    // Ensayos a los que fui invitado (no rechazados)
+    (supabase as any)
+      .from('rehearsal_invites')
+      .select(`
+        id, status,
+        rehearsal:rehearsals(
+          id, title, date_mode, rehearsal_date, rehearsal_time,
+          custom_dates, coordinate_month, duration_minutes,
+          creator:profiles!creator_id(id, username, full_name, avatar_url)
+        )
+      `)
+      .eq('user_id', user.id)
+      .neq('status', 'rejected')
+      .order('created_at', { ascending: false }),
   ])
 
   const dismissedStudentIds = (dismissedDebts as any[] ?? []).map((d: any) => d.student_id)
@@ -82,6 +112,8 @@ export default async function MyClassesPage() {
       defaultTab={canTeach(tier) ? 'teaching' : 'enrolled'}
       currentUserId={user.id}
       dismissedStudentIds={dismissedStudentIds}
+      ownRehearsals={(ownRehearsals as any[]) ?? []}
+      rehearsalInvites={(rehearsalInvites as any[]) ?? []}
     />
   )
 }

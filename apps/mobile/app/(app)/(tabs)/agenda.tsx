@@ -94,7 +94,7 @@ export default function AgendaScreen() {
           )
         `)
         .eq('student_id', user.id)
-        .eq('status', 'confirmed'),
+        .in('status', ['confirmed', 'pending_payment', 'payment_submitted']),
       (supabase as any)
         .from('classes')
         .select(`

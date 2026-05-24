@@ -182,7 +182,7 @@ const NOTIF_CONFIG: Record<string, {
       const who = data.from_username ? `@${data.from_username}` : 'Alguien'
       return `${who} te invitó al ensayo "${data.rehearsal_title ?? 'Ensayo'}"`
     },
-    href: () => '/feed',
+    href: (data) => data.rehearsal_id ? `/rehearsal/${data.rehearsal_id}` : '/feed',
   },
   rehearsal_accepted: {
     icon: UserCheck,
@@ -191,7 +191,7 @@ const NOTIF_CONFIG: Record<string, {
       const who = data.from_username ? `@${data.from_username}` : 'Alguien'
       return `${who} confirmó asistencia al ensayo "${data.rehearsal_title ?? 'tu ensayo'}"`
     },
-    href: () => '/feed',
+    href: (data) => data.rehearsal_id ? `/rehearsal/${data.rehearsal_id}` : '/feed',
   },
   rehearsal_rejected: {
     icon: XCircle,
@@ -200,7 +200,7 @@ const NOTIF_CONFIG: Record<string, {
       const who = data.from_username ? `@${data.from_username}` : 'Alguien'
       return `${who} no podrá ir al ensayo "${data.rehearsal_title ?? 'tu ensayo'}"`
     },
-    href: () => '/feed',
+    href: (data) => data.rehearsal_id ? `/rehearsal/${data.rehearsal_id}` : '/feed',
   },
 }
 
