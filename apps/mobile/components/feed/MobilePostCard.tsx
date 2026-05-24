@@ -105,10 +105,15 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
         </View>
       ) : null}
 
-      {/* Title */}
-      {post.title && (
-        <View className="px-4 pt-3 pb-4">
-          <Text className="font-semibold text-gray-900 dark:text-dark-text text-sm">{post.title}</Text>
+      {/* Title + description */}
+      {(post.title || post.description) && (
+        <View className="px-4 pt-3 pb-4 gap-1">
+          {post.title && (
+            <Text className="font-semibold text-gray-900 dark:text-dark-text text-sm">{post.title}</Text>
+          )}
+          {post.description && (
+            <Text className="text-sm text-gray-600 dark:text-dark-text2 leading-snug">{post.description}</Text>
+          )}
         </View>
       )}
     </View>

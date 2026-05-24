@@ -302,7 +302,13 @@ function TeachingTab({
                 className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors cursor-pointer"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls.title}</p>
+                  <Link
+                    href={`/class/${cls.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate hover:text-brand-600 dark:hover:text-brand-300 transition-colors"
+                  >
+                    {cls.title}
+                  </Link>
                   <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">
                     {cls.type === 'suelta'
                       ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`

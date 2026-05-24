@@ -1,4 +1,5 @@
 export * from './types/index'
 export * from './types/database'
 export * from './lib/supabase'
+export * from './lib/availability'
 export type { Database } from './types/database'

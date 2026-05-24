@@ -47,12 +47,11 @@ export default function CreatePostScreen() {
   const { isDark } = useTheme()
 
   const [userId, setUserId] = useState<string | null>(null)
-  const [userCity, setUserCity] = useState<string | null>(null)
 
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [visibility, setVisibility] = useState<Visibility>('public')
   const [videoUri, setVideoUri] = useState<string | null>(null)
-  const [city, setCity] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,10 +61,6 @@ export default function CreatePostScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       setUserId(user.id)
-      const { data } = await supabase.from('profiles').select('city').eq('id', user.id).single()
-      const c = data?.city ?? ''
-      setUserCity(c)
-      setCity(c)
     }
     load()
   }, [])
@@ -133,10 +128,10 @@ export default function CreatePostScreen() {
       .insert({
         user_id: userId,
         title: title.trim(),
+        description: description.trim() || null,
         video_url: url,
         is_public: visibility === 'public',
         visibility,
-        city: city.trim() || null,
       } as any)
 
     setLoading(false)
@@ -198,16 +193,22 @@ export default function CreatePostScreen() {
           </TouchableOpacity>
         )}
 
-        {/* City */}
+        {/* Description */}
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</Text>
+          <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
+            Descripción <Text className="font-normal text-gray-400">(opcional)</Text>
+          </Text>
           <TextInput
-            value={city}
-            onChangeText={setCity}
-            placeholder="ej: Santiago"
+            value={description}
+            onChangeText={(t) => setDescription(t.slice(0, 280))}
+            placeholder="¿De qué trata este video? Contexto, estilo, nivel..."
             placeholderTextColor="#9CA3AF"
+            multiline
+            numberOfLines={3}
             className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
+            style={{ minHeight: 72, textAlignVertical: 'top' }}
           />
+          <Text className="text-xs text-gray-400 dark:text-dark-text2/60 text-right">{description.length}/280</Text>
         </View>
 
         {/* Visibility */}

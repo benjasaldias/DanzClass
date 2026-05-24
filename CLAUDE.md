@@ -96,6 +96,8 @@ Esta referencia define el baseline visual. Los cambios de color deben ser aditiv
 | `014_discounts.sql` | `discount_price INTEGER`, `discount_price_monthly INTEGER` en `classes`. Notificación `class_discount`. |
 | `015_entrenamiento.sql` | Tipo `'entrenamiento'` en `classes`. `requires_audition`, `audition_closed`, `ends_at DATE`, `ends_indefinitely BOOLEAN` en `classes`. Tabla `auditions`. Bucket `audition-videos` (privado, 100MB). Notificaciones `audition_accepted`, `audition_rejected`. |
 | `020_reminders_and_waitlist.sql` | Extiende constraint notifications con `class_reminder` y `waitlist_available`. Tabla `waitlist` (class_id, user_id, UNIQUE(class_id,user_id)) con RLS. |
+| `021_post_description.sql` | `ALTER TABLE posts ADD COLUMN description TEXT` (nullable, retrocompatible). Reemplaza `city` en posts tipo video. |
+| `022_user_availability.sql` | Columnas `sleep_start SMALLINT DEFAULT 0` y `sleep_end SMALLINT DEFAULT 8` en `profiles`. Tabla `user_busy_blocks` (user_id, weekday 0=Lun..6=Dom, hour 0-23, UNIQUE por user+weekday+hour). RLS: solo el propio usuario. |
 
 **Antes de proponer cualquier migración nueva:** verificar que el constraint de `notification_type` en la última migración incluya todos los tipos anteriores, ya que cada migración lo reescribe completo.
 
@@ -167,6 +169,9 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 - **Filtro de clases vencidas en feed:** dos filtros `.or()` en la query Supabase: `(1) type.neq.suelta,date.gte.TODAY` y `(2) type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.TODAY`. Clases `recurrence='custom'` se filtran client-side por `custom_dates`. Aplicado en `feed/page.tsx`, `FeedClient.tsx` y `feed.tsx` (mobile).
 - **Cupos en feed:** `ClassCard.tsx` y `MobileClassCard.tsx` calculan cupos usando `status !== 'cancelled'` (no solo `confirmed`) para coincidir con la vista `class_spots`.
 - **Banner de pagos pendientes:** `EnrolledTab` en `MyClassesClient.tsx` (web) y `my-classes.tsx` (mobile) muestra un banner amarillo con count de `pending_payment + payment_submitted` y botón "Ver en Historial" que cambia el tab activo.
+- **Navegación a detalle desde feed/mis clases:** `ClassCard` muestra "Ver clase" para todos (incluyendo el profesor) — el botón "Editar" ya está dentro de `/class/[id]`. En `MyClassesClient` tab Dicto, el título de cada clase es un `<Link>` a `/class/[id]` con `e.stopPropagation()` para no colapsar el acordeón.
+- **Descripción en posts tipo video:** campo `description TEXT` (nullable) en tabla `posts`. `CreatePostModal` y `create-post.tsx` (mobile) reemplazan el campo "Ciudad" por un textarea de descripción (max 280 chars, opcional). `PostCard` y `MobilePostCard` muestran la descripción bajo el video. La ciudad sigue existiendo en la columna pero ya no se pide ni muestra en posts.
+- **Disponibilidad horaria:** tabla `user_busy_blocks` (weekday 0=Lun…6=Dom, hour 0-23) + columnas `sleep_start`/`sleep_end` en `profiles`. Utilitarios en `packages/shared/src/lib/availability.ts` (`isSleepHour`, `isBlockOccupied`, `getSleepHours`, `dateToWeekday`). UI en `AgendaClient` (sección "Mis horarios ocupados"): grid 7×24 con colores diferenciados para sueño (índigo), ocupado (coral), libre (gris). Config de sueño con selects de hora + botón guardar. Toggle de bloques con persistencia directa en Supabase (carga lazy al abrir la sección, auto-save por bloque).
 
 ---
 
@@ -389,6 +394,18 @@ Al agregar cualquier texto, borde, ícono o fondo de color en la app, respetar e
 - Panel de filtros colapsable con `SlidersHorizontal` + badge count
 - Chips de estilos de baile (`DANCE_STYLES` de `@danceclass/shared`) filtran clases y usuarios en tiempo real
 - Estado activo en morado-flow
+
+**Disponibilidad — weekday encoding (sesión 2026-05-24):**
+
+`user_busy_blocks.weekday`: 0=Lunes, 6=Domingo (NO el estándar JS donde 0=Domingo). Igual que `DAYS_OF_WEEK` del shared package y que la agenda. `dateToWeekday(date)` en `packages/shared/src/lib/availability.ts` convierte un Date al índice correcto.
+
+**Disponibilidad — sueño cruzando medianoche:**
+
+Si `sleep_start > sleep_end` (ej. 23 → 7), `isSleepHour` lo maneja correctamente: `hour >= sleepStart || hour < sleepEnd`. Si `sleep_start === sleep_end`, se interpreta como "sin configuración" (retorna false). La UI aún no valida que el sueño tenga sentido (usuario podría poner 8 → 8), pero la lógica lo tolera sin crash.
+
+**`user_busy_blocks` — toggle sin race condition:**
+
+El bloque se actualiza optimísticamente en el estado local antes del await de Supabase. Si falla el insert/delete, el estado queda desincronizado pero no se muestra error (la próxima carga al reabrir la sección es la fuente de verdad). Aceptable para MVP.
 
 ---
 

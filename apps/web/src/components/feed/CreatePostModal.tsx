@@ -5,14 +5,13 @@ import { useDropzone } from 'react-dropzone'
 import { X, Upload, Loader2, Globe, Lock, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
-import CityCombobox from '@/components/ui/CityCombobox'
 import { cn } from '@/lib/utils'
 
 type Visibility = 'public' | 'followers' | 'friends'
 
 interface CreatePostModalProps {
   userId: string
-  userCity: string | null
+  userCity?: string | null
   onClose: () => void
   onCreated: (post: any) => void
 }
@@ -23,10 +22,10 @@ const VISIBILITY_OPTIONS: { value: Visibility; label: string; icon: React.Elemen
   { value: 'friends', label: 'Amigos', icon: Users, active: 'bg-purple-50 border-purple-200 text-purple-700', inactive: 'border-gray-200 text-gray-500' },
 ]
 
-export default function CreatePostModal({ userId, userCity, onClose, onCreated }: CreatePostModalProps) {
+export default function CreatePostModal({ userId, onClose, onCreated }: CreatePostModalProps) {
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [visibility, setVisibility] = useState<Visibility>('public')
-  const [city, setCity] = useState(userCity ?? '')
   const [videoFile, setVideoFile] = useState<{ file: File; preview: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,10 +80,10 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
       .insert({
         user_id: userId,
         title: title.trim(),
+        description: description.trim() || null,
         video_url: videoUrl,
         is_public: visibility === 'public',
         visibility,
-        city: city || null,
       } as any)
       .select('*, user:profiles!user_id(*)')
       .single()
@@ -148,8 +147,18 @@ export default function CreatePostModal({ userId, userCity, onClose, onCreated }
           )}
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Ciudad</label>
-            <CityCombobox value={city} onChange={setCity} />
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Descripción <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="¿De qué trata este video? Contexto, estilo, nivel..."
+              className="input resize-none"
+              rows={3}
+              maxLength={280}
+            />
+            <p className="text-xs text-gray-400 mt-1 text-right">{description.length}/280</p>
           </div>
 
           <div>

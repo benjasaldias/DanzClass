@@ -229,18 +229,10 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
               )}
             </div>
 
-            {!isTeacher && (
-              <Link href={`/class/${classData.id}`} className="btn-primary flex-shrink-0">
-                Ver clase
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            )}
-
-            {isTeacher && (
-              <Link href={`/class/${classData.id}/edit`} className="btn-secondary text-xs flex-shrink-0">
-                Editar
-              </Link>
-            )}
+            <Link href={`/class/${classData.id}`} className="btn-primary flex-shrink-0">
+              Ver clase
+              <ChevronRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </div>

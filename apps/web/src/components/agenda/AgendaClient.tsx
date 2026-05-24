@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, CalendarDays, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Moon, Loader2 } from 'lucide-react'
 import { cn, getClassSessions, formatTime } from '@/lib/utils'
+import { isSleepHour } from '@danceclass/shared'
+import { createClient } from '@/lib/supabase/client'
 
 const DAYS_ES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const DAYS_FULL_ES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -379,53 +381,222 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
   )
 }
 
-const DAYS_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const GRID_DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const ALL_HOURS = Array.from({ length: 24 }, (_, h) => h)
+const HOUR_OPTIONS = ALL_HOURS.map((h) => ({ value: h, label: `${String(h).padStart(2, '0')}:00` }))
 
 function AvailabilitySection() {
   const [open, setOpen] = useState(false)
-  // Local state only — persistence pendiente (ver resumen.md)
-  const [availability, setAvailability] = useState<Record<string, boolean>>({})
+  const [loading, setLoading] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [busyBlocks, setBusyBlocks] = useState<Set<string>>(new Set())
+  const [sleepStart, setSleepStart] = useState(0)
+  const [sleepEnd, setSleepEnd] = useState(8)
+  const [savingSleep, setSavingSleep] = useState(false)
+  const [sleepSaved, setSleepSaved] = useState(false)
 
-  function toggle(day: string) {
-    setAvailability((prev) => ({ ...prev, [day]: !prev[day] }))
+  async function load() {
+    setLoading(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLoading(false); return }
+
+    const [{ data: profile }, { data: blocks }] = await Promise.all([
+      supabase.from('profiles').select('sleep_start, sleep_end').eq('id', user.id).single(),
+      (supabase as any).from('user_busy_blocks').select('weekday, hour').eq('user_id', user.id),
+    ])
+
+    if (profile) {
+      setSleepStart((profile as any).sleep_start ?? 0)
+      setSleepEnd((profile as any).sleep_end ?? 8)
+    }
+    if (blocks) {
+      setBusyBlocks(new Set((blocks as any[]).map((b: any) => `${b.weekday}:${b.hour}`)))
+    }
+    setLoaded(true)
+    setLoading(false)
+  }
+
+  function handleOpen() {
+    setOpen((o) => {
+      if (!o && !loaded) load()
+      return !o
+    })
+  }
+
+  async function toggleBlock(weekday: number, hour: number) {
+    if (isSleepHour(hour, sleepStart, sleepEnd)) return
+    const key = `${weekday}:${hour}`
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const wasBusy = busyBlocks.has(key)
+    setBusyBlocks((prev) => {
+      const next = new Set(prev)
+      if (wasBusy) next.delete(key)
+      else next.add(key)
+      return next
+    })
+
+    if (wasBusy) {
+      await (supabase as any)
+        .from('user_busy_blocks')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('weekday', weekday)
+        .eq('hour', hour)
+    } else {
+      await (supabase as any)
+        .from('user_busy_blocks')
+        .insert({ user_id: user.id, weekday, hour })
+    }
+  }
+
+  async function saveSleep() {
+    setSavingSleep(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ sleep_start: sleepStart, sleep_end: sleepEnd } as any)
+        .eq('id', user.id)
+    }
+    setSavingSleep(false)
+    setSleepSaved(true)
+    setTimeout(() => setSleepSaved(false), 2000)
   }
 
   return (
     <div className="mt-6 border border-gray-100 dark:border-dark-border rounded-2xl overflow-hidden">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleOpen}
         className="w-full flex items-center justify-between px-4 py-3 text-left bg-gray-50 dark:bg-dark-surface2 hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
       >
         <div>
-          <p className="font-semibold text-sm text-gray-900 dark:text-dark-text">Mis días disponibles</p>
-          <p className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">Marca los días en que puedes tomar clases</p>
+          <p className="font-semibold text-sm text-gray-900 dark:text-dark-text">Mis horarios ocupados</p>
+          <p className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">
+            Marca cuándo no puedes bailar — el resto se asume libre
+          </p>
         </div>
         <ChevronRight className={cn('h-4 w-4 text-gray-400 dark:text-dark-text2 transition-transform', open && 'rotate-90')} />
       </button>
+
       {open && (
-        <div className="px-4 py-3 bg-white dark:bg-dark-surface space-y-2">
-          <div className="flex flex-wrap gap-2">
-            {DAYS_LABELS.map((day) => (
-              <button
-                key={day}
-                onClick={() => toggle(day)}
-                className={cn(
-                  'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-                  availability[day]
-                    ? 'bg-brand-600 border-brand-600 text-white'
-                    : 'border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text2 hover:border-brand-400'
-                )}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-gris-humo dark:text-dark-text2 pt-1">
-            Esta información se usará próximamente para sugerirte clases que calcen con tu horario.
-          </p>
-          <p className="text-[10px] text-gris-humo/60 dark:text-dark-text2/50 italic">
-            Nota: la disponibilidad es local y no se guarda aún. Se persistirá en una sesión futura.
-          </p>
+        <div className="bg-white dark:bg-dark-surface px-4 pt-4 pb-5 space-y-5">
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-brand-600" />
+            </div>
+          )}
+
+          {loaded && (
+            <>
+              {/* Sleep config */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <Moon className="h-4 w-4 text-indigo-400 flex-shrink-0" />
+                <span className="text-sm text-gray-700 dark:text-dark-text">Duermo de</span>
+                <select
+                  value={sleepStart}
+                  onChange={(e) => setSleepStart(Number(e.target.value))}
+                  className="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2 text-sm text-gray-900 dark:text-dark-text px-2 py-1"
+                >
+                  {HOUR_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <span className="text-sm text-gray-700 dark:text-dark-text">a</span>
+                <select
+                  value={sleepEnd}
+                  onChange={(e) => setSleepEnd(Number(e.target.value))}
+                  className="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2 text-sm text-gray-900 dark:text-dark-text px-2 py-1"
+                >
+                  {HOUR_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={saveSleep}
+                  disabled={savingSleep}
+                  className={cn(
+                    'ml-auto rounded-lg px-3 py-1 text-xs font-semibold transition-colors',
+                    sleepSaved
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50'
+                  )}
+                >
+                  {savingSleep ? <Loader2 className="h-3 w-3 animate-spin inline" /> : sleepSaved ? '¡Guardado!' : 'Guardar'}
+                </button>
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 text-xs text-gris-humo dark:text-dark-text2">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-indigo-200 dark:bg-indigo-900/60 inline-block" />
+                  Sueño
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-coral-fuego/50 inline-block" />
+                  Ocupado
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-gray-100 dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border inline-block" />
+                  Libre
+                </span>
+              </div>
+
+              {/* Grid */}
+              <div className="overflow-x-auto -mx-4 px-4">
+                <table className="w-full border-separate" style={{ borderSpacing: '2px' }}>
+                  <thead>
+                    <tr>
+                      <th className="w-10" />
+                      {GRID_DAYS.map((d) => (
+                        <th key={d} className="text-[10px] font-semibold text-gris-humo dark:text-dark-text2 text-center pb-1">
+                          {d}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ALL_HOURS.map((hour) => (
+                      <tr key={hour}>
+                        <td className="text-[10px] text-gris-humo dark:text-dark-text2 pr-2 text-right w-10 leading-none py-0.5">
+                          {String(hour).padStart(2, '0')}
+                        </td>
+                        {GRID_DAYS.map((_, weekday) => {
+                          const sleep = isSleepHour(hour, sleepStart, sleepEnd)
+                          const busy = !sleep && busyBlocks.has(`${weekday}:${hour}`)
+                          return (
+                            <td key={weekday} className="p-0">
+                              <button
+                                onClick={() => toggleBlock(weekday, hour)}
+                                disabled={sleep}
+                                title={sleep ? 'Horario de sueño' : busy ? 'Ocupado — clic para liberar' : 'Libre — clic para marcar ocupado'}
+                                className={cn(
+                                  'w-full h-5 rounded transition-colors',
+                                  sleep
+                                    ? 'bg-indigo-200 dark:bg-indigo-900/60 cursor-not-allowed'
+                                    : busy
+                                      ? 'bg-coral-fuego/50 hover:bg-coral-fuego/70'
+                                      : 'bg-gray-100 dark:bg-dark-surface2 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'
+                                )}
+                              />
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="text-xs text-gris-humo dark:text-dark-text2">
+                Los cambios se guardan automáticamente al hacer clic en cada bloque.
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>

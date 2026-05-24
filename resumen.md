@@ -1601,12 +1601,11 @@ Reglas de cálculo por tipo:
 - Total: 5 tabs visibles (Inicio, Explorar, Mis clases, Agenda, Perfil)
 - **Pendiente (post-MVP):** agregar FAB en el feed para acceder rápidamente a publicar clase/video sin el tab
 
-### Pendientes
+### Pendientes (post-sesión 2026-05-24)
 
-- [ ] **Persistencia de disponibilidad personal:** crear tabla `user_availability` en Supabase (`user_id, days: TEXT[]`), API route `PATCH /api/user/availability`, y hookear el componente `AvailabilitySection` (web) y el equivalente mobile
-- [ ] **Filtrado de clases por disponibilidad:** cuando esté persistida, usar los días marcados para sugerir o filtrar clases en Explorar
 - [ ] **FAB mobile para publicar:** botón flotante en el feed (`(tabs)/feed.tsx`) que navega a `/(tabs)/create`, reemplazando la experiencia anterior del tab eliminado
-- [ ] **Vista semana en web:** actualmente implementada en `AgendaClient`; considerar si también se quiere en mobile (actualmente mobile solo tiene vista semana)
+- [ ] **Disponibilidad en mobile:** replicar la sección "Mis horarios ocupados" en `apps/mobile/app/(app)/(tabs)/agenda.tsx` usando la misma tabla `user_busy_blocks` y los utilitarios de `@danceclass/shared`
+- [ ] **Filtrado de clases por disponibilidad:** usar `user_busy_blocks` para marcar o filtrar clases en Explorar que choquen con horarios ocupados del usuario (feature futura)
 
 ### Archivos creados / modificados
 
@@ -1619,3 +1618,79 @@ Reglas de cálculo por tipo:
 | `apps/mobile/lib/utils.ts` | Mobile | NUEVO — getClassSessions, toYMD, formatTime |
 | `apps/mobile/app/(app)/(tabs)/agenda.tsx` | Mobile | NUEVO — vista semanal + disponibilidad |
 | `apps/mobile/app/(app)/(tabs)/_layout.tsx` | Mobile | create → href:null; Agenda tab añadido |
+
+---
+
+## Sesión 2026-05-24 (2) — Navegación, descripción de posts y disponibilidad horaria
+
+### ✅ 1. Navegación a detalle de clases propias
+
+**`ClassCard.tsx` (web):**
+
+- El propietario ahora ve "Ver clase" (→ `/class/[id]`) como CTA, igual que cualquier alumno
+- El botón "Editar" ya existe dentro de `/class/[id]`, accesible para el profesor desde ahí
+- Antes: el profesor veía "Editar" → `/class/[id]/edit` como única acción visible en el feed
+
+**`MyClassesClient.tsx` (web) — TeachingTab:**
+
+- El título de cada clase en el acordeón es un `<Link href="/class/[id]">` con `e.stopPropagation()` para no interferir con el toggle del acordeón
+- Hover con color brand-600, indica que es clickeable
+
+### ✅ 2. Descripción breve en posts tipo video
+
+**Migración:** `021_post_description.sql` — `ALTER TABLE posts ADD COLUMN description TEXT`
+
+**Web:**
+
+- `CreatePostModal.tsx`: eliminado CityCombobox, reemplazado por `<textarea>` de descripción (opcional, max 280 chars, con contador)
+- `PostCard.tsx`: interfaz actualizada (`city` → opcional, `description` → opcional), ciudad quitada del header, descripción muestra debajo del video
+- `feed/page.tsx`: posts select ahora explícito con `description` incluida
+
+**Mobile:**
+
+- `create-post.tsx`: eliminado estado `city`/`userCity`, reemplazado por estado `description` con TextInput multiline (max 280)
+- `MobilePostCard.tsx`: muestra `post.description` debajo del título cuando existe
+
+**Retrocompatibilidad:** Posts existentes sin description quedan con NULL y no muestran nada — sin crash.
+
+### ✅ 3. Disponibilidad horaria — modelo y UI base
+
+**Migración:** `022_user_availability.sql`
+
+- `profiles`: `sleep_start SMALLINT DEFAULT 0`, `sleep_end SMALLINT DEFAULT 8`
+- `user_busy_blocks`: `(user_id, weekday 0=Lun..6=Dom, hour 0-23)`, UNIQUE(user_id, weekday, hour), RLS solo propio usuario
+
+**Utilitarios compartidos:** `packages/shared/src/lib/availability.ts` (exportado desde `index.ts`)
+
+- `isSleepHour(hour, start, end)` — maneja cruce de medianoche
+- `isBlockOccupied(weekday, hour, blocks, start, end)` — combina sueño + marcados
+- `getSleepHours(start, end)` — lista de horas en ventana de sueño
+- `dateToWeekday(date)` — JS Date → 0=Lun..6=Dom
+
+**UI:** `AgendaClient.tsx` — `AvailabilitySection` completamente rediseñada:
+
+- Se carga lazy (Supabase fetch al primer `open`)
+- Config de sueño: dos `<select>` de 0-23h + botón Guardar con feedback "¡Guardado!"
+- Grid 7 columnas × 24 filas con celdas de 28×20px aproximado
+- **Sueño (índigo):** bloques no clicables, mostrados automáticamente según config
+- **Ocupado (coral/naranja):** bloques marcados por el usuario
+- **Libre (gris claro):** hover verde para indicar que se puede marcar
+- Auto-save por bloque (optimistic update → delete/insert en Supabase)
+- Leyenda de colores, dark mode completo
+
+### Cambios de archivos
+
+| Archivo | Cambio |
+|---|---|
+| `apps/web/src/components/feed/ClassCard.tsx` | "Ver clase" para propietario (antes "Editar") |
+| `apps/web/src/components/class/MyClassesClient.tsx` | Título clase → Link en TeachingTab |
+| `supabase/migrations/021_post_description.sql` | NUEVO — description en posts |
+| `apps/web/src/components/feed/CreatePostModal.tsx` | City → description textarea |
+| `apps/web/src/components/feed/PostCard.tsx` | Muestra description, oculta city |
+| `apps/web/src/app/(app)/feed/page.tsx` | Select explícito con description |
+| `apps/mobile/app/(app)/class/create-post.tsx` | City → description |
+| `apps/mobile/components/feed/MobilePostCard.tsx` | Muestra description |
+| `supabase/migrations/022_user_availability.sql` | NUEVO — user_busy_blocks + sleep cols |
+| `packages/shared/src/lib/availability.ts` | NUEVO — utilitarios disponibilidad |
+| `packages/shared/src/index.ts` | Exporta availability |
+| `apps/web/src/components/agenda/AgendaClient.tsx` | AvailabilitySection → grid horario completo |

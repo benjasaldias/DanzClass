@@ -20,7 +20,8 @@ interface PostCardProps {
     thumbnail_url: string | null
     is_public?: boolean
     visibility?: Visibility
-    city: string | null
+    city?: string | null
+    description?: string | null
     created_at: string
     user: {
       id: string
@@ -120,7 +121,6 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
               <span>@{user.username}</span>
               <span>·</span>
               <span>{formatDate(post.created_at)}</span>
-              {post.city && <><span>·</span><span>{post.city}</span></>}
               {privacyInfo && (
                 <span className="flex items-center gap-0.5">
                   <privacyInfo.icon className="h-3 w-3" /> {privacyInfo.label}
@@ -215,6 +215,10 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
               poster={post.thumbnail_url ?? undefined}
             />
           </div>
+        )}
+
+        {post.description && (
+          <p className="mt-3 text-sm text-gray-700 dark:text-dark-text2 leading-relaxed">{post.description}</p>
         )}
       </div>
 
