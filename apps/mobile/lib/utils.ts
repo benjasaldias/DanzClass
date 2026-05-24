@@ -34,7 +34,18 @@ export function getClassSessions(classData: any, fromDate: Date, toDate: Date): 
     return results.sort()
   }
 
-  if (!classData.start_date) return results
+  let start: Date
+  if (classData.start_date) {
+    start = parseLocalDate(classData.start_date)
+  } else if (classData.day_of_week != null) {
+    // start_date not stored — derive anchor from day_of_week (0=Sun..6=Sat)
+    const targetDay = classData.day_of_week as number
+    start = new Date(fromDate)
+    const dayDiff = (start.getDay() - targetDay + 7) % 7
+    start.setDate(start.getDate() - dayDiff)
+  } else {
+    return results
+  }
 
   let endDate: Date
   if (classData.ends_indefinitely) {
@@ -47,8 +58,6 @@ export function getClassSessions(classData: any, fromDate: Date, toDate: Date): 
   } else {
     endDate = toDate
   }
-
-  const start = parseLocalDate(classData.start_date)
 
   if (classData.recurrence === 'weekly' || classData.recurrence === 'biweekly') {
     const step = classData.recurrence === 'biweekly' ? 14 : 7

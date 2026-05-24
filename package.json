@@ -10,9 +10,17 @@
     "dev:mobile": "npm run start --workspace=apps/mobile",
     "build:web": "npm run build --workspace=apps/web",
     "db:push": "supabase db push",
-    "db:reset": "supabase db reset"
+    "db:reset": "supabase db reset",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:unit": "playwright test --config=playwright.unit.config.ts",
+    "test:e2e:prod": "playwright test --config=playwright.production.config.ts",
+    "test:e2e:prod:headed": "playwright test --config=playwright.production.config.ts --headed",
+    "test:e2e:prod:ui": "playwright test --config=playwright.production.config.ts --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/react": "~19.1.10",
     "react-native-worklets": "0.5.1",
     "typescript": "^5.4.5"

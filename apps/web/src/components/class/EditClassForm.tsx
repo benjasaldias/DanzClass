@@ -173,6 +173,20 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
     }
     setSubmitting(true); setError(null)
 
+    // Backfill start_date if missing and class is periodic
+    let start_date_value: string | null | undefined = undefined
+    if (isPeriodic && data.recurrence !== 'custom' && data.day_of_week != null && !classData.start_date) {
+      const today = new Date()
+      const targetDay = data.day_of_week as number
+      const diff = (targetDay - today.getDay() + 7) % 7
+      const sd = new Date(today)
+      sd.setDate(today.getDate() + diff)
+      const y = sd.getFullYear()
+      const m = String(sd.getMonth() + 1).padStart(2, '0')
+      const d = String(sd.getDate()).padStart(2, '0')
+      start_date_value = `${y}-${m}-${d}`
+    }
+
     const { error: updateError } = await supabase.from('classes').update({
       title: data.title,
       description: data.description || null,
@@ -183,6 +197,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       date: data.type === 'suelta' ? data.date : null,
       time: data.type === 'suelta' ? data.time : null,
       recurrence: isPeriodic ? data.recurrence : null,
+      ...(start_date_value !== undefined && { start_date: start_date_value }),
       day_of_week: isPeriodic && data.recurrence !== 'custom' ? data.day_of_week : null,
       recurring_time: isPeriodic ? data.recurring_time : null,
       custom_dates: isPeriodic && data.recurrence === 'custom' ? customDates : [],

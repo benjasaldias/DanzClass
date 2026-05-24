@@ -1727,3 +1727,47 @@ Completado el pendiente de la sesión anterior: `apps/mobile/app/(app)/(tabs)/ag
 | Archivo | Cambio |
 |---|---|
 | `apps/mobile/app/(app)/(tabs)/agenda.tsx` | Disponibilidad horaria completa con persistencia |
+
+---
+
+## Sesión 2026-05-25 (4) — Fix agenda + Ensayos post-MVP + Playwright
+
+### ✅ Bug crítico: agenda no mostraba clases
+
+**Causa raíz:** `getClassSessions()` (web y mobile) retornaba vacío para clases periódicas porque `start_date` nunca fue guardado en la DB. `CreateClassForm` y `EditClassForm` solo guardaban `day_of_week`, pero `getClassSessions` requería `start_date` como ancla y hacía early return si era null.
+
+**Fix en `apps/web/src/lib/utils.ts` y `apps/mobile/lib/utils.ts`:**
+Cuando `start_date` es null pero `day_of_week` está disponible, se deriva un ancla virtual: se retrocede desde `fromDate` al día de la semana correcto. Para clases quincenal sin `start_date`, puede mostrar semanas distintas a las reales (la fase es desconocida), pero es mejor que no mostrar nada.
+
+**Fix en `CreateClassForm.tsx` (web):**
+Agrega cómputo de `start_date` = próxima ocurrencia de `day_of_week` desde hoy, y lo incluye en el `insert`. Así las nuevas clases siempre tienen `start_date`.
+
+**Fix en `EditClassForm.tsx` (web):**
+Backfill de `start_date` al editar clases periódicas que no lo tenían, sin sobreescribir si ya existía.
+
+### ✅ Testing con Playwright
+
+El proyecto usa Playwright para tests E2E. Los tests de producción están en `tests/e2e-production/`. Para correr:
+
+```bash
+npx playwright test --config=playwright.production.config.ts
+```
+
+**Regla:** al crear nuevas features, agregar tests Playwright en `tests/` o `tests/e2e-production/` según corresponda (tests de solo lectura/smoke en producción; tests con mutaciones solo en entorno de desarrollo).
+
+**Fix en `smoke.features.spec.ts`:**
+`getByText('Ocupado')` causaba strict mode violation (coincidía con "Mis horarios **ocupados**" y con el label "**Ocupado**" de la leyenda). Fix: `getByText('Ocupado', { exact: true })`.
+
+### ✅ Ensayos post-MVP (completado en esta sesión)
+
+Ver memoria [Sesión 2026-05-25b](../memory/project_session_2026-05-25b.md) para detalles de los 4 TODOs implementados: coordinación, edición, página de detalle `/rehearsal/[id]`, y mobile completo.
+
+**Archivos modificados en esta sesión:**
+
+| Archivo | Cambio |
+| --- | --- |
+| `apps/web/src/lib/utils.ts` | `getClassSessions` fallback a `day_of_week` cuando `start_date` es null |
+| `apps/mobile/lib/utils.ts` | Mismo fix |
+| `apps/web/src/components/class/CreateClassForm.tsx` | Computa y guarda `start_date` al crear clase periódica |
+| `apps/web/src/components/class/EditClassForm.tsx` | Backfill de `start_date` al editar si no existía |
+| `tests/e2e-production/smoke.features.spec.ts` | Fix strict mode violation en `getByText('Ocupado', { exact: true })` |
