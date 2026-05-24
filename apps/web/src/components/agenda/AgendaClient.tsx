@@ -157,7 +157,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
     }
 
     return map
-  }, [enrolledClasses, teachingClasses])
+  }, [enrolledClasses, teachingClasses, rehearsals, currentUserId])
 
   // ── Month view helpers ──────────────────────────────────────────
   const firstDayOfMonth = currentMonth.getDay() // 0=Sun

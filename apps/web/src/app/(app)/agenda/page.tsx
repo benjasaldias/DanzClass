@@ -1,15 +1,11 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getActiveTier } from '@/lib/subscription'
-import { canTeach } from '@danceclass/shared'
 import AgendaClient from '@/components/agenda/AgendaClient'
 
 export default async function AgendaPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
-
-  const tier = await getActiveTier(user.id, supabase)
 
   const [{ data: enrollments }, { data: teachingClasses }, { data: rehearsalData }] = await Promise.all([
     (supabase as any)
@@ -25,17 +21,15 @@ export default async function AgendaPage() {
       .eq('student_id', user.id)
       .eq('status', 'confirmed'),
 
-    canTeach(tier)
-      ? (supabase as any)
-          .from('classes')
-          .select(`
-            id, title, dance_style, class_type, type, recurrence,
-            date, time, start_date, ends_at, ends_indefinitely,
-            custom_dates, recurring_time, day_of_week
-          `)
-          .eq('teacher_id', user.id)
-          .eq('status', 'active')
-      : { data: [] },
+    (supabase as any)
+      .from('classes')
+      .select(`
+        id, title, dance_style, class_type, type, recurrence,
+        date, time, start_date, ends_at, ends_indefinitely,
+        custom_dates, recurring_time, day_of_week
+      `)
+      .eq('teacher_id', user.id)
+      .eq('status', 'active'),
 
     // Ensayos: como creador o invitado aceptado
     (supabase as any)
