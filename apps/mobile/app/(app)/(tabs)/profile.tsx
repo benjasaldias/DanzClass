@@ -93,8 +93,8 @@ export default function ProfileScreen() {
 
   const tierLabel = TIER_LABELS[tier] ?? 'Sin plan'
   const tierColors = tier === 'none'
-    ? { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-200' }
-    : { bg: 'bg-brand-50', text: 'text-brand-700', border: 'border-brand-200' }
+    ? { bg: 'bg-gray-100 dark:bg-dark-surface2', text: 'text-gray-600 dark:text-dark-text2', border: 'border-gray-200 dark:border-dark-border' }
+    : { bg: 'bg-brand-50 dark:bg-brand-950/30', text: 'text-brand-700 dark:text-brand-300', border: 'border-brand-200 dark:border-brand-900/50' }
 
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
@@ -179,8 +179,8 @@ export default function ProfileScreen() {
               <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Enseña</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_teaching.map((s: string) => (
-                  <View key={s} className="bg-brand-50 rounded-full px-3 py-1">
-                    <Text className="text-xs text-brand-700 font-medium">{s}</Text>
+                  <View key={s} className="bg-emerald-50 dark:bg-emerald-900/20 rounded-full px-3 py-1">
+                    <Text className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{s}</Text>
                   </View>
                 ))}
               </View>
@@ -191,8 +191,8 @@ export default function ProfileScreen() {
               <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Baila</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_dancing.map((s: string) => (
-                  <View key={s} className="bg-lavanda-suave rounded-full px-3 py-1">
-                    <Text className="text-xs font-medium" style={{ color: '#534AB7' }}>{s}</Text>
+                  <View key={s} className="bg-lavanda-suave dark:bg-dark-surface2 rounded-full px-3 py-1">
+                    <Text className="text-xs font-medium" style={{ color: isDark ? '#A39BBF' : '#534AB7' }}>{s}</Text>
                   </View>
                 ))}
               </View>

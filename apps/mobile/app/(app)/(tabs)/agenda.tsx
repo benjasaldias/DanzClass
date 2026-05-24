@@ -547,7 +547,7 @@ export default function AgendaScreen() {
                       <Text className="text-xs text-gris-humo dark:text-dark-text2">Sueño</Text>
                     </View>
                     <View className="flex-row items-center gap-1.5">
-                      <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#f87171', opacity: 0.6 }} />
+                      <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: isDark ? 'rgba(180,83,9,0.6)' : '#fde68a' }} />
                       <Text className="text-xs text-gris-humo dark:text-dark-text2">Ocupado</Text>
                     </View>
                     <View className="flex-row items-center gap-1.5">
@@ -582,7 +582,7 @@ export default function AgendaScreen() {
                             const bgColor = sleep
                               ? '#c7d2fe'
                               : busy
-                                ? 'rgba(216,90,48,0.55)'
+                                ? isDark ? 'rgba(180,83,9,0.4)' : '#fde68a'
                                 : isDark ? '#2E1B5C' : '#f3f4f6'
                             return (
                               <TouchableOpacity

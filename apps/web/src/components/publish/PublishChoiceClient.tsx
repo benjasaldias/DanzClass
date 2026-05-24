@@ -34,23 +34,23 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
 
   return (
     <div className="px-4 py-8">
-      <h1 className="text-xl font-bold text-gray-900 mb-2">Publicar</h1>
-      <p className="text-sm text-gray-500 mb-8">¿Qué quieres publicar hoy?</p>
+      <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">Publicar</h1>
+      <p className="text-sm text-gray-500 dark:text-dark-text2 mb-8">¿Qué quieres publicar hoy?</p>
 
       <div className="flex flex-col gap-4">
         {/* Clase */}
         <Link
           href="/create-class"
-          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
+          className="flex items-center gap-4 rounded-2xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface p-5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 flex-shrink-0">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 dark:bg-dark-surface2 flex-shrink-0">
             <Calendar className="h-6 w-6 text-brand-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900">Clase</p>
-            <p className="text-sm text-gray-500 mt-0.5">Suelta o periódica, con cupos e inscripciones</p>
+            <p className="font-semibold text-gray-900 dark:text-dark-text">Clase</p>
+            <p className="text-sm text-gray-500 dark:text-dark-text2 mt-0.5">Suelta o periódica, con cupos e inscripciones</p>
           </div>
-          <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+          <ChevronRight className="h-5 w-5 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
         </Link>
 
         {/* Ensayo */}
@@ -72,53 +72,53 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
         {canVideo ? (
           <button
             onClick={handleVideoClick}
-            className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98] text-left"
+            className="flex items-center gap-4 rounded-2xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface p-5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98] text-left"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 flex-shrink-0">
-              <Video className="h-6 w-6 text-purple-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-900/20 flex-shrink-0">
+              <Video className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="font-semibold text-gray-900">Video</p>
+                <p className="font-semibold text-gray-900 dark:text-dark-text">Video</p>
                 {isBasic && (
-                  <span className="text-xs text-gray-400 font-normal">{videoPostCount}/{BASIC_VIDEO_POST_LIMIT}</span>
+                  <span className="text-xs text-gray-400 dark:text-dark-text2 font-normal">{videoPostCount}/{BASIC_VIDEO_POST_LIMIT}</span>
                 )}
               </div>
-              <p className="text-sm text-gray-500 mt-0.5">Comparte una coreografía con la comunidad</p>
+              <p className="text-sm text-gray-500 dark:text-dark-text2 mt-0.5">Comparte una coreografía con la comunidad</p>
             </div>
-            <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
+            <ChevronRight className="h-5 w-5 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
           </button>
         ) : (
-          <div className="flex items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-5 opacity-60">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 flex-shrink-0">
-              <Video className="h-6 w-6 text-gray-400" />
+          <div className="flex items-center gap-4 rounded-2xl border border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-surface p-5 opacity-60">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-dark-surface2 flex-shrink-0">
+              <Video className="h-6 w-6 text-gray-400 dark:text-dark-text2" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <p className="font-semibold text-gray-500">Video</p>
-                <Lock className="h-3.5 w-3.5 text-gray-400" />
+                <p className="font-semibold text-gray-500 dark:text-dark-text2">Video</p>
+                <Lock className="h-3.5 w-3.5 text-gray-400 dark:text-dark-text2" />
               </div>
-              <p className="text-sm text-gray-400 mt-0.5">Disponible desde el plan Básico</p>
+              <p className="text-sm text-gray-400 dark:text-dark-text2 mt-0.5">Disponible desde el plan Básico</p>
             </div>
-            <Link href="/plans" className="text-xs font-semibold text-brand-600 flex-shrink-0">Ver planes</Link>
+            <Link href="/plans" className="text-xs font-semibold text-brand-600 dark:text-brand-400 flex-shrink-0">Ver planes</Link>
           </div>
         )}
       </div>
 
       {/* Limit reached message */}
       {showVideoLimit && (
-        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-          <p className="text-sm font-semibold text-amber-900">Límite de videos alcanzado</p>
-          <p className="text-sm text-amber-700">
+        <div className="mt-5 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-2">
+          <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">Límite de videos alcanzado</p>
+          <p className="text-sm text-amber-700 dark:text-amber-400">
             El plan Básico permite hasta {BASIC_VIDEO_POST_LIMIT} videos publicados simultáneamente.
             Elimina uno desde tu perfil para subir otro.
           </p>
           <div className="flex gap-2 pt-1">
-            <Link href="/profile" className="text-sm font-semibold text-amber-800 underline underline-offset-2">
+            <Link href="/profile" className="text-sm font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2">
               Ir a mi perfil
             </Link>
-            <span className="text-amber-400">·</span>
-            <Link href="/plans" className="text-sm font-semibold text-brand-600 underline underline-offset-2">
+            <span className="text-amber-400 dark:text-amber-600">·</span>
+            <Link href="/plans" className="text-sm font-semibold text-brand-600 dark:text-brand-400 underline underline-offset-2">
               Ver plan Pro
             </Link>
           </div>

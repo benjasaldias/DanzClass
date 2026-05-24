@@ -144,8 +144,8 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
           </View>
         </View>
         {classData.dance_style && (
-          <View className="bg-brand-50 rounded-full px-2.5 py-1">
-            <Text className="text-brand-700 text-xs font-medium">{classData.dance_style}</Text>
+          <View className="bg-emerald-50 dark:bg-emerald-900/20 rounded-full px-2.5 py-1">
+            <Text className="text-emerald-700 dark:text-emerald-400 text-xs font-medium">{classData.dance_style}</Text>
           </View>
         )}
       </TouchableOpacity>

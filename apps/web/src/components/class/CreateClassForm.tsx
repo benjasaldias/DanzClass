@@ -308,11 +308,11 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       )}
 
       {!hasPaymentInfo && (
-        <div className="mb-4 rounded-xl bg-yellow-50 border border-yellow-200 p-4 flex gap-3">
-          <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+        <div className="mb-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 flex gap-3">
+          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-yellow-800">Configura tus datos bancarios</p>
-            <p className="text-xs text-yellow-700 mt-0.5">Los estudiantes necesitarán tus datos para pagarte.</p>
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Configura tus datos bancarios</p>
+            <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-0.5">Los estudiantes necesitarán tus datos para pagarte.</p>
           </div>
         </div>
       )}
@@ -322,11 +322,11 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       )}
 
       {basicBlocked && (
-        <div className="mb-4 rounded-xl bg-brand-50 border border-brand-200 p-4 flex gap-3">
-          <Info className="h-5 w-5 text-brand-600 flex-shrink-0 mt-0.5" />
+        <div className="mb-4 rounded-xl bg-brand-50 dark:bg-brand-950/30 border border-brand-200 dark:border-brand-900/50 p-4 flex gap-3">
+          <Info className="h-5 w-5 text-brand-600 dark:text-brand-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-brand-800">Límite mensual alcanzado</p>
-            <p className="text-xs text-brand-700 mt-0.5">
+            <p className="text-sm font-medium text-brand-800 dark:text-brand-200">Límite mensual alcanzado</p>
+            <p className="text-xs text-brand-700 dark:text-brand-300 mt-0.5">
               El plan Básico permite 1 clase suelta por mes. Ya publicaste tu clase de este mes.
               Actualiza a Pro para publicar sin límites.
             </p>
@@ -335,9 +335,9 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       )}
 
       {isBasic && !basicBlocked && (
-        <div className="mb-4 rounded-xl bg-gray-50 border border-gray-200 p-4 flex gap-3">
-          <Info className="h-5 w-5 text-gray-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-gray-600">
+        <div className="mb-4 rounded-xl bg-gray-50 dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border p-4 flex gap-3">
+          <Info className="h-5 w-5 text-gray-400 dark:text-dark-text2 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-gray-600 dark:text-dark-text2">
             Plan Básico: puedes publicar <strong>1 clase suelta por mes</strong> con hasta <strong>1 foto o video</strong>.
           </p>
         </div>
@@ -356,7 +356,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               <label key={value} className={cn(
                 'flex items-center gap-3 rounded-xl border-2 p-3 transition-colors',
                 locked ? 'opacity-40 cursor-not-allowed border-gray-200' : 'cursor-pointer',
-                !locked && classType === value ? 'border-brand-500 bg-brand-50' : 'border-gray-200'
+                !locked && classType === value ? 'border-brand-500 dark:border-brand-400 bg-brand-50 dark:bg-brand-950/30' : 'border-gray-200 dark:border-dark-border'
               )}>
                 <input type="radio" value={value} {...register('type')} className="sr-only" disabled={locked} />
                 <div>
@@ -537,7 +537,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
             {/* Audition toggle for entrenamiento */}
             {isEntrenamiento && (
-              <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3 space-y-2">
+              <div className="rounded-xl border border-brand-200 dark:border-brand-900/40 bg-brand-50/40 dark:bg-brand-950/20 p-3 space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -547,7 +547,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                   <span className="text-sm font-medium text-gray-800 dark:text-dark-text">Requiere postulación</span>
                 </label>
                 {requiresAudition && (
-                  <p className="text-xs text-brand-700">
+                  <p className="text-xs text-brand-700 dark:text-brand-300">
                     Los interesados deberán completar un formulario con su nombre, edad, teléfono y video opcional.
                     Podrás aceptar o rechazar cada postulación desde el panel de postulaciones.
                     Al cerrar la etapa, la clase se puede editar normalmente.

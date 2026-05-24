@@ -363,7 +363,7 @@ export default function TeacherProfileScreen() {
               <>
                 <View className="w-px bg-gray-100 dark:bg-dark-border" />
                 <View className="items-center">
-                  <Text className="text-lg font-bold" style={{ color: '#c026d3' }}>{avgStars.toFixed(1)}</Text>
+                  <Text className="text-lg font-bold" style={{ color: isDark ? '#e879f9' : '#c026d3' }}>{avgStars.toFixed(1)}</Text>
                   <StarRating value={avgStars} readOnly size="sm" instanceId="profile-stats" />
                   <Text className="text-xs text-gris-humo dark:text-dark-text2">{ratingCount} val.</Text>
                 </View>
@@ -378,7 +378,7 @@ export default function TeacherProfileScreen() {
                 <TouchableOpacity
                   onPress={handleFollowToggle}
                   disabled={loadingFollow}
-                  className={`flex-1 rounded-xl py-2.5 items-center border ${isFollowing ? 'border-brand-300 bg-brand-50' : 'border-brand-600 bg-brand-600'}`}
+                  className={`flex-1 rounded-xl py-2.5 items-center border ${isFollowing ? 'border-brand-300 dark:border-brand-700 bg-brand-50 dark:bg-brand-950/30' : 'border-brand-600 bg-brand-600'}`}
                 >
                   <Text className={`text-sm font-semibold ${isFollowing ? 'text-brand-700' : 'text-white'}`}>
                     {loadingFollow ? '...' : isFollowing ? 'Siguiendo' : 'Seguir'}
@@ -388,13 +388,13 @@ export default function TeacherProfileScreen() {
                   onPress={handleFriendAction}
                   disabled={loadingFriend || friendStatus === 'pending_sent'}
                   className={`flex-1 rounded-xl py-2.5 items-center border ${
-                    friendStatus === 'accepted' ? 'border-green-300 bg-green-50' :
+                    friendStatus === 'accepted' ? 'border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-900/30' :
                     friendStatus === 'pending_received' ? 'border-morado-flow bg-morado-flow' :
                     'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
                   }`}
                 >
                   <Text className={`text-sm font-semibold ${
-                    friendStatus === 'accepted' ? 'text-green-700' :
+                    friendStatus === 'accepted' ? 'text-green-700 dark:text-green-400' :
                     friendStatus === 'pending_received' ? 'text-white' :
                     'text-gray-700 dark:text-dark-text2'
                   }`}>
@@ -426,8 +426,8 @@ export default function TeacherProfileScreen() {
               <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Enseña</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_teaching.map((s: string) => (
-                  <View key={s} className="bg-brand-50 rounded-full px-3 py-1">
-                    <Text className="text-xs text-brand-700 font-medium">{s}</Text>
+                  <View key={s} className="bg-emerald-50 dark:bg-emerald-900/20 rounded-full px-3 py-1">
+                    <Text className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{s}</Text>
                   </View>
                 ))}
               </View>
@@ -438,8 +438,8 @@ export default function TeacherProfileScreen() {
               <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Baila</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_dancing.map((s: string) => (
-                  <View key={s} className="bg-lavanda-suave rounded-full px-3 py-1">
-                    <Text className="text-xs font-medium" style={{ color: '#534AB7' }}>{s}</Text>
+                  <View key={s} className="bg-lavanda-suave dark:bg-dark-surface2 rounded-full px-3 py-1">
+                    <Text className="text-xs font-medium" style={{ color: isDark ? '#A39BBF' : '#534AB7' }}>{s}</Text>
                   </View>
                 ))}
               </View>

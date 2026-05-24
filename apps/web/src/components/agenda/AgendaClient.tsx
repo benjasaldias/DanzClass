@@ -603,7 +603,7 @@ function AvailabilitySection() {
                   Sueño
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-coral-fuego/50 inline-block" />
+                  <span className="w-3 h-3 rounded bg-amber-200 dark:bg-amber-900/40 inline-block" />
                   Ocupado
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -645,7 +645,7 @@ function AvailabilitySection() {
                                   sleep
                                     ? 'bg-indigo-200 dark:bg-indigo-900/60 cursor-not-allowed'
                                     : busy
-                                      ? 'bg-coral-fuego/50 hover:bg-coral-fuego/70'
+                                      ? 'bg-amber-200 dark:bg-amber-900/40 hover:bg-amber-300 dark:hover:bg-amber-900/60'
                                       : 'bg-gray-100 dark:bg-dark-surface2 hover:bg-emerald-100 dark:hover:bg-emerald-900/20'
                                 )}
                               />

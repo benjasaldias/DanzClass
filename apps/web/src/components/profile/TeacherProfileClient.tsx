@@ -262,7 +262,7 @@ export default function TeacherProfileClient({
               <p className="text-xs font-semibold text-gray-500 dark:text-dark-text2 uppercase tracking-wider mb-2">Baila</p>
               <div className="flex flex-wrap gap-1.5">
                 {teacher.styles_dancing.map((s) => (
-                  <span key={s} className="badge bg-lavanda-suave text-violeta-oscuro">{s}</span>
+                  <span key={s} className="badge bg-lavanda-suave dark:bg-dark-surface2 text-violeta-oscuro dark:text-violet-300">{s}</span>
                 ))}
               </div>
             </div>
@@ -272,7 +272,7 @@ export default function TeacherProfileClient({
               <p className="text-xs font-semibold text-gray-500 dark:text-dark-text2 uppercase tracking-wider mb-2">Enseña</p>
               <div className="flex flex-wrap gap-1.5">
                 {teacher.styles_teaching.map((s) => (
-                  <span key={s} className="badge bg-brand-50 text-brand-700">{s}</span>
+                  <span key={s} className="badge bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400">{s}</span>
                 ))}
               </div>
             </div>

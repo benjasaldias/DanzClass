@@ -91,7 +91,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
           <p className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</p>
         </div>
         {styleBadge && (
-          <span className="badge bg-brand-50 dark:bg-dark-surface2 text-brand-700 dark:text-brand-300 text-xs">{styleBadge}</span>
+          <span className="badge bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs">{styleBadge}</span>
         )}
       </div>
 
