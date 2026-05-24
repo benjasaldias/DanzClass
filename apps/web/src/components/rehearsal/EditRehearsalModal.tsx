@@ -313,7 +313,7 @@ export default function EditRehearsalModal({ rehearsal, onClose, onSaved, onUpda
                     <div className="flex flex-wrap gap-1.5">
                       {selectedUsers.map((u) => (
                         <span key={u.id} className="inline-flex items-center gap-1.5 rounded-full bg-[#EEEDFE] dark:bg-dark-surface2 px-2.5 py-1 text-xs font-medium text-[#534AB7] dark:text-violet-300">
-                          <Avatar url={u.avatar_url ?? null} name={u.full_name} size="xs" />
+                          <Avatar src={u.avatar_url ?? null} name={u.full_name} size="xs" />
                           @{u.username}
                           <button onClick={() => setSelectedUsers((p) => p.filter((x) => x.id !== u.id))} className="hover:text-red-500 transition-colors">
                             <X className="h-3 w-3" />
@@ -338,7 +338,7 @@ export default function EditRehearsalModal({ rehearsal, onClose, onSaved, onUpda
                     <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface overflow-hidden shadow-lg">
                       {searchResults.map((u) => (
                         <button key={u.id} onClick={() => toggleUser(u)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-dark-surface2 transition-colors text-left">
-                          <Avatar url={u.avatar_url ?? null} name={u.full_name} size="sm" />
+                          <Avatar src={u.avatar_url ?? null} name={u.full_name} size="sm" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">{u.full_name}</p>
                             <p className="text-xs text-gris-humo dark:text-dark-text2">@{u.username}</p>

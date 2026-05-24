@@ -128,7 +128,7 @@ export default function RehearsalCard({ rehearsal, currentUserId, onRespond, onE
           {/* Creador */}
           <div className="flex items-center gap-1.5 mt-1">
             <Avatar
-              url={rehearsal.creator?.avatar_url ?? null}
+              src={rehearsal.creator?.avatar_url ?? null}
               name={rehearsal.creator?.full_name ?? ''}
               size="xs"
             />
@@ -192,7 +192,7 @@ export default function RehearsalCard({ rehearsal, currentUserId, onRespond, onE
               {invites.map((invite: any) => (
                 <div key={invite.id} className="flex items-center gap-2">
                   <Avatar
-                    url={invite.user?.avatar_url ?? null}
+                    src={invite.user?.avatar_url ?? null}
                     name={invite.user?.full_name ?? ''}
                     size="xs"
                   />

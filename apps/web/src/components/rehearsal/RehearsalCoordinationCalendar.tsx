@@ -224,7 +224,7 @@ export default function RehearsalCoordinationCalendar({ rehearsalId, coordinateM
               const invite = invites.find((i: any) => i.user_id === m.id)
               return (
                 <div key={m.id} className="flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 bg-gray-100 dark:bg-dark-surface2 text-gray-700 dark:text-dark-text2">
-                  <Avatar url={m.avatar_url} name={m.full_name} size="xs" />
+                  <Avatar src={m.avatar_url} name={m.full_name} size="xs" />
                   @{m.username}
                   {invite && (
                     <span className={cn(

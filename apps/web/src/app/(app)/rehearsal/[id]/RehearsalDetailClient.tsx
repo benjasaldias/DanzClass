@@ -130,7 +130,7 @@ export default function RehearsalDetailClient({ rehearsal: initialRehearsal, cur
 
             {/* Creator */}
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-dark-border">
-              <Avatar url={rehearsal.creator?.avatar_url ?? null} name={rehearsal.creator?.full_name ?? ''} size="sm" />
+              <Avatar src={rehearsal.creator?.avatar_url ?? null} name={rehearsal.creator?.full_name ?? ''} size="sm" />
               <div>
                 <p className="text-xs text-gris-humo dark:text-dark-text2">Organizado por</p>
                 <p className="text-sm font-medium text-gray-900 dark:text-dark-text">
@@ -247,7 +247,7 @@ export default function RehearsalDetailClient({ rehearsal: initialRehearsal, cur
             <div className="space-y-2.5">
               {invites.map((invite: any) => (
                 <div key={invite.id} className="flex items-center gap-2.5">
-                  <Avatar url={invite.user?.avatar_url ?? null} name={invite.user?.full_name ?? ''} size="sm" />
+                  <Avatar src={invite.user?.avatar_url ?? null} name={invite.user?.full_name ?? ''} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-dark-text truncate">
                       @{invite.user?.username}
