@@ -87,11 +87,10 @@ export default function EditRehearsalModal({ rehearsal, onClose, onSaved, onUpda
         ...selectedUsers.map((u) => u.id),
         rehearsal.creator_id,
       ])
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('profiles')
         .select('id, username, full_name, avatar_url')
         .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
-        .eq('is_confirmed' as any, true)
         .limit(10)
       setSearchResults((data ?? []).filter((u: any) => !existingIds.has(u.id)))
       setSearchLoading(false)

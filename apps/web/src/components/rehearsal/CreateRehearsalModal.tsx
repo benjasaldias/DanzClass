@@ -58,11 +58,10 @@ export default function CreateRehearsalModal({ onClose, onCreated }: CreateRehea
     const timer = setTimeout(async () => {
       setSearchLoading(true)
       const q = searchQuery.trim().toLowerCase()
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('profiles')
         .select('id, username, full_name, avatar_url')
         .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
-        .eq('is_confirmed' as any, true)
         .limit(10)
       const selectedIds = new Set(selectedUsers.map((u) => u.id))
       setSearchResults((data ?? []).filter((u: any) => !selectedIds.has(u.id)))
