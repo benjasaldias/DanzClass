@@ -403,7 +403,7 @@ export default function EditRehearsalModal({ rehearsal, onClose, onSaved, onUpda
       {showCancelConfirm && (
         <ConfirmDialog
           title="¿Cancelar ensayo?"
-          description={`"${rehearsal.title}" será cancelado para todos los integrantes.`}
+          message={`"${rehearsal.title}" será cancelado para todos los integrantes.`}
           confirmLabel="Sí, cancelar"
           destructive
           onConfirm={handleCancel}
