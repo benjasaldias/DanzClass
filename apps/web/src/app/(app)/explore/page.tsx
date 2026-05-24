@@ -11,6 +11,7 @@ export default async function ExplorePage() {
     { data: allUsers },
     { data: myFollows },
     { data: myFriendships },
+    availabilityResult,
   ] = await Promise.all([
     (supabase as any)
       .from('classes')
@@ -31,6 +32,13 @@ export default async function ExplorePage() {
     user
       ? supabase.from('friendships').select('*').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
       : Promise.resolve({ data: [] }),
+    // Fetch user's availability for "Sin topes" filter
+    user
+      ? Promise.all([
+          supabase.from('profiles').select('sleep_start, sleep_end').eq('id', user.id).single(),
+          (supabase as any).from('user_busy_blocks').select('weekday, hour').eq('user_id', user.id),
+        ])
+      : Promise.resolve(null),
   ])
 
   type FollowRow = { following_id: string }
@@ -48,6 +56,19 @@ export default async function ExplorePage() {
     }
   }
 
+  // Build availability data for "Sin topes" filter
+  let userAvailability: { sleepStart: number; sleepEnd: number; busyBlocks: { weekday: number; hour: number }[] } | null = null
+  if (availabilityResult) {
+    const [profileResult, blocksResult] = availabilityResult as [any, any]
+    const profile = profileResult?.data
+    const blocks = blocksResult?.data ?? []
+    userAvailability = {
+      sleepStart: profile?.sleep_start ?? 0,
+      sleepEnd: profile?.sleep_end ?? 8,
+      busyBlocks: (blocks as { weekday: number; hour: number }[]),
+    }
+  }
+
   return (
     <ExploreClient
       classes={recentClasses ?? []}
@@ -55,6 +76,8 @@ export default async function ExplorePage() {
       currentUserId={user?.id ?? ''}
       followingIds={Array.from(followingIds)}
       friendStatuses={friendMap}
+      userAvailability={userAvailability}
+      isLoggedIn={!!user}
     />
   )
 }

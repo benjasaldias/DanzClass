@@ -6,6 +6,7 @@ import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
+import MobileRehearsalCard from '../../../components/feed/MobileRehearsalCard'
 import TopBar from '../../../components/ui/TopBar'
 import RatingPopup from '../../../components/ui/RatingPopup'
 import { useTheme } from '../../../context/ThemeContext'
@@ -19,11 +20,12 @@ const FEED_FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'nearby', label: 'Cerca' },
 ]
 
-type ContentFilter = 'all' | 'classes' | 'posts'
+type ContentFilter = 'all' | 'classes' | 'posts' | 'rehearsals'
 const CONTENT_FILTERS: { key: ContentFilter; label: string }[] = [
   { key: 'all', label: 'Todos' },
   { key: 'classes', label: 'Clases' },
   { key: 'posts', label: 'Videos' },
+  { key: 'rehearsals', label: 'Ensayos' },
 ]
 
 export default function FeedScreen() {
@@ -130,6 +132,20 @@ export default function FeedScreen() {
       }
     }
 
+    // Fetch rehearsals (if not classes-only or posts-only)
+    if (cf === 'all' || cf === 'rehearsals') {
+      const { data: rehearsalData } = await (supabase as any)
+        .from('rehearsals')
+        .select('*, creator:profiles!creator_id(id, username, full_name, avatar_url), invites:rehearsal_invites(id, user_id, status, user:profiles!user_id(id, username, full_name, avatar_url))')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(20)
+      ;(rehearsalData ?? []).forEach((r: any) => {
+        const myInvite = (r.invites ?? []).find((i: any) => i.user_id === uid) ?? null
+        allItems.push({ _type: 'rehearsal', ...r, my_invite: myInvite })
+      })
+    }
+
     // Sort mixed feed by created_at descending
     allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setItems(allItems)
@@ -228,7 +244,9 @@ export default function FeedScreen() {
           renderItem={({ item }: { item: any }) =>
             item._type === 'class'
               ? <MobileClassCard classData={item} currentUserId={userId ?? ''} teacherRating={teacherRatings[item.teacher_id]} />
-              : <MobilePostCard post={item} currentUserId={userId ?? ''} />
+              : item._type === 'rehearsal'
+                ? <MobileRehearsalCard rehearsal={item} currentUserId={userId ?? ''} onUpdate={() => loadFeed(feedFilter, contentFilter)} />
+                : <MobilePostCard post={item} currentUserId={userId ?? ''} />
           }
           refreshControl={
             <RefreshControl

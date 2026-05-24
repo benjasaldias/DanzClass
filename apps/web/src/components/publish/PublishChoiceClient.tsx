@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Calendar, Video, ChevronRight, Lock } from 'lucide-react'
+import { Calendar, Video, ChevronRight, Lock, Music2 } from 'lucide-react'
 import CreatePostModal from '@/components/feed/CreatePostModal'
+import CreateRehearsalModal from '@/components/rehearsal/CreateRehearsalModal'
 import { BASIC_VIDEO_POST_LIMIT, canPostVideo } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
@@ -19,6 +20,7 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
   const router = useRouter()
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [showVideoLimit, setShowVideoLimit] = useState(false)
+  const [showRehearsalModal, setShowRehearsalModal] = useState(false)
 
   const canVideo = canPostVideo(tier)
   const isBasic = tier === 'basic'
@@ -50,6 +52,21 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
           </div>
           <ChevronRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
         </Link>
+
+        {/* Ensayo */}
+        <button
+          onClick={() => setShowRehearsalModal(true)}
+          className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white dark:bg-dark-surface dark:border-dark-border p-5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98] text-left w-full"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#EEEDFE] dark:bg-dark-surface2 flex-shrink-0">
+            <Music2 className="h-6 w-6 text-[#7F77DD]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 dark:text-dark-text">Ensayo</p>
+            <p className="text-sm text-gray-500 dark:text-dark-text2 mt-0.5">Privado, por invitación, sin precio</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
+        </button>
 
         {/* Video */}
         {canVideo ? (
@@ -114,6 +131,13 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
           userCity={userCity}
           onClose={() => setShowVideoModal(false)}
           onCreated={() => router.push('/feed')}
+        />
+      )}
+
+      {showRehearsalModal && (
+        <CreateRehearsalModal
+          onClose={() => setShowRehearsalModal(false)}
+          onCreated={() => router.push('/feed?tab=rehearsals')}
         />
       )}
     </div>

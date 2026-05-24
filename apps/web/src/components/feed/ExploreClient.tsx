@@ -1,16 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search, SlidersHorizontal, X, Zap, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ClassCard from './ClassCard'
 import UserCard from './UserCard'
 import GenreFilter from './GenreFilter'
+import { classConflictsWithSchedule } from '@danceclass/shared'
 import type { Profile } from '@danceclass/shared'
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
 type Tab = 'classes' | 'users'
 type UserFilter = 'all' | 'friends' | 'following'
+
+interface UserAvailability {
+  sleepStart: number
+  sleepEnd: number
+  busyBlocks: { weekday: number; hour: number }[]
+}
 
 interface ExploreClientProps {
   classes: any[]
@@ -18,14 +25,17 @@ interface ExploreClientProps {
   currentUserId: string
   followingIds: string[]
   friendStatuses: Record<string, FriendStatus>
+  userAvailability?: UserAvailability | null
+  isLoggedIn?: boolean
 }
 
-export default function ExploreClient({ classes, users, currentUserId, followingIds, friendStatuses }: ExploreClientProps) {
+export default function ExploreClient({ classes, users, currentUserId, followingIds, friendStatuses, userAvailability, isLoggedIn }: ExploreClientProps) {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('classes')
   const [selectedStyle, setSelectedStyle] = useState('')
   const [userFilter, setUserFilter] = useState<UserFilter>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [noConflicts, setNoConflicts] = useState(false)
 
   const followingSet = new Set(followingIds)
 
@@ -33,7 +43,20 @@ export default function ExploreClient({ classes, users, currentUserId, following
     const matchQuery = !query || c.title.toLowerCase().includes(query.toLowerCase()) ||
       c.dance_style?.toLowerCase().includes(query.toLowerCase())
     const matchStyle = !selectedStyle || c.dance_style === selectedStyle
-    return matchQuery && matchStyle
+    if (!matchQuery || !matchStyle) return false
+
+    // "Sin topes" filter
+    if (noConflicts && userAvailability) {
+      const conflicts = classConflictsWithSchedule(
+        c,
+        userAvailability.busyBlocks,
+        userAvailability.sleepStart,
+        userAvailability.sleepEnd,
+      )
+      if (conflicts) return false
+    }
+
+    return true
   })
 
   const filteredUsers = users.filter((u) => {
@@ -58,7 +81,7 @@ export default function ExploreClient({ classes, users, currentUserId, following
     users: 'Buscar usuarios...',
   }
 
-  const activeFilterCount = selectedStyle ? 1 : 0
+  const activeFilterCount = (selectedStyle ? 1 : 0) + (noConflicts ? 1 : 0)
   const hasActiveFilters = activeFilterCount > 0
 
   return (
@@ -117,11 +140,42 @@ export default function ExploreClient({ classes, users, currentUserId, following
 
         {/* Collapsible genre filter */}
         {activeTab === 'classes' && showFilters && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <GenreFilter selected={selectedStyle} onChange={setSelectedStyle} />
+
+            {/* Sin topes filter */}
+            <div className="flex items-center gap-2">
+              {isLoggedIn ? (
+                <button
+                  onClick={() => setNoConflicts((v) => !v)}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                    noConflicts
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                      : 'border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2'
+                  )}
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  Sin topes
+                  {noConflicts && (
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-[8px] font-bold text-white">✓</span>
+                  )}
+                </button>
+              ) : (
+                <div className="flex items-center gap-1.5 rounded-full border border-gray-100 dark:border-dark-border px-3 py-1.5 text-xs text-gray-400 dark:text-dark-text2 opacity-60 cursor-not-allowed">
+                  <Zap className="h-3.5 w-3.5" />
+                  Sin topes
+                  <Lock className="h-3 w-3" />
+                </div>
+              )}
+              <span className="text-xs text-gris-humo dark:text-dark-text2">
+                {noConflicts ? 'Mostrando clases sin choque con tu agenda' : 'Filtra según tu disponibilidad'}
+              </span>
+            </div>
+
             {hasActiveFilters && (
               <button
-                onClick={() => setSelectedStyle('')}
+                onClick={() => { setSelectedStyle(''); setNoConflicts(false) }}
                 className="flex items-center gap-1 text-xs text-morado-flow hover:text-morado-flow/80 font-medium"
               >
                 <X className="h-3 w-3" />

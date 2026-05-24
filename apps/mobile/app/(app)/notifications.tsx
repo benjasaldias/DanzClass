@@ -126,6 +126,21 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
     label: (data) => `¡Se liberó un cupo en ${data.class_title ?? 'una clase'}! Tienes 24h para inscribirte.`,
     route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed',
   },
+  rehearsal_invite: {
+    icon: CalendarClock, bgColor: '#f5f3ff', iconColor: '#7F77DD',
+    label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} te invitó a un ensayo: "${data.rehearsal_title ?? ''}"` : `Te invitaron a un ensayo: "${data.rehearsal_title ?? ''}"`,
+    route: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
+  },
+  rehearsal_accepted: {
+    icon: CheckCircle2, bgColor: '#f0fdf4', iconColor: '#16a34a',
+    label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} confirmó asistencia al ensayo "${data.rehearsal_title ?? ''}"` : `Alguien confirmó asistencia al ensayo`,
+    route: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
+  },
+  rehearsal_rejected: {
+    icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
+    label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} rechazó la invitación al ensayo "${data.rehearsal_title ?? ''}"` : `Alguien rechazó la invitación al ensayo`,
+    route: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
+  },
 }
 
 export default function NotificationsScreen() {

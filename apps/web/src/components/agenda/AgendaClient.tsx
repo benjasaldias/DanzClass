@@ -15,12 +15,15 @@ const MONTHS_ES = [
 ]
 
 interface AgendaEvent {
-  classId: string
+  classId?: string
+  rehearsalId?: string
   title: string
   style?: string
   time?: string
   teacher?: { full_name: string; username: string }
   isTeaching: boolean
+  isRehearsal?: boolean
+  isCreatingRehearsal?: boolean
 }
 
 function toYMD(date: Date): string {
@@ -59,9 +62,11 @@ function isSameDay(a: Date, b: Date): boolean {
 interface AgendaClientProps {
   enrolledClasses: any[]
   teachingClasses: any[]
+  rehearsals?: any[]
+  currentUserId?: string
 }
 
-export default function AgendaClient({ enrolledClasses, teachingClasses }: AgendaClientProps) {
+export default function AgendaClient({ enrolledClasses, teachingClasses, rehearsals = [], currentUserId }: AgendaClientProps) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -115,6 +120,42 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
       }
     }
 
+    // Rehearsals (only single and custom date modes have fixed dates)
+    for (const r of rehearsals) {
+      const isCreator = r.creator_id === currentUserId
+      if (r.date_mode === 'single' && r.rehearsal_date) {
+        const [ry, rm, rd] = r.rehearsal_date.split('-').map(Number)
+        const d = new Date(ry, rm - 1, rd)
+        const ymd = toYMD(d)
+        if (ymd >= toYMD(windowStart) && ymd <= toYMD(windowEnd)) {
+          addEvent(ymd, {
+            rehearsalId: r.id,
+            title: r.title,
+            time: r.rehearsal_time ?? undefined,
+            isTeaching: false,
+            isRehearsal: true,
+            isCreatingRehearsal: isCreator,
+          })
+        }
+      } else if (r.date_mode === 'custom' && r.custom_dates?.length) {
+        for (const dateStr of r.custom_dates) {
+          const [ry, rm, rd] = dateStr.split('-').map(Number)
+          const d = new Date(ry, rm - 1, rd)
+          const ymd = toYMD(d)
+          if (ymd >= toYMD(windowStart) && ymd <= toYMD(windowEnd)) {
+            addEvent(ymd, {
+              rehearsalId: r.id,
+              title: r.title,
+              isTeaching: false,
+              isRehearsal: true,
+              isCreatingRehearsal: isCreator,
+            })
+          }
+        }
+      }
+      // coordinate mode: no fixed date, shown in feed/coordination view instead
+    }
+
     return map
   }, [enrolledClasses, teachingClasses])
 
@@ -147,19 +188,32 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
   const selectedEvents = eventMap[selectedDay] ?? []
 
   function EventCard({ ev }: { ev: AgendaEvent }) {
+    const href = ev.isRehearsal ? '/feed' : `/class/${ev.classId}`
+    const barColor = ev.isRehearsal
+      ? 'bg-[#7F77DD]/70'
+      : ev.isTeaching
+        ? 'bg-brand-600'
+        : 'bg-[#7F77DD]'
+    const cardBg = ev.isRehearsal
+      ? 'bg-[#EEEDFE]/60 dark:bg-dark-surface2 border-[#7F77DD]/30 dark:border-dark-border'
+      : ev.isTeaching
+        ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-200 dark:border-brand-900/50'
+        : 'bg-violet-50 dark:bg-dark-surface2 border-violet-200 dark:border-dark-border'
+
     return (
       <Link
-        href={`/class/${ev.classId}`}
-        className={cn(
-          'flex items-start gap-3 p-3 rounded-xl border transition-colors hover:opacity-80',
-          ev.isTeaching
-            ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-200 dark:border-brand-900/50'
-            : 'bg-violet-50 dark:bg-dark-surface2 border-violet-200 dark:border-dark-border'
-        )}
+        href={href}
+        className={cn('flex items-start gap-3 p-3 rounded-xl border transition-colors hover:opacity-80', cardBg)}
       >
-        {/* Color bar */}
-        <div className={cn('w-1 rounded-full self-stretch flex-shrink-0', ev.isTeaching ? 'bg-brand-600' : 'bg-[#7F77DD]')} />
+        <div className={cn('w-1 rounded-full self-stretch flex-shrink-0', barColor)} />
         <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            {ev.isRehearsal && (
+              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[#7F77DD]/20 dark:bg-dark-surface text-[#534AB7] dark:text-violet-300">
+                Ensayo
+              </span>
+            )}
+          </div>
           <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{ev.title}</p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {ev.style && (
@@ -174,7 +228,11 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
               </span>
             )}
           </div>
-          {ev.isTeaching ? (
+          {ev.isRehearsal ? (
+            <span className="inline-block mt-1 text-xs font-medium text-[#7F77DD]">
+              {ev.isCreatingRehearsal ? 'Organizas' : 'Invitad@'}
+            </span>
+          ) : ev.isTeaching ? (
             <span className="inline-block mt-1 text-xs font-medium text-brand-600 dark:text-brand-300">Tú dictas</span>
           ) : ev.teacher ? (
             <span className="text-xs text-gris-humo dark:text-dark-text2">Con @{ev.teacher.username}</span>
@@ -211,7 +269,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 mt-2 text-xs text-gris-humo dark:text-dark-text2">
+        <div className="flex items-center gap-3 mt-2 text-xs text-gris-humo dark:text-dark-text2 flex-wrap">
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#7F77DD]" />
             Clases inscritas
@@ -219,6 +277,10 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-600" />
             Clases que dicto
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#7F77DD]/50" />
+            Ensayos
           </span>
         </div>
       </div>
@@ -262,8 +324,9 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
                 const isToday = isSameDay(day, today)
                 const isSelected = ymd === selectedDay
                 const events = eventMap[ymd] ?? []
-                const hasEnrolled = events.some((e) => !e.isTeaching)
+                const hasEnrolled = events.some((e) => !e.isTeaching && !e.isRehearsal)
                 const hasTeaching = events.some((e) => e.isTeaching)
+                const hasRehearsal = events.some((e) => e.isRehearsal)
 
                 return (
                   <button
@@ -280,13 +343,16 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
                   >
                     <span className="text-xs font-medium">{day.getDate()}</span>
                     {/* Dot indicators */}
-                    {(hasEnrolled || hasTeaching) && (
+                    {(hasEnrolled || hasTeaching || hasRehearsal) && (
                       <div className="flex items-center gap-0.5 mt-0.5">
                         {hasEnrolled && (
                           <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-[#7F77DD]')} />
                         )}
                         {hasTeaching && (
                           <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-brand-600')} />
+                        )}
+                        {hasRehearsal && (
+                          <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-[#7F77DD]/50')} />
                         )}
                       </div>
                     )}
@@ -305,7 +371,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
                   <div>
                     <h2 className="font-semibold text-sm text-gray-700 dark:text-dark-text mb-3">{label}</h2>
                     {selectedEvents.length === 0 ? (
-                      <p className="text-sm text-gris-humo dark:text-dark-text2 text-center py-4">Sin clases este día</p>
+                      <p className="text-sm text-gris-humo dark:text-dark-text2 text-center py-4">Sin compromisos este día</p>
                     ) : (
                       <div className="space-y-2">
                         {selectedEvents.map((ev, i) => <EventCard key={i} ev={ev} />)}
@@ -361,7 +427,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses }: Agend
                       {isToday && <span className="text-xs bg-brand-600 text-white px-1.5 py-0.5 rounded-full">Hoy</span>}
                     </div>
                     {events.length === 0 ? (
-                      <p className="text-xs text-gris-humo dark:text-dark-text2">Sin clases</p>
+                      <p className="text-xs text-gris-humo dark:text-dark-text2">Sin compromisos</p>
                     ) : (
                       <div className="space-y-2">
                         {events.map((ev, i) => <EventCard key={i} ev={ev} />)}

@@ -20,12 +20,14 @@ const DAYS_FULL_ES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Vie
 const DAYS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 interface AgendaEvent {
-  classId: string
+  classId?: string
+  rehearsalId?: string
   title: string
   style?: string
   time?: string
   teacher?: string
   isTeaching: boolean
+  isRehearsal?: boolean
 }
 
 function getWeekStart(date: Date): Date {
@@ -64,6 +66,7 @@ export default function AgendaScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [enrolledClasses, setEnrolledClasses] = useState<any[]>([])
   const [teachingClasses, setTeachingClasses] = useState<any[]>([])
+  const [rehearsals, setRehearsals] = useState<any[]>([])
   const [weekStart, setWeekStart] = useState(getWeekStart(today))
   const [availOpen, setAvailOpen] = useState(false)
   const [availLoaded, setAvailLoaded] = useState(false)
@@ -78,7 +81,7 @@ export default function AgendaScreen() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [{ data: tier }, { data: enrollments }, { data: teaching }] = await Promise.all([
+    const [{ data: tier }, { data: enrollments }, { data: teaching }, { data: rehearsalData }] = await Promise.all([
       (supabase as any).from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').maybeSingle(),
       (supabase as any)
         .from('enrollments')
@@ -101,6 +104,10 @@ export default function AgendaScreen() {
         `)
         .eq('teacher_id', user.id)
         .eq('status', 'active'),
+      (supabase as any)
+        .from('rehearsals')
+        .select('id, title, date_mode, rehearsal_date, rehearsal_time, custom_dates, invites:rehearsal_invites(user_id, status)')
+        .eq('status', 'active'),
     ])
 
     const currentTier = tier?.tier ?? 'none'
@@ -109,6 +116,12 @@ export default function AgendaScreen() {
     const teachIds = new Set(teach.map((c: any) => c.id))
     setEnrolledClasses(enrolled.filter((c: any) => !teachIds.has(c.id)))
     setTeachingClasses(teach)
+    // Only include rehearsals where user is creator or has accepted/pending invite
+    const myRehearsals = (rehearsalData ?? []).filter((r: any) => {
+      const myInvite = (r.invites ?? []).find((i: any) => i.user_id === user.id)
+      return myInvite?.status !== 'rejected'
+    })
+    setRehearsals(myRehearsals)
   }, [])
 
   useEffect(() => {
@@ -231,8 +244,31 @@ export default function AgendaScreen() {
       }
     }
 
+    // Rehearsals (single + custom date modes only; coordinate has no confirmed date)
+    for (const r of rehearsals) {
+      if (r.date_mode === 'single' && r.rehearsal_date) {
+        add(r.rehearsal_date, {
+          rehearsalId: r.id,
+          title: r.title,
+          time: r.rehearsal_time ?? undefined,
+          isTeaching: false,
+          isRehearsal: true,
+        })
+      } else if (r.date_mode === 'custom' && r.custom_dates?.length) {
+        for (const d of r.custom_dates) {
+          add(d, {
+            rehearsalId: r.id,
+            title: r.title,
+            time: r.rehearsal_time ?? undefined,
+            isTeaching: false,
+            isRehearsal: true,
+          })
+        }
+      }
+    }
+
     return map
-  }, [enrolledClasses, teachingClasses, weekStart])
+  }, [enrolledClasses, teachingClasses, rehearsals, weekStart])
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
   const weekEnd = addDays(weekStart, 6)
@@ -288,7 +324,7 @@ export default function AgendaScreen() {
         </View>
 
         {/* ── Legend ──────────────────────────────────── */}
-        <View className="flex-row items-center gap-4 px-4 py-2 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
+        <View className="flex-row items-center gap-4 px-4 py-2 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border flex-wrap">
           <View className="flex-row items-center gap-1.5">
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#7F77DD' }} />
             <Text className="text-xs text-gris-humo dark:text-dark-text2">Inscritas</Text>
@@ -296,6 +332,10 @@ export default function AgendaScreen() {
           <View className="flex-row items-center gap-1.5">
             <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#c026d3' }} />
             <Text className="text-xs text-gris-humo dark:text-dark-text2">Que dicto</Text>
+          </View>
+          <View className="flex-row items-center gap-1.5">
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#7F77DD', opacity: 0.7 }} />
+            <Text className="text-xs text-gris-humo dark:text-dark-text2">Ensayos</Text>
           </View>
         </View>
 
@@ -332,16 +372,21 @@ export default function AgendaScreen() {
                 {/* Events or empty */}
                 <View className="px-3 py-2 space-y-2">
                   {events.length === 0 ? (
-                    <Text className="text-xs text-gris-humo dark:text-dark-text2 py-1">Sin clases</Text>
+                    <Text className="text-xs text-gris-humo dark:text-dark-text2 py-1">Sin compromisos</Text>
                   ) : (
                     events.map((ev, i) => (
                       <TouchableOpacity
                         key={i}
-                        onPress={() => router.push(`/(app)/class/${ev.classId}` as any)}
+                        onPress={() => ev.isRehearsal
+                          ? router.push(`/(app)/rehearsal/${ev.rehearsalId}` as any)
+                          : router.push(`/(app)/class/${ev.classId}` as any)
+                        }
                         className={`flex-row items-start gap-3 p-2.5 rounded-xl mb-1 ${
-                          ev.isTeaching
-                            ? 'bg-brand-50 dark:bg-brand-950/30'
-                            : 'bg-violet-50 dark:bg-dark-surface2'
+                          ev.isRehearsal
+                            ? 'bg-violet-50/60 dark:bg-dark-surface2'
+                            : ev.isTeaching
+                              ? 'bg-brand-50 dark:bg-brand-950/30'
+                              : 'bg-violet-50 dark:bg-dark-surface2'
                         }`}
                         activeOpacity={0.7}
                       >
@@ -351,14 +396,22 @@ export default function AgendaScreen() {
                             width: 3,
                             borderRadius: 2,
                             alignSelf: 'stretch',
-                            backgroundColor: ev.isTeaching ? '#c026d3' : '#7F77DD',
+                            backgroundColor: ev.isRehearsal ? '#7F77DD' : ev.isTeaching ? '#c026d3' : '#7F77DD',
                             flexShrink: 0,
+                            opacity: ev.isRehearsal ? 0.7 : 1,
                           }}
                         />
                         <View className="flex-1">
-                          <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text" numberOfLines={1}>
-                            {ev.title}
-                          </Text>
+                          <View className="flex-row items-center gap-1.5">
+                            <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text flex-1" numberOfLines={1}>
+                              {ev.title}
+                            </Text>
+                            {ev.isRehearsal && (
+                              <View className="rounded-full px-1.5 py-0.5" style={{ backgroundColor: '#EEEDFE' }}>
+                                <Text style={{ color: '#534AB7', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ensayo</Text>
+                              </View>
+                            )}
+                          </View>
                           <View className="flex-row flex-wrap items-center gap-2 mt-0.5">
                             {ev.style && (
                               <View className={`px-1.5 py-0.5 rounded-full ${ev.isTeaching ? 'bg-brand-100 dark:bg-brand-900/30' : 'bg-violet-100 dark:bg-dark-surface'}`}>
@@ -374,7 +427,9 @@ export default function AgendaScreen() {
                               </View>
                             )}
                           </View>
-                          {ev.isTeaching ? (
+                          {ev.isRehearsal ? (
+                            <Text className="text-xs font-medium mt-0.5" style={{ color: '#7F77DD' }}>Ensayo</Text>
+                          ) : ev.isTeaching ? (
                             <Text className="text-xs font-medium text-brand-600 dark:text-brand-300 mt-0.5">Tú dictas</Text>
                           ) : ev.teacher ? (
                             <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">Con @{ev.teacher}</Text>

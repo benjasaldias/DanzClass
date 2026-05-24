@@ -11,7 +11,7 @@ export default async function AgendaPage() {
 
   const tier = await getActiveTier(user.id, supabase)
 
-  const [{ data: enrollments }, { data: teachingClasses }] = await Promise.all([
+  const [{ data: enrollments }, { data: teachingClasses }, { data: rehearsalData }] = await Promise.all([
     (supabase as any)
       .from('enrollments')
       .select(`
@@ -36,6 +36,12 @@ export default async function AgendaPage() {
           .eq('teacher_id', user.id)
           .eq('status', 'active')
       : { data: [] },
+
+    // Ensayos: como creador o invitado aceptado
+    (supabase as any)
+      .from('rehearsals')
+      .select('id, title, date_mode, rehearsal_date, rehearsal_time, custom_dates, coordinate_month, duration_minutes, creator_id')
+      .eq('status', 'active'),
   ])
 
   const enrolled = (enrollments as any[] ?? [])
@@ -48,10 +54,16 @@ export default async function AgendaPage() {
   const teachingIds = new Set(teaching.map((c: any) => c.id))
   const enrolledFiltered = enrolled.filter((c: any) => !teachingIds.has(c.id))
 
+  // Rehearsals with fixed dates only (date_mode single or custom)
+  // Coordinate mode has no confirmed date yet — show separately
+  const rehearsals = (rehearsalData as any[] ?? [])
+
   return (
     <AgendaClient
       enrolledClasses={enrolledFiltered}
       teachingClasses={teaching}
+      rehearsals={rehearsals}
+      currentUserId={user.id}
     />
   )
 }

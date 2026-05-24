@@ -30,6 +30,13 @@ export type NotificationType =
   | 'new_audition'
   | 'class_reminder'
   | 'waitlist_available'
+  | 'rehearsal_invite'
+  | 'rehearsal_accepted'
+  | 'rehearsal_rejected'
+
+export type RehearsalDateMode = 'single' | 'custom' | 'coordinate'
+export type RehearsalStatus = 'active' | 'cancelled'
+export type RehearsalInviteStatus = 'pending' | 'accepted' | 'rejected'
 
 export type ClassType = 'suelta' | 'periodica' | 'entrenamiento'
 export type AuditionStatus = 'pending' | 'accepted' | 'rejected'
@@ -240,6 +247,38 @@ export interface Payment {
   submitted_at: string
   verified_at: string | null
   rejection_reason: string | null
+}
+
+export interface Rehearsal {
+  id: string
+  creator_id: string
+  title: string
+  description: string | null
+  city: string | null
+  location: string | null
+  date_mode: RehearsalDateMode
+  rehearsal_date: string | null
+  rehearsal_time: string | null
+  custom_dates: string[] | null
+  coordinate_month: string | null
+  duration_minutes: number
+  status: RehearsalStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface RehearsalInvite {
+  id: string
+  rehearsal_id: string
+  user_id: string
+  status: RehearsalInviteStatus
+  created_at: string
+}
+
+export interface RehearsalWithDetails extends Rehearsal {
+  creator: Pick<Profile, 'id' | 'username' | 'full_name' | 'avatar_url'>
+  invites: (RehearsalInvite & { user: Pick<Profile, 'id' | 'username' | 'full_name' | 'avatar_url'> })[]
+  my_invite?: RehearsalInvite | null
 }
 
 export interface Class2xRequest {

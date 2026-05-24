@@ -175,6 +175,33 @@ const NOTIF_CONFIG: Record<string, {
     label: (data) => `¡Se liberó un cupo en ${data.class_title ?? 'una clase'}! Tienes 24h para inscribirte.`,
     href: (data) => data.class_id ? `/class/${data.class_id}` : '/feed',
   },
+  rehearsal_invite: {
+    icon: Users,
+    color: 'text-[#7F77DD] bg-[#EEEDFE] dark:bg-dark-surface2 dark:text-violet-300',
+    label: (data) => {
+      const who = data.from_username ? `@${data.from_username}` : 'Alguien'
+      return `${who} te invitó al ensayo "${data.rehearsal_title ?? 'Ensayo'}"`
+    },
+    href: () => '/feed',
+  },
+  rehearsal_accepted: {
+    icon: UserCheck,
+    color: 'text-green-500 bg-green-50 dark:bg-green-950/30 dark:text-green-400',
+    label: (data) => {
+      const who = data.from_username ? `@${data.from_username}` : 'Alguien'
+      return `${who} confirmó asistencia al ensayo "${data.rehearsal_title ?? 'tu ensayo'}"`
+    },
+    href: () => '/feed',
+  },
+  rehearsal_rejected: {
+    icon: XCircle,
+    color: 'text-gray-400 bg-gray-50 dark:bg-dark-surface2 dark:text-dark-text2',
+    label: (data) => {
+      const who = data.from_username ? `@${data.from_username}` : 'Alguien'
+      return `${who} no podrá ir al ensayo "${data.rehearsal_title ?? 'tu ensayo'}"`
+    },
+    href: () => '/feed',
+  },
 }
 
 export default function NotificationsClient({ notifications, profileMap, classMap, userId }: NotificationsClientProps) {

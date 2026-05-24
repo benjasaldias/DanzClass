@@ -1,21 +1,24 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Users, Globe, MapPin, ChevronDown } from 'lucide-react'
+import { Users, Globe, MapPin, ChevronDown, Music2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import ClassCard from './ClassCard'
 import PostCard from './PostCard'
+import RehearsalCard from './RehearsalCard'
 import FriendsTwoxList from '@/components/class/FriendsTwoxList'
+import CreateRehearsalModal from '@/components/rehearsal/CreateRehearsalModal'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, FeedFilter } from '@danceclass/shared'
 
-type ContentType = 'all' | 'classes' | 'posts'
+type ContentType = 'all' | 'classes' | 'posts' | 'rehearsals'
 type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
 
 interface FeedClientProps {
   initialClasses: any[]
   initialPosts: any[]
+  initialRehearsals?: any[]
   currentUser: User
   currentProfile: Profile | null
   followingIds: string[]
@@ -33,6 +36,7 @@ const CONTENT_LABELS: Record<ContentType, string> = {
   all: 'Todos',
   classes: 'Clases',
   posts: 'Videos',
+  rehearsals: 'Ensayos',
 }
 
 async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, teacherIds: string[]): Promise<TeacherRatings> {
@@ -53,6 +57,7 @@ async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, te
 export default function FeedClient({
   initialClasses,
   initialPosts,
+  initialRehearsals = [],
   currentUser,
   currentProfile,
   followingIds,
@@ -64,9 +69,27 @@ export default function FeedClient({
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [classes, setClasses] = useState(initialClasses)
   const [posts, setPosts] = useState(initialPosts)
+  const [rehearsals, setRehearsals] = useState(initialRehearsals)
   const [loading, setLoading] = useState(false)
   const [teacherRatings, setTeacherRatings] = useState<TeacherRatings>(initialTeacherRatings)
+  const [showCreateRehearsal, setShowCreateRehearsal] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  async function reloadRehearsals() {
+    const supabase = createClient()
+    const { data } = await (supabase as any)
+      .from('rehearsals')
+      .select('*, creator:profiles!creator_id(id, username, full_name, avatar_url), invites:rehearsal_invites(id, user_id, status, user:profiles!user_id(id, username, full_name, avatar_url))')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(20)
+    if (data) {
+      setRehearsals(data.map((r: any) => ({
+        ...r,
+        my_invite: (r.invites ?? []).find((i: any) => i.user_id === currentUser.id) ?? null,
+      })))
+    }
+  }
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -138,17 +161,28 @@ export default function FeedClient({
     loadFeed(filter)
   }
 
-  const feedItems: { type: 'class' | 'post'; data: any; created_at: string }[] = []
-  if (contentType !== 'posts') {
+  const feedItems: { type: 'class' | 'post' | 'rehearsal'; data: any; created_at: string }[] = []
+  if (contentType === 'all' || contentType === 'classes') {
     classes.forEach((c) => feedItems.push({ type: 'class', data: c, created_at: c.created_at }))
   }
-  if (contentType !== 'classes') {
+  if (contentType === 'all' || contentType === 'posts') {
     posts.forEach((p) => feedItems.push({ type: 'post', data: p, created_at: p.created_at }))
+  }
+  if (contentType === 'all' || contentType === 'rehearsals') {
+    // Rehearsals only show to creator and invitees (RLS already handles DB-side)
+    rehearsals.forEach((r) => feedItems.push({ type: 'rehearsal', data: r, created_at: r.created_at }))
   }
   feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
     <div className="flex flex-col">
+      {showCreateRehearsal && (
+        <CreateRehearsalModal
+          onClose={() => setShowCreateRehearsal(false)}
+          onCreated={reloadRehearsals}
+        />
+      )}
+
       {/* Filter bar */}
       <div className="sticky top-14 z-30 bg-blanco-violeta/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border px-4">
         <div className="flex items-center gap-2 py-2">
@@ -204,6 +238,22 @@ export default function FeedClient({
         />
       )}
 
+      {/* Create rehearsal banner — shown when viewing Ensayos tab or when there are none */}
+      {contentType === 'rehearsals' && (
+        <div className="mx-4 mt-3 mb-1 rounded-xl border border-[#7F77DD]/30 bg-[#EEEDFE]/50 dark:bg-dark-surface2/60 p-3 flex items-center gap-3">
+          <Music2 className="h-4 w-4 text-[#7F77DD] flex-shrink-0" />
+          <p className="text-sm text-gray-700 dark:text-dark-text flex-1">
+            Crea un ensayo privado e invita a tus compañeros.
+          </p>
+          <button
+            onClick={() => setShowCreateRehearsal(true)}
+            className="rounded-lg bg-[#7F77DD] hover:bg-[#6B64C8] text-white text-xs font-semibold px-3 py-1.5 transition-colors flex-shrink-0"
+          >
+            Crear
+          </button>
+        </div>
+      )}
+
       {/* Feed */}
       <div className="flex flex-col">
         {loading ? (
@@ -222,7 +272,15 @@ export default function FeedClient({
                   currentUserRole={currentProfile?.role ?? 'user'}
                   teacherRating={teacherRatings[item.data.teacher_id]}
                 />
-              : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser.id} />
+              : item.type === 'rehearsal'
+                ? <RehearsalCard
+                    key={`rehearsal-${item.data.id}`}
+                    rehearsal={item.data}
+                    currentUserId={currentUser.id}
+                    onEdited={reloadRehearsals}
+                    onCancelled={(id) => setRehearsals((prev) => prev.filter((r: any) => r.id !== id))}
+                  />
+                : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser.id} />
           )
         )}
       </div>
@@ -231,6 +289,17 @@ export default function FeedClient({
 }
 
 function EmptyState({ filter, contentType }: { filter: FeedFilter; contentType: ContentType }) {
+  if (contentType === 'rehearsals') {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EEEDFE] dark:bg-dark-surface2">
+          <Music2 className="h-8 w-8 text-[#7F77DD]" />
+        </div>
+        <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin ensayos aún</h3>
+        <p className="mt-1 text-sm text-gray-500 dark:text-dark-text2">Crea un ensayo e invita a tu grupo</p>
+      </div>
+    )
+  }
   const typeLabel = contentType === 'posts' ? 'videos' : contentType === 'classes' ? 'clases' : 'contenido'
   const messages: Record<FeedFilter, { title: string; desc: string }> = {
     following: { title: 'Aún no sigues a nadie', desc: `Explora profesores para ver sus ${typeLabel} aquí` },

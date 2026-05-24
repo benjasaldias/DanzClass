@@ -4,6 +4,7 @@ import FeedClient from '@/components/feed/FeedClient'
 export default async function FeedPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
 
   const [{ data: profile }, { data: follows }, { data: friendships }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
@@ -52,7 +53,25 @@ export default async function FeedPage() {
     (r: any) => r.class?.teacher_id !== user!.id
   )
 
-  const [{ data: rawClasses }, { data: posts }] = await Promise.all([classesQuery, postsQuery])
+  // Fetch rehearsals where user is creator or invitee
+  const rehearsalsQuery = (supabase as any)
+    .from('rehearsals')
+    .select(`
+      *,
+      creator:profiles!creator_id(id, username, full_name, avatar_url),
+      invites:rehearsal_invites(id, user_id, status, user:profiles!user_id(id, username, full_name, avatar_url))
+    `)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const [{ data: rawClasses }, { data: posts }, { data: rawRehearsals }] = await Promise.all([classesQuery, postsQuery, rehearsalsQuery])
+
+  // Attach my_invite to each rehearsal (for action buttons)
+  const rehearsals = (rawRehearsals ?? []).map((r: any) => ({
+    ...r,
+    my_invite: (r.invites ?? []).find((i: any) => i.user_id === user.id) ?? null,
+  }))
 
   // Client-side: filter custom-recurrence classes where all dates have passed
   const classes = (rawClasses ?? []).filter((c: any) => {
@@ -81,6 +100,7 @@ export default async function FeedPage() {
     <FeedClient
       initialClasses={(classes as any[]) ?? []}
       initialPosts={(posts as any[]) ?? []}
+      initialRehearsals={rehearsals}
       currentUser={user!}
       currentProfile={profile}
       followingIds={followingIds}
