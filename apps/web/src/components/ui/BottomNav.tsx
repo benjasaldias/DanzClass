@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, PlusSquare, BookOpen, User } from 'lucide-react'
+import { Home, Search, PlusSquare, BookOpen, User, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { canTeach } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
@@ -23,12 +23,14 @@ export default function BottomNav({ tier }: BottomNavProps) {
     ...baseLinks,
     { href: '/publish', icon: PlusSquare, label: 'Publicar' },
     { href: '/my-classes', icon: BookOpen, label: 'Mis clases' },
+    { href: '/agenda', icon: CalendarDays, label: 'Agenda' },
     { href: '/profile', icon: User, label: 'Perfil' },
   ]
 
   const studentLinks = [
     ...baseLinks,
     { href: '/my-classes', icon: BookOpen, label: 'Mis clases' },
+    { href: '/agenda', icon: CalendarDays, label: 'Agenda' },
     { href: '/profile', icon: User, label: 'Perfil' },
   ]
 

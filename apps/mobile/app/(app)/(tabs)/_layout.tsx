@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router'
-import { Home, Search, PlusSquare, BookOpen, User } from 'lucide-react-native'
+import { Home, Search, CalendarDays, BookOpen, User } from 'lucide-react-native'
 import { useTheme } from '../../../context/ThemeContext'
 
 export default function TabsLayout() {
@@ -29,13 +29,18 @@ export default function TabsLayout() {
         name="explore"
         options={{ title: 'Explorar', tabBarIcon: ({ color }) => <Search size={22} stroke={color} /> }}
       />
+      {/* "create" oculto del tab bar — sigue accesible por navegación directa desde otras pantallas */}
       <Tabs.Screen
         name="create"
-        options={{ title: 'Publicar', tabBarIcon: ({ color }) => <PlusSquare size={22} stroke={color} /> }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="my-classes"
         options={{ title: 'Mis clases', tabBarIcon: ({ color }) => <BookOpen size={22} stroke={color} /> }}
+      />
+      <Tabs.Screen
+        name="agenda"
+        options={{ title: 'Agenda', tabBarIcon: ({ color }) => <CalendarDays size={22} stroke={color} /> }}
       />
       <Tabs.Screen
         name="profile"

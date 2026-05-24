@@ -1537,3 +1537,85 @@ const takenCount = (classData.enrollments ?? []).filter((e: any) => e.status !==
 | `apps/mobile/components/feed/MobileClassCard.tsx` | Mobile | Cupos: disponibles vs total |
 | `apps/mobile/app/(app)/class/[id]/index.tsx` | Mobile | `handleEnroll` vía API con tier check |
 | `apps/mobile/app/(app)/(tabs)/my-classes.tsx` | Mobile | Banner de pagos pendientes en `EnrolledTab` |
+
+---
+
+## Sesión 2026-05-24 — Agenda / Calendario personal (web + mobile)
+
+### ✅ Función compartida `getClassSessions`
+
+Implementada en ambas plataformas con la misma lógica:
+
+**Web:** `apps/web/src/lib/utils.ts` — función `getClassSessions(classData, fromDate, toDate): string[]`
+**Mobile:** `apps/mobile/lib/utils.ts` — mismo contrato + helpers `toYMD`, `formatTime`
+
+Reglas de cálculo por tipo:
+- **Suelta:** retorna `date` si cae en el rango
+- **Custom:** filtra `custom_dates` por el rango
+- **Weekly:** pasos de 7 días desde `start_date`, respeta `ends_at` / `ends_indefinitely`
+- **Biweekly:** pasos de 14 días, misma lógica
+- **Monthly:** mismo día del mes de `start_date`; si el mes no tiene ese día, usa el último válido
+- **Límite de seguridad:** si `ends_indefinitely = true`, cap en `fromDate + 3 meses` para evitar loops infinitos
+- **Zona horaria:** todas las fechas YYYY-MM-DD se parsean como `new Date(y, m-1, d)` (local midnight) para evitar el off-by-one de UTC
+
+### ✅ Web — `/agenda`
+
+**`apps/web/src/app/(app)/agenda/page.tsx`:**
+- Fetch de enrollments confirmados con datos de clase + profesor
+- Fetch de clases dictadas si `canTeach(tier)`
+- Deduplica: si el usuario es profesor de una clase en la que también está inscrito, la muestra solo como "Tú dictas"
+
+**`apps/web/src/components/agenda/AgendaClient.tsx`:**
+- Vista **Mes / Semana** toggleable en el header
+- **Vista Mes:** calendario mensual navegable (prev/next), grilla 7 columnas, semanas desde lunes, puntos de color por tipo de clase, día actual destacado con `bg-violet-100 ring-brand-600/40`, panel de eventos al hacer clic en un día
+- **Vista Semana:** lista de 7 días (lun–dom), sección por día con badge "Hoy", eventos o "Sin clases"
+- **Colores:** morado-flow `#7F77DD` para inscritas, brand-600 `#c026d3` para que dicta
+- **Cards de evento:** barra lateral de color, badge de estilo, hora formateada, "@username del profesor" o "Tú dictas"
+- **Leyenda** de colores en el header
+- **Sección de disponibilidad personal** colapsable al final: chips de días (Lun–Dom) toggleables, estado local (sin persistencia aún)
+- Dark mode completo con todos los tokens existentes
+
+**`apps/web/src/components/ui/BottomNav.tsx`:**
+- Ícono `CalendarDays` importado de lucide-react
+- Tab "Agenda" agregado entre "Mis clases" y "Perfil" en ambos grupos (canTeach y estudiante)
+
+### ✅ Mobile — tab Agenda
+
+**`apps/mobile/lib/utils.ts`:** nuevo archivo con `getClassSessions`, `toYMD`, `formatTime`
+
+**`apps/mobile/app/(app)/(tabs)/agenda.tsx`:**
+- Vista semanal (lista lun–dom), apropiada para mobile
+- Header con navegación semana anterior/siguiente (ChevronLeft/Right)
+- Header de día destacado con badge "Hoy" cuando es el día actual
+- Fetch de enrollments confirmados + clases dictadas en un solo `useEffect`
+- Deduplica clases (teaching tiene precedencia sobre enrolled)
+- Cards compactas con barra lateral de color, estilo, hora formateada, "@username" o "Tú dictas"
+- Tap navega a `/(app)/class/${id}`
+- Sección "Mis días disponibles" colapsable al final (estado local, sin persistencia)
+- Dark mode completo
+- Pull-to-refresh con `RefreshControl`
+
+**`apps/mobile/app/(app)/(tabs)/_layout.tsx`:**
+- **Decisión: Opción B** — tab "Publicar" (`create`) ocultado del BottomNav con `href: null`; la ruta `/(tabs)/create` sigue accesible por navegación directa desde otras pantallas
+- Tab "Agenda" agregado con ícono `CalendarDays`
+- Total: 5 tabs visibles (Inicio, Explorar, Mis clases, Agenda, Perfil)
+- **Pendiente (post-MVP):** agregar FAB en el feed para acceder rápidamente a publicar clase/video sin el tab
+
+### Pendientes
+
+- [ ] **Persistencia de disponibilidad personal:** crear tabla `user_availability` en Supabase (`user_id, days: TEXT[]`), API route `PATCH /api/user/availability`, y hookear el componente `AvailabilitySection` (web) y el equivalente mobile
+- [ ] **Filtrado de clases por disponibilidad:** cuando esté persistida, usar los días marcados para sugerir o filtrar clases en Explorar
+- [ ] **FAB mobile para publicar:** botón flotante en el feed (`(tabs)/feed.tsx`) que navega a `/(tabs)/create`, reemplazando la experiencia anterior del tab eliminado
+- [ ] **Vista semana en web:** actualmente implementada en `AgendaClient`; considerar si también se quiere en mobile (actualmente mobile solo tiene vista semana)
+
+### Archivos creados / modificados
+
+| Archivo | Tipo | Cambio |
+|---|---|---|
+| `apps/web/src/lib/utils.ts` | Web | `getClassSessions()` añadida |
+| `apps/web/src/app/(app)/agenda/page.tsx` | Web | NUEVO — server component con fetch |
+| `apps/web/src/components/agenda/AgendaClient.tsx` | Web | NUEVO — calendario mes/semana + disponibilidad |
+| `apps/web/src/components/ui/BottomNav.tsx` | Web | Tab "Agenda" (CalendarDays) entre Mis clases y Perfil |
+| `apps/mobile/lib/utils.ts` | Mobile | NUEVO — getClassSessions, toYMD, formatTime |
+| `apps/mobile/app/(app)/(tabs)/agenda.tsx` | Mobile | NUEVO — vista semanal + disponibilidad |
+| `apps/mobile/app/(app)/(tabs)/_layout.tsx` | Mobile | create → href:null; Agenda tab añadido |
