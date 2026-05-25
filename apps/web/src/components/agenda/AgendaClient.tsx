@@ -192,17 +192,17 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
     const href = ev.isRehearsal ? `/rehearsal/${ev.rehearsalId}` : `/class/${ev.classId}`
     const isPending = ev.isRehearsal && ev.inviteStatus === 'pending'
     const barColor = ev.isRehearsal
-      ? isPending ? 'bg-[#7F77DD]/40' : 'bg-[#7F77DD]/70'
+      ? isPending ? 'bg-slate-400' : 'bg-violet-500'
       : ev.isTeaching
-        ? 'bg-brand-600'
-        : 'bg-[#7F77DD]'
+        ? 'bg-emerald-500'
+        : 'bg-sky-500'
     const cardBg = ev.isRehearsal
       ? isPending
-        ? 'bg-[#EEEDFE]/30 dark:bg-dark-surface border-[#7F77DD]/20 dark:border-dark-border border-dashed opacity-80'
-        : 'bg-[#EEEDFE]/60 dark:bg-dark-surface2 border-[#7F77DD]/30 dark:border-dark-border'
-      : ev.isTeaching
-        ? 'bg-brand-50 dark:bg-brand-950/30 border-brand-200 dark:border-brand-900/50'
+        ? 'bg-slate-50 dark:bg-dark-surface border-slate-200 dark:border-dark-border border-dashed opacity-80'
         : 'bg-violet-50 dark:bg-dark-surface2 border-violet-200 dark:border-dark-border'
+      : ev.isTeaching
+        ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
+        : 'bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800'
 
     const rehearsalLabel = ev.inviteStatus === 'creator'
       ? 'Organizas'
@@ -219,7 +219,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
             {ev.isRehearsal && (
-              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-[#7F77DD]/20 dark:bg-dark-surface text-[#534AB7] dark:text-violet-300">
+              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
                 Ensayo
               </span>
             )}
@@ -232,7 +232,13 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
           <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{ev.title}</p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {ev.style && (
-              <span className={cn('text-xs px-1.5 py-0.5 rounded-full', ev.isTeaching ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300' : 'bg-violet-100 dark:bg-dark-surface text-violet-700 dark:text-violet-300')}>
+              <span className={cn('text-xs px-1.5 py-0.5 rounded-full',
+                ev.isTeaching
+                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                  : ev.isRehearsal
+                    ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300'
+                    : 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300'
+              )}>
                 {ev.style}
               </span>
             )}
@@ -244,11 +250,11 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
             )}
           </div>
           {ev.isRehearsal ? (
-            <span className={cn('inline-block mt-1 text-xs font-medium', isPending ? 'text-yellow-600 dark:text-yellow-400' : 'text-[#7F77DD]')}>
+            <span className={cn('inline-block mt-1 text-xs font-medium', isPending ? 'text-slate-500 dark:text-slate-400' : 'text-violet-600 dark:text-violet-400')}>
               {rehearsalLabel}
             </span>
           ) : ev.isTeaching ? (
-            <span className="inline-block mt-1 text-xs font-medium text-brand-600 dark:text-brand-300">Tú dictas</span>
+            <span className="inline-block mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">Tú dictas</span>
           ) : ev.teacher ? (
             <span className="text-xs text-gris-humo dark:text-dark-text2">Con @{ev.teacher.username}</span>
           ) : null}
@@ -286,15 +292,15 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
         {/* Legend */}
         <div className="flex items-center gap-3 mt-2 text-xs text-gris-humo dark:text-dark-text2 flex-wrap">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#7F77DD]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
             Clases inscritas
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-600" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
             Clases que dicto
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#7F77DD]/50" />
+            <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
             Ensayos
           </span>
         </div>
@@ -361,13 +367,13 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
                     {(hasEnrolled || hasTeaching || hasRehearsal) && (
                       <div className="flex items-center gap-0.5 mt-0.5">
                         {hasEnrolled && (
-                          <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-[#7F77DD]')} />
+                          <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-sky-500')} />
                         )}
                         {hasTeaching && (
-                          <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-brand-600')} />
+                          <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-emerald-500')} />
                         )}
                         {hasRehearsal && (
-                          <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-[#7F77DD]/50')} />
+                          <span className={cn('w-1.5 h-1.5 rounded-full', isSelected ? 'bg-white/80' : 'bg-violet-500')} />
                         )}
                       </div>
                     )}

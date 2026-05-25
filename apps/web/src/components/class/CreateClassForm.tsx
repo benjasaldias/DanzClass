@@ -47,6 +47,7 @@ const schema = z.object({
   ends_indefinitely: z.boolean().optional(),
   // Entrenamiento
   requires_audition: z.boolean().optional(),
+  billing_day: z.coerce.number().int().min(1).max(27).optional(),
 }).superRefine((data, ctx) => {
   const today = new Date().toISOString().split('T')[0]
   if (data.type === 'suelta') {
@@ -112,6 +113,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       duration_minutes: 60,
       ends_indefinitely: false,
       requires_audition: false,
+      billing_day: 1,
     },
   })
 
@@ -221,6 +223,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         ends_at: isPeriodic && !data.ends_indefinitely ? (data.ends_at || null) : null,
         ends_indefinitely: isEntrenamiento ? (data.ends_indefinitely ?? false) : false,
         requires_audition: isEntrenamiento ? (data.requires_audition ?? false) : false,
+        billing_day: isEntrenamiento ? (data.billing_day ?? 1) : null,
         audition_closed: false,
         status: 'active',
       } as any)
@@ -550,9 +553,9 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               </div>
             )}
 
-            {/* Audition toggle for entrenamiento */}
+            {/* Audition toggle + billing day for entrenamiento */}
             {isEntrenamiento && (
-              <div className="rounded-xl border border-brand-200 dark:border-brand-900/40 bg-brand-50/40 dark:bg-brand-950/20 p-3 space-y-2">
+              <div className="rounded-xl border border-brand-200 dark:border-brand-900/40 bg-brand-50/40 dark:bg-brand-950/20 p-3 space-y-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -568,6 +571,25 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                     Al cerrar la etapa, la clase se puede editar normalmente.
                   </p>
                 )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1">
+                    Día de cobro mensual
+                    <span className="ml-1.5 text-xs text-gray-400 dark:text-dark-text2/60 font-normal">(1–27)</span>
+                  </label>
+                  <input
+                    {...register('billing_day')}
+                    type="number"
+                    min={1}
+                    max={27}
+                    placeholder="1"
+                    className="input w-24"
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  />
+                  {errors.billing_day && <p className="mt-1 text-xs text-red-600">{errors.billing_day.message}</p>}
+                  <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2/60">
+                    Los alumnos verán en qué día del mes se realiza el cobro.
+                  </p>
+                </div>
               </div>
             )}
           </div>

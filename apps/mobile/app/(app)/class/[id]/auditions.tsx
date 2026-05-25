@@ -11,6 +11,8 @@ import {
 } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
 
+const WEB_URL = 'https://dc-project-web.vercel.app'
+
 interface Audition {
   id: string
   applicant_id: string
@@ -177,6 +179,23 @@ export default function AuditionsScreen() {
     }
   }
 
+  async function enrollAccepted(toPublish: Audition[]) {
+    const acceptedIds = toPublish
+      .filter((a) => localDecisions[a.id] === 'accepted')
+      .map((a) => a.applicant_id)
+    if (acceptedIds.length === 0) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch(`${WEB_URL}/api/class/auditions/enroll-accepted`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ classId: id, applicantIds: acceptedIds }),
+    })
+  }
+
   async function handlePublish() {
     const pending = auditions.filter((a) => a.status === 'pending')
     const toPublish = pending.filter((a) => localDecisions[a.id])
@@ -195,6 +214,7 @@ export default function AuditionsScreen() {
         data: { class_id: id, class_title: cls?.title ?? '' },
       }))
     )
+    await enrollAccepted(toPublish)
     setAuditions((prev) =>
       prev.map((a) => localDecisions[a.id] ? { ...a, status: localDecisions[a.id] } : a)
     )
@@ -231,10 +251,27 @@ export default function AuditionsScreen() {
                   data: { class_id: id, class_title: cls?.title ?? '' },
                 }))
               )
+              await enrollAccepted(toPublish)
               setAuditions((prev) =>
                 prev.map((a) => localDecisions[a.id] ? { ...a, status: localDecisions[a.id] } : a)
               )
               setLocalDecisions({})
+            }
+
+            // Also enroll any previously-accepted auditions that may lack enrollment
+            const alreadyAccepted = auditions.filter((a) => a.status === 'accepted')
+            if (alreadyAccepted.length > 0) {
+              const { data: { session } } = await supabase.auth.getSession()
+              if (session) {
+                await fetch(`${WEB_URL}/api/class/auditions/enroll-accepted`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session.access_token}`,
+                  },
+                  body: JSON.stringify({ classId: id, applicantIds: alreadyAccepted.map((a) => a.applicant_id) }),
+                })
+              }
             }
 
             await (supabase as any).from('classes').update({ audition_closed: true }).eq('id', id)

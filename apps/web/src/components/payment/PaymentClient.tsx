@@ -151,6 +151,9 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
       <div>
         <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">Pagar clase</h1>
         <p className="text-sm text-gray-500 dark:text-dark-text2 mt-0.5">{cls.title}</p>
+        {cls.type === 'entrenamiento' && cls.billing_day && (
+          <p className="text-xs text-gray-400 dark:text-dark-text2/60 mt-1">Cobro mensual el día <strong>{cls.billing_day}</strong> de cada mes</p>
+        )}
       </div>
 
       {missing2xPrice && (

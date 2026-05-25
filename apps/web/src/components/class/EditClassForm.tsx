@@ -43,6 +43,7 @@ const schema = z.object({
   price_suelta_2x: z.coerce.number().min(0).optional(),
   ends_at: z.string().optional(),
   ends_indefinitely: z.boolean().optional(),
+  billing_day: z.coerce.number().int().min(1).max(27).optional(),
 }).superRefine((data, ctx) => {
   if (data.type === 'suelta') {
     if (!data.date) ctx.addIssue({ code: 'custom', path: ['date'], message: 'Requerido' })
@@ -120,6 +121,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       price_suelta_2x: classData.price_suelta_2x ?? undefined,
       ends_at: classData.ends_at ?? undefined,
       ends_indefinitely: classData.ends_indefinitely ?? false,
+      billing_day: classData.billing_day ?? 1,
     },
   })
 
@@ -212,6 +214,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       price_suelta_2x: (classType === 'periodica' && data.price_suelta_2x) ? data.price_suelta_2x : null,
       ends_at: isPeriodic && !data.ends_indefinitely ? (data.ends_at || null) : null,
       ends_indefinitely: isEntrenamiento ? (data.ends_indefinitely ?? false) : false,
+      billing_day: isEntrenamiento ? (data.billing_day ?? 1) : null,
     } as any).eq('id', classData.id)
 
     if (updateError) { setError('Error al guardar los cambios.'); setSubmitting(false); return }
@@ -432,6 +435,25 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
                 </label>
               )}
             </div>
+
+            {/* Billing day (entrenamiento only) */}
+            {isEntrenamiento && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                  Día de cobro mensual <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(1–27)</span>
+                </label>
+                <input
+                  {...register('billing_day')}
+                  type="number"
+                  min={1}
+                  max={27}
+                  placeholder="1"
+                  className="input w-24"
+                  onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                />
+                <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2/60">Los alumnos verán en qué día del mes se realiza el cobro.</p>
+              </div>
+            )}
 
             {/* Price suelta */}
             {classData.type === 'periodica' && (

@@ -67,6 +67,7 @@ export default function CreateClassScreen() {
   const [endsAt, setEndsAt] = useState('')
   const [endsIndefinitely, setEndsIndefinitely] = useState(false)
   const [requiresAudition, setRequiresAudition] = useState(false)
+  const [billingDay, setBillingDay] = useState('1')
   const [locationName, setLocationName] = useState('')
   const [locationAddress, setLocationAddress] = useState('')
   const [city, setCity] = useState('')
@@ -210,6 +211,7 @@ export default function CreateClassScreen() {
         ends_at: (isPeriodic && !endsIndefinitely) ? (endsAt || null) : null,
         ends_indefinitely: isEntrenamiento ? endsIndefinitely : false,
         requires_audition: isEntrenamiento ? requiresAudition : false,
+        billing_day: isEntrenamiento ? (Number(billingDay) || 1) : null,
         audition_closed: false,
         status: 'active',
       } as any)
@@ -541,6 +543,24 @@ export default function CreateClassScreen() {
                     Los interesados completarán un formulario. Podrás aceptar o rechazar desde el panel.
                   </Text>
                 )}
+              </View>
+            )}
+
+            {/* Billing day for entrenamiento */}
+            {isEntrenamiento && (
+              <View className="gap-1.5">
+                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
+                  Día de cobro mensual <Text className="text-gray-400 font-normal">(1–27)</Text>
+                </Text>
+                <TextInput
+                  value={billingDay}
+                  onChangeText={(v) => setBillingDay(v.replace(/[^0-9]/g, ''))}
+                  placeholder="1"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                  className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 w-24"
+                />
+                <Text className="text-xs text-gray-400 dark:text-dark-text2/60">Los alumnos verán en qué día del mes se realiza el cobro.</Text>
               </View>
             )}
           </View>

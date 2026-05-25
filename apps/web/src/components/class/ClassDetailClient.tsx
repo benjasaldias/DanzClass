@@ -247,7 +247,8 @@ export default function ClassDetailClient({
     ? `IMPORTANTE: ya pagaste esta clase. ¿Seguro que quieres salirte?`
     : `¿Seguro que quieres salirte de "${classData.title}"? Tu cupo quedará libre.`
 
-  const canEnrollDirectly = !isEntrenamiento || classData.audition_closed || !classData.requires_audition
+  // Training with audition: enrollment is auto-created on accept — never show "Reservar cupo"
+  const canEnrollDirectly = !isEntrenamiento || !classData.requires_audition
   const canUserEnroll = canEnroll(userTier)
 
   const shareButtonClasses = "flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium transition-colors"
@@ -462,6 +463,12 @@ export default function ClassDetailClient({
             <span className="text-xs text-gray-600 dark:text-dark-text2">Duración <strong>indefinida</strong></span>
           </div>
         )}
+        {isEntrenamiento && classData.billing_day && (
+          <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-dark-surface border border-gray-100 dark:border-dark-border px-3 py-2">
+            <Calendar className="h-4 w-4 text-gray-400 dark:text-dark-text2" />
+            <span className="text-xs text-gray-600 dark:text-dark-text2">Cobro mensual el día <strong>{classData.billing_day}</strong> de cada mes</span>
+          </div>
+        )}
 
         <div className="card p-4 space-y-3">
           <div className="flex items-center gap-3 text-sm">
@@ -557,9 +564,11 @@ export default function ClassDetailClient({
               <div>
                 <p className="text-sm font-semibold text-blue-800">Postulación enviada</p>
                 <p className="text-xs text-blue-600 mt-0.5">
-                  {myAudition?.status === 'accepted' ? '¡Fuiste aceptad@! El profesor te contactará.' :
-                   myAudition?.status === 'rejected' ? 'Tu postulación no fue seleccionada.' :
-                   'El profesor revisará tu postulación y te notificará.'}
+                  {myAudition?.status === 'accepted'
+                    ? '¡Fuiste aceptad@! Tu cupo está reservado — completa el pago para confirmarlo.'
+                    : myAudition?.status === 'rejected'
+                      ? 'Tu postulación no fue seleccionada en esta ocasión.'
+                      : 'El profesor revisará tu postulación y te notificará.'}
                 </p>
               </div>
             ) : classData.audition_closed ? (

@@ -326,15 +326,15 @@ export default function AgendaScreen() {
         {/* ── Legend ──────────────────────────────────── */}
         <View className="flex-row items-center gap-4 px-4 py-2 bg-white dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border flex-wrap">
           <View className="flex-row items-center gap-1.5">
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#7F77DD' }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#0ea5e9' }} />
             <Text className="text-xs text-gris-humo dark:text-dark-text2">Inscritas</Text>
           </View>
           <View className="flex-row items-center gap-1.5">
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#c026d3' }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#10b981' }} />
             <Text className="text-xs text-gris-humo dark:text-dark-text2">Que dicto</Text>
           </View>
           <View className="flex-row items-center gap-1.5">
-            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#7F77DD', opacity: 0.7 }} />
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#8b5cf6' }} />
             <Text className="text-xs text-gris-humo dark:text-dark-text2">Ensayos</Text>
           </View>
         </View>
@@ -383,10 +383,10 @@ export default function AgendaScreen() {
                         }
                         className={`flex-row items-start gap-3 p-2.5 rounded-xl mb-1 ${
                           ev.isRehearsal
-                            ? 'bg-violet-50/60 dark:bg-dark-surface2'
+                            ? 'bg-violet-50 dark:bg-violet-900/20'
                             : ev.isTeaching
-                              ? 'bg-brand-50 dark:bg-brand-950/30'
-                              : 'bg-violet-50 dark:bg-dark-surface2'
+                              ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                              : 'bg-sky-50 dark:bg-sky-900/20'
                         }`}
                         activeOpacity={0.7}
                       >
@@ -396,9 +396,8 @@ export default function AgendaScreen() {
                             width: 3,
                             borderRadius: 2,
                             alignSelf: 'stretch',
-                            backgroundColor: ev.isRehearsal ? '#7F77DD' : ev.isTeaching ? '#c026d3' : '#7F77DD',
+                            backgroundColor: ev.isRehearsal ? '#8b5cf6' : ev.isTeaching ? '#10b981' : '#0ea5e9',
                             flexShrink: 0,
-                            opacity: ev.isRehearsal ? 0.7 : 1,
                           }}
                         />
                         <View className="flex-1">
@@ -407,15 +406,27 @@ export default function AgendaScreen() {
                               {ev.title}
                             </Text>
                             {ev.isRehearsal && (
-                              <View className="rounded-full px-1.5 py-0.5" style={{ backgroundColor: '#EEEDFE' }}>
-                                <Text style={{ color: '#534AB7', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ensayo</Text>
+                              <View className="rounded-full px-1.5 py-0.5 bg-violet-100 dark:bg-violet-900/30">
+                                <Text style={{ fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, color: '#7c3aed' }}>Ensayo</Text>
                               </View>
                             )}
                           </View>
                           <View className="flex-row flex-wrap items-center gap-2 mt-0.5">
                             {ev.style && (
-                              <View className={`px-1.5 py-0.5 rounded-full ${ev.isTeaching ? 'bg-brand-100 dark:bg-brand-900/30' : 'bg-violet-100 dark:bg-dark-surface'}`}>
-                                <Text className={`text-xs ${ev.isTeaching ? 'text-brand-700 dark:text-brand-300' : 'text-violet-700 dark:text-violet-300'}`}>
+                              <View className={`px-1.5 py-0.5 rounded-full ${
+                                ev.isTeaching
+                                  ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                                  : ev.isRehearsal
+                                    ? 'bg-violet-100 dark:bg-violet-900/30'
+                                    : 'bg-sky-100 dark:bg-sky-900/30'
+                              }`}>
+                                <Text className={`text-xs ${
+                                  ev.isTeaching
+                                    ? 'text-emerald-700 dark:text-emerald-300'
+                                    : ev.isRehearsal
+                                      ? 'text-violet-700 dark:text-violet-300'
+                                      : 'text-sky-700 dark:text-sky-300'
+                                }`}>
                                   {ev.style}
                                 </Text>
                               </View>
@@ -428,9 +439,9 @@ export default function AgendaScreen() {
                             )}
                           </View>
                           {ev.isRehearsal ? (
-                            <Text className="text-xs font-medium mt-0.5" style={{ color: '#7F77DD' }}>Ensayo</Text>
+                            <Text className="text-xs font-medium mt-0.5 text-violet-600 dark:text-violet-400">Ensayo</Text>
                           ) : ev.isTeaching ? (
-                            <Text className="text-xs font-medium text-brand-600 dark:text-brand-300 mt-0.5">Tú dictas</Text>
+                            <Text className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">Tú dictas</Text>
                           ) : ev.teacher ? (
                             <Text className="text-xs text-gris-humo dark:text-dark-text2 mt-0.5">Con @{ev.teacher}</Text>
                           ) : null}

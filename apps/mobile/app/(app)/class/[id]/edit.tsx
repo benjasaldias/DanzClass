@@ -58,6 +58,7 @@ export default function EditClassScreen() {
   const [customDates, setCustomDates] = useState<string[]>([])
   const [endsAt, setEndsAt] = useState('')
   const [endsIndefinitely, setEndsIndefinitely] = useState(false)
+  const [billingDay, setBillingDay] = useState('1')
   const [locationName, setLocationName] = useState('')
   const [locationAddress, setLocationAddress] = useState('')
   const [city, setCity] = useState('')
@@ -100,6 +101,7 @@ export default function EditClassScreen() {
       setCustomDates(data.custom_dates ?? [])
       setEndsAt(data.ends_at ?? '')
       setEndsIndefinitely(data.ends_indefinitely ?? false)
+      setBillingDay(data.billing_day ? String(data.billing_day) : '1')
       setLocationName(data.location_name ?? '')
       setLocationAddress(data.location_address ?? '')
       setCity(data.city ?? '')
@@ -220,6 +222,7 @@ export default function EditClassScreen() {
         price_suelta_2x: (classType === 'periodica' && priceSuelta2x) ? Number(priceSuelta2x) : null,
         ends_at: (isPeriodic && !endsIndefinitely) ? (endsAt || null) : null,
         ends_indefinitely: isEntrenamiento ? endsIndefinitely : false,
+        billing_day: isEntrenamiento ? (Number(billingDay) || 1) : null,
       } as any)
       .eq('id', id)
 
@@ -455,6 +458,24 @@ export default function EditClassScreen() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Billing day for entrenamiento */}
+            {isEntrenamiento && (
+              <View className="gap-1.5">
+                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
+                  Día de cobro mensual <Text className="text-gray-400 font-normal">(1–27)</Text>
+                </Text>
+                <TextInput
+                  value={billingDay}
+                  onChangeText={(v) => setBillingDay(v.replace(/[^0-9]/g, ''))}
+                  placeholder="1"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                  className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 w-24"
+                />
+                <Text className="text-xs text-gray-400 dark:text-dark-text2/60">Los alumnos verán en qué día del mes se realiza el cobro.</Text>
+              </View>
+            )}
 
             {classType === 'periodica' && (
               <View className="border border-gray-200 dark:border-dark-border rounded-xl p-3 gap-2 bg-white dark:bg-dark-surface">

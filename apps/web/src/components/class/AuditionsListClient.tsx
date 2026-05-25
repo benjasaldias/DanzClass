@@ -53,6 +53,18 @@ export default function AuditionsListClient({
     })
   }
 
+  async function enrollAccepted(toPublish: typeof auditions) {
+    const acceptedIds = toPublish
+      .filter((a) => localDecisions[a.id] === 'accepted')
+      .map((a) => a.applicant_id)
+    if (acceptedIds.length === 0) return
+    await fetch('/api/class/auditions/enroll-accepted', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId, applicantIds: acceptedIds }),
+    })
+  }
+
   async function handlePublish() {
     const pending = auditions.filter((a) => a.status === 'pending')
     // Only publish decisions for pending auditions
@@ -75,6 +87,8 @@ export default function AuditionsListClient({
         data: { class_id: classId, class_title: classTitle },
       }))
     )
+
+    await enrollAccepted(toPublish)
 
     setAuditions((prev) =>
       prev.map((a) =>
@@ -106,12 +120,23 @@ export default function AuditionsListClient({
           data: { class_id: classId, class_title: classTitle },
         }))
       )
+      await enrollAccepted(toPublish)
       setAuditions((prev) =>
         prev.map((a) =>
           localDecisions[a.id] ? { ...a, status: localDecisions[a.id] as 'accepted' | 'rejected' } : a
         )
       )
       setLocalDecisions({})
+    }
+
+    // Also enroll any previously accepted auditions that may still lack an enrollment
+    const alreadyAccepted = auditions.filter((a) => a.status === 'accepted')
+    if (alreadyAccepted.length > 0) {
+      await fetch('/api/class/auditions/enroll-accepted', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classId, applicantIds: alreadyAccepted.map((a) => a.applicant_id) }),
+      })
     }
 
     await supabase.from('classes' as any).update({ audition_closed: true } as any).eq('id', classId)

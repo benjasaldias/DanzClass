@@ -1948,3 +1948,98 @@ Nueva función `handleReopenAuditions()` en web y mobile:
 | `apps/web/src/components/rehearsal/CreateRehearsalModal.tsx` | DateInput + CityCombobox |
 | `apps/mobile/app/(app)/(tabs)/agenda.tsx` | Enrollment filter |
 | `supabase/migrations/024_add_start_date_to_classes.sql` | NUEVA — start_date en classes |
+
+---
+
+## Sesión 2026-05-27 (entrenamiento, billing_day, agenda colors, tests)
+
+### ✅ Task 1 — Flujo de inscripción en entrenamiento con audición
+
+Al aceptar postulantes en un entrenamiento, el sistema ahora auto-crea inscripciones `pending_payment` para los alumnos aceptados. Los alumnos rechazados/no aceptados no ven "Reservar cupo".
+
+**Cambios en `canEnrollDirectly`:**
+- Web (`ClassDetailClient.tsx`): eliminado `|| classData.audition_closed` — ahora `!isEntrenamiento || !classData.requires_audition`
+- Mobile (`class/[id]/index.tsx`): mismo cambio
+
+**Nuevo API route:** `apps/web/src/app/api/class/auditions/enroll-accepted/route.ts`
+- POST `{ classId, applicantIds }` — crea enrollments `pending_payment` por alumno aceptado (upsert si había cancelado, skip si ya existe enrollment activo)
+- Usa `createAdminClient()` para bypasear RLS
+
+**`AuditionsListClient.tsx` (web) y `auditions.tsx` (mobile):**
+- `enrollAccepted(toPublish)` — llama al nuevo route tras publicar decisiones
+- `handleCloseAuditions` también crea enrollments para postulantes previamente aceptados
+
+**UI para alumno aceptado en entrenamiento:**
+- `ClassDetailClient.tsx`: `EnrollmentBanner` siempre visible fuera del bloque `canEnrollDirectly`; texto "¡Fuiste aceptad@! Tu cupo está reservado — completa el pago para confirmarlo."
+- Mobile: nuevo bloque CTA independiente visible cuando `isEntrenamiento && requires_audition && enrollment && status !== 'cancelled'`
+
+### ✅ Task 2 — Campo `billing_day` en entrenamientos
+
+Nuevo campo entero (1-27, default 1) en clases de tipo entrenamiento.
+
+**Migración:** `supabase/migrations/025_billing_day.sql`
+```sql
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS billing_day SMALLINT DEFAULT 1
+  CHECK (billing_day BETWEEN 1 AND 27);
+```
+
+**Web:**
+- `CreateClassForm.tsx`: campo input numérico en sección entrenamiento; persiste al crear
+- `EditClassForm.tsx`: campo input numérico con valor inicial `classData.billing_day ?? 1`; persiste al editar
+- `ClassDetailClient.tsx`: badge "Cobro mensual el día N de cada mes" junto a otros badges de fecha
+- `PaymentClient.tsx`: texto informativo bajo el título de la clase
+
+**Mobile:**
+- `class/create.tsx`: estado `billingDay`, input numérico en sección entrenamiento, persiste en insert
+- `class/[id]/edit.tsx`: estado `billingDay`, cargado desde `data.billing_day`, persiste en update
+- `class/[id]/index.tsx`: fila informativa con ícono Calendar bajo el horario
+
+### ✅ Task 3 — Rediseño de colores de eventos en la agenda
+
+Anteriormente: todos los eventos usaban variantes de `#7F77DD` (morado flow), y "dicto" usaba `brand-600` = `#2D1B69` invisible en dark mode.
+
+**Nuevos colores:**
+| Tipo de evento | Color | Clase Tailwind |
+|---|---|---|
+| Clase inscrita (alumno) | Sky 500 `#0ea5e9` | `bg-sky-500` |
+| Clase que dicto (profesor) | Emerald 500 `#10b981` | `bg-emerald-500` |
+| Ensayo aceptado | Violet 500 `#8b5cf6` | `bg-violet-500` |
+| Ensayo pendiente | Slate 400 `#94a3b8` | `bg-slate-400` |
+
+**Archivos modificados:**
+- `apps/web/src/components/agenda/AgendaClient.tsx`: barras laterales, fondos de cards, badges de estilo, label "Tú dictas", puntos de leyenda, puntos de calendario
+- `apps/mobile/app/(app)/(tabs)/agenda.tsx`: leyenda, fondos de cards, barra de color, badge "Ensayo", chips de estilo, label "Tú dictas"
+
+### ✅ Task 4 — Tests Playwright
+
+Nuevo archivo: `tests/e2e/auditions-billing-agenda.spec.ts`
+
+Cubre 4 grupos de tests (todos robustos — saltan con `test.skip()` si no hay datos):
+1. **Auditions** — navegación a la página, lista de postulantes visible, no-aceptado no ve "Reservar cupo"
+2. **Billing day** — formulario create/edit muestra el campo, acepta valores 1-27, detalle lo muestra
+3. **Agenda colores** — página carga sin error, leyenda con 3 puntos, card con clase sky usa clase sky, "Tú dictas" usa emerald
+4. **Rehearsals** — tab Ensayos en my-classes, rehearsal events con violet, link a /rehearsal/[id]
+
+### Archivos modificados (sesión 2026-05-27)
+
+| Archivo | Cambio |
+|---|---|
+| `apps/web/src/app/api/class/auditions/enroll-accepted/route.ts` | NUEVO — crea enrollments pending_payment para aceptados |
+| `apps/web/src/components/class/AuditionsListClient.tsx` | enrollAccepted() + llamadas en handlePublish y handleCloseAuditions |
+| `apps/mobile/app/(app)/class/[id]/auditions.tsx` | Misma lógica con Bearer token |
+| `apps/web/src/components/class/ClassDetailClient.tsx` | canEnrollDirectly sin audition_closed, mensaje aceptad@ actualizado |
+| `apps/mobile/app/(app)/class/[id]/index.tsx` | canEnrollDirectly + bloque CTA para entrenamiento con audición + billing_day display |
+| `supabase/migrations/025_billing_day.sql` | NUEVA — columna billing_day en classes |
+| `apps/web/src/components/class/CreateClassForm.tsx` | billing_day: schema, default, submit, UI |
+| `apps/web/src/components/class/EditClassForm.tsx` | billing_day: schema, default, submit, UI |
+| `apps/web/src/components/class/ClassDetailClient.tsx` | billing_day badge |
+| `apps/web/src/components/payment/PaymentClient.tsx` | billing_day texto informativo |
+| `apps/mobile/app/(app)/class/create.tsx` | billing_day: estado, insert, UI |
+| `apps/mobile/app/(app)/class/[id]/edit.tsx` | billing_day: estado, load, update, UI |
+| `apps/web/src/components/agenda/AgendaClient.tsx` | Nuevos colores sky/emerald/violet/slate |
+| `apps/mobile/app/(app)/(tabs)/agenda.tsx` | Mismos nuevos colores |
+| `tests/e2e/auditions-billing-agenda.spec.ts` | NUEVO — tests E2E auditions, billing_day, agenda, rehearsals |
+
+### ⚠️ Pendiente aplicar en Supabase producción
+
+- Migración `025_billing_day.sql`

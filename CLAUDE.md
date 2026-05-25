@@ -98,6 +98,9 @@ Esta referencia define el baseline visual. Los cambios de color deben ser aditiv
 | `020_reminders_and_waitlist.sql` | Extiende constraint notifications con `class_reminder` y `waitlist_available`. Tabla `waitlist` (class_id, user_id, UNIQUE(class_id,user_id)) con RLS. |
 | `021_post_description.sql` | `ALTER TABLE posts ADD COLUMN description TEXT` (nullable, retrocompatible). Reemplaza `city` en posts tipo video. |
 | `022_user_availability.sql` | Columnas `sleep_start SMALLINT DEFAULT 0` y `sleep_end SMALLINT DEFAULT 8` en `profiles`. Tabla `user_busy_blocks` (user_id, weekday 0=Lun..6=Dom, hour 0-23, UNIQUE por user+weekday+hour). RLS: solo el propio usuario. |
+| `023_rehearsals.sql` | Tabla `rehearsals` (id, creator_id, title, city, date_mode, rehearsal_date, rehearsal_time, custom_dates, notes, status). Tabla `rehearsal_invites` (rehearsal_id, user_id, status pending/accepted/rejected, UNIQUE). Notificaciones `rehearsal_invite`, `rehearsal_accepted`, `rehearsal_rejected`. |
+| `024_add_start_date_to_classes.sql` | `start_date DATE` en `classes` (nullable). Permite definir desde cuándo aplica una clase periódica. |
+| `025_billing_day.sql` | `billing_day SMALLINT DEFAULT 1 CHECK (BETWEEN 1 AND 27)` en `classes`. Día del mes para cobro mensual de entrenamientos. |
 
 **Antes de proponer cualquier migración nueva:** verificar que el constraint de `notification_type` en la última migración incluya todos los tipos anteriores, ya que cada migración lo reescribe completo.
 
@@ -172,6 +175,9 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 - **Navegación a detalle desde feed/mis clases:** `ClassCard` muestra "Ver clase" para todos (incluyendo el profesor) — el botón "Editar" ya está dentro de `/class/[id]`. En `MyClassesClient` tab Dicto, el título de cada clase es un `<Link>` a `/class/[id]` con `e.stopPropagation()` para no colapsar el acordeón.
 - **Descripción en posts tipo video:** campo `description TEXT` (nullable) en tabla `posts`. `CreatePostModal` y `create-post.tsx` (mobile) reemplazan el campo "Ciudad" por un textarea de descripción (max 280 chars, opcional). `PostCard` y `MobilePostCard` muestran la descripción bajo el video. La ciudad sigue existiendo en la columna pero ya no se pide ni muestra en posts.
 - **Disponibilidad horaria:** tabla `user_busy_blocks` (weekday 0=Lun…6=Dom, hour 0-23) + columnas `sleep_start`/`sleep_end` en `profiles`. Utilitarios en `packages/shared/src/lib/availability.ts` (`isSleepHour`, `isBlockOccupied`, `getSleepHours`, `dateToWeekday`). UI en web `AgendaClient` y mobile `agenda.tsx` (sección "Mis horarios ocupados"): grid 7×24 con colores diferenciados para sueño (índigo), ocupado (coral), libre (gris). Config de sueño: selects en web, botones +/− en mobile. Toggle de bloques con persistencia directa en Supabase (carga lazy al abrir la sección, auto-save por bloque). Web y mobile en paridad funcional.
+- **Auto-inscripción al aceptar audición:** `POST /api/class/auditions/enroll-accepted` — crea enrollments `pending_payment` para los alumnos aceptados al publicar resultados o cerrar audiciones. Usa `createAdminClient()`. `AuditionsListClient` (web) y `auditions.tsx` (mobile) llaman este route tras escribir cada decisión. El alumno aceptado ve "¡Fuiste aceptad@! Tu cupo está reservado" + botón "Ir a pagar" en lugar del formulario de audición. `canEnrollDirectly` para entrenamiento es ahora `!isEntrenamiento || !classData.requires_audition` (sin `|| audition_closed`).
+- **`billing_day` en entrenamientos:** campo `SMALLINT DEFAULT 1 CHECK (1..27)` en `classes` (migración 025). Visible en `CreateClassForm`, `EditClassForm`, `ClassDetailClient` (badge "Cobro mensual el día N de cada mes"), `PaymentClient`, y detalle mobile. Forms mobile en `class/create.tsx` y `class/[id]/edit.tsx`.
+- **Colores de eventos en agenda:** clases inscritas = sky-500 (`#0ea5e9`), clases que dicto = emerald-500 (`#10b981`), ensayos aceptados = violet-500 (`#8b5cf6`), ensayos pendientes = slate-400 (`#94a3b8`). Fix de `brand-600` = `#2D1B69` invisible en dark mode para eventos de enseñanza.
 
 ---
 
@@ -420,6 +426,14 @@ A diferencia de otros API routes, este usa `createAdminClient()` para el fetch d
 **Audiciones — Reabrir postulaciones:**
 
 `handleReopenAuditions` permite al profesor deshacer un cierre accidental (`audition_closed = false`). NO resetea postulaciones ya aceptadas/rechazadas. NO reenvía notificaciones antiguas — solo los nuevos borradores generados después de reabrir recibirán notificaciones al cerrar nuevamente. UI: botón "Reabrir postulaciones" (lavanda suave) visible cuando `auditionClosed = true`; se alterna con "Cerrar postulaciones" (ámbar).
+
+**Audiciones — auto-inscripción de aceptados (sesión 2026-05-27):**
+
+Al publicar o cerrar audiciones, `enrollAccepted()` llama a `POST /api/class/auditions/enroll-accepted` con los `applicantIds` aceptados. El route usa `createAdminClient()` y hace upsert: crea enrollment `pending_payment` si no existe ninguno activo, o lo reactiva si estaba `cancelled`. `canEnrollDirectly` para entrenamiento ya no incluye `|| classData.audition_closed` — así los usuarios rechazados o sin postulación nunca ven "Reservar cupo" tras el cierre. El alumno aceptado siempre verá el `EnrollmentBanner` con "Ir a pagar".
+
+**Colores agenda — sky/emerald/violet/slate (sesión 2026-05-27):**
+
+Los eventos de agenda en web (`AgendaClient.tsx`) y mobile (`agenda.tsx`) usan colores semánticamente diferenciados: sky-500 (inscrito), emerald-500 (enseño), violet-500 (ensayo aceptado), slate-400 (ensayo pendiente). Esto reemplaza el uso de `#7F77DD` para todo y de `brand-600` (`#2D1B69`) para enseñanza, que era invisible en dark mode.
 
 ---
 
