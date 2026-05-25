@@ -1,11 +1,14 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import AgendaClient from '@/components/agenda/AgendaClient'
 
 export default async function AgendaPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+
+  const admin = createAdminClient()
 
   const [{ data: enrollments }, { data: teachingClasses }, { data: rehearsalData }, { data: myInvites }] = await Promise.all([
     (supabase as any)
@@ -21,6 +24,7 @@ export default async function AgendaPage() {
       .eq('student_id', user.id)
       .in('status', ['confirmed', 'pending_payment', 'payment_submitted']),
 
+    // Include 'completed' so classes marked done by the cron still appear in the last month
     (supabase as any)
       .from('classes')
       .select(`
@@ -29,16 +33,16 @@ export default async function AgendaPage() {
         custom_dates, recurring_time, day_of_week
       `)
       .eq('teacher_id', user.id)
-      .eq('status', 'active'),
+      .in('status', ['active', 'completed']),
 
-    // Ensayos: RLS retorna solo los del creador + invitados (cualquier estado)
-    (supabase as any)
+    // Ensayos via admin client — bypasses RLS, filtered manually below
+    (admin as any)
       .from('rehearsals')
       .select('id, title, date_mode, rehearsal_date, rehearsal_time, custom_dates, coordinate_month, duration_minutes, creator_id')
       .eq('status', 'active'),
 
-    // Estado de invitaciones del usuario para filtrar rechazadas
-    (supabase as any)
+    // Invitaciones del usuario para filtrar rechazadas
+    (admin as any)
       .from('rehearsal_invites')
       .select('rehearsal_id, status')
       .eq('user_id', user.id),

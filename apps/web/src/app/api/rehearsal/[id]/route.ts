@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data } = await (supabase as any)
+  const admin = createAdminClient()
+  const { data } = await (admin as any)
     .from('rehearsals')
     .select(`
       *,
@@ -21,5 +23,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .single()
 
   if (!data) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  // Manual access check
+  const isCreator = data.creator_id === user.id
+  const hasInvite = (data.invites ?? []).some((i: any) => i.user_id === user.id)
+  if (!isCreator && !hasInvite) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
   return NextResponse.json(data)
 }

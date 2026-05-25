@@ -12,8 +12,9 @@ export default async function RehearsalDetailPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) notFound()
 
-  // RLS ensures only creator/invitees can see this
-  const { data: rehearsal } = await (supabase as any)
+  // Use admin client to bypass RLS; we enforce access manually below.
+  const admin = createAdminClient()
+  const { data: rehearsal } = await (admin as any)
     .from('rehearsals')
     .select(`
       *,
@@ -29,7 +30,11 @@ export default async function RehearsalDetailPage({ params }: Props) {
 
   if (!rehearsal) notFound()
 
+  // Manual access check: must be creator or have an invite (any status)
+  const isCreator = rehearsal.creator_id === user.id
   const myInvite = (rehearsal.invites ?? []).find((i: any) => i.user_id === user.id) ?? null
+  if (!isCreator && !myInvite) notFound()
+
   const rehearsalWithInvite = { ...rehearsal, my_invite: myInvite }
 
   return (
