@@ -14,8 +14,10 @@ export async function GET(req: Request) {
   // Optional month override (YYYY-MM). Falls back to rehearsal.coordinate_month.
   const monthOverride = searchParams.get('month')
 
-  // Verify user has access to this rehearsal (creator or invitee)
-  const { data: rehearsal } = await (supabase as any)
+  const admin = createAdminClient()
+
+  // Use admin client to bypass RLS; access is verified manually below
+  const { data: rehearsal } = await (admin as any)
     .from('rehearsals')
     .select('id, creator_id, coordinate_month')
     .eq('id', rehearsalId)
@@ -23,13 +25,18 @@ export async function GET(req: Request) {
 
   if (!rehearsal) return NextResponse.json({ error: 'Ensayo no encontrado' }, { status: 404 })
 
-  const admin = createAdminClient()
-
-  // Get all accepted/pending invitees + creator
+  // Get all invites (needed for access check and member calculation)
   const { data: invites } = await (admin as any)
     .from('rehearsal_invites')
     .select('user_id, status')
     .eq('rehearsal_id', rehearsalId)
+
+  // Manual access check: must be creator or have any invite (any status)
+  const isCreatorAccess = rehearsal.creator_id === user.id
+  const hasInvite = (invites as any[] ?? []).some((i: any) => i.user_id === user.id)
+  if (!isCreatorAccess && !hasInvite) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
 
   const memberIds: string[] = [
     rehearsal.creator_id,

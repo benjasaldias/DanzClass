@@ -85,21 +85,21 @@ export default function AuditionModal({ classId, userId, teacherId, onClose, onS
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-t-2xl bg-white dark:bg-dark-surface p-5 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-gray-900">Postularme al entrenamiento</h2>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 transition-colors">
-            <X className="h-4 w-4 text-gray-500" />
+          <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Postularme al entrenamiento</h2>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
+            <X className="h-4 w-4 text-gray-500 dark:text-dark-text2" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{error}</div>
+          <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-xs text-red-700 dark:text-red-400">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nombre completo *</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Nombre completo *</label>
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -111,8 +111,8 @@ export default function AuditionModal({ classId, userId, teacherId, onClose, onS
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Edad <span className="text-gray-400 font-normal">(opcional)</span>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                Edad <span className="text-gray-400 dark:text-dark-text2/60 font-normal">(opcional)</span>
               </label>
               <input
                 type="number"
@@ -125,8 +125,8 @@ export default function AuditionModal({ classId, userId, teacherId, onClose, onS
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                Teléfono <span className="text-gray-400 font-normal">(opcional)</span>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                Teléfono <span className="text-gray-400 dark:text-dark-text2/60 font-normal">(opcional)</span>
               </label>
               <input
                 type="tel"
@@ -139,13 +139,13 @@ export default function AuditionModal({ classId, userId, teacherId, onClose, onS
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Video bailando <span className="text-gray-400 font-normal">(opcional, máx. 100MB)</span>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+              Video bailando <span className="text-gray-400 dark:text-dark-text2/60 font-normal">(opcional, máx. 100MB)</span>
             </label>
             {videoFile ? (
-              <div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2.5">
-                <Video className="h-5 w-5 text-brand-600 flex-shrink-0" />
-                <span className="text-sm text-gray-700 truncate flex-1">{videoFile.name}</span>
+              <div className="flex items-center gap-3 rounded-xl border border-brand-200 dark:border-dark-border bg-brand-50 dark:bg-dark-surface2 px-3 py-2.5">
+                <Video className="h-5 w-5 text-brand-600 dark:text-brand-300 flex-shrink-0" />
+                <span className="text-sm text-gray-700 dark:text-dark-text2 truncate flex-1">{videoFile.name}</span>
                 <button
                   type="button"
                   onClick={() => setVideoFile(null)}
@@ -158,13 +158,13 @@ export default function AuditionModal({ classId, userId, teacherId, onClose, onS
               <div
                 {...getRootProps()}
                 className={`rounded-xl border-2 border-dashed p-5 text-center cursor-pointer transition-colors ${
-                  isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300'
+                  isDragActive ? 'border-brand-400 bg-brand-50 dark:bg-dark-surface2' : 'border-gray-200 dark:border-dark-border hover:border-brand-300'
                 }`}
               >
                 <input {...getInputProps()} />
-                <Upload className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
-                <p className="text-sm text-gray-500">Arrastra o selecciona un video</p>
-                <p className="text-xs text-gray-400 mt-0.5">MP4, MOV, WebM — privado, solo el profesor lo verá</p>
+                <Upload className="h-6 w-6 text-gray-300 dark:text-dark-border mx-auto mb-1.5" />
+                <p className="text-sm text-gray-500 dark:text-dark-text2">Arrastra o selecciona un video</p>
+                <p className="text-xs text-gray-400 dark:text-dark-text2/60 mt-0.5">MP4, MOV, WebM — privado, solo el profesor lo verá</p>
               </div>
             )}
           </div>

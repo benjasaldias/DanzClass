@@ -1771,3 +1771,180 @@ Ver memoria [Sesión 2026-05-25b](../memory/project_session_2026-05-25b.md) para
 | `apps/web/src/components/class/CreateClassForm.tsx` | Computa y guarda `start_date` al crear clase periódica |
 | `apps/web/src/components/class/EditClassForm.tsx` | Backfill de `start_date` al editar si no existía |
 | `tests/e2e-production/smoke.features.spec.ts` | Fix strict mode violation en `getByText('Ocupado', { exact: true })` |
+
+---
+
+## Sesión 2026-05-26 — Fix agenda + ensayos navegables
+
+### Contexto
+
+Se reportaron dos bugs críticos:
+1. La agenda no mostraba ningún compromiso (clases, ensayos)
+2. Los ensayos eran inaccesibles — página detalle `/rehearsal/[id]` retornaba 404 para todos, incluyendo el creador; las notificaciones navegaban a `/feed`
+
+### Causa raíz de los problemas
+
+#### Agenda vacía
+- **Enrollment filter muy restrictivo:** `.eq('status', 'confirmed')` excluía `pending_payment` y `payment_submitted`
+- **Teaching classes status:** `.eq('status', 'active')` excluía clases marcadas `completed` por el cron
+- **RLS bloqueando ensayos:** queries de `rehearsals` y `rehearsal_invites` usaban `createClient()` (user client) → `auth.uid()` nulo → RLS bloqueaba todo → array vacío
+- **EventCard href hardcodeado:** ensayos apuntaban a `/feed` en vez de `/rehearsal/${id}`
+- **Columna `start_date` nunca migrada a producción:** `001_initial_schema.sql` no la incluye; ninguna migración posterior la agregó → PGRST204 al crear/seleccionar clases → `getClassSessions` no podía computar fechas periódicas
+
+#### Ensayos inaccesibles
+- **Página `/rehearsal/[id]/page.tsx`:** usaba `createClient()` → RLS bloqueaba la lectura → `notFound()`
+- **API GET `/api/rehearsal/[id]/route.ts`:** mismo problema
+- **Notificaciones:** los 3 tipos de ensayo (`rehearsal_invite`, `rehearsal_accepted`, `rehearsal_rejected`) tenían `href: () => '/feed'` hardcodeado
+
+#### "Confirmar asistencia" 404
+- **`/api/rehearsal/respond/route.ts`:** usaba `createClient()` para leer `rehearsal_invites` antes de verificar ownership → RLS bloqueaba → 404
+
+#### Tab Ensayos en Mis Clases vacío
+- **`my-classes/page.tsx`:** queries de `ownRehearsals` y `rehearsalInvites` usaban `createClient()` → RLS bloqueaba → arrays vacíos
+
+#### Formulario de ensayo
+- **Fecha en formato MM/DD/AAAA:** `<input type="date">` dependía del locale del OS (Chrome en WSL muestra formato americano)
+- **Ciudad como input genérico:** campo de texto plano en vez de `CityCombobox`
+
+### Fixes aplicados
+
+#### `apps/web/src/app/(app)/agenda/page.tsx`
+- Enrollment filter: `.eq('status', 'confirmed')` → `.in('status', ['confirmed', 'pending_payment', 'payment_submitted'])`
+- Teaching classes: `.in('status', ['active', 'completed'])`
+- Queries de rehearsals y rehearsal_invites: cambiadas a `createAdminClient()` para bypass RLS
+- Lógica de `invite_status`: `'creator'` | `'accepted'` | `'pending'` — rechazados excluidos
+
+#### `apps/web/src/components/agenda/AgendaClient.tsx`
+- EventCard href: `/feed` → `` `/rehearsal/${ev.rehearsalId}` ``
+- `inviteStatus` prop: diferencia creador / aceptado / pendiente (borde dashed + badge amarillo para pendientes)
+
+#### `apps/web/src/components/notifications/NotificationsClient.tsx`
+- Los 3 tipos de notificación de ensayo: `href: (data) => data.rehearsal_id ? \`/rehearsal/${data.rehearsal_id}\` : '/feed'`
+
+#### `apps/web/src/app/(app)/rehearsal/[id]/page.tsx`
+- Cambiado a `createAdminClient()` + verificación manual `isCreator || hasInvite` → `notFound()` si no autorizado
+
+#### `apps/web/src/app/api/rehearsal/[id]/route.ts`
+- Cambiado a `createAdminClient()` + verificación manual de acceso
+
+#### `apps/web/src/app/api/rehearsal/respond/route.ts`
+- Invite fetch: `createClient()` → `createAdminClient()` + verificación manual `invite.user_id === user.id`
+- Corrige el 404 en "Confirmar asistencia"
+
+#### `apps/web/src/app/(app)/my-classes/page.tsx`
+- Queries de `ownRehearsals` y `rehearsalInvites`: `createClient()` → `createAdminClient()`
+- Corrige el tab Ensayos que aparecía vacío
+
+#### `apps/web/src/components/class/MyClassesClient.tsx`
+- Nuevo tab "Ensayos" en segunda fila (junto a "Historial")
+- Secciones "Ensayos que organizo" e "Invitaciones" con `RehearsalCard`
+- `RehearsalCard`: badge, fecha, count de invitados, link a `/rehearsal/[id]`
+
+#### `apps/web/src/components/rehearsal/CreateRehearsalModal.tsx`
+- Fecha: `<input type="date">` → `DateInput` (DD/MM/AAAA, almacena YYYY-MM-DD)
+- Ciudad: `<input>` genérico → `CityCombobox` con autocomplete de ciudades chilenas
+
+#### `apps/mobile/app/(app)/(tabs)/agenda.tsx`
+- Enrollment filter: `.eq('status', 'confirmed')` → `.in('status', ['confirmed', 'pending_payment', 'payment_submitted'])`
+
+#### `supabase/migrations/024_add_start_date_to_classes.sql` (NUEVA — **APLICAR EN PRODUCCIÓN**)
+```sql
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS start_date DATE;
+```
+Corrige el PGRST204 al crear clases y permite que `getClassSessions` compute fechas periódicas correctamente.
+
+### Patrón técnico: RLS con admin client
+
+El patrón correcto para datos con RLS restrictiva en rutas server-side:
+1. Usar `createAdminClient()` (service role) para el fetch → bypasea RLS
+2. Verificar manualmente la autorización del usuario (`creator_id === user.id`, `invite.user_id === user.id`, etc.)
+3. Retornar 401/404 si no autorizado
+
+Este patrón ya estaba en uso en otras partes del proyecto (`/api/class/leave`, `/api/rehearsal/respond`); esta sesión lo extendió a ensayos.
+
+### Estado post-sesión (2026-05-26)
+
+- Agenda muestra clases inscriptas (confirmed/pending_payment/payment_submitted) + dictadas (active/completed) + ensayos (creador/aceptado/pendiente)
+- Ensayos son navegables desde la agenda y desde notificaciones
+- Tab Ensayos en Mis Clases muestra datos correctamente
+- "Confirmar asistencia" en ensayos funciona
+- Formulario de ensayo usa DateInput y CityCombobox
+- ⚠️ **Pendiente aplicar migración 024 en Supabase producción** para activar creación de clases y agenda de periódicas
+
+---
+
+## Sesión 2026-05-26 (bugs y mejoras)
+
+### ✅ Fix dark mode — ícono "Clase" en PublishChoiceClient
+
+`text-brand-600` = `#2D1B69` desaparece sobre `dark:bg-dark-surface2` = `#2E1B5C` (mismo nivel de oscuridad). Fix: añadido `dark:text-brand-300` al ícono `<Calendar>` en `PublishChoiceClient.tsx`. Regla general: todo `text-brand-600` dentro de contenedores con `dark:bg-dark-surface2` requiere `dark:text-brand-300`.
+
+### ✅ Fix dark mode — AuditionModal
+
+El modal de postulación a entrenamiento usaba `bg-white` sin variante dark, resultando en una tarjeta blanca sobre fondo oscuro. Corregido en `AuditionModal.tsx`:
+
+- Contenedor: `bg-white dark:bg-dark-surface`
+- Labels: `dark:text-dark-text2`
+- Error box: `dark:bg-red-900/20 dark:border-red-800 dark:text-red-400`
+- Dropzone: `dark:border-dark-border`, ícono `dark:text-dark-border`, textos `dark:text-dark-text2`
+- Video preview: `dark:border-dark-border dark:bg-dark-surface2`
+
+### ✅ Fix bug — Calendario de coordinación de ensayos mostraba "0 integrantes"
+
+`/api/rehearsal/group-availability` usaba `createClient()` (cliente regular con RLS) para buscar el rehearsal, a diferencia de todos los demás routes de rehearsal que usan `createAdminClient()`. La inconsistencia causaba que el rehearsal no fuera encontrado en algunos casos → API retornaba error → componente mostraba estado vacío silenciosamente.
+
+Fix en `group-availability/route.ts`:
+
+- Movido `const admin = createAdminClient()` antes del fetch del rehearsal
+- Cambiado `(supabase as any).from('rehearsals')` → `(admin as any).from('rehearsals')`
+- Las invitaciones se obtienen antes que antes para poder hacer el access check manual
+- Access check manual: `isCreatorAccess = rehearsal.creator_id === user.id` || `hasInvite = invites.some(i => i.user_id === user.id)` → 403 si ninguno
+
+### ✅ Fix bug — Cerrar postulaciones perdía decisiones locales
+
+`handleCloseAuditions()` cerraba directamente (`audition_closed = true`) sin persistir las decisiones en borrador de `localDecisions`. El postulante aceptado quedaba como "pending" en DB y el contador de confirmados mostraba 0.
+
+Fix en `AuditionsListClient.tsx` (web) y `class/[id]/auditions.tsx` (mobile):
+
+- `handleCloseAuditions()` ahora persiste primero cualquier decisión en borrador (lógica idéntica a `handlePublish`)
+- Luego envía notificaciones a los postulantes afectados
+- Luego cierra (`audition_closed = true`)
+
+### ✅ Mejora — Reabrir postulaciones
+
+Nueva función `handleReopenAuditions()` en web y mobile:
+
+- Botón "Reabrir postulaciones" (color lavanda, `bg-[#EEEDFE]`) visible cuando `auditionClosed = true`
+- Alterna con "Cerrar postulaciones" (ámbar) según estado actual
+- Reabrir NO resetea postulaciones ya aceptadas/rechazadas en DB
+- Reabrir NO reenvía notificaciones antiguas
+- Solo los nuevos borradores generados después de reabrir recibirán notificaciones al cerrar nuevamente
+- Banner actualizado: "Postulaciones cerradas — los resultados publicados fueron enviados a los postulantes. Puedes reabrir si necesitas recibir más postulaciones."
+
+### Archivos modificados (sesión 2026-05-26)
+
+| Archivo | Cambio |
+|---|---|
+| `apps/web/src/components/publish/PublishChoiceClient.tsx` | `dark:text-brand-300` en ícono Calendar |
+| `apps/web/src/components/class/AuditionModal.tsx` | Dark mode completo en modal, labels, dropzone, error box |
+| `apps/web/src/app/api/rehearsal/group-availability/route.ts` | Admin client para rehearsal fetch + access check manual |
+| `apps/web/src/components/class/AuditionsListClient.tsx` | `handleCloseAuditions` persiste borradores + `handleReopenAuditions` + botón toggle + banner actualizado |
+| `apps/mobile/app/(app)/class/[id]/auditions.tsx` | Mismo fix handleCloseAuditions + handleReopenAuditions + botón toggle + banner |
+
+### No hay migraciones nuevas en esta sesión
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---|---|
+| `apps/web/src/app/(app)/agenda/page.tsx` | Enrollment filter, teaching status, admin client para ensayos |
+| `apps/web/src/components/agenda/AgendaClient.tsx` | Href ensayos, inviteStatus, badge pendiente |
+| `apps/web/src/components/notifications/NotificationsClient.tsx` | Hrefs de 3 tipos de notificación de ensayo |
+| `apps/web/src/app/(app)/rehearsal/[id]/page.tsx` | Admin client + manual auth check |
+| `apps/web/src/app/api/rehearsal/[id]/route.ts` | Admin client + manual auth check |
+| `apps/web/src/app/api/rehearsal/respond/route.ts` | Admin client + manual user_id check |
+| `apps/web/src/app/(app)/my-classes/page.tsx` | Admin client para ownRehearsals y rehearsalInvites |
+| `apps/web/src/components/class/MyClassesClient.tsx` | Tab Ensayos + RehearsalCard + RehearsalsTab |
+| `apps/web/src/components/rehearsal/CreateRehearsalModal.tsx` | DateInput + CityCombobox |
+| `apps/mobile/app/(app)/(tabs)/agenda.tsx` | Enrollment filter |
+| `supabase/migrations/024_add_start_date_to_classes.sql` | NUEVA — start_date en classes |

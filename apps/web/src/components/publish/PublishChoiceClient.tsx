@@ -44,7 +44,7 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
           className="flex items-center gap-4 rounded-2xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface p-5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 dark:bg-dark-surface2 flex-shrink-0">
-            <Calendar className="h-6 w-6 text-brand-600" />
+            <Calendar className="h-6 w-6 text-brand-600 dark:text-brand-300" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-gray-900 dark:text-dark-text">Clase</p>

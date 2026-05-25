@@ -205,7 +205,7 @@ export default function AuditionsScreen() {
   async function handleCloseAuditions() {
     Alert.alert(
       'Cerrar postulaciones',
-      '¿Confirmas cerrar las postulaciones? Luego podrás editar la clase normalmente.',
+      '¿Confirmas cerrar las postulaciones? Las decisiones en borrador se publicarán automáticamente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -213,8 +213,51 @@ export default function AuditionsScreen() {
           style: 'destructive',
           onPress: async () => {
             setClosing(true)
+
+            // Persist any draft decisions before closing
+            const pending = auditions.filter((a) => a.status === 'pending')
+            const toPublish = pending.filter((a) => localDecisions[a.id])
+
+            if (toPublish.length > 0) {
+              await Promise.all(
+                toPublish.map((a) =>
+                  (supabase as any).from('auditions').update({ status: localDecisions[a.id] }).eq('id', a.id)
+                )
+              )
+              await (supabase as any).from('notifications').insert(
+                toPublish.map((a) => ({
+                  user_id: a.applicant_id,
+                  type: localDecisions[a.id] === 'accepted' ? 'audition_accepted' : 'audition_rejected',
+                  data: { class_id: id, class_title: cls?.title ?? '' },
+                }))
+              )
+              setAuditions((prev) =>
+                prev.map((a) => localDecisions[a.id] ? { ...a, status: localDecisions[a.id] } : a)
+              )
+              setLocalDecisions({})
+            }
+
             await (supabase as any).from('classes').update({ audition_closed: true }).eq('id', id)
             setAuditionClosed(true)
+            setClosing(false)
+          },
+        },
+      ]
+    )
+  }
+
+  async function handleReopenAuditions() {
+    Alert.alert(
+      'Reabrir postulaciones',
+      '¿Confirmas reabrir las postulaciones? Los resultados ya enviados no se modifican.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Reabrir',
+          onPress: async () => {
+            setClosing(true)
+            await (supabase as any).from('classes').update({ audition_closed: false }).eq('id', id)
+            setAuditionClosed(false)
             setClosing(false)
           },
         },
@@ -245,14 +288,23 @@ export default function AuditionsScreen() {
           <Text className="text-base font-bold text-gray-900 dark:text-dark-text">Postulaciones</Text>
           <Text className="text-xs text-gris-humo dark:text-dark-text2" numberOfLines={1}>{cls?.title}</Text>
         </View>
-        {!auditionClosed && (
+        {auditionClosed ? (
+          <TouchableOpacity
+            onPress={handleReopenAuditions}
+            disabled={closing}
+            className="flex-row items-center gap-1.5 rounded-xl border border-violet-300 dark:border-violet-700/40 bg-[#EEEDFE] dark:bg-dark-surface2 px-3 py-2"
+          >
+            {closing && <ActivityIndicator size="small" color="#534AB7" />}
+            <Text className="text-xs font-semibold text-[#534AB7] dark:text-violet-300">Reabrir postulaciones</Text>
+          </TouchableOpacity>
+        ) : (
           <TouchableOpacity
             onPress={handleCloseAuditions}
             disabled={closing}
-            className="flex-row items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2"
+            className="flex-row items-center gap-1.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2"
           >
             {closing && <ActivityIndicator size="small" color="#b45309" />}
-            <Text className="text-xs font-semibold text-amber-700">Cerrar postulaciones</Text>
+            <Text className="text-xs font-semibold text-amber-700 dark:text-amber-400">Cerrar postulaciones</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -260,7 +312,7 @@ export default function AuditionsScreen() {
       <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
         {auditionClosed && (
           <View className="mb-4 rounded-xl bg-gray-50 dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border px-4 py-3">
-            <Text className="text-sm text-gray-600 dark:text-dark-text2">Las postulaciones están cerradas. Ahora puedes editar la clase normalmente.</Text>
+            <Text className="text-sm text-gray-600 dark:text-dark-text2">Postulaciones cerradas — los resultados publicados fueron enviados a los postulantes. Puedes reabrir si necesitas recibir más postulaciones.</Text>
           </View>
         )}
 

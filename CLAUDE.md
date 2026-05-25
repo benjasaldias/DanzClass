@@ -359,6 +359,8 @@ Al agregar cualquier texto, borde, ícono o fondo de color en la app, respetar e
 
 7. **Pills de estado en mobile con `style` inline** — `PAYMENT_PILL_COLORS` con hex en `style={{ backgroundColor, color, borderColor }}` no adapta al dark mode. Usar NativeWind class strings y `className` en su lugar (ver implementación actual en `my-classes.tsx`).
 
+8. **`text-brand-600` sobre fondos oscuros** — `brand-600` en `tailwind.config.ts` es `#2D1B69` (navy oscuro), que desaparece sobre `dark-surface2` (`#2E1B5C`). Todo uso de `text-brand-600` en íconos dentro de contenedores que cambian a `dark:bg-dark-surface2` requiere `dark:text-brand-300`. Ejemplo: `<Calendar className="h-6 w-6 text-brand-600 dark:text-brand-300" />`. La BottomNav ya usa este patrón correctamente (`isActive ? 'text-brand-600 dark:text-brand-300'`).
+
 **Sistema de valoraciones (ratings) — reemplaza TrustButton/EndorsementPopup (sesión 2026-05-22):**
 
 - Tabla `ratings` en Supabase (migration 019): `(rater_id, rated_user_id, enrollment_id, stars)` UNIQUE por rater+rated
@@ -406,6 +408,18 @@ Si `sleep_start > sleep_end` (ej. 23 → 7), `isSleepHour` lo maneja correctamen
 **`user_busy_blocks` — toggle sin race condition:**
 
 El bloque se actualiza optimísticamente en el estado local antes del await de Supabase. Si falla el insert/delete, el estado queda desincronizado pero no se muestra error (la próxima carga al reabrir la sección es la fuente de verdad). Aceptable para MVP.
+
+**`/api/rehearsal/group-availability` — usa admin client para todos los fetches:**
+
+A diferencia de otros API routes, este usa `createAdminClient()` para el fetch del rehearsal (no RLS). El acceso se verifica manualmente: `creator_id === user.id || invites.some(i => i.user_id === user.id)`. Usar el cliente regular (con RLS) causaba que el rehearsal no fuera encontrado en algunos escenarios, resultando en "0 integrantes" en el calendario de coordinación.
+
+**Audiciones (entrenamiento) — `handleCloseAuditions` persiste borradores antes de cerrar:**
+
+`handleCloseAuditions` (web `AuditionsListClient.tsx` + mobile `class/[id]/auditions.tsx`) primero publica cualquier decisión en borrador (`localDecisions`) con su notificación correspondiente, y luego cierra (`audition_closed = true`). Esto evita que decisiones aceptadas/rechazadas se pierdan al cerrar. La lógica es idéntica a `handlePublish` pero integrada en el cierre.
+
+**Audiciones — Reabrir postulaciones:**
+
+`handleReopenAuditions` permite al profesor deshacer un cierre accidental (`audition_closed = false`). NO resetea postulaciones ya aceptadas/rechazadas. NO reenvía notificaciones antiguas — solo los nuevos borradores generados después de reabrir recibirán notificaciones al cerrar nuevamente. UI: botón "Reabrir postulaciones" (lavanda suave) visible cuando `auditionClosed = true`; se alterna con "Cerrar postulaciones" (ámbar).
 
 ---
 
