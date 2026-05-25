@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import MyClassesClient from '@/components/class/MyClassesClient'
 import { getActiveTier } from '@/lib/subscription'
 import { canTeach } from '@danceclass/shared'
@@ -25,6 +26,8 @@ export default async function MyClassesPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+
+  const admin = createAdminClient()
 
   const [{ data: enrollments }, { data: teachingClasses }, tier, { data: dismissedDebts }, { data: ownRehearsals }, { data: rehearsalInvites }] = await Promise.all([
     supabase
@@ -66,8 +69,8 @@ export default async function MyClassesPage() {
       .select('student_id')
       .eq('teacher_id', user.id),
 
-    // Ensayos que creé
-    (supabase as any)
+    // Ensayos que creé — admin client bypasses RLS
+    (admin as any)
       .from('rehearsals')
       .select(`
         id, title, description, date_mode, rehearsal_date, rehearsal_time,
@@ -81,8 +84,8 @@ export default async function MyClassesPage() {
       .eq('status', 'active')
       .order('created_at', { ascending: false }),
 
-    // Ensayos a los que fui invitado (no rechazados)
-    (supabase as any)
+    // Ensayos a los que fui invitado (no rechazados) — admin client bypasses RLS
+    (admin as any)
       .from('rehearsal_invites')
       .select(`
         id, status,

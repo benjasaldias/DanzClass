@@ -13,17 +13,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'status inválido' }, { status: 400 })
   }
 
-  // Verify the invite belongs to this user
-  const { data: invite, error: fetchErr } = await (supabase as any)
+  const admin = createAdminClient()
+
+  // Bypass RLS with admin client; verify ownership manually
+  const { data: invite, error: fetchErr } = await (admin as any)
     .from('rehearsal_invites')
     .select('*, rehearsal:rehearsals(id, title, creator_id)')
     .eq('id', invite_id)
-    .eq('user_id', user.id)
     .single()
 
   if (fetchErr || !invite) return NextResponse.json({ error: 'Invitación no encontrada' }, { status: 404 })
-
-  const admin = createAdminClient()
+  if (invite.user_id !== user.id) return NextResponse.json({ error: 'Invitación no encontrada' }, { status: 404 })
 
   await (admin as any)
     .from('rehearsal_invites')

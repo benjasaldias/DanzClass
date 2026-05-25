@@ -5,6 +5,8 @@ import { X, Calendar, MapPin, Clock, Users, Search, Check, Loader2, ChevronRight
 import { cn } from '@/lib/utils'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import Avatar from '@/components/ui/Avatar'
+import DateInput from '@/components/ui/DateInput'
+import CityCombobox from '@/components/ui/CityCombobox'
 import { createClient } from '@/lib/supabase/client'
 import type { RehearsalDateMode } from '@danceclass/shared'
 
@@ -173,10 +175,7 @@ export default function CreateRehearsalModal({ onClose, onCreated }: CreateRehea
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-dark-text mb-1">Ciudad</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Santiago" className="input w-full pl-8 text-sm" />
-              </div>
+              <CityCombobox value={city} onChange={setCity} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-dark-text mb-1">Lugar</label>
@@ -235,12 +234,10 @@ export default function CreateRehearsalModal({ onClose, onCreated }: CreateRehea
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 dark:text-dark-text mb-1">Fecha</label>
-                <input
-                  type="date"
+                <DateInput
                   value={rehearsalDate}
-                  onChange={(e) => setRehearsalDate(e.target.value)}
+                  onChange={setRehearsalDate}
                   className="input w-full text-sm"
-                  min={new Date().toISOString().split('T')[0]}
                 />
               </div>
               <div>
