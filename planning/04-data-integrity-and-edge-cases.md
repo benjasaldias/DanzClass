@@ -294,28 +294,41 @@
 
 ### ✅ Logrado
 
-| ID | Migración | Archivo |
+| ID | Descripción | Archivo(s) |
 |---|---|---|
+| D-3 | Warning en `getClassSessions` cuando entra al path ancla virtual (biweekly) | `apps/web/src/lib/utils.ts`, `apps/mobile/lib/utils.ts` |
+| D-4 | Migración `030_dedup_class_reminders.sql` + cron usa `ON CONFLICT DO NOTHING` | `supabase/migrations/030_dedup_class_reminders.sql`, `apps/web/src/app/api/cron/cleanup-classes/route.ts` |
+| D-5 | `ratings/upsert` valida que clase ya ocurrió (suelta: `date < today`; periódica: enrollment ≥ 7 días) | `apps/web/src/app/api/ratings/upsert/route.ts` |
+| D-6 | Cron reminders calcula `chileToday` con `Intl.DateTimeFormat('America/Santiago')` | `apps/web/src/app/api/cron/cleanup-classes/route.ts` |
+| D-7 | Hint quincenal en formularios de creación/edición (web + mobile) | `CreateClassForm.tsx`, `EditClassForm.tsx`, `class/create.tsx`, `class/[id]/edit.tsx` |
+| D-8 | Validación `custom_dates` con regex `^\d{4}-\d{2}-\d{2}$` en cliente (web + mobile) | mismos 4 archivos |
+| D-9/D-10 | Queries de conteo de clases del profesor usan `.in('status', ['active', 'completed'])` | `apps/web/src/app/(app)/profile/page.tsx`, `apps/web/src/app/(app)/teacher/[username]/page.tsx` |
+| D-11 | Documentado en CLAUDE.md: `class_spots` cuenta `session_id IS NULL`, modelo global correcto | `CLAUDE.md` |
+| D-12 | Helper `isFriendOf` / `getFriendIds` bidireccional exportado desde `@danceclass/shared` | `packages/shared/src/lib/friendship.ts`, `packages/shared/src/index.ts` |
+| D-13 | Documentado en CLAUDE.md: constraint 023 = 22 tipos = TypeScript enum; query diagnóstico provista | `CLAUDE.md` |
+| D-14 | UI "Editar postulación" mientras status='pending'; AuditionModal soporta UPDATE (web + mobile) | `ClassDetailClient.tsx`, `AuditionModal.tsx`, `class/[id]/index.tsx` |
+| D-15 | Documentado en CLAUDE.md: modelo global enrollment para periódicas | `CLAUDE.md` |
+| D-16 | Documentado en CLAUDE.md: patrón dual RLS + admin client en rehearsals | `CLAUDE.md` |
+| D-17 | Auditado: avatares, posts y comprobantes NO limpian Storage. Documentado como deuda post-alpha | `CLAUDE.md` |
 
 ### ⏳ Pendiente
 
 | ID | Razón |
 |---|---|
+| D-1/D-2 | Aplicación en producción confirmada por usuario; backfill `start_date` pendiente si hay clases sin ella |
+| D-18 | Depende de C-4 (eliminación de cuenta) que es de otra sesión |
 
 ### ❌ Fallado
 
-| ID | Causa |
-|---|---|
+Ninguno.
 
 ### 📌 Acciones del usuario pendientes
 
-- [ ] Aplicar migraciones 024, 025 si no estaban en prod
-- [ ] Aplicar migración 026 (dedup class_reminder)
-- [ ] Aplicar migración para notifications policy (S-3) — coordina con sesión 02
-- [ ] Backfill `start_date` en producción
+- [ ] Aplicar migración `030_dedup_class_reminders.sql` en Supabase producción
+- [ ] Verificar `start_date` en todas las clases activas (`SELECT COUNT(*) FROM classes WHERE type != 'suelta' AND start_date IS NULL AND status = 'active'`) — si > 0, hacer backfill
+- [ ] Ejecutar query diagnóstico de `notification_type` constraint para confirmar coincide con migration 023 (ver CLAUDE.md)
 
-### 📝 Memoria a actualizar
+### 📝 Memoria actualizada
 
-- [ ] `CLAUDE.md` — sección "Migraciones SQL aplicadas" — actualizar
-- [ ] `CLAUDE.md` — sección "Decisiones técnicas" — política de timezone, soft-delete
-- [ ] `resumen.md` — bloque de sesión
+- [x] `CLAUDE.md` — soft-delete pattern, class_spots view, notification_type constraint, rehearsal dual-RLS, audition edit mode, Storage orphans
+- [x] `resumen.md` — bloque de sesión 2026-05-27

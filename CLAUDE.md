@@ -191,6 +191,40 @@ Todos los tipos implementados: `follow`, `friend_request`, `friend_accepted`, `n
 - **CRON_SECRET fortalecido:** `/api/cron/cleanup-classes` y `/api/cron/cleanup-unconfirmed` devuelven 503 si `process.env.CRON_SECRET` no está configurado (antes hubieran aceptado peticiones con `Bearer undefined`). `cleanup-unconfirmed` también amplió el margen de 24 h → 36 h para no eliminar cuentas que confirman en la ventana del cron, y loguea cada borrado.
 - **Security headers en `next.config.js`:** `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(self)`. CSP queda pendiente para post-alpha (requiere whitelist de Cloudinary/Supabase/MP).
 
+**Soft-delete pattern (sesión 2026-05-27 — integridad de datos):**
+
+El patrón oficial de soft-delete en DanzClass es `status='cancelled'` en la tabla `classes`. No usamos `deleted_at`. Aplicar el mismo patrón en cualquier tabla futura que necesite soft-delete para preservar historial. Queries de profesor **siempre** deben filtrar con `.in('status', ['active', 'completed'])` para excluir clases canceladas de conteos públicos.
+
+**Vista `class_spots` y modelo de enrollment para periódicas (sesión 2026-05-27):**
+
+`class_spots` (definida en `001_initial_schema.sql`) cuenta `enrollments WHERE session_id IS NULL AND status != 'cancelled'`. Esto es correcto para el modelo actual: **todas las inscripciones usan `session_id = NULL`** (inscripción global a la clase), incluso para clases periódicas/entrenamientos. `session_spots` existe en la DB pero no se usa. Cada mes de cobro en una clase periódica genera un nuevo registro en `payments` contra el mismo `enrollment.id`. Este modelo es simple y suficiente para MVP; migrar a session-based sería un refactor mayor post-alpha.
+
+**`notification_type` constraint — diagnóstico antes de agregar tipos (sesión 2026-05-27):**
+
+Cada migración que añade un nuevo tipo de notificación reescribe el CHECK constraint completo. Antes de agregar cualquier tipo nuevo, verificar el constraint actual en producción:
+```sql
+SELECT pg_get_constraintdef(oid) FROM pg_constraint
+WHERE conrelid = 'notifications'::regclass AND conname = 'notifications_type_check';
+```
+El constraint en `023_rehearsals.sql` lista 22 tipos. Debe coincidir exactamente con `NotificationType` en `packages/shared/src/types/index.ts`. Si divergen, crear migración correctiva antes de insertar el nuevo tipo.
+
+**Rehearsals — patrón dual RLS + admin client (sesión 2026-05-27):**
+
+Las rutas `/api/rehearsal/*` usan `createAdminClient()` + verificación manual de acceso. Las queries de páginas (feed, agenda, my-classes) usan el cliente regular con RLS habilitado. **Ambos patrones coexisten**: no asumir que eliminar las policies de RLS es seguro solo porque los API routes usan admin client — las pages dependen de ellas. La policy RLS de `rehearsals` permite SELECT al `creator_id` o a cualquier invitado con fila en `rehearsal_invites`.
+
+**Audiciones — modo edición de postulación pendiente (sesión 2026-05-27):**
+
+`AuditionModal` (web: `components/class/AuditionModal.tsx`; mobile: inline en `class/[id]/index.tsx`) acepta prop `existing?: AuditionExisting | null`. Si `existing.status === 'pending'`, el modal hace UPDATE en lugar de INSERT y no reenvía notificación al profesor. Si `status` es `accepted`/`rejected`, `isEdit = false` y se bloquea el botón desde UI. `ClassDetailClient.tsx` pasa `existing={myAudition}` siempre; el modal decide si es edit o insert.
+
+**Storage — archivos huérfanos (sesión 2026-05-27):**
+
+Los siguientes casos generan archivos huérfanos en Supabase Storage que **no se limpian automáticamente**:
+- Avatar antiguo al subir uno nuevo (`EditProfileForm`, bucket `avatars`) — el path viejo queda en Storage.
+- Video/thumbnail de un post al eliminarlo (`PostCard.tsx` solo hace `posts.delete()`, no borra Storage).
+- Comprobante de pago de un enrollment cancelado (bucket `payment-receipts`).
+- Media de una clase al hacer soft-delete (limpiado por cron diario `cleanup-classes`, que sí borra class_media rows y Storage objects).
+Solución MVP: aceptar el leak y limpiar manualmente o via cron post-alpha. Priorizar fix post-alpha para avatares y posts.
+
 ---
 
 ## Componentes UI clave (`apps/web/src/components/`)

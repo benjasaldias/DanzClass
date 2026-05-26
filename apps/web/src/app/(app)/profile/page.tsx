@@ -38,7 +38,12 @@ export default async function ProfilePage() {
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     getActiveTier(user.id, supabase as any),
     supabase.from('follows' as any).select('*', { count: 'exact', head: true }).eq('following_id', user.id),
-    supabase.from('classes').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
+    // D-9/D-10: excluir clases canceladas (soft-deleted)
+    supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('teacher_id', user.id)
+      .in('status', ['active', 'completed']),
     (supabase as any)
       .from('enrollments')
       .select('*, class:classes!inner(*)', { count: 'exact', head: true })

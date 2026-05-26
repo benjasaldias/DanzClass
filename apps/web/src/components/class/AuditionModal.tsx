@@ -6,18 +6,29 @@ import { X, Upload, Loader2, Video } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 
+interface AuditionExisting {
+  id: string
+  full_name?: string | null
+  age?: number | null
+  phone?: string | null
+  video_url?: string | null
+  status?: string | null
+}
+
 interface AuditionModalProps {
   classId: string
   userId: string
   teacherId: string
+  existing?: AuditionExisting | null
   onClose: () => void
   onSubmitted: () => void
 }
 
-export default function AuditionModal({ classId, userId, teacherId, onClose, onSubmitted }: AuditionModalProps) {
-  const [fullName, setFullName] = useState('')
-  const [age, setAge] = useState('')
-  const [phone, setPhone] = useState('')
+export default function AuditionModal({ classId, userId, teacherId, existing, onClose, onSubmitted }: AuditionModalProps) {
+  const isEdit = !!existing && existing.status === 'pending'
+  const [fullName, setFullName] = useState(existing?.full_name ?? '')
+  const [age, setAge] = useState(existing?.age != null ? String(existing.age) : '')
+  const [phone, setPhone] = useState(existing?.phone ?? '')
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +69,26 @@ export default function AuditionModal({ classId, userId, teacherId, onClose, onS
 
       // Store the storage path (not a public URL) — bucket is private, signed URLs used on view
       videoUrl = uploadData.path
+    }
+
+    // D-14: si la postulación ya existe y aún está pending, hacer UPDATE en lugar de INSERT.
+    // Si el profesor ya decidió (accepted/rejected), no se permite editar (botón no se muestra).
+    if (isEdit && existing) {
+      const update: any = {
+        full_name: fullName.trim(),
+        age: age ? parseInt(age) : null,
+        phone: phone.trim() || null,
+      }
+      if (videoUrl) update.video_url = videoUrl
+      const { error: updateErr } = await (supabase as any)
+        .from('auditions')
+        .update(update)
+        .eq('id', existing.id)
+        .eq('status', 'pending')
+      if (updateErr) setError('Error al actualizar la postulación.')
+      else onSubmitted()
+      setSubmitting(false)
+      return
     }
 
     const { error: insertErr } = await (supabase as any).from('auditions').insert({

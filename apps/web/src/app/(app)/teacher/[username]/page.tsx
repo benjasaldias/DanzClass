@@ -104,7 +104,12 @@ export default async function UserProfilePage({ params }: Props) {
           .maybeSingle()
       : Promise.resolve({ data: null }),
 
-    supabase.from('classes').select('*', { count: 'exact', head: true }).eq('teacher_id', profileUser.id),
+    // D-9/D-10: excluir clases canceladas (soft-deleted) del conteo público
+    supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('teacher_id', profileUser.id)
+      .in('status', ['active', 'completed']),
 
     supabase
       .from('enrollments')

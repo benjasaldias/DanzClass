@@ -224,14 +224,16 @@ function DiscountModal({
 
 // ─── Audition Modal ───────────────────────────────────────────────────────────
 function AuditionModal({
-  classId, userId, teacherId, onClose, onSubmitted,
+  classId, userId, teacherId, existing, onClose, onSubmitted,
 }: {
   classId: string; userId: string; teacherId: string
+  existing?: { id: string; full_name?: string | null; age?: number | null; phone?: string | null; status?: string | null } | null
   onClose: () => void; onSubmitted: () => void
 }) {
-  const [fullName, setFullName] = useState('')
-  const [age, setAge] = useState('')
-  const [phone, setPhone] = useState('')
+  const isEdit = !!existing && existing.status === 'pending'
+  const [fullName, setFullName] = useState(existing?.full_name ?? '')
+  const [age, setAge] = useState(existing?.age != null ? String(existing.age) : '')
+  const [phone, setPhone] = useState(existing?.phone ?? '')
   const [videoUri, setVideoUri] = useState<string | null>(null)
   const [videoName, setVideoName] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -271,6 +273,24 @@ function AuditionModal({
         return
       }
       videoStoragePath = uploadData.path
+    }
+
+    if (isEdit && existing) {
+      const update: any = {
+        full_name: fullName.trim(),
+        age: age ? parseInt(age) : null,
+        phone: phone.trim() || null,
+      }
+      if (videoStoragePath) update.video_url = videoStoragePath
+      const { error: updateErr } = await (supabase as any)
+        .from('auditions')
+        .update(update)
+        .eq('id', existing.id)
+        .eq('status', 'pending')
+      if (updateErr) setError('Error al actualizar la postulación.')
+      else onSubmitted()
+      setSubmitting(false)
+      return
     }
 
     const { error: insertErr } = await (supabase as any).from('auditions').insert({
@@ -1010,18 +1030,25 @@ export default function ClassDetailScreen() {
           {!isTeacher && isEntrenamiento && cls.requires_audition && (
             <View className={`rounded-2xl border p-4 ${auditionSubmitted ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' : 'bg-brand-50 dark:bg-brand-950/30 border-brand-200 dark:border-brand-900/50'}`}>
               {auditionSubmitted ? (
-                <View className="flex-row items-center gap-2">
-                  <CheckCircle2 size={16} stroke="#2563eb" />
-                  <Text className="text-sm font-semibold text-blue-700 dark:text-blue-400">Postulación enviada</Text>
-                  {myAudition?.status === 'accepted' && (
-                    <View className="ml-2 bg-green-100 dark:bg-green-900/30 rounded-full px-2 py-0.5">
-                      <Text className="text-xs font-semibold text-green-700 dark:text-green-400">Aceptada</Text>
-                    </View>
-                  )}
-                  {myAudition?.status === 'rejected' && (
-                    <View className="ml-2 bg-red-100 dark:bg-red-900/30 rounded-full px-2 py-0.5">
-                      <Text className="text-xs font-semibold text-red-600 dark:text-red-400">No seleccionad@</Text>
-                    </View>
+                <View className="gap-2">
+                  <View className="flex-row items-center gap-2">
+                    <CheckCircle2 size={16} stroke="#2563eb" />
+                    <Text className="text-sm font-semibold text-blue-700 dark:text-blue-400">Postulación enviada</Text>
+                    {myAudition?.status === 'accepted' && (
+                      <View className="ml-2 bg-green-100 dark:bg-green-900/30 rounded-full px-2 py-0.5">
+                        <Text className="text-xs font-semibold text-green-700 dark:text-green-400">Aceptada</Text>
+                      </View>
+                    )}
+                    {myAudition?.status === 'rejected' && (
+                      <View className="ml-2 bg-red-100 dark:bg-red-900/30 rounded-full px-2 py-0.5">
+                        <Text className="text-xs font-semibold text-red-600 dark:text-red-400">No seleccionad@</Text>
+                      </View>
+                    )}
+                  </View>
+                  {myAudition?.status === 'pending' && (
+                    <TouchableOpacity onPress={() => setShowAuditionModal(true)}>
+                      <Text className="text-xs text-blue-700 dark:text-blue-400 font-medium underline">Editar postulación</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               ) : cls.audition_closed ? (
@@ -1260,10 +1287,19 @@ export default function ClassDetailScreen() {
           classId={cls.id}
           userId={userId}
           teacherId={cls.teacher_id}
+          existing={myAudition ?? null}
           onClose={() => setShowAuditionModal(false)}
-          onSubmitted={() => {
+          onSubmitted={async () => {
             setAuditionSubmitted(true)
             setShowAuditionModal(false)
+            // Reload audition data to reflect any edits
+            const { data } = await (supabase as any)
+              .from('auditions')
+              .select('*')
+              .eq('class_id', cls.id)
+              .eq('applicant_id', userId)
+              .maybeSingle()
+            if (data) setMyAudition(data)
           }}
         />
       )}

@@ -292,8 +292,9 @@ export default function ClassDetailClient({
           classId={classData.id}
           userId={currentUser.id}
           teacherId={classData.teacher_id}
+          existing={myAudition ?? null}
           onClose={() => setShowAudition(false)}
-          onSubmitted={() => { setAuditionSubmitted(true); setShowAudition(false) }}
+          onSubmitted={() => { setAuditionSubmitted(true); setShowAudition(false); router.refresh() }}
         />
       )}
 
@@ -575,6 +576,14 @@ export default function ClassDetailClient({
                       ? 'Tu postulación no fue seleccionada en esta ocasión.'
                       : 'El profesor revisará tu postulación y te notificará.'}
                 </p>
+                {myAudition?.status === 'pending' && (
+                  <button
+                    onClick={() => setShowAudition(true)}
+                    className="mt-2 text-xs text-blue-700 font-medium underline hover:text-blue-900"
+                  >
+                    Editar postulación
+                  </button>
+                )}
               </div>
             ) : classData.audition_closed ? (
               <p className="text-sm text-gray-600">Las postulaciones están cerradas.</p>

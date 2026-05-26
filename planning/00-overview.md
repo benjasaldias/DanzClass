@@ -126,7 +126,7 @@ Cada archivo de fase tiene:
 
 ```
 Sesión 1 → planning/02-auth-security-rls.md  ✅ (2026-05-26)
-Sesión 2 → planning/04-data-integrity-and-edge-cases.md
+Sesión 2 → planning/04-data-integrity-and-edge-cases.md  ✅ (2026-05-27)
 Sesión 3 → planning/01-critical-bugs.md
 Sesión 4 → planning/03-payments-and-money.md
 Sesión 5 → planning/05-mobile-parity-and-platforms.md

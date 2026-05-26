@@ -30,18 +30,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Cannot rate yourself' }, { status: 400 })
   }
 
-  // Verify rater has at least one confirmed enrollment with this teacher
-  const { data: enrollment } = await (admin as any)
+  // D-5: además de inscripción confirmada, exigir que la clase ya haya ocurrido.
+  // - Sueltas: class.date < today.
+  // - Periódicas/entrenamientos/custom: enrollment con ≥ 7 días (heurística "al menos una sesión cumplida").
+  const { data: enrollments } = await (admin as any)
     .from('enrollments')
-    .select('id, class:classes!inner(teacher_id)')
+    .select('id, created_at, class:classes!inner(teacher_id, type, date)')
     .eq('student_id', userId)
     .eq('status', 'confirmed')
     .eq('class.teacher_id', rated_user_id)
-    .limit(1)
-    .maybeSingle()
 
-  if (!enrollment) {
-    return NextResponse.json({ error: 'Not eligible' }, { status: 403 })
+  const todayStr = new Date().toISOString().split('T')[0]
+  const weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000
+
+  const eligible = ((enrollments as any[]) ?? []).some((e: any) => {
+    const cls = e.class
+    if (!cls) return false
+    if (cls.type === 'suelta') {
+      return cls.date && cls.date < todayStr
+    }
+    return new Date(e.created_at).getTime() <= weekAgoMs
+  })
+
+  if (!eligible) {
+    return NextResponse.json(
+      { error: 'Not eligible — esperar a que la clase ocurra para calificar' },
+      { status: 403 }
+    )
   }
 
   const { error } = await (admin as any)

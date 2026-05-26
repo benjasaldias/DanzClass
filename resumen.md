@@ -2182,3 +2182,57 @@ Batches deben compartir un único tipo (devuelve 400 si no). Máximo 500 destina
 4. Verificar que `https://dc-project-web.vercel.app/design-system-preview` retorna 404 tras el próximo deploy.
 5. (Opcional, post-alpha) Configurar Upstash + rate limiting para `/api/reports`, `/api/notifications/send`, `/api/class-2x/match`.
 6. (Recomendado) Correr en Supabase SQL: `SELECT tablename, policyname, cmd FROM pg_policies WHERE schemaname='public' ORDER BY tablename, cmd` para auditar matriz completa de RLS (hallazgo S-7).
+
+---
+
+## Sesión 2026-05-27 (2) — Integridad de datos y casos límite (planning/04)
+
+**Objetivo:** cerrar todos los ítems de `planning/04-data-integrity-and-edge-cases.md`.
+
+### Cambios implementados
+
+| ID | Descripción |
+|---|---|
+| D-3 | `getClassSessions` emite `console.warn` cuando usa ancla virtual para clase biweekly sin `start_date` (web + mobile) |
+| D-4 | Migración `030_dedup_class_reminders.sql`: UNIQUE INDEX en `notifications(user_id, type, data->>'class_id', date Chile)` para `class_reminder`. Cron usa `ON CONFLICT DO NOTHING` implícito por el constraint. |
+| D-5 | `/api/ratings/upsert`: valida que la clase ya ocurrió antes de permitir calificar. Sueltas: `class.date < today`. Periódicas: `enrollment.created_at <= now - 7 días`. |
+| D-6 | Cron reminders: helper `chileNow()` con `Intl.DateTimeFormat('America/Santiago')` para calcular "mañana" en hora chilena (no UTC). |
+| D-7 | Texto aclaratorio "Quincenal = cada 14 días desde la fecha de inicio" en formularios create/edit (web + mobile). |
+| D-8 | Validación cliente de `custom_dates` con regex `^\d{4}-\d{2}-\d{2}$` en create/edit form (web + mobile). |
+| D-9/D-10 | Queries de conteo de clases del profesor filtran `.in('status', ['active', 'completed'])` en `/profile/page.tsx` y `/teacher/[username]/page.tsx`. |
+| D-11 | Documentado: `class_spots` usa `session_id IS NULL` — correcto para el modelo de enrollment global actual. |
+| D-12 | `packages/shared/src/lib/friendship.ts` con `isFriendOf()` y `getFriendIds()` bidireccionales; exportado desde `@danceclass/shared`. |
+| D-13 | Documentado: constraint `notification_type` en migration 023 = 22 tipos = TypeScript enum. Query diagnóstica en CLAUDE.md. |
+| D-14 | `AuditionModal` soporta UPDATE mientras status='pending' (web + mobile). `ClassDetailClient` muestra botón "Editar postulación" en ese estado. |
+| D-15 | Documentado: modelo de enrollment global para periódicas (todos usan `session_id = NULL`). |
+| D-16 | Documentado: patrón dual RLS + admin client en rehearsals — ambos coexisten, no eliminar RLS. |
+| D-17 | Auditado: avatares, posts y comprobantes dejan archivos huérfanos en Storage. Documentado como deuda post-alpha. |
+
+### Migración nueva
+
+- `supabase/migrations/030_dedup_class_reminders.sql` — debe aplicarse en producción.
+
+### Archivos modificados
+
+- `apps/web/src/lib/utils.ts` — warning en ancla virtual
+- `apps/mobile/lib/utils.ts` — warning en ancla virtual
+- `apps/web/src/app/api/cron/cleanup-classes/route.ts` — `chileNow()`, cron timezone
+- `apps/web/src/app/api/ratings/upsert/route.ts` — validación clase ya ocurrió
+- `apps/web/src/components/class/CreateClassForm.tsx` — hint quincenal + validación custom_dates
+- `apps/web/src/components/class/EditClassForm.tsx` — ídem
+- `apps/mobile/app/(app)/class/create.tsx` — ídem
+- `apps/mobile/app/(app)/class/[id]/edit.tsx` — ídem
+- `apps/web/src/app/(app)/profile/page.tsx` — conteo clases con status filter
+- `apps/web/src/app/(app)/teacher/[username]/page.tsx` — ídem
+- `packages/shared/src/lib/friendship.ts` — nuevo helper bidireccional
+- `packages/shared/src/index.ts` — export friendship
+- `apps/web/src/components/class/AuditionModal.tsx` — soporte UPDATE (edit mode)
+- `apps/web/src/components/class/ClassDetailClient.tsx` — botón "Editar postulación"
+- `apps/mobile/app/(app)/class/[id]/index.tsx` — soporte UPDATE + botón editar
+- `CLAUDE.md` — 6 nuevas notas técnicas
+
+### Acciones del usuario pendientes
+
+1. Aplicar `030_dedup_class_reminders.sql` en Supabase producción.
+2. Verificar clases activas sin `start_date`: `SELECT COUNT(*) FROM classes WHERE type != 'suelta' AND start_date IS NULL AND status = 'active'`. Si > 0, hacer backfill.
+3. Verificar constraint `notification_type` en prod (query en CLAUDE.md).

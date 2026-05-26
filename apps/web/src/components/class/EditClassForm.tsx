@@ -174,6 +174,11 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
     if (isPeriodic && data.recurrence === 'custom' && customDates.length === 0) {
       setError('Selecciona al menos una fecha en el calendario'); return
     }
+    // D-8: validar formato custom_dates.
+    if (isPeriodic && data.recurrence === 'custom') {
+      const invalid = customDates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(new Date(d + 'T00:00:00').getTime()))
+      if (invalid) { setError(`Fecha inválida: ${invalid}`); return }
+    }
     setSubmitting(true); setError(null)
 
     // Backfill start_date if missing and class is periodic
@@ -374,6 +379,9 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
                 <option value="biweekly">Quincenal</option>
                 <option value="custom">Personalizado</option>
               </select>
+              {recurrence === 'biweekly' && (
+                <p className="mt-1 text-xs text-gray-500 dark:text-dark-text2">Quincenal = cada 14 días desde la fecha de inicio.</p>
+              )}
               {errors.recurrence && <p className="mt-1 text-xs text-red-600">{errors.recurrence.message}</p>}
             </div>
 

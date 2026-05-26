@@ -165,6 +165,10 @@ export default function CreateClassScreen() {
       if (!recurringTime) errs.recurringTime = 'Requerido'
       if (recurrence && recurrence !== 'custom' && !dayOfWeek) errs.dayOfWeek = 'Requerido'
       if (recurrence === 'custom' && customDates.length === 0) errs.customDates = 'Selecciona al menos una fecha'
+      else if (recurrence === 'custom') {
+        const invalid = customDates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(new Date(d + 'T00:00:00').getTime()))
+        if (invalid) errs.customDates = `Fecha inválida: ${invalid}`
+      }
       if (classType === 'periodica' && !endsAt) errs.endsAt = 'Las clases periódicas requieren fecha de término'
       if (isEntrenamiento && !endsAt && !endsIndefinitely) errs.endsAt = 'Indica fecha de término o marca Indefinido'
       if (endsAt && endsAt < today) errs.endsAt = 'La fecha de término no puede ser en el pasado'
@@ -414,6 +418,9 @@ export default function CreateClassScreen() {
               onSelect={setRecurrence}
               error={errors.recurrence}
             />
+            {recurrence === 'biweekly' && (
+              <Text className="-mt-2 text-xs text-gray-500 dark:text-dark-text2">Quincenal = cada 14 días desde la fecha de inicio.</Text>
+            )}
 
             {recurrence && recurrence !== 'custom' && (
               <View className="flex-row gap-3">

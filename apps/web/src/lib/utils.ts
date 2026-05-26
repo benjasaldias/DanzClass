@@ -86,7 +86,12 @@ export function getClassSessions(classData: any, fromDate: Date, toDate: Date): 
   if (classData.start_date) {
     start = parseLocalDate(classData.start_date)
   } else if (classData.day_of_week != null) {
-    // start_date not stored — derive anchor from day_of_week (0=Sun..6=Sat)
+    // Fallback "ancla virtual": deriva el inicio desde el día de la semana cuando start_date no existe.
+    // Para biweekly esto puede mostrar la semana equivocada (fase desconocida).
+    // Toda clase nueva debería persistir start_date (migración 024). Si vemos este path, hay registros legacy.
+    if (typeof console !== 'undefined' && classData.recurrence === 'biweekly') {
+      console.warn('[getClassSessions] virtual anchor fallback used for class', classData.id, 'recurrence=biweekly — biweekly phase may be wrong')
+    }
     const targetDay = classData.day_of_week as number
     start = new Date(fromDate)
     const dayDiff = (start.getDay() - targetDay + 7) % 7

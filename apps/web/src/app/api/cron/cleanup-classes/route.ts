@@ -21,6 +21,22 @@ export async function GET(request: Request) {
   const now = new Date()
   const today = now.toISOString().split('T')[0]
 
+  // D-6: el cron corre en UTC. Para los recordatorios "mañana en Chile" usamos
+  // un offset estable (Chile: UTC-3 en verano, UTC-4 en invierno).
+  // Calculamos "now" en wall-clock chileno usando Intl.DateTimeFormat con la zona.
+  // Esto evita que un cron a 03:00 UTC en verano (= 00:00 Chile) entienda mal "mañana".
+  function chileNow(): Date {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Santiago',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date())
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00'
+    return new Date(`${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`)
+  }
+  const chileToday = chileNow()
+
   let deleted = 0
   let errors: string[] = []
 
@@ -66,9 +82,10 @@ export async function GET(request: Request) {
   console.log(`[cleanup-classes] deleted=${deleted} errors=${errors.length}`)
 
   // ── Recordatorios 24h antes ─────────────────────────────────────────────────
-  const tomorrow = new Date(now)
+  // D-6: "mañana" siempre en hora Chile, no UTC. Evita perder/duplicar recordatorios cerca de medianoche.
+  const tomorrow = new Date(chileToday)
   tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowStr = tomorrow.toISOString().split('T')[0]
+  const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`
 
   let reminders = 0
 
