@@ -12,6 +12,7 @@ import {
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import CustomDatesCalendar from '@/components/class/CustomDatesCalendar'
@@ -153,9 +154,8 @@ export default function ClassDetailClient({
       await supabase.from('follows' as any).delete().eq('follower_id', currentUser.id).eq('following_id', classData.teacher_id)
     } else {
       const followPayload: FollowInsert = { follower_id: currentUser.id, following_id: classData.teacher_id }
-      const notificationPayload: NotificationInsert = { user_id: classData.teacher_id, type: 'follow', data: { from_user_id: currentUser.id } }
       await supabase.from('follows' as any).insert(followPayload as any)
-      await supabase.from('notifications' as any).insert(notificationPayload as any)
+      await sendNotifications({ user_id: classData.teacher_id, type: 'follow', data: { from_user_id: currentUser.id } })
     }
     setIsFollowing(!isFollowing)
     setFollowLoading(false)
@@ -206,8 +206,13 @@ export default function ClassDetailClient({
     const supabase = createClient()
     const { data: enrollments } = await supabase.from('enrollments' as any).select('student_id').eq('class_id', classData.id).in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
     if (enrollments && enrollments.length > 0) {
-      const notificationPayloads: NotificationInsert[] = enrollments.map((e: any) => ({ user_id: e.student_id, type: 'class_cancelled', data: { class_id: classData.id, class_title: classData.title } }))
-      await supabase.from('notifications' as any).insert(notificationPayloads as any)
+      await sendNotifications(
+        enrollments.map((e: any) => ({
+          user_id: e.student_id,
+          type: 'class_cancelled' as const,
+          data: { class_id: classData.id, class_title: classData.title },
+        }))
+      )
     }
     await supabase.from('classes' as any).update({ status: 'cancelled' } as any).eq('id', classData.id)
     setDeleting(false)

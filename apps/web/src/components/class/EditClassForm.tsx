@@ -9,6 +9,7 @@ import { z } from 'zod'
 import Image from 'next/image'
 import { Upload, X, Loader2, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
@@ -163,7 +164,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       .from('enrollments').select('student_id').eq('class_id', classData.id)
       .in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
     if (enrollments && enrollments.length > 0) {
-      await supabase.from('notifications').insert(
+      await sendNotifications(
         enrollments.map((e: any) => ({ user_id: e.student_id, type, data: { class_id: classData.id, class_title: classTitle } }))
       )
     }
@@ -242,11 +243,12 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
     const { data: enrollments } = await supabase.from('enrollments' as any).select('student_id')
       .eq('class_id', classData.id).in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
     if ((enrollments as any[])?.length > 0) {
-      await supabase.from('notifications' as any).insert(
+      await sendNotifications(
         (enrollments as any[]).map((e: any) => ({
-          user_id: e.student_id, type: 'class_cancelled',
+          user_id: e.student_id,
+          type: 'class_cancelled',
           data: { class_id: classData.id, class_title: classData.title },
-        })) as any
+        }))
       )
     }
     await supabase.from('classes' as any).update({ status: 'cancelled' } as any).eq('id', classData.id)

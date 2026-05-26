@@ -3,6 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = ['/', '/auth/login', '/auth/register', '/terms', '/privacy']
 
+// Solo el detalle público de una clase (/class/:id) es accesible sin sesión.
+// Subrutas como /class/:id/edit o /class/:id/auditions exigen login y guards de ownership server-side.
+const PUBLIC_CLASS_DETAIL = /^\/class\/[^/]+\/?$/
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -29,14 +33,16 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Redirect logged-in users away from auth pages
   if (user && (pathname === '/auth/login' || pathname === '/auth/register')) {
     return NextResponse.redirect(new URL('/feed', request.url))
   }
 
-  // Redirect unauthenticated users from protected pages
-  const isProtected = !PUBLIC_ROUTES.includes(pathname) && !pathname.startsWith('/auth') && !pathname.startsWith('/class/')
-  if (!user && isProtected) {
+  const isPublic =
+    PUBLIC_ROUTES.includes(pathname) ||
+    pathname.startsWith('/auth') ||
+    PUBLIC_CLASS_DETAIL.test(pathname)
+
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 

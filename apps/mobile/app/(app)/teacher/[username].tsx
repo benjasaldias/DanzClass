@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, MapPin, Users, Music2, Star } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { sendNotifications } from '../../../lib/notifications'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
 import StarRating from '../../../components/ui/StarRating'
@@ -175,7 +176,7 @@ export default function TeacherProfileScreen() {
       setFollowers((f) => f - 1)
     } else {
       await supabase.from('follows').insert({ follower_id: currentUserId, following_id: profile.id })
-      await supabase.from('notifications').insert({ user_id: profile.id, type: 'follow', data: { from_user_id: currentUserId } })
+      await sendNotifications({ user_id: profile.id, type: 'follow', data: { from_user_id: currentUserId } })
       setFollowers((f) => f + 1)
     }
     setIsFollowing(!isFollowing)
@@ -203,12 +204,12 @@ export default function TeacherProfileScreen() {
     setLoadingFriend(true)
     if (friendStatus === 'none') {
       await supabase.from('friendships').insert({ requester_id: currentUserId, addressee_id: profile.id, status: 'pending' })
-      await supabase.from('notifications').insert({ user_id: profile.id, type: 'friend_request', data: { from_user_id: currentUserId } })
+      await sendNotifications({ user_id: profile.id, type: 'friend_request', data: { from_user_id: currentUserId } })
       setFriendStatus('pending_sent')
     } else if (friendStatus === 'pending_received') {
       await supabase.from('friendships').update({ status: 'accepted' })
         .eq('requester_id', profile.id).eq('addressee_id', currentUserId)
-      await supabase.from('notifications').insert({ user_id: profile.id, type: 'friend_accepted', data: { from_user_id: currentUserId } })
+      await sendNotifications({ user_id: profile.id, type: 'friend_accepted', data: { from_user_id: currentUserId } })
       setFriendStatus('accepted')
     }
     setLoadingFriend(false)

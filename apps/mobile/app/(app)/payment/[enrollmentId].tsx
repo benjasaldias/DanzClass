@@ -98,22 +98,22 @@ export default function PaymentScreen() {
       return
     }
 
-    const { data: urlData } = supabase.storage.from('payment-receipts').getPublicUrl(uploadData.path)
+    // Bucket privado: guardamos el path, no la URL pública.
+    const receiptPath = uploadData.path
 
     const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
 
-    // Upsert payment record
     const existingPayment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
     if (existingPayment?.id) {
       await supabase.from('payments').update({
-        receipt_url: urlData.publicUrl,
+        receipt_url: receiptPath,
         status: 'pending',
       }).eq('id', existingPayment.id)
     } else {
       await supabase.from('payments').insert({
         enrollment_id: enrollmentId,
         amount,
-        receipt_url: urlData.publicUrl,
+        receipt_url: receiptPath,
         status: 'pending',
       })
     }

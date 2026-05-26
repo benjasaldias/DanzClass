@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Upload, X, Loader2, AlertCircle, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
@@ -264,7 +265,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
     const { data: followers } = await supabase.from('follows').select('follower_id').eq('following_id', teacherId)
     if (followers && followers.length > 0) {
-      await supabase.from('notifications').insert(
+      await sendNotifications(
         followers.map((f) => ({
           user_id: f.follower_id,
           type: 'new_class',

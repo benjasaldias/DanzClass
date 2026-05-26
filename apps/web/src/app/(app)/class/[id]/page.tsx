@@ -12,14 +12,13 @@ export default async function ClassDetailPage({ params }: Props) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // No incluimos teacher_payment_info aquí: datos bancarios solo se exponen
+  // en /payment/[enrollmentId] cuando el alumno tiene inscripción activa.
   const { data: rawClass } = await supabase
     .from('classes')
     .select(`
       *,
-      teacher:profiles!teacher_id(
-        *,
-        payment_info:teacher_payment_info(*)
-      ),
+      teacher:profiles!teacher_id(*),
       media:class_media(*)
     `)
     .eq('id', params.id)

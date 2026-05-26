@@ -10,6 +10,7 @@ import {
   ChevronLeft, CheckCircle2, XCircle, Video, Send, Loader2,
 } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
+import { sendNotifications } from '../../../../lib/notifications'
 
 const WEB_URL = 'https://dc-project-web.vercel.app'
 
@@ -207,13 +208,22 @@ export default function AuditionsScreen() {
         (supabase as any).from('auditions').update({ status: localDecisions[a.id] }).eq('id', a.id)
       )
     )
-    await (supabase as any).from('notifications').insert(
-      toPublish.map((a) => ({
+    const accepted = toPublish.filter((a) => localDecisions[a.id] === 'accepted')
+    const rejected = toPublish.filter((a) => localDecisions[a.id] === 'rejected')
+    if (accepted.length > 0) {
+      await sendNotifications(accepted.map((a) => ({
         user_id: a.applicant_id,
-        type: localDecisions[a.id] === 'accepted' ? 'audition_accepted' : 'audition_rejected',
+        type: 'audition_accepted',
         data: { class_id: id, class_title: cls?.title ?? '' },
-      }))
-    )
+      })))
+    }
+    if (rejected.length > 0) {
+      await sendNotifications(rejected.map((a) => ({
+        user_id: a.applicant_id,
+        type: 'audition_rejected',
+        data: { class_id: id, class_title: cls?.title ?? '' },
+      })))
+    }
     await enrollAccepted(toPublish)
     setAuditions((prev) =>
       prev.map((a) => localDecisions[a.id] ? { ...a, status: localDecisions[a.id] } : a)
@@ -244,13 +254,22 @@ export default function AuditionsScreen() {
                   (supabase as any).from('auditions').update({ status: localDecisions[a.id] }).eq('id', a.id)
                 )
               )
-              await (supabase as any).from('notifications').insert(
-                toPublish.map((a) => ({
+              const acceptedC = toPublish.filter((a) => localDecisions[a.id] === 'accepted')
+              const rejectedC = toPublish.filter((a) => localDecisions[a.id] === 'rejected')
+              if (acceptedC.length > 0) {
+                await sendNotifications(acceptedC.map((a) => ({
                   user_id: a.applicant_id,
-                  type: localDecisions[a.id] === 'accepted' ? 'audition_accepted' : 'audition_rejected',
+                  type: 'audition_accepted',
                   data: { class_id: id, class_title: cls?.title ?? '' },
-                }))
-              )
+                })))
+              }
+              if (rejectedC.length > 0) {
+                await sendNotifications(rejectedC.map((a) => ({
+                  user_id: a.applicant_id,
+                  type: 'audition_rejected',
+                  data: { class_id: id, class_title: cls?.title ?? '' },
+                })))
+              }
               await enrollAccepted(toPublish)
               setAuditions((prev) =>
                 prev.map((a) => localDecisions[a.id] ? { ...a, status: localDecisions[a.id] } : a)

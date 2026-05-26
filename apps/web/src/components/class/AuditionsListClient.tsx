@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle2, XCircle, Video, Loader2, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 import Avatar from '@/components/ui/Avatar'
 
 interface Audition {
@@ -80,13 +81,22 @@ export default function AuditionsListClient({
       )
     )
 
-    await (supabase as any).from('notifications').insert(
-      toPublish.map((a) => ({
+    const accepted = toPublish.filter((a) => localDecisions[a.id] === 'accepted')
+    const rejected = toPublish.filter((a) => localDecisions[a.id] === 'rejected')
+    if (accepted.length > 0) {
+      await sendNotifications(accepted.map((a) => ({
         user_id: a.applicant_id,
-        type: localDecisions[a.id] === 'accepted' ? 'audition_accepted' : 'audition_rejected',
+        type: 'audition_accepted',
         data: { class_id: classId, class_title: classTitle },
-      }))
-    )
+      })))
+    }
+    if (rejected.length > 0) {
+      await sendNotifications(rejected.map((a) => ({
+        user_id: a.applicant_id,
+        type: 'audition_rejected',
+        data: { class_id: classId, class_title: classTitle },
+      })))
+    }
 
     await enrollAccepted(toPublish)
 
@@ -113,13 +123,22 @@ export default function AuditionsListClient({
           (supabase as any).from('auditions').update({ status: localDecisions[a.id] }).eq('id', a.id)
         )
       )
-      await (supabase as any).from('notifications').insert(
-        toPublish.map((a) => ({
+      const acceptedC = toPublish.filter((a) => localDecisions[a.id] === 'accepted')
+      const rejectedC = toPublish.filter((a) => localDecisions[a.id] === 'rejected')
+      if (acceptedC.length > 0) {
+        await sendNotifications(acceptedC.map((a) => ({
           user_id: a.applicant_id,
-          type: localDecisions[a.id] === 'accepted' ? 'audition_accepted' : 'audition_rejected',
+          type: 'audition_accepted',
           data: { class_id: classId, class_title: classTitle },
-        }))
-      )
+        })))
+      }
+      if (rejectedC.length > 0) {
+        await sendNotifications(rejectedC.map((a) => ({
+          user_id: a.applicant_id,
+          type: 'audition_rejected',
+          data: { class_id: classId, class_title: classTitle },
+        })))
+      }
       await enrollAccepted(toPublish)
       setAuditions((prev) =>
         prev.map((a) =>

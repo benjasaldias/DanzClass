@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { MapPin, Instagram, Users, UserPlus, UserMinus, Music2, UserCheck, Clock, BookOpen, Star, Video } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import StarRating from '@/components/ui/StarRating'
@@ -73,7 +74,7 @@ export default function TeacherProfileClient({
       setFollowers((f) => f - 1)
     } else {
       await supabase.from('follows').insert({ follower_id: currentUserId, following_id: teacher.id })
-      await supabase.from('notifications').insert({
+      await sendNotifications({
         user_id: teacher.id,
         type: 'follow',
         data: { from_user_id: currentUserId },
@@ -93,12 +94,12 @@ export default function TeacherProfileClient({
     setLoadingFriend(true)
     if (friendStatus === 'none') {
       await supabase.from('friendships').insert({ requester_id: currentUserId, addressee_id: teacher.id, status: 'pending' })
-      await supabase.from('notifications').insert({ user_id: teacher.id, type: 'friend_request', data: { from_user_id: currentUserId } })
+      await sendNotifications({ user_id: teacher.id, type: 'friend_request', data: { from_user_id: currentUserId } })
       setFriendStatus('pending_sent')
     } else if (friendStatus === 'pending_received') {
       await supabase.from('friendships').update({ status: 'accepted' })
         .eq('requester_id', teacher.id).eq('addressee_id', currentUserId)
-      await supabase.from('notifications').insert({ user_id: teacher.id, type: 'friend_accepted', data: { from_user_id: currentUserId } })
+      await sendNotifications({ user_id: teacher.id, type: 'friend_accepted', data: { from_user_id: currentUserId } })
       setFriendStatus('accepted')
     }
     setLoadingFriend(false)

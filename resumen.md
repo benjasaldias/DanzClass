@@ -2043,3 +2043,142 @@ Cubre 4 grupos de tests (todos robustos — saltan con `test.skip()` si no hay d
 ### ⚠️ Pendiente aplicar en Supabase producción
 
 - Migración `025_billing_day.sql`
+
+---
+
+## Ruta de preview visual — `/design-system-preview` (ELIMINADA en sesión 2026-05-26)
+
+> **Eliminada** en la sesión de seguridad alpha (S-1 de planning/02). La carpeta `apps/web/src/app/design-system-preview/`, `apps/web/src/lib/design-system-preview/` y el test `tests/e2e/design-system-preview.spec.ts` ya no existen. Si se necesita un nuevo showroom, montarlo behind `NEXT_PUBLIC_ENABLE_DESIGN_SYSTEM_PREVIEW` y solo en dev.
+
+### Propósito
+
+Ruta temporal de showroom visual para rediseño con Google Stitch (o similar). Muestra los principales componentes y pantallas de la app con **mock data quemada**, sin depender de Supabase, auth ni APIs reales.
+
+### Archivos creados
+
+| Archivo | Descripción |
+|---|---|
+| `apps/web/src/app/design-system-preview/page.tsx` | Página principal — showroom navegable |
+| `apps/web/src/lib/design-system-preview/mockData.ts` | Datos ficticios para todos los componentes |
+| `tests/e2e/design-system-preview.spec.ts` | Tests Playwright sin auth |
+
+### Cambios en archivos existentes
+
+- `apps/web/src/middleware.ts` — `/design-system-preview` agregada a `PUBLIC_ROUTES`
+
+### Cómo usar
+
+**Local:**
+
+```bash
+npm run dev:web   # desde apps/web o raíz del monorepo
+# luego navegar a:
+# http://localhost:3000/design-system-preview
+```
+
+**Staging/Producción (si se despliega):**
+
+```
+https://dc-project-web.vercel.app/design-system-preview
+```
+
+**Entregar a Stitch:** copiar la URL de staging/producción y pegarla en Google Stitch como URL de referencia.
+
+### Qué muestra
+
+La página es un scrollable con 8 secciones:
+
+1. **Navegación** — TopBar + BottomNav en distintos estados
+2. **Feed** — ClassCard (5 variantes: suelta, periódica, descuento, entrenamiento, sin cupos) + PostCard (público, seguidores, con menú ⋮ autor)
+3. **Detalle de clase** — carrusel, badges, metadata, profesor, waitlist, CTA inscripción, banner aceptado
+4. **Agenda** — vista semanal con los 4 tipos de evento (sky/emerald/violet/slate), grid de disponibilidad horaria
+5. **Mis clases** — 4 tabs: que tomo, que dicto (acordeón), ensayos, historial (con resumen mensual)
+6. **Perfil** — perfil propio y perfil ajeno con StarRating interactivo
+7. **Notificaciones** — todos los tipos con íconos y colores
+8. **Modales** — ConfirmDialog, ReportModal, AuditionModal, AuditionsListClient, DiscountModal, PaymentClient
+
+Incluye un toggle **Light/Dark** en el header sticky que aplica clase `dark` al contenedor wrapper.
+
+### Seguridad
+
+- ⚠️ No usar para lógica productiva.
+- Para desactivar antes de producción: eliminar la carpeta `apps/web/src/app/design-system-preview/` y quitar `/design-system-preview` de `PUBLIC_ROUTES` en `middleware.ts`.
+- No tiene env var obligatoria, pero se puede agregar `NEXT_PUBLIC_ENABLE_DESIGN_SYSTEM_PREVIEW` como guard opcional si se desea mayor control.
+
+### Tests
+
+Tests en `tests/e2e/design-system-preview.spec.ts`. Cómo correr:
+
+```bash
+# Desde la raíz del monorepo (requiere dev server corriendo)
+npx playwright test tests/e2e/design-system-preview.spec.ts
+```
+
+Los tests verifican: carga sin auth, no redirige a login, secciones visibles, toggle dark/light, tabs de Mis Clases funcionales, ConfirmDialog abre/cierra.
+
+---
+
+## Sesión 2026-05-26 — Seguridad, RLS y hardening pre-alpha
+
+Trabajo guiado por `planning/02-auth-security-rls.md`. Cierra hallazgos S-1, S-2, S-3, S-4, S-5, S-8, S-9, S-11, S-12, S-13. S-6 ya cubierto por `@supabase/ssr ^0.4`. S-7 (auditoría matriz de policies) y S-10 (rate limiting Upstash) quedan como acción del usuario por requerir SQL en Supabase o cuenta externa.
+
+### Migraciones agregadas (aplicar manualmente en producción)
+
+| Archivo | Qué hace |
+|---|---|
+| `026_notifications_policy_admin_only.sql` | DROP `notifications_insert_any (WITH CHECK true)`. CREATE `notifications_insert_self (auth.uid()=user_id)`. |
+| `027_admin_actions.sql` | Crea tabla `admin_actions` con RLS solo service role. |
+| `028_lock_teacher_payment_info.sql` | Reemplaza `payment_info_select_all USING(true)` con SELECT solo a teacher dueño o alumnos con enrollment activo. |
+| `029_private_payment_receipts.sql` | `UPDATE storage.buckets SET public=false WHERE id='payment-receipts'`. Nueva policy SELECT solo a uploader o teacher de la clase. |
+
+⚠️ **Orden de despliegue importante**: hacer push del código primero (clientes reciben nuevo bundle con `sendNotifications`); aplicar 026 solo después de confirmar deploy. 028 y 029 pueden aplicarse antes (rompen el ataque, no la app, porque ya removimos la dependencia del join público y movimos receipts a signed URLs).
+
+### Nuevos archivos / componentes
+
+| Archivo | Descripción |
+|---|---|
+| `apps/web/src/lib/supabase/require-user.ts` | Helper `requireUser(request)` — auth Bearer (mobile) + cookie (web). Devuelve `{ user }` o `{ error: NextResponse(401) }`. |
+| `apps/web/src/app/api/notifications/send/route.ts` | Insertador centralizado. Valida `SENDER_INITIATED_TYPES` + relación sender↔contenido por tipo. |
+| `apps/web/src/lib/notifications.ts` | `sendNotifications(payload)` — fetch a `/api/notifications/send` para web (cookies). |
+| `apps/mobile/lib/notifications.ts` | Ídem mobile, agrega Bearer token de Supabase session. |
+| `apps/web/src/app/api/payment/receipt-url/route.ts` | `GET ?paymentId=X` → signed URL 1h después de validar que el caller es alumno del enrollment o teacher de la clase. Tolera `receipt_url` como path puro o URL legacy. |
+
+### Cambios en código
+
+- **`apps/web/src/middleware.ts`** — Allow-list explícita: `PUBLIC_ROUTES` (login/register/terms/privacy/) + regex `PUBLIC_CLASS_DETAIL = /^\/class\/[^/]+\/?$/`. Subrutas de `/class/[id]/` ya exigen sesión.
+- **20+ call sites migrados** a `sendNotifications()`:
+  - Web: `TeacherProfileClient`, `UserCard`, `CreateClassForm`, `EditClassForm`, `AuditionsListClient`, `AuditionModal`, `ClassDetailClient`, `MyClassesClient`.
+  - Mobile: `teacher/[username]`, `class/create`, `class/[id]/edit`, `class/[id]/auditions`, `class/[id]/index`, `(tabs)/my-classes`.
+- **`apps/web/src/app/api/admin/content-action/route.ts`** — Cada acción inserta en `admin_actions` (admin_id, action_type, target, report_id, reason). Acepta `reason` en el body.
+- **`apps/web/src/app/(app)/class/[id]/page.tsx`** — Quitado join `payment_info:teacher_payment_info(*)`. Datos bancarios solo se cargan en pantalla de pago.
+- **`apps/web/src/components/payment/PaymentClient.tsx` + `apps/mobile/app/(app)/payment/[enrollmentId].tsx`** — Suben al bucket privado y guardan **path** en `payments.receipt_url` (no `getPublicUrl`).
+- **`apps/web/src/components/class/MyClassesClient.tsx`, `DashboardClient.tsx`, mobile `(tabs)/my-classes.tsx`** — Botón "Ver comprobante" llama a `/api/payment/receipt-url` y abre la signed URL devuelta.
+- **`apps/web/src/app/api/cron/cleanup-classes/route.ts` + `cleanup-unconfirmed/route.ts`** — Devuelven 503 si `CRON_SECRET` no está configurado. Cron de cuentas no confirmadas amplió ventana 24h→36h y loguea cada delete.
+- **`apps/web/next.config.js`** — `headers()` agrega `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=(self)`.
+
+### Eliminado
+
+- `apps/web/src/app/design-system-preview/` (carpeta)
+- `apps/web/src/lib/design-system-preview/` (carpeta)
+- `tests/e2e/design-system-preview.spec.ts`
+- `'/design-system-preview'` de `PUBLIC_ROUTES` en middleware
+
+### Validaciones aplicadas en `/api/notifications/send` por tipo
+
+| Tipo | Validación |
+|---|---|
+| `follow` / `friend_request` / `friend_accepted` | `data.from_user_id === sender` |
+| `new_class` / `class_updated` / `class_cancelled` / `audition_accepted` / `audition_rejected` / `payment_confirmed` / `payment_rejected` | `classes.teacher_id === sender` (único `data.class_id` por batch) |
+| `new_audition` | Sender tiene fila en `auditions` para esa `class_id`; recipient es el `teacher_id` |
+| Otros tipos sensibles (`2x_*`, `class_discount`, `debt_warning`, `new_report`, `class_reminder`, `waitlist_available`, `rehearsal_*`) | **No aceptados** desde clientes. Solo via service role en sus respectivos API routes/cron. |
+
+Batches deben compartir un único tipo (devuelve 400 si no). Máximo 500 destinatarios por request.
+
+### Acciones del usuario pendientes
+
+1. Aplicar las migraciones 026, 027, 028, 029 en Supabase prod.
+2. Verificar en Supabase Dashboard → Storage que `payment-receipts` aparece como **Private** tras 029.
+3. Confirmar `CRON_SECRET`, `SUPERADMIN_USER_ID` configurados en Vercel (los crons ahora devuelven 503 sin secret).
+4. Verificar que `https://dc-project-web.vercel.app/design-system-preview` retorna 404 tras el próximo deploy.
+5. (Opcional, post-alpha) Configurar Upstash + rate limiting para `/api/reports`, `/api/notifications/send`, `/api/class-2x/match`.
+6. (Recomendado) Correr en Supabase SQL: `SELECT tablename, policyname, cmd FROM pg_policies WHERE schemaname='public' ORDER BY tablename, cmd` para auditar matriz completa de RLS (hallazgo S-7).

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserPlus, UserCheck, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Profile } from '@danceclass/shared'
@@ -38,7 +39,7 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
       setFollowing(false)
     } else {
       await supabase.from('follows').insert({ follower_id: currentUserId, following_id: user.id })
-      await supabase.from('notifications').insert({
+      await sendNotifications({
         user_id: user.id,
         type: 'follow',
         data: { from_user_id: currentUserId },
@@ -60,7 +61,7 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
     setLoadingFriend(true)
     if (friendStatus === 'none') {
       await supabase.from('friendships').insert({ requester_id: currentUserId, addressee_id: user.id, status: 'pending' })
-      await supabase.from('notifications').insert({
+      await sendNotifications({
         user_id: user.id,
         type: 'friend_request',
         data: { from_user_id: currentUserId },
@@ -70,7 +71,7 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
       await supabase.from('friendships').update({ status: 'accepted' })
         .eq('requester_id', user.id)
         .eq('addressee_id', currentUserId)
-      await supabase.from('notifications').insert({
+      await sendNotifications({
         user_id: user.id,
         type: 'friend_accepted',
         data: { from_user_id: currentUserId },

@@ -9,6 +9,7 @@ import { useTheme } from '../../../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, X, ImagePlus, AlertCircle } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
+import { sendNotifications } from '../../../lib/notifications'
 import {
   DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo,
 } from '@danceclass/shared'
@@ -260,12 +261,12 @@ export default function CreateClassScreen() {
       .eq('following_id', teacherId)
 
     if (followers && followers.length > 0) {
-      await supabase.from('notifications').insert(
+      await sendNotifications(
         followers.map((f) => ({
           user_id: f.follower_id,
           type: 'new_class',
           data: { class_id: classRecord.id, class_title: title.trim() },
-        })) as any
+        }))
       )
     }
 

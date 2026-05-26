@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
+import { sendNotifications } from '../../../../lib/notifications'
 import { formatCLP, DAYS_OF_WEEK, canEnroll } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
@@ -285,7 +286,7 @@ function AuditionModal({
     if (insertErr) {
       setError(insertErr.message.includes('unique') ? 'Ya tienes una postulación enviada' : 'Error al enviar. Intenta de nuevo.')
     } else {
-      await (supabase as any).from('notifications').insert({
+      await sendNotifications({
         user_id: teacherId,
         type: 'new_audition',
         data: { from_user_id: userId, class_id: classId },

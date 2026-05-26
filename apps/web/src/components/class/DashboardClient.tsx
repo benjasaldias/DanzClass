@@ -142,15 +142,20 @@ export default function DashboardClient({ classes }: { classes: any[] }) {
                                 {enrollment.status === 'payment_submitted' && payment && (
                                   <div className="mt-2 space-y-2">
                                     {payment.receipt_url && (
-                                      <a
-                                        href={payment.receipt_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const res = await fetch(`/api/payment/receipt-url?paymentId=${payment.id}`)
+                                          if (res.ok) {
+                                            const { url } = await res.json()
+                                            window.open(url, '_blank', 'noopener,noreferrer')
+                                          }
+                                        }}
                                         className="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium"
                                       >
                                         Ver comprobante
                                         <ExternalLink className="h-3 w-3" />
-                                      </a>
+                                      </button>
                                     )}
                                     <p className="text-xs text-gray-500">Monto: {formatCLP(payment.amount)}</p>
                                     <div className="flex gap-2">

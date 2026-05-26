@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { action, contentType, contentId, reportId } = body
+  const { action, contentType, contentId, reportId, reason } = body
   const admin = createAdminClient()
 
   if (action === 'delete_content') {
@@ -19,14 +19,31 @@ export async function POST(req: NextRequest) {
       await (admin as any).from('posts').delete().eq('id', contentId)
     } else if (contentType === 'class') {
       await (admin as any).from('classes').update({ status: 'cancelled' }).eq('id', contentId)
+    } else {
+      return NextResponse.json({ error: 'Unknown contentType' }, { status: 400 })
     }
     if (reportId) {
       await (admin as any).from('reports').update({ status: 'reviewed' }).eq('id', reportId)
     }
+    await (admin as any).from('admin_actions').insert({
+      admin_id: user.id,
+      action_type: 'delete_content',
+      target_table: contentType === 'post' ? 'posts' : 'classes',
+      target_id: contentId,
+      report_id: reportId ?? null,
+      reason: reason ?? null,
+    })
   } else if (action === 'dismiss_report') {
-    if (reportId) {
-      await (admin as any).from('reports').update({ status: 'dismissed' }).eq('id', reportId)
-    }
+    if (!reportId) return NextResponse.json({ error: 'Missing reportId' }, { status: 400 })
+    await (admin as any).from('reports').update({ status: 'dismissed' }).eq('id', reportId)
+    await (admin as any).from('admin_actions').insert({
+      admin_id: user.id,
+      action_type: 'dismiss_report',
+      target_table: 'reports',
+      target_id: reportId,
+      report_id: reportId,
+      reason: reason ?? null,
+    })
   } else {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   }

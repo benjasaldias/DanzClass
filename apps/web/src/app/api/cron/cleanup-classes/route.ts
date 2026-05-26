@@ -8,7 +8,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  // Protect from unauthorized calls in production
+  if (!process.env.CRON_SECRET) {
+    console.error('[cleanup-classes] CRON_SECRET not configured')
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
+  }
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -216,9 +219,11 @@ async function cleanClassMedia(supabase: ReturnType<typeof createAdminClient>, c
   for (const e of enrollments ?? []) {
     const payment = (e as any).payment?.[0]
     if (payment?.receipt_url) {
-      const url: string = payment.receipt_url
-      const parts = url.split('/payment-receipts/')
-      const path = parts[1]
+      const value: string = payment.receipt_url
+      // receipt_url puede ser un path puro (formato nuevo) o una URL legacy con /payment-receipts/<path>
+      const path = value.includes('/payment-receipts/')
+        ? value.split('/payment-receipts/')[1]
+        : value
       if (path) {
         await supabase.storage.from('payment-receipts').remove([path])
       }

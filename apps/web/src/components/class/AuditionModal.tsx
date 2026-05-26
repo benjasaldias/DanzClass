@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { X, Upload, Loader2, Video } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 
 interface AuditionModalProps {
   classId: string
@@ -73,7 +74,7 @@ export default function AuditionModal({ classId, userId, teacherId, onClose, onS
       setError(insertErr.message.includes('unique') ? 'Ya tienes una postulación enviada' : 'Error al enviar. Intenta de nuevo.')
     } else {
       // Notify the teacher about the new application
-      await (supabase as any).from('notifications').insert({
+      await sendNotifications({
         user_id: teacherId,
         type: 'new_audition',
         data: { from_user_id: userId, class_id: classId },

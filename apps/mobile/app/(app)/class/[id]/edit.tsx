@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, X, ImagePlus, Trash2 } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
+import { sendNotifications } from '../../../../lib/notifications'
 import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
 import MobileSelect from '../../../../components/ui/MobileSelect'
 import MobileDateInput from '../../../../components/ui/MobileDateInput'
@@ -255,12 +256,12 @@ export default function EditClassScreen() {
       .in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
 
     if (enrollments && enrollments.length > 0) {
-      await supabase.from('notifications').insert(
+      await sendNotifications(
         enrollments.map((e: any) => ({
           user_id: e.student_id,
           type: 'class_updated',
           data: { class_id: id, class_title: title.trim() },
-        })) as any
+        }))
       )
     }
 
@@ -286,12 +287,12 @@ export default function EditClassScreen() {
               .in('status', ['confirmed', 'payment_submitted', 'pending_payment'])
 
             if (enrollments && enrollments.length > 0) {
-              await supabase.from('notifications').insert(
+              await sendNotifications(
                 enrollments.map((e: any) => ({
                   user_id: e.student_id,
                   type: 'class_cancelled',
                   data: { class_id: id, class_title: classData.title },
-                })) as any
+                }))
               )
             }
             await supabase.from('classes').update({ status: 'cancelled' } as any).eq('id', id)

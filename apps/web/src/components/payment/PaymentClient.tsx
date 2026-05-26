@@ -96,22 +96,20 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
       return
     }
 
-    const { data: urlData } = supabase.storage
-      .from('payment-receipts')
-      .getPublicUrl(uploadData.path)
+    // El bucket es privado: guardamos el path, no la URL pública (que dejó de existir).
+    const receiptPath = uploadData.path
 
-    // Create/update payment record
     const existingPayment = enrollment.payment?.[0] ?? enrollment.payment
     if (existingPayment?.id) {
       await supabase.from('payments').update({
-        receipt_url: urlData.publicUrl,
+        receipt_url: receiptPath,
         status: 'pending',
       }).eq('id', existingPayment.id)
     } else {
       await supabase.from('payments').insert({
         enrollment_id: enrollment.id,
         amount,
-        receipt_url: urlData.publicUrl,
+        receipt_url: receiptPath,
         status: 'pending',
       })
     }

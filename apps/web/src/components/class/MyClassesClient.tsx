@@ -14,6 +14,7 @@ import { DAYS_OF_WEEK } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
+import { sendNotifications } from '@/lib/notifications'
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -147,12 +148,13 @@ function TeachingTab({
 
     const notifType = action === 'verified' ? 'payment_confirmed' : 'payment_rejected'
     const enrollment = classData.flatMap((c: any) => c.enrollments).find((e: any) => e.id === enrollmentId)
-    if (enrollment) {
-      await supabase.from('notifications' as any).insert({
+    const classId = classData.find((c: any) => c.enrollments.some((e: any) => e.id === enrollmentId))?.id
+    if (enrollment && classId) {
+      await sendNotifications({
         user_id: enrollment.student?.id ?? enrollment.student_id,
         type: notifType,
-        data: { class_id: classData.find((c: any) => c.enrollments.some((e: any) => e.id === enrollmentId))?.id },
-      } as any)
+        data: { class_id: classId },
+      })
     }
 
     setClassData((prev) =>
@@ -455,11 +457,20 @@ function TeachingTab({
                                 {enrollment.status === 'payment_submitted' && payment && (
                                   <div className="mt-2 space-y-2">
                                     {payment.receipt_url && (
-                                      <a href={payment.receipt_url} target="_blank" rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const res = await fetch(`/api/payment/receipt-url?paymentId=${payment.id}`)
+                                          if (res.ok) {
+                                            const { url } = await res.json()
+                                            window.open(url, '_blank', 'noopener,noreferrer')
+                                          }
+                                        }}
+                                        className="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                                      >
                                         Ver comprobante
                                         <ExternalLink className="h-3 w-3" />
-                                      </a>
+                                      </button>
                                     )}
                                     <p className="text-xs text-gray-500 dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</p>
                                     <div className="flex gap-2">

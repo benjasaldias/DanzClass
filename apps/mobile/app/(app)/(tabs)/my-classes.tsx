@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router'
 import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap, History, Receipt, Bell } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
+import { sendNotifications } from '../../../lib/notifications'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
 import { useTheme } from '../../../context/ThemeContext'
 
@@ -163,11 +164,12 @@ function TeachingTab({
     await supabase.from('enrollments').update({ status: newStatus }).eq('id', enrollmentId)
 
     const enrollment = classData.flatMap((c: any) => c.enrollments).find((e: any) => e.id === enrollmentId)
-    if (enrollment) {
-      await (supabase as any).from('notifications').insert({
+    const classId = classData.find((c: any) => c.enrollments.some((e: any) => e.id === enrollmentId))?.id
+    if (enrollment && classId) {
+      await sendNotifications({
         user_id: enrollment.student?.id ?? enrollment.student_id,
         type: notifType,
-        data: { class_id: classData.find((c: any) => c.enrollments.some((e: any) => e.id === enrollmentId))?.id },
+        data: { class_id: classId },
       })
     }
 
@@ -385,7 +387,18 @@ function TeachingTab({
                           {enrollment.status === 'payment_submitted' && payment && (
                             <View className="mt-3 ml-11 gap-2">
                               {payment.receipt_url && (
-                                <TouchableOpacity onPress={() => Linking.openURL(payment.receipt_url)}>
+                                <TouchableOpacity onPress={async () => {
+                                  const { data: { session } } = await supabase.auth.getSession()
+                                  const token = session?.access_token
+                                  if (!token) return
+                                  const res = await fetch(`https://dc-project-web.vercel.app/api/payment/receipt-url?paymentId=${payment.id}`, {
+                                    headers: { Authorization: `Bearer ${token}` },
+                                  })
+                                  if (res.ok) {
+                                    const { url } = await res.json()
+                                    Linking.openURL(url)
+                                  }
+                                }}>
                                   <Text className="text-xs text-brand-600 font-medium">Ver comprobante ↗</Text>
                                 </TouchableOpacity>
                               )}
