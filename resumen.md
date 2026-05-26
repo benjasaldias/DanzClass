@@ -2288,3 +2288,79 @@ Batches deben compartir un único tipo (devuelve 400 si no). Máximo 500 destina
 1. **Aplicar `031_account_deletion.sql` en Supabase producción** — sin esto la columna `deleted_at` no existe y el endpoint fallará con error 42703.
 2. Verificar que el endpoint `POST /api/account/delete` funciona en producción con una cuenta de prueba.
 3. Aplicar `030_dedup_class_reminders.sql` si aún no se ha hecho.
+
+---
+
+## Sesión 2026-05-29 — Alpha-04: Pagos, suscripciones y flujo de dinero
+
+### Resumen
+
+Sesión correspondiente a `planning/03-payments-and-money.md`. Se implementaron todos los ítems P0, P1 y P2 de la sesión.
+
+### Cambios implementados
+
+**P-12 (P1) — Webhook: early 400 para `data.id` vacío:**
+`/api/mercadopago/webhook` ahora retorna 400 antes de la verificación de firma si `data.id` está vacío, evitando posible spoofing de manifest.
+
+**P-3 (P1) — Validación de clase vencida y audición en `/api/class/enroll`:**
+El endpoint ahora valida:
+- Clase suelta con `date` pasada → 400 `class_expired`
+- Clase periódica con `ends_at` vencida → 400 `class_expired`
+- Clase con `requires_audition=true` sin audición aceptada → 403 `audition_required`
+
+**P-8 (P1) — Idempotencia en renovaciones mensuales de suscripción:**
+Nueva tabla `subscription_renewals (id, subscription_id, mp_payment_id UNIQUE, processed_at)`. El webhook `subscription_authorized_payment` verifica que el `mp_payment_id` no fue procesado antes de extender `expires_at`.
+
+**P-7 (P1) — UX de cancelación de suscripción:**
+- `CancelSubscriptionButton` recibe `expiresAt` y lo muestra en el ConfirmDialog.
+- Nuevo helper `getCancelledPendingExpiry` en `lib/subscription.ts`.
+- `plans/page.tsx` muestra banner ámbar "Tu suscripción fue cancelada. Tienes acceso hasta DD/MM/YYYY" cuando el usuario tiene una suscripción cancelada con tiempo restante.
+
+**P-11 (P2) — Polling en `/plans/success`:**
+- Nuevo endpoint `GET /api/subscriptions/status` → `{ tier }`.
+- Nuevo componente `SubscriptionPolling` (client): polling cada 2 s por hasta 30 s; muestra "Confirmando suscripción…" mientras espera, "Tu suscripción está activa." al confirmar, o "Tu pago se está procesando. Revisa en unos minutos." si timeout.
+- `plans/success` obtiene `currentTier` server-side y lo pasa como `initialTier`.
+
+**P-2 (P1) — Banner de suscripción por vencer en `/profile`:**
+El perfil muestra un banner ámbar "Tu plan vence el DD/MM/YYYY — Renovar ahora" cuando `expires_at` está a ≤ 7 días.
+
+**P-4 (P2) — Timeout de enrollments 2x sin pagar:**
+El cron `cleanup-classes` cancela enrollments `is_2x=true` con `status=pending_payment` de más de 7 días, cancela también el `partner_enrollment`, voidea payments y notifica a ambos con `class_cancelled`.
+
+**P-5 (P2) — Toggle "Notificar alumnos inscritos" en DiscountModal:**
+Checkbox en `DiscountModal`. Si activo, el API `/api/class/discount` envía `class_discount` a alumnos con `pending_payment` (excluyendo los ya notificados como seguidores). El precio actualizado ya aplica automáticamente porque `PaymentClient` lee el precio en runtime.
+
+**P-9 (P2) — Contactar profesor (reembolso) en `EnrolledTab`:**
+Cuando una clase está `status='cancelled'` y el enrollment es `confirmed`, el `EnrolledTab` muestra el label "(clase cancelada)" y un link "Solicitar reembolso al profesor" → `/teacher/[username]`. Decisión independiente: se usa link al perfil en vez de mailto porque el email del profesor no está en la tabla `profiles`.
+
+**P-10 (P2) — Disclaimer de precio en `PaymentClient`:**
+Bajo el monto, texto: "El monto mostrado es el precio vigente al momento de pagar. Puede diferir del precio al inscribirse si el profesor aplicó un descuento posterior."
+
+### Migración nueva sesión 04
+
+- `supabase/migrations/032_subscription_renewals.sql` — tabla de deduplicación de renovaciones. **Debe aplicarse en producción.**
+
+### Archivos modificados sesión 04
+
+- `supabase/migrations/032_subscription_renewals.sql` — nueva migración
+- `apps/web/src/app/api/mercadopago/webhook/route.ts` — early 400 + idempotencia renovaciones
+- `apps/web/src/app/api/class/enroll/route.ts` — validación clase vencida + audición
+- `apps/web/src/lib/subscription.ts` — `getCancelledPendingExpiry`, tipo `SubRow` con `status`
+- `apps/web/src/app/(app)/plans/page.tsx` — banner cancelación + `formatDate` local
+- `apps/web/src/components/plans/CancelSubscriptionButton.tsx` — prop `expiresAt`, fecha en ConfirmDialog
+- `apps/web/src/app/(app)/plans/success/page.tsx` — `SubscriptionPolling` + dark mode
+- `apps/web/src/app/api/subscriptions/status/route.ts` — nuevo endpoint GET tier
+- `apps/web/src/components/plans/SubscriptionPolling.tsx` — nuevo componente cliente polling
+- `apps/web/src/app/(app)/profile/page.tsx` — `activeSub`, banner vencimiento, import `AlertCircle`
+- `apps/web/src/app/api/cron/cleanup-classes/route.ts` — cancelación automática 2x stale
+- `apps/web/src/components/class/DiscountModal.tsx` — toggle `notifyEnrolled`
+- `apps/web/src/app/api/class/discount/route.ts` — lógica `notify_enrolled`
+- `apps/web/src/components/class/MyClassesClient.tsx` — link reembolso en EnrolledTab
+- `apps/web/src/components/payment/PaymentClient.tsx` — disclaimer precio
+
+### Acciones del usuario pendientes sesión 04
+
+1. **Verificar `MERCADOPAGO_ACCESS_TOKEN` en Vercel** — debe empezar con `APP_USR-` (producción). Si empieza con `TEST-`, los pagos son de sandbox.
+2. **Aplicar `032_subscription_renewals.sql` en Supabase producción** — sin esto el webhook `subscription_authorized_payment` fallará con error 42P01 al insertar en la tabla inexistente.
+3. Hacer un pago real de $1.500 para validar el flujo end-to-end en producción.
+4. Confirmar que el webhook URL en el dashboard de MP apunta a producción: `https://dc-project-web.vercel.app/api/mercadopago/webhook`.

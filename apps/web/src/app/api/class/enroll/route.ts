@@ -43,14 +43,37 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
 
   // Verify class exists and is active
-  const { data: classData } = await admin
+  const { data: classData } = await (admin as any)
     .from('classes')
-    .select('id, teacher_id, title, status, price, type')
+    .select('id, teacher_id, title, status, price, type, date, ends_at, ends_indefinitely, requires_audition, audition_closed')
     .eq('id', classId)
     .eq('status', 'active')
     .maybeSingle()
 
   if (!classData) return NextResponse.json({ error: 'Clase no encontrada o no disponible' }, { status: 404 })
+
+  // Validate class is not expired
+  const today = new Date().toISOString().split('T')[0]
+  if (classData.type === 'suelta') {
+    if (classData.date && classData.date < today) {
+      return NextResponse.json({ error: 'class_expired' }, { status: 400 })
+    }
+  } else if (!classData.ends_indefinitely && classData.ends_at && classData.ends_at < today) {
+    return NextResponse.json({ error: 'class_expired' }, { status: 400 })
+  }
+
+  // For classes requiring audition, verify the student was accepted
+  if (classData.requires_audition) {
+    const { data: audition } = await (admin as any)
+      .from('auditions')
+      .select('status')
+      .eq('class_id', classId)
+      .eq('applicant_id', userId)
+      .maybeSingle()
+    if (!audition || audition.status !== 'accepted') {
+      return NextResponse.json({ error: 'audition_required' }, { status: 403 })
+    }
+  }
 
   // Prevent teacher from enrolling in own class
   if (classData.teacher_id === userId) {
@@ -119,7 +142,6 @@ export async function POST(request: Request) {
   }
 
   // Debt check: notify teacher if student has unpaid pending_payment from past sueltas for this teacher
-  const today = new Date().toISOString().split('T')[0]
   const { data: debts } = await (admin as any)
     .from('enrollments')
     .select('id, class:classes!inner(id, teacher_id, date, type)')

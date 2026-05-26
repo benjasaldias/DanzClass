@@ -82,6 +82,12 @@ export async function POST(request: Request) {
 
   console.log('[MP webhook] received', { type: webhookType, dataId })
 
+  // Reject events with no data.id before signature check (prevents manifest spoofing)
+  if (!dataId) {
+    console.warn('[MP webhook] empty data.id — rejecting')
+    return NextResponse.json({ error: 'Missing data.id' }, { status: 400 })
+  }
+
   const sig = verifySignature(request)
   if (!sig.ok) {
     console.error('[MP webhook] signature check failed:', sig.reason)
@@ -182,6 +188,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true })
     }
 
+    // Idempotency: skip if this mp_payment_id was already processed
+    const { data: alreadyProcessed } = await (supabase as any)
+      .from('subscription_renewals')
+      .select('id')
+      .eq('mp_payment_id', String(eventDataId))
+      .maybeSingle()
+
+    if (alreadyProcessed) {
+      console.log('[webhook] renewal already processed — mp_payment_id:', eventDataId)
+      return NextResponse.json({ ok: true })
+    }
+
     // Extender expires_at en 1 mes
     const { data: existingSub } = await supabase
       .from('subscriptions')
@@ -197,6 +215,12 @@ export async function POST(request: Request) {
         .from('subscriptions')
         .update({ expires_at: newExpiry.toISOString(), status: 'active' })
         .eq('id', (existingSub as any).id)
+
+      // Record the processed renewal to prevent future duplicates
+      await (supabase as any)
+        .from('subscription_renewals')
+        .insert({ subscription_id: (existingSub as any).id, mp_payment_id: String(eventDataId) })
+
       console.log('[webhook] subscription renewed — new expiry:', newExpiry.toISOString())
     } else {
       console.warn('[webhook] no active subscription found for preapproval:', preapprovalId)

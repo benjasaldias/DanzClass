@@ -7,7 +7,7 @@ import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
   AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2, Bell,
-  CalendarDays,
+  CalendarDays, MessageCircle,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -77,25 +77,43 @@ function EnrolledTab({ enrollments, onGoToHistory }: { enrollments: any[]; onGoT
           ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
           : `${DAYS_OF_WEEK[cls?.day_of_week]} · ${formatTime(cls?.recurring_time)}`
 
+        const classIsCancelled = cls?.status === 'cancelled'
+        const canRequestRefund = classIsCancelled && enrollment.status === 'confirmed'
+
         return (
-          <Link key={enrollment.id} href={`/class/${cls?.id}`} className="card p-4 flex gap-3 hover:shadow-md transition-shadow">
+          <div key={enrollment.id} className="card p-4 flex gap-3 hover:shadow-md transition-shadow">
             <Avatar src={teacher?.avatar_url} name={teacher?.full_name ?? '?'} size="md" />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls?.title}</p>
+              <Link href={`/class/${cls?.id}`} className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate block">
+                {cls?.title}
+                {classIsCancelled && (
+                  <span className="ml-2 text-xs font-normal text-red-500 dark:text-red-400">(clase cancelada)</span>
+                )}
+              </Link>
               <p className="text-xs text-gray-500 dark:text-dark-text2">{teacher?.full_name}</p>
               <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">{schedule}</p>
               <div className={cn('mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium', config.color)}>
                 <Icon className="h-3 w-3" />
                 {config.label}
               </div>
-              {enrollment.status === 'pending_payment' && (
+              {enrollment.status === 'pending_payment' && !classIsCancelled && (
                 <p className="mt-1 text-xs text-brand-600 font-medium">
                   {formatCLP(cls?.price)} — Haz clic para pagar
                 </p>
               )}
+              {canRequestRefund && (
+                <Link
+                  href={`/teacher/${teacher?.username}`}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400 font-medium hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MessageCircle className="h-3 w-3" />
+                  Solicitar reembolso al profesor
+                </Link>
+              )}
             </div>
             <ChevronRight className="h-4 w-4 text-gray-300 dark:text-dark-border flex-shrink-0 self-center" />
-          </Link>
+          </div>
         )
       })}
     </div>

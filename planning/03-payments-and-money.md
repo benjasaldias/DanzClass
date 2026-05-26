@@ -237,32 +237,44 @@
 
 ---
 
-## Reporte de cierre
+## Reporte de cierre — Sesión 2026-05-29
 
 ### ✅ Logrado
 
-| ID | Cambio | Archivo | Test |
-|---|---|---|---|
+| ID | Cambio | Archivo |
+|---|---|---|
+| P-12 | Early 400 para `data.id` vacío antes de verificar firma | `apps/web/src/app/api/mercadopago/webhook/route.ts` |
+| P-3 | Validación clase vencida (`class_expired`) y audición requerida (`audition_required`) | `apps/web/src/app/api/class/enroll/route.ts` |
+| P-8 | Tabla `subscription_renewals` + idempotencia en `subscription_authorized_payment` | `supabase/migrations/032_subscription_renewals.sql`, `webhook/route.ts` |
+| P-7 | `CancelSubscriptionButton` muestra fecha real; banner ámbar para suscripción cancelada con tiempo restante | `CancelSubscriptionButton.tsx`, `plans/page.tsx`, `lib/subscription.ts` |
+| P-11 | `SubscriptionPolling` cliente + endpoint `GET /api/subscriptions/status` | `SubscriptionPolling.tsx`, `status/route.ts`, `plans/success/page.tsx` |
+| P-2 | Banner "Tu plan vence el DD/MM/YYYY" cuando `expires_at ≤ 7 días` | `apps/web/src/app/(app)/profile/page.tsx` |
+| P-4 | Cron cancela enrollments 2x `pending_payment` de +7 días + notifica ambos | `apps/web/src/app/api/cron/cleanup-classes/route.ts` |
+| P-5 | Toggle "Notificar alumnos inscritos sin pagar" en `DiscountModal` | `DiscountModal.tsx`, `apps/web/src/app/api/class/discount/route.ts` |
+| P-9 | Link "Solicitar reembolso al profesor" en `EnrolledTab` cuando clase cancelada + enrollment confirmed | `MyClassesClient.tsx` |
+| P-10 | Disclaimer de precio vigente en `PaymentClient` | `PaymentClient.tsx` |
 
-### ⏳ Pendiente
+### ⏳ Pendiente (aplazado a post-alpha)
 
 | ID | Razón |
 |---|---|
+| P-6 | Debt detection para periódicas: requiere definir "mes vencido" para entrenamientos con billing_day — decisión de producto pendiente |
+| P-9b | Flujo de reembolso in-app (mailto no implementable sin email en profiles) |
+| P-13 | Banner verde post-confirmación en `/my-classes` (el `EnrolledTab` ya tiene el badge de estado confirmado; el impacto visual adicional es bajo) |
+| Renovación anual | **Decisión de producto:** anual = pago único (12 meses), no hay renovación automática. Implementar notificación `subscription_expiring` 7 días antes post-alpha. |
 
 ### ❌ Fallado
 
-| ID | Causa | Plan alternativo |
-|---|---|---|
+Ninguno.
 
 ### 📌 Acciones del usuario pendientes
 
-- [ ] Verificar `MERCADOPAGO_ACCESS_TOKEN` es de producción (no TEST)
-- [ ] Hacer pago real de $1.500 para validar end-to-end
-- [ ] Configurar Webhook URL en MP dashboard apuntando a producción
-- [ ] (Si aplica) Aplicar migración nueva para `subscription_renewals` o `amount_at_enrollment`
+- [ ] **Verificar `MERCADOPAGO_ACCESS_TOKEN` en Vercel** — debe empezar con `APP_USR-` (producción, no `TEST-`)
+- [ ] **Aplicar `032_subscription_renewals.sql` en Supabase producción** — sin esto el webhook de renovación fallará con error 42P01
+- [ ] Hacer pago real de $1.500 para validar flujo end-to-end
+- [ ] Confirmar Webhook URL en dashboard MP apunta a `https://dc-project-web.vercel.app/api/mercadopago/webhook`
 
-### 📝 Memoria a actualizar
+### 📝 Memoria actualizada
 
-- [ ] `CLAUDE.md` — sección "Integración Mercado Pago" con cualquier nuevo guard
-- [ ] `CLAUDE.md` — política de renovación anual decidida
-- [ ] `resumen.md` — sesión de pagos
+- [x] `CLAUDE.md` — 8 nuevas notas técnicas de pagos y suscripciones
+- [x] `resumen.md` — sesión 04 completa con archivos y acciones pendientes

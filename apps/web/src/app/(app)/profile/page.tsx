@@ -2,9 +2,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
-import { getActiveTier } from '@/lib/subscription'
+import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2 } from 'lucide-react'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -27,6 +27,7 @@ export default async function ProfilePage() {
   const [
     { data: profileData },
     tier,
+    activeSub,
     { count: followersCount },
     { count: classesCount },
     { count: paidSpotsCount },
@@ -37,6 +38,7 @@ export default async function ProfilePage() {
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     getActiveTier(user.id, supabase as any),
+    getActiveSubscription(user.id, supabase as any),
     supabase.from('follows' as any).select('*', { count: 'exact', head: true }).eq('following_id', user.id),
     // D-9/D-10: excluir clases canceladas (soft-deleted)
     supabase
@@ -176,6 +178,23 @@ export default async function ProfilePage() {
           </Link>
         </div>
       </div>
+
+      {/* Subscription expiry warning — shown 7 days before expiry */}
+      {activeSub && (() => {
+        const daysLeft = Math.ceil((new Date(activeSub.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        if (daysLeft > 7) return null
+        const [y, m, d] = activeSub.expires_at.split('T')[0].split('-').map(Number)
+        const label = new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
+        return (
+          <div className="mx-4 mb-2 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Tu plan vence el <span className="font-semibold">{label}</span>.{' '}
+              <Link href="/plans" className="underline">Renovar ahora</Link>
+            </p>
+          </div>
+        )
+      })()}
 
       {/* Subscription banner */}
       <div className="mx-4 mb-4 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-3 flex items-center justify-between">

@@ -33,6 +33,7 @@ export default function DiscountModal({
   const [discountPriceMonthly, setDiscountPriceMonthly] = useState<string>(
     currentDiscountPriceMonthly ? String(currentDiscountPriceMonthly) : ''
   )
+  const [notifyEnrolled, setNotifyEnrolled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,8 +60,9 @@ export default function DiscountModal({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         class_id: classId,
-        discount_price: isPeriodica ? dp : dp,
+        discount_price: dp,
         discount_price_monthly: isPeriodica ? dpm : null,
+        notify_enrolled: notifyEnrolled,
       }),
     })
 
@@ -144,6 +146,21 @@ export default function DiscountModal({
               <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2/60">Deja vacío para no aplicar descuento mensual</p>
             </div>
           )}
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyEnrolled}
+              onChange={(e) => setNotifyEnrolled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="text-sm text-gray-700 dark:text-dark-text2">
+              Notificar también a alumnos inscritos con pago pendiente
+              <span className="block text-xs text-gray-400 dark:text-dark-text2/60 mt-0.5">
+                El descuento ya aplica automáticamente a su próximo pago
+              </span>
+            </span>
+          </label>
 
           <p className="text-xs text-gris-humo bg-coral-fuego/10 border border-coral-fuego/20 rounded-xl px-3 py-2">
             Al publicar, se notificará a todos tus seguidores sobre el descuento.

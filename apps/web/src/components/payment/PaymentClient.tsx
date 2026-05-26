@@ -213,6 +213,9 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
           <p className="text-sm text-brand-700 dark:text-brand-300 font-medium mb-1">Monto a transferir</p>
           <p className="text-4xl font-bold text-brand-900 dark:text-brand-200">{formatCLP(amount)}</p>
           {is2x && <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">Precio 2x — cubre a ambos</p>}
+          <p className="text-xs text-brand-600/70 dark:text-brand-400/70 mt-1">
+            El monto mostrado es el precio vigente al momento de pagar. Puede diferir del precio al inscribirse si el profesor aplicó un descuento posterior.
+          </p>
         </div>
       )}
 

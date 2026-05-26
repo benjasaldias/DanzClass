@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { class_id, discount_price, discount_price_monthly } = await req.json()
+  const { class_id, discount_price, discount_price_monthly, notify_enrolled } = await req.json()
   if (!class_id) return NextResponse.json({ error: 'Missing class_id' }, { status: 400 })
 
   const admin = createAdminClient()
@@ -59,6 +59,13 @@ export async function POST(req: NextRequest) {
 
   // Notify followers if setting a new discount (not clearing)
   if (discount_price || discount_price_monthly) {
+    const notifData = {
+      class_id,
+      class_title: (cls as any).title,
+      discount_price: discount_price ?? null,
+      discount_price_monthly: discount_price_monthly ?? null,
+    }
+
     const { data: followers } = await admin
       .from('follows')
       .select('follower_id')
@@ -69,14 +76,33 @@ export async function POST(req: NextRequest) {
         followers.map((f: any) => ({
           user_id: f.follower_id,
           type: 'class_discount',
-          data: {
-            class_id,
-            class_title: (cls as any).title,
-            discount_price: discount_price ?? null,
-            discount_price_monthly: discount_price_monthly ?? null,
-          },
+          data: notifData,
         }))
       )
+    }
+
+    // Optionally notify enrolled students with pending payment
+    if (notify_enrolled) {
+      const { data: pendingEnrollments } = await admin
+        .from('enrollments')
+        .select('student_id')
+        .eq('class_id', class_id)
+        .eq('status', 'pending_payment')
+
+      if (pendingEnrollments && pendingEnrollments.length > 0) {
+        // Exclude students already notified as followers
+        const followerIds = new Set((followers ?? []).map((f: any) => f.follower_id))
+        const toNotify = pendingEnrollments.filter((e: any) => !followerIds.has(e.student_id))
+        if (toNotify.length > 0) {
+          await admin.from('notifications').insert(
+            toNotify.map((e: any) => ({
+              user_id: e.student_id,
+              type: 'class_discount',
+              data: notifData,
+            }))
+          )
+        }
+      }
     }
   }
 

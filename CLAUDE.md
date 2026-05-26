@@ -105,6 +105,9 @@ Esta referencia define el baseline visual. Los cambios de color deben ser aditiv
 | `027_admin_actions.sql` | Tabla `admin_actions` (admin_id, action_type, target_table, target_id, report_id, reason). RLS solo service role. |
 | `028_lock_teacher_payment_info.sql` | Sustituye `payment_info_select_all USING(true)` por SELECT solo al teacher dueño o alumnos con enrollment activo. |
 | `029_private_payment_receipts.sql` | Flipea `payment-receipts` a `public=false` y reemplaza policy SELECT por uploader o teacher de la clase. Display vía signed URL en `/api/payment/receipt-url`. |
+| `030_dedup_class_reminders.sql` | Deduplicación de recordatorios de clase. |
+| `031_account_deletion.sql` | `deleted_at TIMESTAMPTZ` en `profiles` para soft-delete de cuenta. |
+| `032_subscription_renewals.sql` | Tabla `subscription_renewals (mp_payment_id UNIQUE)` para deduplicar `subscription_authorized_payment` reenviados por MP. RLS: solo service role. |
 
 **Antes de proponer cualquier migración nueva:** verificar que el constraint de `notification_type` en la última migración incluya todos los tipos anteriores, ya que cada migración lo reescribe completo.
 
@@ -333,7 +336,28 @@ API filtra `.eq('status', 'looking')`; si dos usuarios matchean simultáneo, el 
 `POST /api/account/delete` (acepta Bearer + cookie): anonimiza perfil (`full_name='Usuario eliminado'`, `username='deleted_<timestamp>'`, campos personales a null), pone `deleted_at=now()`, cancela subscriptions activas, cambia el email en `auth.users` a `deleted-{uuid}@deleted.danzclass.internal` (tombstone) para impedir re-login, firma-out. El usuario no puede volver a entrar. Hard-delete post-30 días pendiente de cron (deuda técnica conocida). Pantalla web: `/profile/delete-account`; mobile: `profile/delete-account.tsx`. Link visible en `/profile` y pantalla de perfil mobile.
 
 **Política de precio al momento de pago:**
-El precio mostrado y cobrado al alumno en `PaymentClient` es siempre el precio vigente de la clase al momento de pagar (incluyendo descuentos activos). No se congela el precio al momento de inscripción. Esto es intencional: permite que descuentos espontáneos beneficien a alumnos con inscripción pendiente.
+El precio mostrado y cobrado al alumno en `PaymentClient` es siempre el precio vigente de la clase al momento de pagar (incluyendo descuentos activos). No se congela el precio al momento de inscripción. Esto es intencional: permite que descuentos espontáneos beneficien a alumnos con inscripción pendiente. `PaymentClient` muestra un disclaimer explicando esto.
+
+**Webhook MP — idempotencia de renovaciones (sesión 2026-05-29):**
+La tabla `subscription_renewals (id, subscription_id, mp_subscription_id, mp_payment_id UNIQUE, processed_at)` (migración 032) previene que un `subscription_authorized_payment` reenviado por MP extienda `expires_at` doble. Antes de extender, el webhook verifica que el `eventDataId` (ID del authorized_payment) no existe en esa tabla; si ya existe, loguea y retorna 200. Además, el webhook ahora rechaza con 400 cualquier evento con `data.id` vacío en el query string.
+
+**`/api/class/enroll` — validaciones adicionales (sesión 2026-05-29):**
+El endpoint ahora rechaza inscripciones a: (1) clases tipo `suelta` con `date` pasado → 400 `class_expired`; (2) clases periódicas con `ends_at` vencido y `ends_indefinitely=false` → 400 `class_expired`; (3) clases con `requires_audition=true` sin audición `accepted` del alumno → 403 `audition_required`. El frontend ya oculta el botón, pero estas validaciones protegen la API contra POSTs directos.
+
+**Suscripción cancelada con tiempo restante (sesión 2026-05-29):**
+`getCancelledPendingExpiry(userId, supabase)` en `lib/subscription.ts` busca suscripciones con `status='cancelled'` y `expires_at > now`. Usado en `plans/page.tsx` para mostrar banner ámbar "Tu suscripción fue cancelada. Tienes acceso hasta DD/MM/YYYY." `getActiveSubscription` solo retorna suscripciones `active/grace`; la función nueva es complementaria. Re-suscribirse antes de `expires_at` crea una nueva suscripción activa (el registro cancelado queda en la tabla como historial).
+
+**`SubscriptionPolling` — fallback de activación (sesión 2026-05-29):**
+`/api/subscriptions/status` (GET, cookieauth) devuelve `{ tier }` para polling cliente. `SubscriptionPolling` hace polling cada 2 s hasta 30 s; si `tier !== 'none'` antes del timeout muestra "activa", si timeout muestra mensaje de procesamiento. La página `/plans/success` activa la suscripción server-side antes del render (idempotente), así el polling solo actúa si el webhook fue más rápido que el render o si los params no llegaron.
+
+**2x stale cleanup en cron (sesión 2026-05-29):**
+El cron `cleanup-classes` cancela enrollments `is_2x=true` + `status=pending_payment` con `created_at` de más de 7 días. Cancela el partner_enrollment si también está `pending_payment`, voidea payments de ambos, notifica con `class_cancelled` (data: `{ reason: '2x_payment_timeout' }`). El contador se loguea como `cancelled_2x=N`.
+
+**`DiscountModal` — toggle notificar alumnos inscritos (sesión 2026-05-29):**
+Checkbox "Notificar también a alumnos inscritos con pago pendiente" (off por default). Si activado, `/api/class/discount` envía `class_discount` a enrollments `pending_payment` excluyendo los ya notificados como seguidores (deduplicación por `followerIds` Set). El precio con descuento ya aplica automáticamente al leer en runtime; el toggle solo controla la notificación.
+
+**Reembolso en `EnrolledTab` (sesión 2026-05-29):**
+Cuando `cls.status === 'cancelled'` y `enrollment.status === 'confirmed'`, se muestra el label "(clase cancelada)" y el link "Solicitar reembolso al profesor" → `/teacher/[username]`. El botón **no es un mailto** porque el email del profesor no está en `profiles` (solo en `auth.users`). El flujo de reembolso es manual: el alumno contacta al profesor via su perfil público. Documentar en `/terms` que los reembolsos se gestionan externamente (pendiente post-alpha).
 
 **Inputs numéricos — bloquear caracteres inválidos:**
 Todos los `<input type="number">` de precios, cupos, duración y billing_day tienen `onKeyDown={noExp}` donde `noExp` bloquea `e`, `E`, `+`, `-`, `.`, `,`. También tienen `step="1"` y rangos razonables (`max=10_000_000` para precios, `max=1000` para cupos, etc.). Función helper `noExp` definida en `CreateClassForm.tsx` y `EditClassForm.tsx`.

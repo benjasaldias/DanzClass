@@ -206,7 +206,69 @@ export async function GET(request: Request) {
   }
 
   console.log(`[cleanup-classes] reminders=${reminders}`)
-  return NextResponse.json({ deleted, errors, reminders })
+
+  // ── 2x stale enrollment timeout: cancel after 7 days of non-payment ─────────
+  const sevenDaysAgo = new Date(now)
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const { data: stale2x } = await (supabase as any)
+    .from('enrollments')
+    .select('id, student_id, class_id, partner_enrollment_id')
+    .eq('is_2x', true)
+    .eq('status', 'pending_payment')
+    .lt('created_at', sevenDaysAgo.toISOString())
+
+  let cancelled2x = 0
+  for (const e of stale2x ?? []) {
+    // Cancel this enrollment and void its pending payments
+    await supabase
+      .from('enrollments')
+      .update({ status: 'cancelled' } as any)
+      .eq('id', e.id)
+    await (supabase as any)
+      .from('payments')
+      .update({ status: 'void' })
+      .eq('enrollment_id', e.id)
+      .not('status', 'in', '("confirmed","void")')
+
+    // Cancel partner enrollment too (if it exists and is also pending)
+    if (e.partner_enrollment_id) {
+      const { data: partner } = await supabase
+        .from('enrollments')
+        .select('id, student_id, status')
+        .eq('id', e.partner_enrollment_id)
+        .maybeSingle()
+      if (partner && partner.status === 'pending_payment') {
+        await supabase
+          .from('enrollments')
+          .update({ status: 'cancelled' } as any)
+          .eq('id', partner.id)
+        await (supabase as any)
+          .from('payments')
+          .update({ status: 'void' })
+          .eq('enrollment_id', partner.id)
+          .not('status', 'in', '("confirmed","void")')
+
+        await supabase.from('notifications').insert({
+          user_id: partner.student_id,
+          type: 'class_cancelled',
+          data: { class_id: e.class_id, reason: '2x_payment_timeout' },
+        } as any)
+      }
+    }
+
+    await supabase.from('notifications').insert({
+      user_id: e.student_id,
+      type: 'class_cancelled',
+      data: { class_id: e.class_id, reason: '2x_payment_timeout' },
+    } as any)
+
+    cancelled2x++
+  }
+
+  if (cancelled2x > 0) console.log(`[cleanup-classes] cancelled_2x=${cancelled2x}`)
+
+  return NextResponse.json({ deleted, errors, reminders, cancelled2x })
 }
 
 async function cleanClassMedia(supabase: ReturnType<typeof createAdminClient>, cls: any) {

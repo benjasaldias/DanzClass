@@ -4,7 +4,18 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
-export function CancelSubscriptionButton() {
+function formatDate(iso: string) {
+  const [y, m, d] = iso.split('T')[0].split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-CL', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
+
+interface Props {
+  expiresAt: string
+}
+
+export function CancelSubscriptionButton({ expiresAt }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -33,7 +44,7 @@ export function CancelSubscriptionButton() {
       {open && (
         <ConfirmDialog
           title="¿Cancelar suscripción?"
-          message="Tu plan seguirá activo hasta la fecha de vencimiento. No se realizarán más cobros."
+          message={`Tu plan seguirá activo hasta el ${formatDate(expiresAt)}. No se realizarán más cobros.`}
           confirmLabel="Sí, cancelar"
           destructive
           loading={loading}

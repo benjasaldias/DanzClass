@@ -1,10 +1,17 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getActiveSubscription } from '@/lib/subscription'
+import { getActiveSubscription, getCancelledPendingExpiry } from '@/lib/subscription'
 import { SUBSCRIPTION_PLANS, formatCLP } from '@danceclass/shared'
-import { Check, Crown } from 'lucide-react'
+import { Check, Crown, AlertCircle } from 'lucide-react'
 import { SubscribeButton } from '@/components/plans/SubscribeButton'
 import { CancelSubscriptionButton } from '@/components/plans/CancelSubscriptionButton'
+
+function formatDate(iso: string) {
+  const [y, m, d] = iso.split('T')[0].split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-CL', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
 
 export default async function PlansPage() {
   const supabase = createClient()
@@ -12,6 +19,7 @@ export default async function PlansPage() {
   if (!user) redirect('/auth/login')
 
   const activeSub = await getActiveSubscription(user.id, supabase)
+  const cancelledSub = activeSub ? null : await getCancelledPendingExpiry(user.id, supabase)
   const currentTier = activeSub?.tier ?? 'none'
 
   return (
@@ -21,6 +29,17 @@ export default async function PlansPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-dark-text">Elige tu plan</h1>
         <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">Cancela cuando quieras</p>
       </div>
+
+      {cancelledSub && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            Tu suscripción fue cancelada. Tienes acceso hasta el{' '}
+            <span className="font-semibold">{formatDate(cancelledSub.expires_at)}</span>.
+            No se realizarán nuevos cobros.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-4">
         {SUBSCRIPTION_PLANS.map((plan) => {
@@ -62,14 +81,9 @@ export default async function PlansPage() {
               {isActive && activeSub && (
                 <div className="mt-3 flex flex-col items-center gap-1">
                   <p className="text-xs text-gray-400 dark:text-dark-text2/60">
-                    Vence el{' '}
-                    {new Date(activeSub.expires_at).toLocaleDateString('es-CL', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
+                    Vence el {formatDate(activeSub.expires_at)}
                   </p>
-                  <CancelSubscriptionButton />
+                  <CancelSubscriptionButton expiresAt={activeSub.expires_at} />
                 </div>
               )}
             </div>
