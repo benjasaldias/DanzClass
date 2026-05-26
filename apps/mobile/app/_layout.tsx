@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font'
 import { supabase } from '../lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 import { ThemeProvider, useTheme } from '../context/ThemeContext'
+import ErrorBoundary from '../components/ui/ErrorBoundary'
 import '../global.css'
 
 function AppContent() {
@@ -58,10 +59,12 @@ export default function RootLayout() {
   if (!fontsLoaded) return null
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   )
 }

@@ -16,7 +16,7 @@ import {
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
-import { formatCLP, DAYS_OF_WEEK, canEnroll } from '@danceclass/shared'
+import { formatCLP, DAYS_OF_WEEK, canEnroll, pluralize } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -1021,7 +1021,7 @@ export default function ClassDetailScreen() {
             <View className="flex-row items-center gap-3">
               <Users size={16} stroke="#6B6880" />
               <Text className={`text-sm ${isFull ? 'text-red-600' : spotsAvailable <= 3 ? 'text-orange-600' : 'text-gray-800 dark:text-dark-text'}`}>
-                {isFull ? 'Sin cupos disponibles' : `${spotsAvailable} de ${cls.max_spots} cupos disponibles`}
+                {isFull ? 'Sin cupos disponibles' : `${pluralize(spotsAvailable, 'cupo', 'cupos')} disponible${spotsAvailable !== 1 ? 's' : ''} de ${cls.max_spots}`}
               </Text>
             </View>
           </View>

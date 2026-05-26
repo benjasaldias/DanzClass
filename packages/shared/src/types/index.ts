@@ -514,3 +514,12 @@ export function getNextOccurrence(dayOfWeek: number, time: string): Date {
   result.setHours(hours, minutes, 0, 0)
   return result
 }
+
+export function pluralize(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`
+}
+
+export function formatDateLocal(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
+}

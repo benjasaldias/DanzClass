@@ -123,6 +123,13 @@ export default async function PlanSuccessPage({
       <Link href="/plans" className="btn-primary px-8 mt-8">
         Ver mi plan
       </Link>
+      {/* Deep link para usuarios que llegaron desde la app mobile */}
+      <a
+        href="danceclass://plans/success"
+        className="mt-4 text-sm text-brand-600 dark:text-brand-400 underline underline-offset-2"
+      >
+        Volver a la app
+      </a>
     </div>
   )
 }

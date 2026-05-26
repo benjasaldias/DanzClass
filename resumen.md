@@ -2364,3 +2364,51 @@ Bajo el monto, texto: "El monto mostrado es el precio vigente al momento de paga
 2. **Aplicar `032_subscription_renewals.sql` en Supabase producción** — sin esto el webhook `subscription_authorized_payment` fallará con error 42P01 al insertar en la tabla inexistente.
 3. Hacer un pago real de $1.500 para validar el flujo end-to-end en producción.
 4. Confirmar que el webhook URL en el dashboard de MP apunta a producción: `https://dc-project-web.vercel.app/api/mercadopago/webhook`.
+
+---
+
+## Sesión 2026-05-29 (sesión 05) — Paridad mobile y plataformas
+
+Implementación de mejoras de paridad mobile según `planning/05-mobile-parity-and-platforms.md`. Todos los P0/P1 de código resueltos; los pendientes de usuario (EAS build, Supabase redirect URLs) documentados.
+
+### Cambios de código (sesión 05)
+
+**M-2 — FAB para crear clase en feed mobile:**
+
+Nuevo componente `apps/mobile/components/ui/FloatingActionButton.tsx` — botón circular absoluto bottom-right, `brand-600`, ícono `Plus`. Agregado en `(tabs)/feed.tsx`: visible solo si `canTeach(tier)`. El tier se obtiene en `init()` junto al resto de los fetches iniciales.
+
+**M-4 — Deep link "Volver a la app" en plans/success:**
+
+`apps/web/src/app/(app)/plans/success/page.tsx`: link `danceclass://plans/success` al final de la página. Cuando se abre en el in-app browser de Expo, el tap redirige de vuelta a la app mobile.
+
+**M-9 — Botón Share en MobilePostCard:**
+
+`apps/mobile/components/feed/MobilePostCard.tsx`: ícono `Share2` en el header del post. Usa `Share.share()` de React Native. Comparte título + URL del feed.
+
+**M-12 — Pull-to-refresh en pantallas faltantes:**
+
+`RefreshControl` añadido en `(tabs)/my-classes.tsx` (ScrollView), `notifications.tsx` (FlatList) y `teacher/[username].tsx` (ScrollView). En todos los casos `load()` fue convertido a `useCallback`.
+
+**M-14 — Error boundary global:**
+
+Nuevo `apps/mobile/components/ui/ErrorBoundary.tsx` — class component React. Muestra "Algo salió mal" + botón "Reintentar". Wrappea `<RootLayout>` en `_layout.tsx`.
+
+**M-15 — Helper `pluralize` y `formatDateLocal` en shared:**
+
+`packages/shared/src/types/index.ts`: `pluralize(n, singular, plural)` y `formatDateLocal(dateStr)` (YYYY-MM-DD → fecha local sin off-by-one). Aplicado en class detail mobile: "1 cupo disponible de 5".
+
+### Items verificados sin cambios (sesión 05)
+
+M-1 (FriendsTwoxList en feed): post-alpha, la sección 2x ya existe en el detalle de clase. M-3 (EAS build): `projectId` ya en `app.json`. M-6 (permisos): `NSPhotoLibraryUsageDescription` y permisos Android ya correctos. M-10 (FlatList): ya implementado. M-16 (TopBar badge): ya implementado.
+
+### Archivos modificados sesión 05
+
+`apps/mobile/components/ui/FloatingActionButton.tsx` (nuevo), `apps/mobile/components/ui/ErrorBoundary.tsx` (nuevo), `apps/mobile/app/(app)/(tabs)/feed.tsx`, `apps/mobile/app/(app)/(tabs)/my-classes.tsx`, `apps/mobile/app/(app)/notifications.tsx`, `apps/mobile/app/(app)/teacher/[username].tsx`, `apps/mobile/app/_layout.tsx`, `apps/mobile/components/feed/MobilePostCard.tsx`, `apps/mobile/app/(app)/class/[id]/index.tsx`, `apps/web/src/app/(app)/plans/success/page.tsx`, `packages/shared/src/types/index.ts`.
+
+### Acciones del usuario pendientes sesión 05
+
+1. **`eas login` + `eas init`** en `apps/mobile/` → confirmar/actualizar `projectId` en `app.json`.
+2. **Env vars en Expo dashboard** (EAS Secrets): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+3. **Supabase Auth** → URL Configuration → añadir `danceclass://**` en Redirect URLs.
+4. **Build EAS preview Android** → `eas build --profile preview --platform android` → instalar en dispositivo real.
+5. (Opcional alpha) Build iOS — requiere Apple Developer ($99/año).

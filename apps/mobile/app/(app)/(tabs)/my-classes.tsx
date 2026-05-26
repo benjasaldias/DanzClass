@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, ActivityIndicator,
-  ScrollView, Alert, Linking,
+  ScrollView, Alert, Linking, RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -630,6 +630,7 @@ export default function MyClassesScreen() {
   const [userId, setUserId] = useState<string | null>(null)
   const [dismissedIds, setDismissedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -659,6 +660,7 @@ export default function MyClassesScreen() {
     setTeachingClasses(teachRes.data ?? [])
     setDismissedIds((dismissedRes.data ?? []).map((d: any) => d.student_id))
     setLoading(false)
+    setRefreshing(false)
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -705,7 +707,17 @@ export default function MyClassesScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-4 pt-4"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load() }}
+            tintColor="#c026d3"
+          />
+        }
+      >
         {tab === 'enrolled' && (
           <EnrolledTab
             enrollments={enrollments}

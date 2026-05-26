@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert, Modal } from 'react-native'
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, Image, Alert, Modal, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft, MapPin, Users, Music2, Star } from 'lucide-react-native'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { sendNotifications } from '../../../lib/notifications'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
@@ -65,6 +65,7 @@ export default function TeacherProfileScreen() {
   const [posts, setPosts] = useState<any[]>([])
   const [showAllClasses, setShowAllClasses] = useState(false)
   const [showAllPosts, setShowAllPosts] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   // Rating modal
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -77,9 +78,8 @@ export default function TeacherProfileScreen() {
   const [loadingFollow, setLoadingFollow] = useState(false)
   const [loadingFriend, setLoadingFriend] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
+  const load = useCallback(async () => {
+    try {
       const { data: { user } } = await supabase.auth.getUser()
       const uid = user?.id ?? null
       setCurrentUserId(uid)
@@ -161,12 +161,14 @@ export default function TeacherProfileScreen() {
       setPosts(filteredPosts)
 
       setLoading(false)
-      } catch {
-        setLoading(false)
-      }
+      setRefreshing(false)
+    } catch {
+      setLoading(false)
+      setRefreshing(false)
     }
-    load()
   }, [username])
+
+  useEffect(() => { load() }, [load])
 
   async function handleFollowToggle() {
     if (!currentUserId || !profile) return
@@ -321,7 +323,16 @@ export default function TeacherProfileScreen() {
         <Text className="text-base font-bold text-gray-900 dark:text-dark-text">@{profile.username}</Text>
       </View>
 
-      <ScrollView className="flex-1">
+      <ScrollView
+        className="flex-1"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); load() }}
+            tintColor="#c026d3"
+          />
+        }
+      >
         {/* Profile card */}
         <View className="bg-white dark:bg-dark-surface px-4 py-6 gap-4 border-b border-gray-100 dark:border-dark-border">
           <View className="items-center gap-2">

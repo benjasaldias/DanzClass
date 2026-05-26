@@ -246,28 +246,43 @@
 
 | ID | Cambio | Archivo |
 |---|---|---|
+| M-2 | FAB `FloatingActionButton` en feed (solo si `canTeach`) | `components/ui/FloatingActionButton.tsx`, `(tabs)/feed.tsx` |
+| M-4 | Link "Volver a la app" (`danceclass://plans/success`) en web success | `apps/web/.../plans/success/page.tsx` |
+| M-9 | Botón Share en `MobilePostCard` (`Share.share()`) | `components/feed/MobilePostCard.tsx` |
+| M-10 | Verificado: feed ya usa `FlatList` + `RefreshControl` | `(tabs)/feed.tsx` |
+| M-12 | `RefreshControl` en my-classes, notifications, teacher profile | 3 archivos |
+| M-14 | Error boundary global (`ErrorBoundary`) wrappea root layout | `components/ui/ErrorBoundary.tsx`, `_layout.tsx` |
+| M-15 | Helper `pluralize` + `formatDateLocal` en shared; aplicado en class detail | `packages/shared/.../index.ts`, `class/[id]/index.tsx` |
+| M-16 | Verificado: TopBar ya tiene badge de notificaciones | `components/ui/TopBar.tsx` |
+| M-6 | Verificado: permisos iOS/Android ya correctos, sin `NSCameraUsageDescription` | `app.json` |
+| M-1 | Documentado como post-alpha: FriendsTwoxList ya en detalle de clase | — |
 
 ### ⏳ Pendiente
 
 | ID | Razón |
 |---|---|
+| M-3 | Requiere acción del usuario (`eas login` + `eas init`). `projectId` ya está en `app.json` |
+| M-4 (Supabase) | Requiere acción del usuario: añadir `danceclass://**` en Supabase Auth redirect URLs |
+| M-7 | Requiere build EAS + dispositivo real para verificar splash/icon |
+| M-8 | Toggle dark mode solo en `/profile` — aceptable para alpha, post-alpha moverlo a TopBar |
+| M-11 | Offline handling post-alpha |
+| M-13 | Back button Android — no se detectaron casos críticos en class detail; revisión post-alpha |
+| M-14 (expo-updates) | OTA updates post-alpha |
+| M-17 | `app.json` diff pendiente de confirmación del usuario |
 
 ### ❌ Fallado
 
-| ID | Causa |
-|---|---|
+Ninguno.
 
 ### 📌 Acciones del usuario pendientes
 
-- [ ] Confirmar diff de `app.json` (M-17)
-- [ ] `eas login` + `eas init` (M-3)
-- [ ] Env vars en Expo dashboard
-- [ ] Supabase Auth: agregar `danceclass://**` (M-4)
-- [ ] Build EAS preview Android → instalar en dispositivo real
+- [ ] `eas login` + `eas init` en `apps/mobile/` → confirmar/actualizar `projectId` en `app.json` (M-3)
+- [ ] Env vars en Expo dashboard (EAS Secrets): `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- [ ] Supabase Auth → URL Configuration → añadir `danceclass://**` (M-4)
+- [ ] Build EAS preview Android → `eas build --profile preview --platform android` → instalar en dispositivo real
 - [ ] (Opcional alpha) Build iOS — requiere Apple Developer ($99/año)
 
-### 📝 Memoria a actualizar
+### 📝 Documentación actualizada
 
-- [ ] `CLAUDE.md` — sección "Pantallas mobile implementadas"
-- [ ] `CLAUDE.md` — si se añadió FAB, error boundaries, expo-updates → documentar
-- [ ] `resumen.md` — bloque sesión mobile alpha
+- [x] `CLAUDE.md` — sección "Consideraciones técnicas mobile": FAB, error boundary, pull-to-refresh, pluralize, formatDateLocal
+- [x] `resumen.md` — bloque sesión 05 completo

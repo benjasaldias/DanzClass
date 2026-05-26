@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import { ChevronDown, Music2 } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
@@ -9,8 +10,10 @@ import MobilePostCard from '../../../components/feed/MobilePostCard'
 import MobileRehearsalCard from '../../../components/feed/MobileRehearsalCard'
 import TopBar from '../../../components/ui/TopBar'
 import RatingPopup from '../../../components/ui/RatingPopup'
+import FloatingActionButton from '../../../components/ui/FloatingActionButton'
 import { useTheme } from '../../../context/ThemeContext'
-import type { FeedFilter } from '@danceclass/shared'
+import { canTeach } from '@danceclass/shared'
+import type { FeedFilter, SubscriptionTier } from '@danceclass/shared'
 
 type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
 
@@ -30,6 +33,7 @@ const CONTENT_FILTERS: { key: ContentFilter; label: string }[] = [
 
 export default function FeedScreen() {
   const { isDark } = useTheme()
+  const router = useRouter()
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('global')
   const [contentFilter, setContentFilter] = useState<ContentFilter>('all')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -41,6 +45,7 @@ export default function FeedScreen() {
   const [userCity, setUserCity] = useState<string | null>(null)
   const [friendIds, setFriendIds] = useState<string[]>([])
   const [teacherRatings, setTeacherRatings] = useState<TeacherRatings>({})
+  const [tier, setTier] = useState<SubscriptionTier>('none')
 
   useEffect(() => {
     async function init() {
@@ -49,10 +54,11 @@ export default function FeedScreen() {
         if (!user) return
         setUserId(user.id)
 
-        const [profileRes, followsRes, friendsRes] = await Promise.all([
+        const [profileRes, followsRes, friendsRes, subRes] = await Promise.all([
           supabase.from('profiles').select('city').eq('id', user.id).single(),
           supabase.from('follows').select('following_id').eq('follower_id', user.id),
           supabase.from('friendships').select('requester_id, addressee_id').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`).eq('status', 'accepted'),
+          supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').maybeSingle(),
         ])
 
         setUserCity(profileRes.data?.city ?? null)
@@ -61,6 +67,7 @@ export default function FeedScreen() {
           f.requester_id === user.id ? f.addressee_id : f.requester_id
         )
         setFriendIds(fids)
+        setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
       } catch {
         // init errors are non-blocking; feed will show empty state
       }
@@ -264,6 +271,10 @@ export default function FeedScreen() {
             </View>
           }
         />
+      )}
+
+      {canTeach(tier) && (
+        <FloatingActionButton onPress={() => router.push('/(app)/(tabs)/create' as any)} />
       )}
     </SafeAreaView>
   )

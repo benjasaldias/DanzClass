@@ -595,6 +595,11 @@ Todas las pantallas mobile han sido implementadas. Web y mobile están en parida
 - **NativeWind + SafeAreaView**: `edges={['top']}` en pantallas con header propio
 - **Lucide íconos**: usar prop `stroke` (no `color`) — ver `apps/mobile/types/lucide.d.ts`
 - **Dark mode**: `useColorScheme` de NativeWind + `ThemeContext` en `context/ThemeContext.tsx`
+- **FAB (FloatingActionButton)**: `components/ui/FloatingActionButton.tsx` — solo visible si `canTeach(tier)`. Fetch del tier en el `init()` del feed junto al profile/follows/friends.
+- **Error boundary**: `components/ui/ErrorBoundary.tsx` — class component que wrappea `<RootLayout>` en `_layout.tsx`. Muestra "Algo salió mal" + "Reintentar".
+- **Pull-to-refresh**: `RefreshControl` en todos los ScrollView/FlatList de pantallas con datos remotos. Patrón: `load()` como `useCallback`, estado `refreshing` separado del `loading` inicial.
+- **`pluralize(n, singular, plural)`**: helper en `packages/shared/src/types/index.ts`. Retorna `"N singular/plural"`. Usar en cualquier conteo de cupos, alumnos, clases para evitar "1 cupos".
+- **`formatDateLocal(dateStr)`**: en shared, convierte YYYY-MM-DD a fecha local con `es-CL` sin off-by-one. Usar en lugar de `new Date('YYYY-MM-DD').toLocaleDateString()`.
 
 ---
 

@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { View, Text, Image, TouchableOpacity } from 'react-native'
+import { View, Text, Image, TouchableOpacity, Share } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import { Play, Eye, Users, Lock } from 'lucide-react-native'
+import { Play, Eye, Users, Lock, Share2 } from 'lucide-react-native'
+
+const WEB_URL = 'https://dc-project-web.vercel.app'
 
 interface MobilePostCardProps {
   post: any
@@ -28,6 +30,17 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
   const [playing, setPlaying] = useState(false)
   const author = post.author ?? post.profiles
   const visibilityInfo = VISIBILITY_ICON[post.visibility]
+
+  async function handleShare() {
+    try {
+      await Share.share({
+        message: post.title ? `${post.title} — DanzClass` : 'Mira este video en DanzClass',
+        url: `${WEB_URL}/feed`,
+      })
+    } catch {
+      // user dismissed share sheet
+    }
+  }
 
   const player = useVideoPlayer(post.video_url ?? '', (p) => {
     p.loop = false
@@ -59,12 +72,17 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
           <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{author?.full_name}</Text>
           <Text className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(post.created_at)}</Text>
         </View>
-        {visibilityInfo && (
-          <View className="flex-row items-center gap-1 bg-lavanda-suave rounded-full px-2 py-1">
-            <visibilityInfo.icon size={11} stroke="#534AB7" />
-            <Text className="text-xs" style={{ color: '#534AB7' }}>{visibilityInfo.label}</Text>
-          </View>
-        )}
+        <View className="flex-row items-center gap-2">
+          {visibilityInfo && (
+            <View className="flex-row items-center gap-1 bg-lavanda-suave rounded-full px-2 py-1">
+              <visibilityInfo.icon size={11} stroke="#534AB7" />
+              <Text className="text-xs" style={{ color: '#534AB7' }}>{visibilityInfo.label}</Text>
+            </View>
+          )}
+          <TouchableOpacity onPress={handleShare} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Share2 size={16} stroke="#6B6880" />
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
 
       {/* Video / thumbnail */}

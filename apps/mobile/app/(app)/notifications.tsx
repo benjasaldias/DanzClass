@@ -1,9 +1,9 @@
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native'
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCircle2, XCircle, Flag, Tag, Bell, ClipboardList, CalendarClock, UserCheck2 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
 
@@ -149,41 +149,42 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<any[]>([])
   const [profileMap, setProfileMap] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+  const load = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-      const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
 
-      const notifs = data ?? []
-      setNotifications(notifs)
+    const notifs = data ?? []
+    setNotifications(notifs)
 
-      // Mark all as read
-      await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
+    // Mark all as read
+    await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
 
-      // Fetch profiles referenced in notification data
-      const userIds = [...new Set(notifs.map((n) => (n.data as any)?.from_user_id).filter(Boolean))]
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, username, full_name, avatar_url')
-          .in('id', userIds)
-        const map: Record<string, any> = {}
-        ;(profiles ?? []).forEach((p) => { map[p.id] = p })
-        setProfileMap(map)
-      }
-
-      setLoading(false)
+    // Fetch profiles referenced in notification data
+    const userIds = [...new Set(notifs.map((n) => (n.data as any)?.from_user_id).filter(Boolean))]
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', userIds)
+      const map: Record<string, any> = {}
+      ;(profiles ?? []).forEach((p) => { map[p.id] = p })
+      setProfileMap(map)
     }
-    load()
+
+    setLoading(false)
+    setRefreshing(false)
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   function handlePress(notif: any) {
     const config = NOTIF_CONFIG[notif.type]
@@ -222,6 +223,13 @@ export default function NotificationsScreen() {
         <FlatList
           data={notifications}
           keyExtractor={(item: any) => item.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); load() }}
+              tintColor="#c026d3"
+            />
+          }
           ListEmptyComponent={
             <View className="items-center py-16 gap-3">
               <Bell size={40} stroke="#d1d5db" />
