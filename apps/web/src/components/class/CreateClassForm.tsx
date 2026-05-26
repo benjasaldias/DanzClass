@@ -78,6 +78,11 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+// Blocks e, E, +, -, . and , on integer/currency numeric inputs
+function noExp(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (['e', 'E', '+', '-', '.', ','].includes(e.key)) e.preventDefault()
+}
+
 interface CreateClassFormProps {
   teacherId: string
   hasPaymentInfo: boolean
@@ -554,7 +559,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                   Precio clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                 </label>
                 <p className="text-xs text-gray-400 dark:text-dark-text2/60">Si los alumnos también pueden pagar solo una clase</p>
-                <input {...register('price_suelta')} type="number" min={0} placeholder="ej: 5000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+                <input {...register('price_suelta')} type="number" min={0} max={10000000} step="1" placeholder="ej: 5000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
                 {errors.price_suelta && <p className="mt-1 text-xs text-red-600">{errors.price_suelta.message}</p>}
 
                 {/* 2x for suelta within monthly */}
@@ -562,7 +567,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                   Precio 2x clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                 </label>
                 <p className="text-xs text-gray-400 dark:text-dark-text2/60">Precio total para dos personas en una clase suelta</p>
-                <input {...register('price_suelta_2x')} type="number" min={0} placeholder="ej: 8000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+                <input {...register('price_suelta_2x')} type="number" min={0} max={10000000} step="1" placeholder="ej: 8000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
               </div>
             )}
 
@@ -594,9 +599,11 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                     type="number"
                     min={1}
                     max={27}
+                    step="1"
                     placeholder="1"
                     className="input w-24"
                     onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                    onKeyDown={noExp}
                   />
                   {errors.billing_day && <p className="mt-1 text-xs text-red-600">{errors.billing_day.message}</p>}
                   <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2/60">
@@ -628,18 +635,18 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Cupos *</label>
-            <input {...register('max_spots')} type="number" min={1} placeholder="15" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+            <input {...register('max_spots')} type="number" min={1} max={1000} step="1" placeholder="15" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
             {errors.max_spots && <p className="mt-1 text-xs text-red-600">{errors.max_spots.message}</p>}
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Duración (min)</label>
-            <input {...register('duration_minutes')} type="number" min={30} placeholder="60" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+            <input {...register('duration_minutes')} type="number" min={30} max={240} step="1" placeholder="60" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
               {isPeriodic ? 'Precio mensual ($) *' : 'Precio ($) *'}
             </label>
-            <input {...register('price')} type="number" min={0} placeholder="15000" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+            <input {...register('price')} type="number" min={0} max={10000000} step="1" placeholder="15000" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
             {errors.price && <p className="mt-1 text-xs text-red-600">{errors.price.message}</p>}
           </div>
         </div>
@@ -654,7 +661,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
               ? 'Precio total cuando dos alumnos pagan juntos en un mismo comprobante'
               : 'Precio mensual total para dos alumnos que pagan juntos'}
           </p>
-          <input {...register('price_2x')} type="number" min={0} placeholder="ej: 18000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+          <input {...register('price_2x')} type="number" min={0} max={10000000} step="1" placeholder="ej: 18000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
         </div>
 
         {/* Media upload */}

@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video } from 'lucide-react'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2 } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -163,6 +163,17 @@ export default async function ProfilePage() {
           )}
 
           <LogoutButton asButton />
+        </div>
+
+        {/* Danger zone */}
+        <div className="mt-2">
+          <Link
+            href="/profile/delete-account"
+            className="flex items-center gap-1.5 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Eliminar cuenta
+          </Link>
         </div>
       </div>
 

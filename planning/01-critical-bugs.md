@@ -226,37 +226,44 @@
 
 ---
 
-## Reporte de cierre (rellenar al terminar la sesión)
+## Reporte de cierre — Sesión 2026-05-28
 
 ### ✅ Logrado
 
 | Bug | Archivos modificados | Test agregado |
-|---|---|---|
-| C-N | ... | ... |
+| --- | --- | --- |
+| C-4 (P0) — Eliminación de cuenta | `031_account_deletion.sql`, `api/account/delete/route.ts`, `profile/delete-account/page.tsx`, `profile/delete-account.tsx` (mobile), `profile/page.tsx`, `(tabs)/profile.tsx` | No (manual suficiente para alpha) |
+| C-1 (P1) — Leave sin cancelar payment | `api/class/leave/route.ts`, `api/class/enroll/route.ts` | No |
+| C-9 (P1) — Inputs numéricos inválidos | `CreateClassForm.tsx`, `EditClassForm.tsx` | No |
+| C-7 + C-2 (P1) — null currentUser + no_spots message | `ClassDetailClient.tsx` | No |
+| C-5 (P1) — MIME validation comprobante | `PaymentClient.tsx` | No |
+| C-6 (P2) — Banner naranja solo TeachingTab | Confirmado sin cambios | — |
+| C-3 (P2) — Purgar Storage al soft-delete | `ClassDetailClient.tsx` | No |
+| C-11 (P2) — Lazy loading feed | `ClassCard.tsx` | No |
+| C-12 (P2) — Política precio al pago | Documentado en `CLAUDE.md` | — |
 
-### ⏳ Pendiente
+### ⏳ Pendiente (post-alpha)
 
 | Bug | Razón | Sesión sugerida |
-|---|---|---|
+| --- | --- | --- |
+| C-8 — useEffect race condition | Refactor global; alto riesgo de regresión | post-alpha (migrar a react-query) |
+| C-10 — Graceful Cloudinary failure | Auditoría multi-componente; cosmético | post-alpha |
 
 ### ❌ Fallado
 
-| Bug | Causa | Plan alternativo |
-|---|---|---|
+Ninguno.
 
 ### 🔁 Regresiones detectadas
 
-| Componente | Síntoma | Fix aplicado |
-|---|---|---|
+Ninguna detectada (revisión manual).
 
 ### 📌 Acciones del usuario pendientes
 
-- [ ] Aplicar migración `0XX_*.sql` en Supabase producción
-- [ ] Verificar `VAR_NAME` en Vercel
-- [ ] Probar en iPhone real / Android real
+- [ ] Aplicar `031_account_deletion.sql` en Supabase producción (sin esto `/api/account/delete` falla con error 42703)
+- [ ] Probar flujo completo de eliminación de cuenta con una cuenta de prueba en producción
+- [ ] Aplicar `030_dedup_class_reminders.sql` si aún no se ha hecho
 
-### 📝 Memoria a actualizar
+### 📝 Memoria actualizada
 
-- [ ] `CLAUDE.md` — sección "Decisiones técnicas importantes" con nuevos patrones
-- [ ] `resumen.md` — bloque "Sesión 2026-XX-XX — Bugs críticos alpha"
-- [ ] `planning/MEMORY.md` o equivalente (si se crea uno)
+- [x] `CLAUDE.md` — 8 nuevas notas técnicas (eliminación cuenta, política precios, noExp inputs, MIME, banner naranja, `/api/class/leave`, Storage purge, lazy loading)
+- [x] `resumen.md` — bloque "Sesión 2026-05-28 — Bugs críticos pre-alpha (planning/01)"

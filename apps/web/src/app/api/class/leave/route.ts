@@ -46,6 +46,13 @@ export async function POST(request: Request) {
     .update({ status: 'cancelled' } as any)
     .eq('id', enrollmentId)
 
+  // Void any pending/submitted payment so it doesn't pollute teacher's history
+  await (admin as any)
+    .from('payments')
+    .update({ status: 'void' })
+    .eq('enrollment_id', enrollmentId)
+    .in('status', ['pending', 'payment_submitted'])
+
   // Notify first user in waitlist (if any)
   const { data: classInfo } = await admin
     .from('classes')

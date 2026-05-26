@@ -85,6 +85,13 @@ export async function POST(request: Request) {
     if (spotsAvailable <= 0) {
       return NextResponse.json({ error: 'no_spots' }, { status: 409 })
     }
+    // Void any stale payments from the previous enrollment so teacher history stays clean
+    await (admin as any)
+      .from('payments')
+      .update({ status: 'void' })
+      .eq('enrollment_id', existing.id)
+      .not('status', 'in', '("confirmed","void")')
+
     const { data: updated, error: updateErr } = await admin
       .from('enrollments')
       .update({ status: 'pending_payment' } as any)

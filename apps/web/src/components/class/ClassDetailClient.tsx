@@ -84,6 +84,7 @@ export default function ClassDetailClient({
   const [copied, setCopied] = useState(false)
   const [isInWaitlist, setIsInWaitlist] = useState(initialIsInWaitlist)
   const [waitlistLoading, setWaitlistLoading] = useState(false)
+  const [enrollError, setEnrollError] = useState<string | null>(null)
 
   const teacher = classData.teacher
   const media = [...(classData.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
@@ -126,6 +127,7 @@ export default function ClassDetailClient({
   async function handleEnroll() {
     if (!currentUser || isFull) return
     setEnrolling(true)
+    setEnrollError(null)
     const res = await fetch('/api/class/enroll', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -140,8 +142,12 @@ export default function ClassDetailClient({
       const json = await res.json().catch(() => ({}))
       if (json.error === 'subscription_required') {
         router.push('/plans')
+      } else if (json.error === 'no_spots') {
+        setEnrollError('Esta clase se acaba de llenar. Intenta en otra fecha.')
+        setSpots((prev: any) => prev ? { ...prev, spots_available: 0 } : prev)
+      } else if (json.error !== 'already_enrolled') {
+        setEnrollError('No se pudo completar la inscripción. Intenta de nuevo.')
       }
-      // no_spots and already_enrolled are handled by UI guards; other errors fail silently
     }
     setEnrolling(false)
   }
@@ -214,7 +220,24 @@ export default function ClassDetailClient({
         }))
       )
     }
+    // Soft-delete the class record
     await supabase.from('classes' as any).update({ status: 'cancelled' } as any).eq('id', classData.id)
+    // Immediately purge Storage media (cron keeps this as fallback)
+    const { data: mediaRows } = await supabase.from('class_media' as any).select('url').eq('class_id', classData.id)
+    if (mediaRows && mediaRows.length > 0) {
+      const paths = (mediaRows as any[]).map((m: any) => {
+        try {
+          const url = new URL(m.url)
+          // path after /object/public/class-media/
+          const match = url.pathname.match(/\/object\/public\/class-media\/(.+)$/)
+          return match?.[1] ?? null
+        } catch { return null }
+      }).filter(Boolean) as string[]
+      if (paths.length > 0) {
+        await supabase.storage.from('class-media').remove(paths)
+      }
+      await supabase.from('class_media' as any).delete().eq('class_id', classData.id)
+    }
     setDeleting(false)
     router.push('/my-classes')
   }
@@ -697,6 +720,10 @@ export default function ClassDetailClient({
               </button>
             )}
           </div>
+
+          {enrollError && (
+            <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">{enrollError}</p>
+          )}
 
           {/* 2x button — only for logged-in users when spots available */}
           {currentUser && (classData.price_2x || classData.price_suelta_2x) && !isFull && (

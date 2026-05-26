@@ -231,6 +231,13 @@ export default function ProfileScreen() {
           >
             <Text className="text-sm font-semibold text-red-600">Cerrar sesión</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/profile/delete-account' as any)}
+            className="px-2 py-1"
+          >
+            <Text className="text-xs text-red-400">Eliminar cuenta</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Active classes */}

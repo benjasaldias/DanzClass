@@ -105,6 +105,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
               fill
               className="object-cover"
               sizes="(max-width: 512px) 100vw, 512px"
+              loading="lazy"
             />
           ) : (
             <video
@@ -112,6 +113,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
               className="w-full h-full object-cover"
               controls
               playsInline
+              preload="metadata"
             />
           )}
 

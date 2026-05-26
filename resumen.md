@@ -2236,3 +2236,55 @@ Batches deben compartir un único tipo (devuelve 400 si no). Máximo 500 destina
 1. Aplicar `030_dedup_class_reminders.sql` en Supabase producción.
 2. Verificar clases activas sin `start_date`: `SELECT COUNT(*) FROM classes WHERE type != 'suelta' AND start_date IS NULL AND status = 'active'`. Si > 0, hacer backfill.
 3. Verificar constraint `notification_type` en prod (query en CLAUDE.md).
+
+---
+
+## Sesión 2026-05-28 — Bugs críticos pre-alpha (planning/01)
+
+**Objetivo:** cerrar todos los ítems de `planning/01-critical-bugs.md`.
+
+### Cambios implementados sesión 01
+
+| ID | Descripción | Prioridad |
+| --- | --- | --- |
+| C-4 | Implementada eliminación de cuenta: `POST /api/account/delete` (Bearer + cookie), página web `/profile/delete-account`, pantalla mobile `profile/delete-account.tsx`. Anonimiza perfil, cancela subscription, tombstones email en auth, firma-out. Link visible en ambos perfiles. | P0 |
+| C-1 | `/api/class/leave` ahora voidea payments `pending`/`payment_submitted` del enrollment al cancelar. `/api/class/enroll` voidea pagos no confirmados al re-inscribir desde `cancelled`. | P1 |
+| C-9 | `CreateClassForm` y `EditClassForm`: helper `noExp` bloquea `e`, `E`, `+`, `-`, `.`, `,` en inputs numéricos. Agregados `step="1"` y rangos razonables (`max_spots ≤ 1000`, `price ≤ 10_000_000`, `billing_day 1–27`). | P1 |
+| C-7 + C-2 | `ClassDetailClient`: nuevo estado `enrollError`. `handleEnroll` muestra mensaje claro cuando servidor retorna `no_spots` ("Esta clase se acaba de llenar. Intenta en otra fecha.") o error genérico. Botón Reportar oculto para anónimos (ya estaba correcto con `{currentUser && ...}`). | P1 |
+| C-5 | `PaymentClient.onDrop` valida magic bytes antes de subir: JPEG(`ffd8`), PNG(`89504e47`), PDF(`25504446`), WEBP(`52494646`). Rechaza con alert si no coincide. | P1 |
+| C-6 | Confirmado: banner naranja (fecha eliminación archivos) solo renderiza en `TeachingTab`. No afecta `EnrolledTab`. Comportamiento correcto. | P2 |
+| C-3 | `ClassDetailClient.handleDeleteClass`: inmediatamente purga Storage `class-media` y filas `class_media` al soft-deletar, sin esperar el cron diario. | P2 |
+| C-11 | `ClassCard`: `<Image loading="lazy">` + `<video preload="metadata">`. `PostCard` ya tenía `preload="metadata"`. | P2 |
+| C-12 | Documentado en CLAUDE.md: precio al pago = precio vigente de la clase (incluyendo descuentos activos). Decisión consciente. | P2 |
+
+### Pendientes como deuda técnica post-alpha
+
+- **C-8** (useEffect sin cancel): refactor global a `useSWR` o `@tanstack/react-query`. Aplazar para post-alpha; el riesgo de regresión es alto y el daño es visual (clase fantasma que desaparece al navegar de nuevo).
+- **C-10** (graceful Cloudinary failure): auditoría completa de `CreatePostModal` + fallback UI. Aplazar para post-alpha.
+
+### Migración nueva sesión 01
+
+- `supabase/migrations/031_account_deletion.sql` — añade `deleted_at TIMESTAMPTZ` a `profiles`. **Debe aplicarse en producción.**
+
+### Archivos modificados sesión 01
+
+- `supabase/migrations/031_account_deletion.sql` — nueva migración
+- `apps/web/src/app/api/account/delete/route.ts` — nuevo endpoint eliminación cuenta
+- `apps/web/src/app/(app)/profile/delete-account/page.tsx` — nueva página web
+- `apps/mobile/app/(app)/profile/delete-account.tsx` — nueva pantalla mobile
+- `apps/web/src/app/(app)/profile/page.tsx` — link "Eliminar cuenta" + import Trash2
+- `apps/mobile/app/(app)/(tabs)/profile.tsx` — link "Eliminar cuenta"
+- `apps/web/src/app/api/class/leave/route.ts` — void payments al salir
+- `apps/web/src/app/api/class/enroll/route.ts` — void pagos viejos al re-inscribir
+- `apps/web/src/components/class/CreateClassForm.tsx` — helper noExp + step/max en inputs
+- `apps/web/src/components/class/EditClassForm.tsx` — ídem
+- `apps/web/src/components/class/ClassDetailClient.tsx` — enrollError state, no_spots msg, borrado Storage al eliminar
+- `apps/web/src/components/payment/PaymentClient.tsx` — validación magic bytes MIME
+- `apps/web/src/components/feed/ClassCard.tsx` — lazy loading + preload metadata
+- `CLAUDE.md` — 8 nuevas notas técnicas
+
+### Acciones del usuario pendientes sesión 01
+
+1. **Aplicar `031_account_deletion.sql` en Supabase producción** — sin esto la columna `deleted_at` no existe y el endpoint fallará con error 42703.
+2. Verificar que el endpoint `POST /api/account/delete` funciona en producción con una cuenta de prueba.
+3. Aplicar `030_dedup_class_reminders.sql` si aún no se ha hecho.

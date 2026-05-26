@@ -327,7 +327,25 @@ Identificado solo por `SUPERADMIN_USER_ID` env var comparado server-side.
 API filtra `.eq('status', 'looking')`; si dos usuarios matchean simultáneo, el segundo recibe 404 y el frontend lo muestra y quita la entrada.
 
 **Soft-delete clases:**
-`UPDATE classes SET status='cancelled'`, preserva historial de enrollments y pagos.
+`UPDATE classes SET status='cancelled'`, preserva historial de enrollments y pagos. Al soft-deletar desde `ClassDetailClient.handleDeleteClass`, se borran inmediatamente los objetos de Storage de `class-media` + sus filas en `class_media`. El cron diario actúa como red de seguridad.
+
+**Eliminación de cuenta — soft-delete con tombstone:**
+`POST /api/account/delete` (acepta Bearer + cookie): anonimiza perfil (`full_name='Usuario eliminado'`, `username='deleted_<timestamp>'`, campos personales a null), pone `deleted_at=now()`, cancela subscriptions activas, cambia el email en `auth.users` a `deleted-{uuid}@deleted.danzclass.internal` (tombstone) para impedir re-login, firma-out. El usuario no puede volver a entrar. Hard-delete post-30 días pendiente de cron (deuda técnica conocida). Pantalla web: `/profile/delete-account`; mobile: `profile/delete-account.tsx`. Link visible en `/profile` y pantalla de perfil mobile.
+
+**Política de precio al momento de pago:**
+El precio mostrado y cobrado al alumno en `PaymentClient` es siempre el precio vigente de la clase al momento de pagar (incluyendo descuentos activos). No se congela el precio al momento de inscripción. Esto es intencional: permite que descuentos espontáneos beneficien a alumnos con inscripción pendiente.
+
+**Inputs numéricos — bloquear caracteres inválidos:**
+Todos los `<input type="number">` de precios, cupos, duración y billing_day tienen `onKeyDown={noExp}` donde `noExp` bloquea `e`, `E`, `+`, `-`, `.`, `,`. También tienen `step="1"` y rangos razonables (`max=10_000_000` para precios, `max=1000` para cupos, etc.). Función helper `noExp` definida en `CreateClassForm.tsx` y `EditClassForm.tsx`.
+
+**Validación MIME de comprobantes — magic bytes:**
+`PaymentClient.onDrop` valida magic bytes del archivo antes de subir: `ffd8` (JPEG), `89504e47` (PNG), `25504446` (PDF), `52494646` (WEBP). Si no coincide o el MIME type no está en la allowlist, se rechaza con alert. La policy de Storage ya limita a 10MB y tipos imagen/PDF como segunda capa.
+
+**Banner naranja (fecha eliminación archivos) — solo TeachingTab:**
+El banner coral con fecha de eliminación de archivos solo aparece en el loop `classData` del `TeachingTab` en `MyClassesClient`. No se renderiza en `EnrolledTab`. Comportamiento consciente y confirmado.
+
+**`/api/class/leave` — manejo de pagos al salir:**
+Al cancelar enrollment, se marcan como `void` todos los payments del enrollment con `status IN ('pending', 'payment_submitted')`. Al re-inscribirse desde `cancelled`, el endpoint `/api/class/enroll` voidea pagos no confirmados previos antes de reactivar el enrollment. Esto evita pagos huérfanos en el historial del profesor.
 
 **Cron seguridad:**
 `CRON_SECRET` validado con `Authorization: Bearer` header que Vercel inyecta automáticamente.

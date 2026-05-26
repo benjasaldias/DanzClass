@@ -71,6 +71,10 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+function noExp(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (['e', 'E', '+', '-', '.', ','].includes(e.key)) e.preventDefault()
+}
+
 interface ExistingMedia {
   id: string; url: string; type: 'image' | 'video'; order_index: number
 }
@@ -457,9 +461,11 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
                   type="number"
                   min={1}
                   max={27}
+                  step="1"
                   placeholder="1"
                   className="input w-24"
                   onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                  onKeyDown={noExp}
                 />
                 <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2/60">Los alumnos verán en qué día del mes se realiza el cobro.</p>
               </div>
@@ -472,13 +478,13 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
                   <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
                     Precio clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                   </label>
-                  <input {...register('price_suelta')} type="number" min={0} placeholder="ej: 5000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+                  <input {...register('price_suelta')} type="number" min={0} max={10000000} step="1" placeholder="ej: 5000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
                     Precio 2x clase suelta <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
                   </label>
-                  <input {...register('price_suelta_2x')} type="number" min={0} placeholder="ej: 8000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+                  <input {...register('price_suelta_2x')} type="number" min={0} max={10000000} step="1" placeholder="ej: 8000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
                 </div>
               </div>
             )}
@@ -505,17 +511,17 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Cupos *</label>
-            <input {...register('max_spots')} type="number" min={1} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+            <input {...register('max_spots')} type="number" min={1} max={1000} step="1" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Duración (min)</label>
-            <input {...register('duration_minutes')} type="number" min={30} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+            <input {...register('duration_minutes')} type="number" min={30} max={240} step="1" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
               {isPeriodic ? 'Precio mensual ($) *' : 'Precio ($) *'}
             </label>
-            <input {...register('price')} type="number" min={0} className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+            <input {...register('price')} type="number" min={0} max={10000000} step="1" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
             {errors.price && <p className="mt-1 text-xs text-red-600">{errors.price.message}</p>}
           </div>
         </div>
@@ -526,7 +532,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
             Precio 2x <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>
           </label>
           <p className="text-xs text-gray-400 dark:text-dark-text2/60">Precio total para dos alumnos que pagan juntos</p>
-          <input {...register('price_2x')} type="number" min={0} placeholder="ej: 18000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+          <input {...register('price_2x')} type="number" min={0} max={10000000} step="1" placeholder="ej: 18000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
         </div>
 
         {/* Media */}

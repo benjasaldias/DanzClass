@@ -53,13 +53,38 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
     router.refresh()
   }
 
+  const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file) return
-    setReceipt(file)
+    // Validate MIME type against magic bytes via FileReader
     const reader = new FileReader()
-    reader.onload = (e) => setReceiptPreview(e.target?.result as string)
-    reader.readAsDataURL(file)
+    reader.onload = (e) => {
+      const buf = e.target?.result as ArrayBuffer
+      if (buf) {
+        const bytes = new Uint8Array(buf.slice(0, 4))
+        const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
+        // Check magic bytes: JPEG=ffd8, PNG=89504e47, PDF=25504446, WEBP (via RIFF)=52494646
+        const isJpeg = hex.startsWith('ffd8')
+        const isPng = hex.startsWith('89504e47')
+        const isPdf = hex.startsWith('25504446')
+        const isWebp = hex.startsWith('52494646')
+        if (!isJpeg && !isPng && !isPdf && !isWebp) {
+          alert('Tipo de archivo no permitido. Sube una imagen (JPG, PNG, WEBP) o un PDF.')
+          return
+        }
+      }
+      if (!ALLOWED_MIME.includes(file.type)) {
+        alert('Tipo de archivo no permitido. Sube una imagen (JPG, PNG, WEBP) o un PDF.')
+        return
+      }
+      setReceipt(file)
+      const preview = new FileReader()
+      preview.onload = (ev) => setReceiptPreview(ev.target?.result as string)
+      preview.readAsDataURL(file)
+    }
+    reader.readAsArrayBuffer(file)
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
