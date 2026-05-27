@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { X, Upload, Loader2, Globe, Lock, Users } from 'lucide-react'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 import { createClient } from '@/lib/supabase/client'
 import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,8 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
   const [videoFile, setVideoFile] = useState<{ file: File; preview: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEscapeKey(onClose, !loading)
 
   const onDrop = useCallback((accepted: File[]) => {
     if (accepted[0]) {
@@ -100,17 +103,17 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white dark:bg-dark-surface p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-bold text-gray-900">Nueva coreografía</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Nueva coreografía</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-dark-text2 hover:text-gray-600 dark:hover:text-dark-text">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Título *</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Título *</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -136,19 +139,19 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
               {...getRootProps()}
               className={cn(
                 'rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-colors',
-                isDragActive ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300'
+                isDragActive ? 'border-brand-400 bg-brand-50 dark:bg-brand-950/30' : 'border-gray-200 dark:border-dark-border hover:border-brand-300'
               )}
             >
               <input {...getInputProps()} />
-              <Upload className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Arrastra o selecciona un video</p>
-              <p className="text-xs text-gray-400 mt-1">MP4, MOV, WebM</p>
+              <Upload className="h-8 w-8 text-gray-300 dark:text-dark-text2/40 mx-auto mb-2" />
+              <p className="text-sm text-gray-600 dark:text-dark-text2">Arrastra o selecciona un video</p>
+              <p className="text-xs text-gray-400 dark:text-dark-text2/60 mt-1">MP4, MOV, WebM</p>
             </div>
           )}
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Descripción <span className="text-gray-400 font-normal">(opcional)</span>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+              Descripción <span className="text-gray-400 dark:text-dark-text2/60 font-normal">(opcional)</span>
             </label>
             <textarea
               value={description}
@@ -158,11 +161,11 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
               rows={3}
               maxLength={280}
             />
-            <p className="text-xs text-gray-400 mt-1 text-right">{description.length}/280</p>
+            <p className="text-xs text-gray-400 dark:text-dark-text2/60 mt-1 text-right">{description.length}/280</p>
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">Visibilidad</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-dark-text2">Visibilidad</label>
             <div className="flex gap-2">
               {VISIBILITY_OPTIONS.map(({ value, label, icon: Icon, active, inactive }) => (
                 <button

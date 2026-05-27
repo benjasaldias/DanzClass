@@ -37,8 +37,13 @@ export function formatCLP(amount: number): string {
 }
 
 export function getInitials(name: string): string {
-  return name
-    .split(' ')
+  const parts = name
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (parts.length === 0) return ''
+  return parts
     .map((n) => n[0])
     .slice(0, 2)
     .join('')

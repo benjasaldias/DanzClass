@@ -189,7 +189,14 @@ export default function ExploreClient({ classes, users, currentUserId, following
       {/* Results */}
       {activeTab === 'classes' && (
         filteredClasses.length === 0
-          ? <div className="py-12 text-center text-sm text-gray-500 dark:text-dark-text2">Sin resultados</div>
+          ? (
+            <div className="py-12 text-center px-6">
+              <p className="text-sm font-semibold text-gray-700 dark:text-dark-text">Sin resultados</p>
+              <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">
+                {query ? `Ningún resultado para "${query}" — prueba con otro término.` : 'No hay clases disponibles con estos filtros.'}
+              </p>
+            </div>
+          )
           : filteredClasses.map((cls) => (
             <ClassCard key={cls.id} classData={cls} currentUserId={currentUserId} currentUserRole="student" />
           ))
@@ -220,7 +227,12 @@ export default function ExploreClient({ classes, users, currentUserId, following
           </div>
 
           {filteredUsers.length === 0 ? (
-            <div className="py-12 text-center text-sm text-gray-500 dark:text-dark-text2">Sin resultados</div>
+            <div className="py-12 text-center px-6">
+              <p className="text-sm font-semibold text-gray-700 dark:text-dark-text">Sin resultados</p>
+              <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">
+                {query ? `Ningún resultado para "${query}" — prueba con otro término.` : 'No hay usuarios con estos filtros.'}
+              </p>
+            </div>
           ) : (
             filteredUsers.map((u) => (
               <UserCard

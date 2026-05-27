@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import { X, Upload, Loader2, Video } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 interface AuditionExisting {
   id: string
@@ -32,6 +33,8 @@ export default function AuditionModal({ classId, userId, teacherId, existing, on
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEscapeKey(onClose, !submitting)
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) setVideoFile(acceptedFiles[0])

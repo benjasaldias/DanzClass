@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── TypeScript typecheck ───────────────────────────────────────────────────
+  typecheck:
+    name: TypeCheck (web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeCheck web app
+        run: npm run typecheck --workspace=apps/web
+
+  # ── Unit tests ────────────────────────────────────────────────────────────
+  test-unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-artifacts
+          path: test-results/unit-artifacts/
+          retention-days: 7
+
+  # ── Smoke tests (production, read-only) ───────────────────────────────────
+  # These run against the production URL and require no local server.
+  # They are skipped if prod credentials are not configured.
+  smoke-prod:
+    name: Smoke Tests (production)
+    runs-on: ubuntu-latest
+    # Only run when secrets are available (skipped on forks / missing secrets)
+    if: ${{ vars.RUN_SMOKE_TESTS == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests (production)
+        env:
+          BASE_URL: ${{ vars.PROD_BASE_URL || 'https://dc-project-web.vercel.app' }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        run: npm run test:e2e:prod
+
+      - name: Upload smoke test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-report
+          path: playwright-report-prod/
+          retention-days: 7

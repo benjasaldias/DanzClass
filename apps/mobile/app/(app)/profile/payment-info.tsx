@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator,
+  ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -122,6 +122,7 @@ export default function PaymentInfoScreen() {
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Datos Transferencia</Text>
       </View>
 
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
         <Text className="text-sm text-gray-500 dark:text-dark-text2">Los estudiantes usarán estos datos para transferirte</Text>
 
@@ -210,6 +211,7 @@ export default function PaymentInfoScreen() {
             : <Text className="text-white font-semibold text-base">Guardar datos de transferencia</Text>}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }

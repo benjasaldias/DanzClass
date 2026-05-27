@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, Image,
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -9,7 +9,7 @@ import { useTheme } from '../../../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, Camera, Eye, EyeOff } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
-import { DANCE_STYLES, CHILEAN_CITIES } from '@danceclass/shared'
+import { DANCE_STYLES, CHILEAN_CITIES, validateUsername } from '@danceclass/shared'
 import MobileSelect from '../../../components/ui/MobileSelect'
 
 const CITY_OPTIONS = (CHILEAN_CITIES as readonly string[]).map((c) => ({ value: c, label: c }))
@@ -101,7 +101,8 @@ export default function EditProfileScreen() {
   async function handleSave() {
     if (!profile) return
     if (!fullName.trim()) { setError('El nombre es requerido'); return }
-    if (!username.trim()) { setError('El usuario es requerido'); return }
+    const usernameErr = validateUsername(username)
+    if (usernameErr) { setError(usernameErr); return }
 
     setSaving(true)
     setError(null)
@@ -185,6 +186,7 @@ export default function EditProfileScreen() {
         <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Editar perfil</Text>
       </View>
 
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
 
         {/* Avatar */}
@@ -316,6 +318,7 @@ export default function EditProfileScreen() {
           {saving ? <ActivityIndicator color="white" /> : <Text className="text-white font-semibold text-base">Guardar cambios</Text>}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }

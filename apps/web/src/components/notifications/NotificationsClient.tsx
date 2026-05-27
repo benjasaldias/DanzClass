@@ -224,7 +224,8 @@ export default function NotificationsClient({ notifications, profileMap, classMa
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
         <Bell className="h-12 w-12 text-gray-200 dark:text-dark-border" />
-        <p className="text-sm text-gray-500 dark:text-dark-text2">Sin notificaciones por ahora</p>
+        <p className="font-semibold text-sm text-gray-700 dark:text-dark-text">Sin notificaciones</p>
+        <p className="text-sm text-gray-500 dark:text-dark-text2">Te avisaremos aquí cuando pase algo.</p>
       </div>
     )
   }

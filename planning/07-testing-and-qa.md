@@ -218,26 +218,43 @@ Verificar que Sentry (cuando se instale) captura errores en tests también.
 
 ---
 
-## Reporte de cierre
+## Reporte de cierre (Sesión 2026-05-30)
 
 ### ✅ Logrado
 
 | Test agregado | Archivo | Status |
 |---|---|---|
+| Unit tests: canTeach, canEnroll, canUploadVideo, canTeachUnlimited, canPostVideo, canUploadMedia | `tests/unit/shared-helpers.test.ts` | ✅ nuevo |
+| Unit tests: pluralize | `tests/unit/shared-helpers.test.ts` | ✅ nuevo |
+| Unit tests: formatDateLocal (no off-by-one) | `tests/unit/shared-helpers.test.ts` | ✅ nuevo |
+| Unit tests: formatTime (24h→12h AM/PM, edge cases) | `tests/unit/utils.test.ts` | ✅ nuevo |
+| Unit tests: formatDate (YYYY-MM-DD local parsing) | `tests/unit/utils.test.ts` | ✅ nuevo |
+| Unit tests: getClassSessions (suelta, weekly, biweekly, monthly, custom) | `tests/unit/utils.test.ts` | ✅ nuevo |
+| CI GitHub Actions: typecheck + unit tests + smoke (opcional) | `.github/workflows/ci.yml` | ✅ nuevo |
+| E2E seed: seedClass, seedEntrenamiento, cleanSeed, cleanAllTestData | `tests/e2e/seed.ts` | ✅ nuevo |
 
 ### ⏳ Pendiente
 
 | Test | Razón |
 |---|---|
+| Registro → confirmación email → login (E2E happy path) | Requiere servidor de email en CI + cuenta confirmada automáticamente — demasiado costoso para el alcance actual |
+| Suscripción Pro sandbox MP (E2E) | Requiere cuenta MP comprador sandbox configurada en `.env.test` — pendiente de credenciales del usuario |
+| Inscripción + pago E2E (happy path) | Requiere servidor dev corriendo en CI + datos seeded — fuera de alcance para CI actual |
+| 2x match + pago E2E | Requiere dos cuentas simultáneas y servidor dev — post-alpha |
+| T-8 Sentry integration | Se aborda en sesión 08 (Observability) |
+| T-7 Bug bash interno | Acción del usuario |
+| T-6 QA manual checklist | Acción del usuario |
 
 ### 📌 Acciones del usuario pendientes
 
-- [ ] Crear cuentas de prueba MP comprador (sandbox)
-- [ ] Configurar `.env.test` con credenciales sandbox
-- [ ] Habilitar GitHub Actions
-- [ ] Ejecutar bug bash interno
+- [ ] Habilitar GitHub Actions en el repositorio (Settings → Actions → Allow all actions)
+- [ ] Crear variable `RUN_SMOKE_TESTS=true` en GitHub Actions si se quiere activar smoke tests en CI
+- [ ] Crear secrets `E2E_USER_EMAIL` y `E2E_USER_PASSWORD` en GitHub Actions para smoke tests
+- [ ] Crear cuentas de prueba MP comprador (sandbox) para tests E2E de pagos futuros
+- [ ] Configurar `.env.test` con credenciales sandbox + `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` de instancia de test
+- [ ] Ejecutar bug bash interno (T-7) con 3–5 personas antes del launch
 
 ### 📝 Memoria a actualizar
 
-- [ ] `CLAUDE.md` — sección de testing con comandos
-- [ ] `resumen.md` — bloque de tests añadidos
+- [x] `CLAUDE.md` — sección de testing con comandos
+- [x] `resumen.md` — bloque de tests añadidos

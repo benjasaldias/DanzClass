@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Loader2, Tag } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 interface DiscountModalProps {
   classId: string
@@ -36,6 +37,8 @@ export default function DiscountModal({
   const [notifyEnrolled, setNotifyEnrolled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEscapeKey(onClose, !saving)
 
   async function handleSave() {
     setSaving(true)

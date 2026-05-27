@@ -2412,3 +2412,160 @@ M-1 (FriendsTwoxList en feed): post-alpha, la sección 2x ya existe en el detall
 3. **Supabase Auth** → URL Configuration → añadir `danceclass://**` en Redirect URLs.
 4. **Build EAS preview Android** → `eas build --profile preview --platform android` → instalar en dispositivo real.
 5. (Opcional alpha) Build iOS — requiere Apple Developer ($99/año).
+
+---
+
+## Sesión 06 — Testing y QA (2026-05-30)
+
+### T-3 — Unit tests: helpers shared y utils web
+
+Nuevos archivos en `tests/unit/`:
+
+**`shared-helpers.test.ts`** — Tests para funciones puras de `packages/shared/src/types/index.ts`:
+
+- `canTeach`, `canTeachUnlimited`, `canEnroll`, `canUploadVideo`, `canPostVideo`, `canUploadMedia` — todos los 4 tiers cubiertos
+- `pluralize` — n=0, n=1, n>1
+- `formatDateLocal` — YYYY-MM-DD parsing sin off-by-one UTC (caso borde: 2026-01-01 debe mostrar enero, no diciembre)
+
+**`utils.test.ts`** — Tests para funciones puras de `apps/web/src/lib/utils.ts`:
+
+- `formatTime` — 24h → 12h AM/PM: 00:00→"12:00 AM", 12:00→"12:00 PM", 23:59→"11:59 PM", etc.
+- `formatDate` — YYYY-MM-DD sin off-by-one UTC; también acepta ISO timestamp
+- `getClassSessions` — suelta (dentro/fuera/bordes de ventana), custom (filtro de rango), weekly (4 lunes de junio), biweekly (semanas alternas), monthly (día 15 en 3 meses; día 31 clampeado a último día de Feb)
+
+### T-4 — CI: GitHub Actions
+
+Nuevo archivo `.github/workflows/ci.yml`:
+
+- Job **typecheck**: `tsc --noEmit` en `apps/web` (Node 20, `npm ci`)
+- Job **test-unit**: instala Playwright + corre `npm run test:unit` (sin servidor)
+- Job **smoke-prod** (condicional): corre contra producción solo si `vars.RUN_SMOKE_TESTS=true` y secrets `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` configurados
+- Artefactos de fallo subidos con `actions/upload-artifact@v4` (7 días)
+
+### T-5 — Seed de datos E2E
+
+Nuevo archivo `tests/e2e/seed.ts`:
+
+- `seedClass()` — crea clase suelta `[TEST]` para mañana + enrollment `pending_payment` del alumno; retorna `{ classId, enrollmentId }`
+- `seedEntrenamiento()` — crea entrenamiento con `requires_audition: true`
+- `cleanSeed()` — borra exactamente los registros creados en la sesión (pagos → enrollments → clases)
+- `cleanAllTestData()` — limpieza completa de todas las clases `[TEST]%` (fallback post-suite)
+- Requiere `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` de instancia de **test** (nunca producción)
+
+### Archivos creados sesión 06
+
+`tests/unit/shared-helpers.test.ts` (nuevo), `tests/unit/utils.test.ts` (nuevo), `.github/workflows/ci.yml` (nuevo), `tests/e2e/seed.ts` (nuevo).
+
+---
+
+## Sesión 2026-05-30 — UI/UX Polish (planning/06)
+
+### Objetivo
+
+Mejorar empty states, centralizar validaciones, accesibilidad de teclado en modales, KAV en mobile y sweep final de dark mode.
+
+### ✅ U-1 — Empty states con copy orientador
+
+| Pantalla | Cambio |
+|---|---|
+| `/feed` Siguiendo | "Aún no sigues a nadie" + Link `[Explorar profesores]` → `/explore` |
+| `/feed` Cerca (sin ciudad) | "Sin clases cerca tuyo" + Link `[Editar perfil]` → `/profile/edit` |
+| `/notifications` | Título "Sin notificaciones" + subtítulo "Te avisaremos aquí cuando pase algo." |
+| `/explore` clases/usuarios | Query vacía: "Ningún resultado para 'X'"; sin query: "No hay … con estos filtros" |
+| `/my-classes` Historial | "Aún no tienes pagos registrados…" + Link `[Explorar clases]` → `/explore` |
+| `/my-classes` Ensayos | "Aún no organizaste ni te invitaron…" + Link `[Crear ensayo]` → `/publish` |
+| `/agenda` día sin eventos | "Día libre — inscríbete a una clase desde el feed." |
+
+**Archivos:** `FeedClient.tsx`, `NotificationsClient.tsx`, `ExploreClient.tsx`, `MyClassesClient.tsx`, `AgendaClient.tsx`.
+
+### ✅ U-3 — Validadores centralizados
+
+Nuevo archivo `packages/shared/src/lib/validators.ts` exportado desde `@danceclass/shared`:
+
+- `validateUsername(value)` — regex `^[a-z0-9_]{3,20}$`; retorna string de error o `null`
+- `validateRut(value)` — algoritmo check-digit (módulo 11); acepta formatos con/sin puntos y guión
+- `validateFullName(value)` — max 100 chars
+- `validateBio(value)` — max 280 chars
+- `validateInstagramHandle(value)` — sin `@`, letras/números/guión bajo/punto
+- `validateChileanPhone(value)` — formato `+56XXXXXXXXX`
+
+**Integración:**
+- `EditProfileForm.tsx` (web): `validateUsername` en `handleSubmit` antes de llamar a Supabase
+- `PaymentInfoForm.tsx` (web): RUT via `z.string().superRefine(validateRut)` en schema Zod
+- `profile/edit.tsx` (mobile): `validateUsername` reemplaza el guard previo `if (!username.trim())`
+
+### ✅ U-13 — KeyboardAvoidingView en formularios mobile
+
+`KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}` wrapping `ScrollView` añadido en:
+- `class/create.tsx`
+- `class/[id]/edit.tsx`
+- `profile/edit.tsx`
+- `profile/payment-info.tsx`
+
+Login y register ya lo tenían desde antes.
+
+### ✅ U-15 — Avatar fallback con ícono User
+
+`apps/web/src/lib/utils.ts` → `getInitials()` reescrita con regex Unicode `\p{L}\p{N}` para soportar nombres con emoji o caracteres especiales sin crash. Si el resultado tiene 0 iniciales válidas, `Avatar.tsx` renderiza `<User>` (lucide-react, tamaño `icon` de `sizeMap`) en lugar de un contenedor vacío.
+
+### ✅ U-16 — Cerrar modales con Escape
+
+Nuevo hook `apps/web/src/hooks/useEscapeKey.ts`:
+```typescript
+export function useEscapeKey(handler: () => void, enabled = true)
+```
+Integrado (con `enabled = !loading/!saving`) en: `ConfirmDialog`, `AuditionModal`, `DiscountModal`, `CreatePostModal`, `RatingModal`.
+
+### ✅ U-18 — Dark mode sweep
+
+Componentes con residuos corregidos:
+- `CustomDatesCalendar.tsx`: nav buttons, mes/año, día headers, celdas de fecha, leyenda
+- `DashboardClient.tsx`: encabezados, clase/horario, contadores, sin-inscripciones
+- `CreatePostModal.tsx`: container, labels, upload zone, texto/icono dropzone, visibilidad options
+
+### ✅ U-2, U-8, U-10 — Verificados (sin cambios necesarios)
+
+- U-2: no hay `window.confirm()` en el codebase. Todos los destructivos ya usan `ConfirmDialog`.
+- U-8: loading states ya completos en ClassDetailClient, PaymentClient, MyClassesClient, todos los modales.
+- U-10: `StatusBar style={isDark ? 'light' : 'dark'}` ya implementado en `_layout.tsx` mobile.
+
+### Archivos modificados sesión 07
+
+| Archivo | Cambio |
+|---|---|
+| `packages/shared/src/lib/validators.ts` | NUEVO — validateUsername, validateRut, validateFullName, validateBio, validateInstagramHandle, validateChileanPhone |
+| `packages/shared/src/index.ts` | Export validators |
+| `apps/web/src/hooks/useEscapeKey.ts` | NUEVO — hook Escape key |
+| `apps/web/src/lib/utils.ts` | `getInitials` Unicode-safe |
+| `apps/web/src/components/ui/Avatar.tsx` | Fallback ícono `User` cuando sin iniciales |
+| `apps/web/src/components/ui/ConfirmDialog.tsx` | `useEscapeKey` |
+| `apps/web/src/components/class/AuditionModal.tsx` | `useEscapeKey` |
+| `apps/web/src/components/class/DiscountModal.tsx` | `useEscapeKey` |
+| `apps/web/src/components/class/CustomDatesCalendar.tsx` | Dark mode completo |
+| `apps/web/src/components/class/DashboardClient.tsx` | Dark mode completo |
+| `apps/web/src/components/feed/CreatePostModal.tsx` | `useEscapeKey` + dark mode |
+| `apps/web/src/components/ui/RatingModal.tsx` | `useEscapeKey` |
+| `apps/web/src/components/feed/FeedClient.tsx` | Empty states Siguiendo/Cerca |
+| `apps/web/src/components/notifications/NotificationsClient.tsx` | Empty state |
+| `apps/web/src/components/feed/ExploreClient.tsx` | Empty states con/sin query |
+| `apps/web/src/components/class/MyClassesClient.tsx` | Empty states Historial/Ensayos |
+| `apps/web/src/components/agenda/AgendaClient.tsx` | Empty state día libre |
+| `apps/web/src/components/profile/EditProfileForm.tsx` | `validateUsername` en handleSubmit |
+| `apps/web/src/components/profile/PaymentInfoForm.tsx` | `validateRut` en Zod schema |
+| `apps/mobile/app/(app)/profile/edit.tsx` | `validateUsername` + KAV |
+| `apps/mobile/app/(app)/class/create.tsx` | KAV |
+| `apps/mobile/app/(app)/class/[id]/edit.tsx` | KAV |
+| `apps/mobile/app/(app)/profile/payment-info.tsx` | KAV |
+
+### Archivos modificados sesión 06
+
+`planning/07-testing-and-qa.md` (reporte de cierre), `CLAUDE.md` (sección Testing), `resumen.md`.
+
+### Acciones del usuario pendientes sesión 06
+
+1. **Habilitar GitHub Actions** en el repo: Settings → Actions → Allow all actions.
+2. (Opcional) Crear variable `RUN_SMOKE_TESTS=true` en GitHub Actions Settings → Variables para activar smoke tests en CI.
+3. (Opcional) Crear secrets `E2E_USER_EMAIL` y `E2E_USER_PASSWORD` en GitHub Actions para smoke tests.
+4. **Ejecutar bug bash** con 3–5 personas antes del launch (T-7).
+5. Configurar `.env.test` cuando haya instancia de Supabase test para poder usar `seed.ts` en E2E locales.
+

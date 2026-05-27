@@ -262,14 +262,33 @@ Ver M-9.
 
 | ID | Cambio |
 |---|---|
+| U-1 | Empty states mejorados en `/feed` (siguiendo/cerca), `/notifications`, `/explore`, `/my-classes` (historial, ensayos), `/agenda`. Cada uno incluye copy orientador y link de acción cuando aplica. |
+| U-3 | Validadores centralizados en `packages/shared/src/lib/validators.ts`: `validateUsername` (regex `^[a-z0-9_]{3,20}$`), `validateRut` (dígito verificador), `validateFullName`, `validateBio`, `validateInstagramHandle`, `validateChileanPhone`. Exportados desde `@danceclass/shared`. Integrados en `EditProfileForm` (web), `PaymentInfoForm` (web, RUT vía Zod), `profile/edit.tsx` (mobile). |
+| U-7 | `aria-label` en botones de solo ícono revisado; `focus:ring` en botones interactivos. |
+| U-8 | Confirmado que ClassDetailClient, PaymentClient, MyClassesClient, AuditionsListClient, ReportModal, DiscountModal, AuditionModal, RatingModal ya tienen loading states completos. |
+| U-13 | `KeyboardAvoidingView` + `Platform.OS` añadido en `class/create.tsx`, `class/[id]/edit.tsx`, `profile/edit.tsx`, `profile/payment-info.tsx` (mobile). Login y register ya lo tenían. |
+| U-15 | `Avatar.tsx` (web): `getInitials` reescrita con regex Unicode `\p{L}\p{N}` para nombres con emoji o caracteres raros. Fallback a ícono `User` (lucide) cuando no hay iniciales válidas. |
+| U-16 | Hook `useEscapeKey` creado en `apps/web/src/hooks/useEscapeKey.ts`. Integrado en `ConfirmDialog`, `AuditionModal`, `DiscountModal`, `CreatePostModal`, `RatingModal`. |
+| U-18 | Dark mode sweep: `CustomDatesCalendar`, `DashboardClient`, `CreatePostModal` (upload zone, labels). |
+| U-2 | Verificado: no hay `window.confirm()` en el codebase. Todos los destructivos ya usan `ConfirmDialog`. |
+| U-10 | Verificado: `StatusBar style={isDark ? 'light' : 'dark'}` ya implementado en `_layout.tsx` mobile. |
 
-### ⏳ Pendiente
+### ⏳ Pendiente (post-alpha)
 
 | ID | Razón |
 |---|---|
+| U-4 | Escala tipográfica — cambio cosmético sin riesgo de regresión; aplazar para post-alpha. |
+| U-5 | `Button.tsx` en mobile — requiere refactor incremental de todas las pantallas; riesgo de regresión alto. |
+| U-6 | Sistema de toasts unificado — mejora UX pero no bloquea alpha. |
+| U-9 | Mensajes de error más específicos — parcialmente implementado; dejar refinamiento post-alpha. |
+| U-11 | Favicon dark mode — cosmético; no afecta funcionalidad. |
+| U-12 | Auto-save / beforeunload warning — `EditProfileForm` ya requiere botón Guardar; añadir warning sería un nice-to-have. |
+| U-14 | Documento de tono y voz — aplazar; revisar copy en bloque post-alpha. |
+| U-17 | Focus trap en modales — mejora de accesibilidad avanzada; post-alpha. |
+| U-19 | Imágenes sin fallback `onError` — mejorar con `next/image` placeholder; post-alpha. |
+| U-20 | Ver M-9 — botón Share en mobile ya implementado. |
 
-### 📝 Memoria a actualizar
+### 📝 Memoria actualizada
 
-- [ ] `CLAUDE.md` — sección tipografía y voz
-- [ ] `CLAUDE.md` — patrones de dark mode actualizados
-- [ ] `resumen.md` — bloque polish
+- [x] `CLAUDE.md` — `useEscapeKey`, `KeyboardAvoidingView`, validators compartidos, Avatar Unicode fallback
+- [x] `resumen.md` — bloque sesión 2026-05-30 (UI/UX Polish)

@@ -588,7 +588,8 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
           <History className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
         </div>
         <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin historial</h3>
-        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">Aquí verás tus pagos al inscribirte en clases</p>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">Aún no tienes pagos registrados. Cuando confirmes tu primer pago aparecerá aquí.</p>
+        <Link href="/explore" className="mt-4 btn-primary text-sm">Explorar clases</Link>
       </div>
     )
   }
@@ -787,8 +788,9 @@ function RehearsalsTab({ ownRehearsals, rehearsalInvites }: { ownRehearsals: any
         </div>
         <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin ensayos</h3>
         <p className="text-sm text-gray-500 dark:text-dark-text2 mt-1">
-          Crea un ensayo desde "Publicar" o espera una invitación
+          Aún no organizaste ni te invitaron a ningún ensayo.
         </p>
+        <Link href="/publish" className="mt-4 btn-primary text-sm">Crear ensayo</Link>
       </div>
     )
   }

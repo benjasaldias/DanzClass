@@ -392,7 +392,7 @@ export default function AgendaClient({ enrolledClasses, teachingClasses, rehears
                   <div>
                     <h2 className="font-semibold text-sm text-gray-700 dark:text-dark-text mb-3">{label}</h2>
                     {selectedEvents.length === 0 ? (
-                      <p className="text-sm text-gris-humo dark:text-dark-text2 text-center py-4">Sin compromisos este día</p>
+                      <p className="text-sm text-gris-humo dark:text-dark-text2 text-center py-4">Día libre — inscríbete a una clase desde el <a href="/feed" className="underline text-brand-600 dark:text-brand-300">feed</a>.</p>
                     ) : (
                       <div className="space-y-2">
                         {selectedEvents.map((ev, i) => <EventCard key={i} ev={ev} />)}

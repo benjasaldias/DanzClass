@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Star } from 'lucide-react'
 import StarRating from './StarRating'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 interface RatingModalProps {
   teacherId: string
@@ -26,6 +27,8 @@ export default function RatingModal({
   const [error, setError] = useState<string | null>(null)
 
   const isEdit = !!initialRating
+
+  useEscapeKey(onClose, !loading)
 
   async function handleSubmit() {
     if (selected < 1) { setError('Selecciona al menos 1 estrella'); return }

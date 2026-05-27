@@ -8,6 +8,7 @@ import Avatar from '@/components/ui/Avatar'
 import StylesPicker from '@/components/ui/StylesPicker'
 import CityCombobox from '@/components/ui/CityCombobox'
 import type { Profile } from '@danceclass/shared'
+import { validateUsername } from '@danceclass/shared'
 
 interface EditProfileFormProps {
   profile: Profile
@@ -44,6 +45,9 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
     e.preventDefault()
     setSaving(true)
     setError(null)
+
+    const usernameErr = validateUsername(username)
+    if (usernameErr) { setError(usernameErr); setSaving(false); return }
 
     let avatarUrl = profile.avatar_url
 

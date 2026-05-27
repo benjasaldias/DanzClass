@@ -600,6 +600,72 @@ Todas las pantallas mobile han sido implementadas. Web y mobile están en parida
 - **Pull-to-refresh**: `RefreshControl` en todos los ScrollView/FlatList de pantallas con datos remotos. Patrón: `load()` como `useCallback`, estado `refreshing` separado del `loading` inicial.
 - **`pluralize(n, singular, plural)`**: helper en `packages/shared/src/types/index.ts`. Retorna `"N singular/plural"`. Usar en cualquier conteo de cupos, alumnos, clases para evitar "1 cupos".
 - **`formatDateLocal(dateStr)`**: en shared, convierte YYYY-MM-DD a fecha local con `es-CL` sin off-by-one. Usar en lugar de `new Date('YYYY-MM-DD').toLocaleDateString()`.
+- **`KeyboardAvoidingView` en formularios**: todos los formularios largos (create, edit, profile/edit, payment-info) tienen `<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">` wrapping el `<ScrollView>`. Login/register ya lo tenían. Auth forms ya tenían KAV correcto.
+- **`useEscapeKey` en modales web**: `apps/web/src/hooks/useEscapeKey.ts` — hook que agrega listener `keydown` para Escape. Importar en todos los modales y usar `useEscapeKey(onClose, !isLoading)`. Aplicado en: `ConfirmDialog`, `AuditionModal`, `DiscountModal`, `CreatePostModal`, `RatingModal`.
+
+**Validadores compartidos (`packages/shared/src/lib/validators.ts`, sesión 2026-05-30):**
+- `validateUsername(value)` — regex `^[a-z0-9_]{3,20}$`, retorna error string o null
+- `validateRut(rut)` — valida dígito verificador chileno
+- `validateFullName`, `validateBio`, `validateInstagramHandle`, `validateChileanPhone`
+- Usados en: web `EditProfileForm`, mobile `profile/edit.tsx`; RUT validado en `PaymentInfoForm.tsx`
+
+**`Avatar.tsx` con fallback a ícono User (sesión 2026-05-30):**
+Cuando `getInitials(name)` retorna string vacío (nombre con solo emojis, nulo o caracteres no alfanuméricos), `Avatar` muestra `<User>` de lucide en lugar de un span vacío. `getInitials` también fue reforzado con regex Unicode `\p{L}\p{N}` para limpiar caracteres raros antes de extraer iniciales.
+
+---
+
+## Testing
+
+### Comandos
+
+```bash
+npm run test:unit          # unit tests sin servidor (Node.js puro via Playwright runner)
+npm run test:e2e           # E2E dev (requiere `npm run dev:web` corriendo en :3000)
+npm run test:e2e:prod      # smoke tests read-only contra producción
+npm run typecheck --workspace=apps/web  # typecheck sin build
+```
+
+### Estructura
+
+```text
+tests/
+├── unit/
+│   ├── availability.test.ts   # isSleepHour, isBlockOccupied, getSleepHours, dateToWeekday
+│   ├── shared-helpers.test.ts # canTeach/Enroll/etc, pluralize, formatDateLocal
+│   └── utils.test.ts          # formatTime, formatDate, getClassSessions
+├── e2e/
+│   ├── helpers/auth.ts        # loginAs() helper
+│   ├── seed.ts                # seedClass/seedEntrenamiento/cleanSeed helpers
+│   ├── classes.spec.ts
+│   ├── posts.spec.ts
+│   ├── auditions-billing-agenda.spec.ts
+│   └── availability.spec.ts
+└── e2e-production/            # smoke tests read-only (sin escritura en DB)
+    ├── smoke.public.spec.ts
+    ├── smoke.navigation.spec.ts
+    ├── smoke.auth.spec.ts
+    └── smoke.features.spec.ts
+```
+
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml` corre en cada push a `main` y en PRs:
+
+- **typecheck**: `tsc --noEmit` en `apps/web`
+- **test-unit**: unit tests sin servidor
+- **smoke-prod** (opcional): requiere variable `RUN_SMOKE_TESTS=true` + secrets `E2E_USER_EMAIL`/`E2E_USER_PASSWORD`
+
+### Seed de datos E2E
+
+`tests/e2e/seed.ts` provee `seedClass()`, `seedEntrenamiento()`, `cleanSeed()`, `cleanAllTestData()`. Requiere `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` apuntando a una instancia de **test** (nunca producción). Las clases creadas se titulan `[TEST] ...` para facilitar limpieza manual.
+
+### Tests críticos faltantes (post-alpha)
+
+Los siguientes flujos no tienen test automatizado todavía:
+
+- Registro → confirmación email → login (requiere servidor de email en CI)
+- Suscripción sandbox MP (requiere cuenta comprador MP sandbox)
+- Inscripción + pago completo (requiere Next.js dev server en CI)
 
 ---
 

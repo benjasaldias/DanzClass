@@ -7,14 +7,17 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ChevronLeft, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { CHILEAN_BANKS } from '@danceclass/shared'
+import { CHILEAN_BANKS, validateRut } from '@danceclass/shared'
 import type { AccountType } from '@danceclass/shared'
 
 const schema = z.object({
   bank_name: z.string().min(1, 'Selecciona un banco'),
   account_type: z.enum(['cuenta_corriente', 'cuenta_vista', 'cuenta_rut', 'cuenta_ahorro']),
   account_number: z.string().min(4, 'Ingresa el número de cuenta'),
-  rut: z.string().min(8, 'RUT inválido').max(12),
+  rut: z.string().superRefine((val, ctx) => {
+    const err = validateRut(val)
+    if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
+  }),
   account_holder_name: z.string().min(2, 'Ingresa el titular'),
   email: z.string().email('Email inválido'),
 })

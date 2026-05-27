@@ -61,7 +61,7 @@ export default function DashboardClient({ classes }: { classes: any[] }) {
     <div className="px-4 py-4">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Mis clases</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">Mis clases</h1>
           {pendingPayments > 0 && (
             <p className="text-sm text-yellow-700 font-medium mt-0.5">
               {pendingPayments} pago{pendingPayments !== 1 ? 's' : ''} por verificar
@@ -71,7 +71,7 @@ export default function DashboardClient({ classes }: { classes: any[] }) {
       </div>
 
       {classData.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-dark-text2">
           <p className="text-sm">No tienes clases publicadas aún</p>
         </div>
       ) : (
@@ -89,8 +89,8 @@ export default function DashboardClient({ classes }: { classes: any[] }) {
                   className="w-full p-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-900 truncate">{cls.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{cls.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">
                       {cls.type === 'suelta'
                         ? `${formatDate(cls.date)} · ${formatTime(cls.time)}`
                         : `${DAYS_OF_WEEK[cls.day_of_week]} · ${formatTime(cls.recurring_time)}`}
@@ -130,13 +130,13 @@ export default function DashboardClient({ classes }: { classes: any[] }) {
                               <Avatar src={student?.avatar_url} name={student?.full_name ?? '?'} size="sm" />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <p className="text-sm font-semibold text-gray-900">{student?.full_name}</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">{student?.full_name}</p>
                                   <span className={cn('flex items-center gap-1 text-xs font-medium', config.color)}>
                                     <span className={cn('h-1.5 w-1.5 rounded-full', config.dot)} />
                                     {config.label}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-500">@{student?.username}</p>
+                                <p className="text-xs text-gray-500 dark:text-dark-text2">@{student?.username}</p>
 
                                 {/* Payment receipt + actions */}
                                 {enrollment.status === 'payment_submitted' && payment && (
@@ -157,7 +157,7 @@ export default function DashboardClient({ classes }: { classes: any[] }) {
                                         <ExternalLink className="h-3 w-3" />
                                       </button>
                                     )}
-                                    <p className="text-xs text-gray-500">Monto: {formatCLP(payment.amount)}</p>
+                                    <p className="text-xs text-gray-500 dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</p>
                                     <div className="flex gap-2">
                                       <button
                                         onClick={() => handlePaymentAction(enrollment.id, payment.id, 'verified')}
