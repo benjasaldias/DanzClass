@@ -6,7 +6,7 @@ export const metadata = {
   description: 'Política de privacidad y tratamiento de datos personales de DanzClass',
 }
 
-const LAST_UPDATED = '21 de mayo de 2026'
+const LAST_UPDATED = '27 de mayo de 2026'
 const CONTACT_EMAIL = 'contacto@danzclass.com'
 
 export default function PrivacyPage() {
@@ -147,11 +147,33 @@ export default function PrivacyPage() {
                 cancelada.
               </li>
               <li>
-                <strong>Cierre de cuenta:</strong> al eliminar tu cuenta, tus datos personales son
-                eliminados de la base de datos, salvo aquellos que debamos conservar por obligaciones
-                legales o para resolver disputas pendientes.
+                <strong>Cierre de cuenta:</strong> al eliminar tu cuenta desde la app (Perfil → Eliminar
+                cuenta), los siguientes datos son anonimizados o eliminados de inmediato:
+                <ul className="mt-1 space-y-0.5">
+                  <li>Nombre, nombre de usuario, foto de perfil, biografía, ciudad, redes y estilos</li>
+                  <li>Suscripción activa (cancelada automáticamente)</li>
+                  <li>Clases publicadas activas (canceladas, con notificación a alumnos inscritos)</li>
+                  <li>Acceso a la cuenta (no es posible volver a iniciar sesión)</li>
+                </ul>
               </li>
             </ul>
+            <p>
+              Los siguientes datos <strong>se conservan por obligaciones legales</strong> o para proteger
+              a otras partes:
+            </p>
+            <ul>
+              <li>Historial de pagos y comprobantes de transferencia (auditoría contable).</li>
+              <li>Inscripciones y transacciones confirmadas previas a la eliminación.</li>
+              <li>Registros de denuncias realizadas o recibidas.</li>
+            </ul>
+            <p>
+              El hard-delete completo de registros conservados se realizará en un plazo máximo de
+              <strong> 30 días</strong> tras la solicitud, salvo obligación legal de conservación mayor.
+              Para ejercer tu derecho de eliminación total, escríbenos a{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-600 hover:text-brand-700 font-medium">
+                {CONTACT_EMAIL}
+              </a>.
+            </p>
           </Section>
 
           <Section title="6. Privacidad de tus publicaciones">

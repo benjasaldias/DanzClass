@@ -189,23 +189,47 @@ En Cloudinary:
 
 | Item | Estado |
 |---|---|
+| L-2: Pantalla `/profile/delete-account` web | ✅ Ya implementada |
+| L-2: Pantalla mobile `delete-account.tsx` | ✅ Ya implementada |
+| L-2: API route `/api/account/delete` | ✅ Ya implementada (anonimiza perfil, cancela suscripción, tombstone email) |
+| L-2: Texto en `/privacy` sobre eliminación (qué se borra, qué se conserva, plazo 30 días) | ✅ Expandido en esta sesión |
+| L-3: `/terms` actualizado con fecha 27-05-2026 | ✅ |
+| L-3: `/privacy` actualizado con fecha 27-05-2026 | ✅ |
+| L-3: Sección de reembolsos añadida a `/terms` | ✅ |
+| L-5: `AlphaBanner` web (dismissable, `sessionStorage`, link mailto) | ✅ `components/ui/AlphaBanner.tsx` |
+| L-5: Link "¿Encontraste algo raro?" en perfil mobile | ✅ `(tabs)/profile.tsx` |
+| L-6: Procedimientos de rollback documentados en `CLAUDE.md` | ✅ (Vercel, DB, EAS, MP webhook, feature flags) |
+| S-1: `/design-system-preview` — no existe en el proyecto | ✅ Verificado |
+| C-4: Eliminación de cuenta — implementada en sesiones anteriores | ✅ |
 
-### ⏳ Pendiente (no bloqueante)
+### ⏳ Pendiente — acciones del usuario (no bloqueantes para código)
 
 | Item | Razón |
 |---|---|
+| L-0 P-1: Verificar env vars Vercel (MP producción token, CRON_SECRET, SUPERADMIN_USER_ID) | Requiere acceso al dashboard de Vercel |
+| L-0 D-1/D-2: Confirmar migraciones 024 y 025 aplicadas en prod | Requiere acceso a Supabase producción |
+| L-0 M-3: Build EAS Android instalable | Requiere `eas build --platform android --profile preview` en entorno con Node.js compatible |
+| L-1: Smoke test completo (registro → pago → confirmación) | Requiere cuentas de prueba y webhook MP activo |
+| L-4: Lista de 30 invitados + template email/WhatsApp | Decisión de negocio |
+| L-5: Configurar Sentry DSN en Vercel (`NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_DSN`) | Requiere cuenta Sentry |
+| L-5: Email `contacto@danzclass.com` funcionando | Requiere configuración MX o forwarding |
+| L-8: `git tag alpha-v0.1.0` en commit de launch | Acción git del usuario |
+| L-9: Verificar todas las env vars en Vercel Production | Checklist en este archivo |
+| L-10: `supabase db dump > backups/pre-alpha-2026-05-27.sql` | Backup manual pre-launch |
+| L-11: Aviso al equipo y pre-anuncio | Comunicación |
 
 ### 🚀 Lanzamiento
 
 - **Fecha y hora**: `____________________`
-- **Commit tag**: `____________________`
+- **Commit tag**: `alpha-v0.1.0 (pendiente)`
 - **Vercel deploy**: `____________________`
 - **EAS build version**: `____________________`
 - **Usuarios invitados**: `__`
 - **Responsable rollback**: `____________________`
 
-### 📝 Memoria a actualizar
+### 📝 Memoria actualizada
 
-- [ ] `CLAUDE.md` — sección "Estado actual" actualizada a "Alpha pública"
-- [ ] `CLAUDE.md` — sección "Rollback procedures"
-- [ ] `resumen.md` — bloque "Sesión 2026-XX-XX — Launch Alpha 0.1"
+- [x] `CLAUDE.md` — sección "Estado actual" actualizada a "Alpha pública"
+- [x] `CLAUDE.md` — sección "Procedimientos de rollback (alpha)" añadida
+- [x] `CLAUDE.md` — sección "AlphaBanner" añadida en Observabilidad
+- [ ] `resumen.md` — bloque "Sesión 2026-05-27 — Launch Alpha 0.1" (pendiente al final de sesión)

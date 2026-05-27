@@ -2640,3 +2640,42 @@ Nuevo componente `apps/web/src/components/ui/NotificationBell.tsx` (client compo
 4. **Ejecutar bug bash** con 3–5 personas antes del launch (T-7).
 5. Configurar `.env.test` cuando haya instancia de Supabase test para poder usar `seed.ts` en E2E locales.
 
+---
+
+## Sesión 2026-05-27 — Sesión 9: Launch Readiness Checklist
+
+### Objetivo
+
+Última pasada antes del invite alpha: verificar estado de P0s, implementar las piezas implementables, documentar procedimientos de rollback y dejar el reporte de cierre listo.
+
+### Verificaciones realizadas
+
+- **S-1** (`/design-system-preview`): no existe en el proyecto — ya fue eliminada en sesiones anteriores. ✅
+- **C-4** (eliminación de cuenta): implementada completamente en sesiones anteriores (web + mobile + API route). ✅
+- **Docs legales**: `/terms` y `/privacy` ya existían con contenido adecuado. Solo faltaba actualizar fechas y expandir sección de eliminación.
+
+### Archivos modificados
+
+| Archivo | Cambio |
+| --- | --- |
+| `apps/web/src/components/ui/AlphaBanner.tsx` | NUEVO — banner alpha dismissable (sessionStorage) con link mailto |
+| `apps/web/src/app/(app)/layout.tsx` | Importa y monta `<AlphaBanner />` bajo el TopBar |
+| `apps/mobile/app/(app)/(tabs)/profile.tsx` | Link "¿Encontraste algo raro? Reportar" con `Linking.openURL(mailto)` |
+| `apps/web/src/app/privacy/page.tsx` | Fecha actualizada a 27-05-2026; sección 5 expandida con qué se borra, qué se conserva, plazo 30 días |
+| `apps/web/src/app/terms/page.tsx` | Fecha actualizada a 27-05-2026; sección 6 expandida con política de reembolsos |
+| `CLAUDE.md` | Secciones nuevas: AlphaBanner, Procedimientos de rollback (alpha), Estado actual Alpha pública |
+| `planning/09-launch-readiness-checklist.md` | Reporte de cierre completo |
+| `planning/00-overview.md` | Sesión 9 marcada ✅ |
+
+### Acciones del usuario pendientes sesión 09 (pre-launch)
+
+1. **Env vars Vercel** — verificar que todas las variables de la sección L-9 estén configuradas en Production, especialmente `MERCADOPAGO_ACCESS_TOKEN` (debe empezar con `APP_USR-`, no `TEST-`) y `CRON_SECRET`.
+2. **Migraciones 024 y 025** — confirmar aplicadas en Supabase producción (`024_add_start_date_to_classes.sql`, `025_billing_day.sql`).
+3. **Sentry DSN** — crear cuenta en sentry.io → nuevo proyecto Next.js → copiar DSN → `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN` en Vercel.
+4. **EAS build Android** — `eas build --platform android --profile preview` desde entorno con Node.js compatible.
+5. **Smoke test** — recorrer el flujo completo: registro → confirmación email → suscripción → crear clase → inscribirse → subir comprobante → confirmar → calificar.
+6. **Git tag** — `git tag alpha-v0.1.0` en el commit que se deploye a producción.
+7. **Backup DB** — `supabase db dump > backups/pre-alpha-2026-05-27.sql` antes del primer invite.
+8. **Email de contacto** — verificar que `contacto@danzclass.com` esté operativo (el AlphaBanner lo usa como destino de bugs).
+9. **Supabase Realtime** — confirmar que la tabla `notifications` tiene Realtime habilitado (para el badge en tiempo real del TopBar).
+

@@ -700,6 +700,55 @@ Ambos crons (`cleanup-classes`, `cleanup-unconfirmed`) llaman a `https://hc-ping
 **Backups Supabase:**
 Free tier no tiene backups automáticos. Para alpha: hacer dump manual semanal con `supabase db dump > backup_YYYYMMDD.sql` o upgrade a Pro ($25/mes) que incluye daily backups.
 
+**`AlphaBanner` — banner de reporte de bugs para alpha (sesión 2026-05-27):**
+`apps/web/src/components/ui/AlphaBanner.tsx` — client component con estado `visible` inicializado desde `sessionStorage` (`alpha_banner_dismissed`). Se muestra como una barra violeta fixed bajo el TopBar (`top-14`). Incluye link `mailto:contacto@danzclass.com?subject=Bug%20DanzClass` y botón de dismiss. Montado en `apps/web/src/app/(app)/layout.tsx` justo después de `<TopBar />`. En mobile: link "¿Encontraste algo raro? Reportar" en el bloque de botones del perfil propio (`(tabs)/profile.tsx`) usando `Linking.openURL('mailto:...')`.
+
+---
+
+## Procedimientos de rollback (alpha)
+
+Estos procedimientos aplican si algo falla catastróficamente en las primeras 24-48 h post-launch.
+
+**1. Frontend Vercel rollback (~2 min):**
+Dashboard Vercel → proyecto → Deployments → click en el deploy anterior → "Promote to Production". No requiere git.
+
+**2. Migración DB rollback:**
+Cada migración debe tener un SQL inverso documentado aquí. Las migraciones de DanzClass son principalmente additive (ADD COLUMN, CREATE TABLE) — hacer rollback de ellas borra datos. Antes de deployar en producción, anota el SQL inverso:
+
+```sql
+-- Ejemplo: rollback de 025_billing_day.sql
+ALTER TABLE classes DROP COLUMN IF EXISTS billing_day;
+```
+
+Para rollback de constraint (notification_type), recrear con el CHECK anterior.
+
+**3. Mobile EAS rollback:**
+Si hay un build OTA (Expo Updates): publicar el canal con la versión anterior usando `eas update --channel production --branch <branch-anterior>`.
+Si es un build nativo con nueva versión de store: el rollback es publicar la versión anterior del APK/IPA directamente (Google Play / TestFlight permiten promover builds anteriores).
+
+**4. Webhook MP — modo silencioso:**
+Si el webhook de MP tiene bugs y está procesando mal suscripciones:
+
+1. Cambiar el handler a responder `200 OK` sin procesar: `return NextResponse.json({ received: true })` en las primeras líneas.
+2. Loguear todos los eventos recibidos para procesamiento manual posterior.
+3. No deshabilitar el webhook en el dashboard de MP — si falla, MP reintenta y puede saturar logs.
+
+**5. Feature flags manuales (sin sistema formal):**
+Para desactivar features durante alpha sin rollback completo, agregar un env var `NEXT_PUBLIC_DISABLE_<FEATURE>=true` y condicionar el render. Candidatos: `DISABLE_2X`, `DISABLE_DISCOUNTS`, `DISABLE_ENSAYOS`. Requiere nuevo deploy de Vercel (variables `NEXT_PUBLIC_*` se incrustan en el bundle).
+
+---
+
+## Estado actual — Alpha pública (sesión 2026-05-27)
+
+La app está lista para invitar a los primeros usuarios alpha. Todos los P0 del plan de pre-lanzamiento han sido implementados. Acciones pendientes del usuario antes del go-live:
+
+- Verificar env vars en Vercel (especialmente `MERCADOPAGO_ACCESS_TOKEN` en producción, no sandbox)
+- Confirmar que migraciones 024 y 025 están aplicadas en Supabase producción
+- Configurar Sentry DSN (`NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN`)
+- Build EAS para Android (`eas build --platform android --profile preview`)
+- Crear tag git `alpha-v0.1.0` en el commit de launch
+- Backup pre-launch: `supabase db dump > backups/pre-alpha-2026-05-27.sql`
+
 ---
 
 ## Funcionalidades futuras (no prioritarias para MVP)

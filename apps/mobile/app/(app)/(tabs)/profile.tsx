@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { View, Text, TouchableOpacity, ScrollView, Alert, Image } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, Alert, Image, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { MapPin, Users, Music2, AtSign, Sun, Moon } from 'lucide-react-native'
@@ -237,6 +237,13 @@ export default function ProfileScreen() {
             className="px-2 py-1"
           >
             <Text className="text-xs text-red-400">Eliminar cuenta</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => Linking.openURL('mailto:contacto@danzclass.com?subject=Bug%20DanzClass')}
+            className="px-2 py-1"
+          >
+            <Text className="text-xs text-violet-500">¿Encontraste algo raro? Reportar</Text>
           </TouchableOpacity>
         </View>
 

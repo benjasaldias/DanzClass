@@ -6,7 +6,7 @@ export const metadata = {
   description: 'T��rminos y condiciones de uso de la plataforma DanzClass',
 }
 
-const LAST_UPDATED = '15 de mayo de 2026'
+const LAST_UPDATED = '27 de mayo de 2026'
 const CONTACT_EMAIL = 'contacto@danzclass.com'
 
 export default function TermsPage() {
@@ -122,12 +122,19 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Section title="6. Pagos y transacciones">
+          <Section title="6. Pagos, transacciones y reembolsos">
             <p>
               Los pagos entre estudiantes y profesores se realizan directamente mediante transferencia bancaria.
               DanzClass actúa solo como intermediario de comunicación y no procesa ni garantiza los pagos.
               Las suscripciones a los planes de la Plataforma se procesan a través de Mercado Pago, sujetos a
               sus propios términos y condiciones.
+            </p>
+            <p>
+              <strong>Política de reembolsos:</strong> si un profesor cancela una clase en la que estás
+              inscrito y con pago confirmado, tienes derecho a solicitar el reembolso directamente al profesor
+              a través de su perfil en la Plataforma. DanzClass no intermedia ni garantiza dichos reembolsos.
+              Para suscripciones canceladas, no se realizan reembolsos proporcionales; el acceso se mantiene
+              hasta el fin del período pagado.
             </p>
           </Section>
 

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/ui/BottomNav'
 import TopBar from '@/components/ui/TopBar'
 import RatingPopupLoader from '@/components/ui/RatingPopup'
+import AlphaBanner from '@/components/ui/AlphaBanner'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-blanco-violeta dark:bg-dark-bg flex flex-col">
       <TopBar profile={profile} unreadCount={unreadCount ?? 0} />
+      <AlphaBanner />
       <main className="flex-1 pb-20 pt-14 max-w-lg mx-auto w-full">
         {children}
       </main>
