@@ -256,7 +256,7 @@ export default function FeedClient({
       )}
 
       {/* Feed */}
-      <div className="flex flex-col">
+      <div className="flex flex-col pt-3">
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
