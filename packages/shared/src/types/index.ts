@@ -33,6 +33,7 @@ export type NotificationType =
   | 'rehearsal_invite'
   | 'rehearsal_accepted'
   | 'rehearsal_rejected'
+  | 'payment_reminder'
 
 export type RehearsalDateMode = 'single' | 'custom' | 'coordinate'
 export type RehearsalStatus = 'active' | 'cancelled'

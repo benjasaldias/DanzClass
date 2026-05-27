@@ -141,6 +141,11 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} rechazó la invitación al ensayo "${data.rehearsal_title ?? ''}"` : `Alguien rechazó la invitación al ensayo`,
     route: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
   },
+  payment_reminder: {
+    icon: AlertCircle, bgColor: '#fefce8', iconColor: '#ca8a04',
+    label: (data) => `Tienes un pago pendiente para "${data.class_title ?? 'una clase'}". Sube tu comprobante para confirmar tu cupo.`,
+    route: (data) => data.enrollment_id ? `/(app)/payment/${data.enrollment_id}` : '/(app)/(tabs)/my-classes',
+  },
 }
 
 export default function NotificationsScreen() {

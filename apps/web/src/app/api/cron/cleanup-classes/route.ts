@@ -278,9 +278,61 @@ export async function GET(request: Request) {
 
   if (cancelled2x > 0) logger.info('cleanup-classes:2x', { cancelled2x })
 
+  // ── F-21: Recordatorio de pago al alumno (24h sin subir comprobante) ─────────
+  // Busca enrollments en pending_payment desde hace más de 24h, sin reminder previo.
+  const twentyFourHoursAgo = new Date(now)
+  twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24)
+
+  const { data: pendingEnrollments } = await (supabase as any)
+    .from('enrollments')
+    .select('id, student_id, class_id, class:classes(title, status)')
+    .eq('status', 'pending_payment')
+    .lt('created_at', twentyFourHoursAgo.toISOString())
+
+  let paymentReminders = 0
+
+  if (pendingEnrollments && pendingEnrollments.length > 0) {
+    // Deduplication: fetch existing payment_reminder notifications sent today
+    const { data: existingPaymentReminders } = await (supabase as any)
+      .from('notifications')
+      .select('user_id, data')
+      .eq('type', 'payment_reminder')
+      .gte('created_at', `${todayStr}T00:00:00.000Z`)
+
+    const alreadyReminded = new Set<string>(
+      (existingPaymentReminders ?? []).map((n: any) => `${n.user_id}:${(n.data as any)?.enrollment_id}`)
+    )
+
+    const reminderNotifs: any[] = []
+    for (const e of pendingEnrollments) {
+      const cls = e.class
+      // Solo clases activas
+      if (!cls || cls.status === 'cancelled') continue
+      const key = `${e.student_id}:${e.id}`
+      if (alreadyReminded.has(key)) continue
+
+      reminderNotifs.push({
+        user_id: e.student_id,
+        type: 'payment_reminder',
+        data: {
+          enrollment_id: e.id,
+          class_id: e.class_id,
+          class_title: cls.title,
+        },
+      })
+    }
+
+    if (reminderNotifs.length > 0) {
+      await supabase.from('notifications').insert(reminderNotifs as any)
+      paymentReminders = reminderNotifs.length
+    }
+  }
+
+  if (paymentReminders > 0) logger.info('cleanup-classes:payment-reminders', { paymentReminders })
+
   await pingHealthcheck(process.env.HEALTHCHECK_CLEANUP_CLASSES_UUID)
 
-  return NextResponse.json({ deleted, errors, reminders, cancelled2x })
+  return NextResponse.json({ deleted, errors, reminders, cancelled2x, paymentReminders })
 }
 
 async function cleanClassMedia(supabase: ReturnType<typeof createAdminClient>, cls: any) {

@@ -9,8 +9,10 @@
 ### F-1 — Push notifications (Expo) — ALTA impacto, MEDIA esfuerzo
 Sin push, recordatorios y notificaciones de pago confirmado pasan desapercibidos. Es el upgrade más alto-leverage post-alpha.
 
-### F-2 — Email templates customizados — BAJA esfuerzo
+### F-2 — Email templates customizados — BAJA esfuerzo ✅ (sesión 10)
+
 Hoy Supabase manda emails default (confirmación, reset). Custom + branded subimos confianza inmediatamente.
+Templates HTML creados en `supabase/email-templates/`. Ver `README.md` ahí para instrucciones de aplicación.
 
 ### F-3 — Onboarding interactivo (primera vez en feed) — MEDIA esfuerzo
 Tour de 4 pasos: "1. Sigue a profes que te interesan • 2. Configura tu ciudad • 3. Marca tus horarios disponibles • 4. Empieza a inscribirte". Aumenta activación.
@@ -18,27 +20,29 @@ Tour de 4 pasos: "1. Sigue a profes que te interesan • 2. Configura tu ciudad 
 ### F-4 — Streak / gamificación leve — BAJA esfuerzo
 Badge "5 clases este mes" o "20 clases tomadas en total" en el perfil. Bajo riesgo, alto delight.
 
-### F-5 — Calendario downloadable .ics — BAJA esfuerzo
+### F-5 — Calendario downloadable .ics — BAJA esfuerzo ✅ (sesión 10)
+
 Botón "Agregar a calendario" en clase inscrita — exporta .ics que se importa a Google Calendar / Apple Calendar.
+Web: helper `apps/web/src/lib/ics.ts` + botón en `EnrollmentBanner` cuando `status=confirmed`. Mobile: botón en ambos CTAs de confirmación, genera archivo con `expo-file-system` y lo abre con `Linking`.
 
 ---
 
 ## Monetización
 
-### F-6 — Plan gratuito con límites estrictos — ALTA impacto
+### F-6 — Plan gratuito con límites estrictos — ALTA impacto ❌
 Hoy un usuario "none" no puede inscribirse. Considerar permitir 1 inscripción/mes como "trial" → tasa de conversión.
 
-### F-7 — Comisión por transacción — ALTA impacto, ALTA esfuerzo, ALTA riesgo legal
+### F-7 — Comisión por transacción — ALTA impacto, ALTA esfuerzo, ALTA riesgo legal ❌
 En lugar de suscripción del profesor, comisión 5–10 % por pago. Requiere ser intermediario de pagos (no solo intermediario informativo) → cambia el modelo legal completamente. Pensar bien.
 
-### F-8 — Marketplace de coreografías / cursos pre-grabados — MEDIA esfuerzo
+### F-8 — Marketplace de coreografías / cursos pre-grabados — MEDIA esfuerzo ❌
 Profe vende un video curso, alumno paga una vez y accede de por vida. Buena complementación al sistema de clases en vivo.
 
 ---
 
 ## Crecimiento
 
-### F-9 — Compartir nativo desde Stories Instagram — ALTA impacto
+### F-9 — Compartir nativo desde Stories Instagram — ALTA impacto ❌
 Profes ya usan Instagram. Botón "Compartir clase a Instagram Stories" con preview branded sería viral.
 
 ### F-10 — Referral program — BAJA esfuerzo
@@ -60,17 +64,23 @@ Hoy todo el contexto se pierde en WhatsApp. Chat in-app reduce fricción.
 ### F-14 — Reseñas con texto (no solo estrellas) — ALTA impacto
 "5 estrellas" sin contexto no convence. Reseñas escritas son social proof potente.
 
-### F-15 — Galería de videos de la clase post-evento — BAJA esfuerzo
-Profe sube 1-2 videos cortos después de cada clase. Alumno los ve en su perfil "mis clases". Aumenta sensación de comunidad.
+### F-15 — Galería de videos de la clase post-evento — MEDIA esfuerzo
+Profe sube 1-2 videos cortos después de cada clase. Alumno los ve en su perfil "mis clases". Aumenta sensación de comunidad. Un alumno debe poder subir un post de tipo "video" y etiquetar la clases asociada (sale un dropdown de los títulos de clases a las que estuvo inscrito este mes). El post del video luego mostrará una tarjeta en la parte inferior que mostrará el título de la clase y el nombre de usuario del profesor, el cual es clickeable y redirige al perfil del profesor.
 
-### F-16 — Sistema de niveles para alumnos — MEDIA esfuerzo
-Alumno declara su nivel (principiante/intermedio/avanzado) → matching con clases. Hoy es ad-hoc.
+### F-16 — Filtrar clases según nivel — MEDIA esfuerzo
+Alumno marca en buscador de clases un filtro opcional según nivel (principiante/intermedio/avanzado) → matching con clases. Hoy es ad-hoc.
 
-### F-17 — Filtro "Buenos para principiantes" — BAJA esfuerzo
+### F-17 — Filtro "Buenos para principiantes" — BAJA esfuerzo ❌
 Curado: profe marca "Apto principiantes". Filtro en explore. Útil para no-bailarines que entran.
 
-### F-18 — Calendario público del profesor — BAJA esfuerzo
+### F-18 — Calendario público del profesor — BAJA esfuerzo ❌
 URL pública `/teacher/[username]/schedule` que muestra todas sus próximas clases con CTA inscribirse. Útil para compartir.
+
+### F-19 — Cambiar "nivel principiante" en clases por "nivel básico" — BAJA esfuerzo 
+"Nivel básico" es el término correcto en la danza.
+
+### F-20 — Paquetes de clases — MEDIA esfuerzo 
+Un profesor puede vender en promoción o paquetes 2 o más clases. Esto aparecerá en el /class de todas las clases involucradas en la promoción, con su precio y botón de pago correspondiente. Si un estudiante decide pagar la promoción, se le inscribirá un cupo y contará como pago confirmado para todas esas clases. Si no paga, no se inscribe a ninguno (más estricto que el pago de clases individuales).
 
 ---
 
@@ -82,8 +92,10 @@ Resumen mensual: ingresos totales, alumnos únicos, clases dictadas, ranking. Ho
 ### F-20 — Exportar historial de pagos a CSV — BAJA esfuerzo
 Profesor descarga CSV para su contadora.
 
-### F-21 — Recordatorio de pago al alumno (no solo al profesor) — BAJA esfuerzo
+### F-21 — Recordatorio de pago al alumno (no solo al profesor) — BAJA esfuerzo ✅ (sesión 10)
+
 Si pasaron 24 h y no subió comprobante → notif "Te falta subir tu comprobante para X". Reduce deudas.
+Migración `033_payment_reminder_notification.sql`. Lógica en cron `cleanup-classes`. UI en web y mobile.
 
 ### F-22 — Reportes admin más finos — MEDIA esfuerzo
 Panel `/admin` con: top reportados, clases canceladas en últimos 7 días, usuarios sin confirmar pendientes, deudores totales.
@@ -111,10 +123,10 @@ Antes de escalar, simular 1000 usuarios concurrent. Detectar bottlenecks.
 ### F-27 — Eventos / festivales — MEDIA esfuerzo
 Tipo de entidad nueva: "Evento" (no es clase recurrente, es un día específico, varios profes). Festivales urbanos chilenos son grandes y poco organizados online.
 
-### F-28 — Reels / videos cortos del feed — ALTA impacto
+### F-28 — Reels / videos cortos del feed — ALTA impacto ❌
 TikTok-style: scroll vertical de videos cortos de las clases. Reemplazaría el feed actual a futuro.
 
-### F-29 — Stories efímeras — MEDIA esfuerzo
+### F-29 — Stories efímeras — MEDIA esfuerzo ❌
 "Hoy doy clase a las 19 hs" con expiración 24h. Replica el comportamiento que ya hacen en Instagram, dentro de la app.
 
 ### F-30 — Crews / grupos privados — ALTA esfuerzo
@@ -124,7 +136,7 @@ Profesor crea su "crew" y alumnos se afilian. Posts privados al crew. Útil para
 
 ## Internacionalización
 
-### F-31 — Soporte multi-país (Argentina, Perú, México) — ALTA esfuerzo
+### F-31 — Soporte multi-país (Argentina, Perú, México) — ALTA esfuerzo ❌
 Cambios: moneda dinámica (CLP, ARS, USD), MP por país, RUT vs DNI vs CURP, ciudades por país. Post-tracción Chile.
 
 ### F-32 — Inglés (al menos en /privacy y /terms) — BAJA esfuerzo
@@ -134,6 +146,6 @@ Para Apple/Google review pueden pedir.
 
 ## Notas finales
 
-- Construir 2-3 de estas por mes, no todas a la vez.
+- Construir 2-3 de estas por mes, no todas a la vez. En cada sesión marcar con un checkmark lo realizado.
 - Validar con usuarios alpha **antes** de invertir en F-7, F-13, F-27, F-30 (las pesadas).
 - F-1 (push), F-2 (emails), F-9 (Instagram share) son los "quick wins" con mayor ratio impacto/esfuerzo.

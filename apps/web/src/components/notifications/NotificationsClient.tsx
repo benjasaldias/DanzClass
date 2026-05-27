@@ -202,6 +202,12 @@ const NOTIF_CONFIG: Record<string, {
     },
     href: (data) => data.rehearsal_id ? `/rehearsal/${data.rehearsal_id}` : '/feed',
   },
+  payment_reminder: {
+    icon: AlertCircle,
+    color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
+    label: (data) => `Tienes un pago pendiente para "${data.class_title ?? 'una clase'}". Sube tu comprobante para confirmar tu cupo.`,
+    href: (data) => data.enrollment_id ? `/payment/${data.enrollment_id}` : '/my-classes',
+  },
 }
 
 export default function NotificationsClient({ notifications, profileMap, classMap, userId }: NotificationsClientProps) {

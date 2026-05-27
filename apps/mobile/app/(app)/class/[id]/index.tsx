@@ -8,10 +8,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTheme } from '../../../../context/ThemeContext'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import * as ImagePicker from 'expo-image-picker'
+import * as FileSystem from 'expo-file-system/legacy'
+import * as Linking from 'expo-linking'
 import {
   ChevronLeft, MapPin, Clock, Users, Calendar, ChevronDown,
   ChevronRight, CheckCircle2, Tag, Music2, AlertCircle,
-  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell,
+  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell, CalendarPlus,
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
@@ -27,6 +29,52 @@ const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
   intermedio: { bg: '#fef9c3', text: '#a16207' },
   avanzado: { bg: '#fee2e2', text: '#dc2626' },
   todos: { bg: '#dbeafe', text: '#1d4ed8' },
+}
+
+// ICS calendar export helper
+function padN(n: number) { return String(n).padStart(2, '0') }
+function icsDateStr(dateStr: string, timeStr: string | null | undefined, durationMinutes = 60) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const [hh, mm] = (timeStr ?? '00:00').split(':').map(Number)
+  const start = new Date(y, m - 1, d, hh, mm)
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000)
+  const fmt = (dt: Date) => `${dt.getFullYear()}${padN(dt.getMonth() + 1)}${padN(dt.getDate())}T${padN(dt.getHours())}${padN(dt.getMinutes())}00`
+  return { start: fmt(start), end: fmt(end) }
+}
+function escICS(s: string) { return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n') }
+function buildICS(cls: any): string {
+  const summary = escICS(`${cls.title ?? 'Clase DanzClass'} — DanzClass`)
+  const description = escICS(`Profesor: ${cls.teacher?.username ? '@' + cls.teacher.username : 'Profesor'}${cls.level ? '\nNivel: ' + cls.level : ''}`)
+  const location = escICS(cls.city ?? cls.location ?? '')
+  const duration = cls.duration_minutes ?? 60
+  const events: string[] = []
+  if (cls.type === 'suelta') {
+    const { start, end } = icsDateStr(cls.date, cls.time, duration)
+    events.push(`BEGIN:VEVENT\r\nUID:danzclass-${cls.id}\r\nDTSTART:${start}\r\nDTEND:${end}\r\nSUMMARY:${summary}\r\nDESCRIPTION:${description}\r\nLOCATION:${location}\r\nEND:VEVENT`)
+  } else if (cls.recurrence === 'custom') {
+    ;(cls.custom_dates ?? []).forEach((dateStr: string, i: number) => {
+      const { start, end } = icsDateStr(dateStr, cls.recurring_time, duration)
+      events.push(`BEGIN:VEVENT\r\nUID:danzclass-${cls.id}-${i}\r\nDTSTART:${start}\r\nDTEND:${end}\r\nSUMMARY:${summary}\r\nDESCRIPTION:${description}\r\nLOCATION:${location}\r\nEND:VEVENT`)
+    })
+  } else {
+    const anchor = cls.start_date ?? cls.date ?? new Date().toISOString().split('T')[0]
+    const { start, end } = icsDateStr(anchor, cls.recurring_time, duration)
+    const rruleMap: Record<string, string> = { weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY' }
+    const rrule = (rruleMap[cls.recurrence] ?? 'FREQ=WEEKLY') + (cls.ends_indefinitely || !cls.ends_at ? '' : `;UNTIL=${cls.ends_at.replace(/-/g, '')}T235959`)
+    events.push(`BEGIN:VEVENT\r\nUID:danzclass-${cls.id}\r\nDTSTART:${start}\r\nDTEND:${end}\r\nRRULE:${rrule}\r\nSUMMARY:${summary}\r\nDESCRIPTION:${description}\r\nLOCATION:${location}\r\nEND:VEVENT`)
+  }
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//DanzClass//DanzClass//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...events, 'END:VCALENDAR'].join('\r\n')
+}
+async function addToCalendarMobile(cls: any) {
+  try {
+    const ics = buildICS(cls)
+    const filename = `${(cls.title ?? 'clase').replace(/\s+/g, '_')}.ics`
+    const fileUri = (FileSystem.documentDirectory ?? '') + filename
+    await FileSystem.writeAsStringAsync(fileUri, ics, { encoding: FileSystem.EncodingType.UTF8 })
+    await Linking.openURL(fileUri)
+  } catch {
+    Alert.alert('Error', 'No se pudo abrir el calendario. Intenta desde el navegador.')
+  }
 }
 
 function formatTime(time: string): string {
@@ -1092,6 +1140,12 @@ export default function ClassDetailScreen() {
                   <Text className="text-white font-semibold">Ir a pagar</Text>
                 </TouchableOpacity>
               )}
+              {enrollment.status === 'confirmed' && (
+                <TouchableOpacity onPress={() => addToCalendarMobile(cls)} className="flex-row items-center justify-center gap-1.5 py-2">
+                  <CalendarPlus size={14} stroke={isDark ? '#86efac' : '#15803d'} />
+                  <Text className="text-xs text-green-700 dark:text-green-400 font-medium">Agregar a calendario</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={handleLeave} disabled={leaving} className="py-2 items-center">
                 <Text className="text-xs text-red-500 dark:text-red-400">{leaving ? 'Saliendo...' : 'Salir del entrenamiento'}</Text>
               </TouchableOpacity>
@@ -1136,6 +1190,12 @@ export default function ClassDetailScreen() {
                       className="bg-brand-600 rounded-xl py-3 items-center"
                     >
                       <Text className="text-white font-semibold">Enviar comprobante</Text>
+                    </TouchableOpacity>
+                  )}
+                  {enrollment.status === 'confirmed' && (
+                    <TouchableOpacity onPress={() => addToCalendarMobile(cls)} className="flex-row items-center justify-center gap-1.5 py-2">
+                      <CalendarPlus size={14} stroke={isDark ? '#86efac' : '#15803d'} />
+                      <Text className="text-xs text-green-700 dark:text-green-400 font-medium">Agregar a calendario</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity onPress={handleLeave} disabled={leaving} className="py-2 items-center">

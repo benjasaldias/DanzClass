@@ -7,9 +7,10 @@ import Link from 'next/link'
 import {
   MapPin, Clock, Users, Calendar, ChevronLeft, ChevronRight, UserPlus, UserMinus,
   AlertCircle, CheckCircle2, Pencil, Trash2, Flag, Tag, ClipboardList,
-  ChevronDown, ChevronUp, Share2, Bell,
+  ChevronDown, ChevronUp, Share2, Bell, CalendarPlus,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
+import { downloadICS } from '@/lib/ics'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
@@ -632,7 +633,7 @@ export default function ClassDetailClient({
         )}
 
         {currentUser && enrollment && enrollment.status !== 'cancelled' && (
-          <EnrollmentBanner enrollment={enrollment} classId={classData.id} onLeave={() => setShowLeaveConfirm(true)} />
+          <EnrollmentBanner enrollment={enrollment} classId={classData.id} classData={classData} onLeave={() => setShowLeaveConfirm(true)} />
         )}
       </div>
 
@@ -747,7 +748,7 @@ export default function ClassDetailClient({
   )
 }
 
-function EnrollmentBanner({ enrollment, classId, onLeave }: { enrollment: any; classId: string; onLeave: () => void }) {
+function EnrollmentBanner({ enrollment, classId, classData, onLeave }: { enrollment: any; classId: string; classData: any; onLeave: () => void }) {
   const statusConfig = {
     pending_payment: { icon: AlertCircle, color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300', title: 'Reserva pendiente de pago', desc: 'Completa el pago para confirmar tu cupo', showPayButton: true },
     payment_submitted: { icon: Clock, color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300', title: 'Comprobante enviado', desc: 'El profesor está verificando tu pago', showPayButton: false },
@@ -766,6 +767,15 @@ function EnrollmentBanner({ enrollment, classId, onLeave }: { enrollment: any; c
           <p className="text-xs mt-0.5 opacity-80">{config.desc}</p>
           {config.showPayButton && (
             <Link href={`/payment/${enrollment.id}`} className="mt-2 inline-flex btn-primary text-xs py-1.5">Ir a pagar</Link>
+          )}
+          {enrollment.status === 'confirmed' && classData && (
+            <button
+              onClick={() => downloadICS(classData)}
+              className="mt-2 mr-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400 hover:underline"
+            >
+              <CalendarPlus className="h-3.5 w-3.5" />
+              Agregar a calendario
+            </button>
           )}
           <button onClick={onLeave} className="mt-2 text-xs text-red-500 hover:text-red-700 font-medium underline">Salir de la clase</button>
         </div>
