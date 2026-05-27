@@ -457,11 +457,11 @@ export default function ClassDetailClient({
           </span>
         </div>
 
-        <div className="flex items-center justify-between">
-          <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-3">
+        <div className="card p-3 flex items-center justify-between gap-3">
+          <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-3 min-w-0">
             <Avatar src={teacher.avatar_url} name={teacher.full_name} size="md" />
-            <div>
-              <p className="font-semibold text-sm text-gray-900 dark:text-dark-text">{teacher.full_name}</p>
+            <div className="min-w-0">
+              <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{teacher.full_name}</p>
               <p className="text-xs text-gray-500 dark:text-dark-text2">@{teacher.username}</p>
             </div>
           </Link>
@@ -469,7 +469,7 @@ export default function ClassDetailClient({
             <button
               onClick={handleFollowToggle}
               disabled={followLoading}
-              className={cn('flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors',
+              className={cn('flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors flex-shrink-0',
                 isFollowing ? 'border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text2 hover:border-red-200 hover:text-red-600' : 'border-brand-500 text-brand-600 bg-brand-50 dark:bg-brand-950/30 dark:text-brand-300 hover:bg-brand-100'
               )}
             >
@@ -632,8 +632,8 @@ export default function ClassDetailClient({
 
       {/* Bottom CTA — for authenticated enrolled students or guests */}
       {!isTeacher && (!enrollment || enrollment.status === 'cancelled') && canEnrollDirectly && (
-        <div className="sticky bottom-16 left-0 right-0 border-t border-gray-100 dark:border-dark-border bg-white/90 dark:bg-dark-surface/90 backdrop-blur-md px-4 py-3">
-          <div className="flex items-start justify-between gap-3">
+        <div className="sticky bottom-16 left-0 right-0 border-t border-gray-100 dark:border-dark-border bg-white/95 dark:bg-dark-surface/95 backdrop-blur-md px-4 pt-3 pb-4">
+          <div className="flex items-center justify-between gap-4 mb-2">
             <div>
               <p className="text-xs text-gray-500 dark:text-dark-text2">
                 {isPeriodic ? 'Precio mensual' : 'Precio'}
@@ -641,13 +641,13 @@ export default function ClassDetailClient({
               {hasDiscount ? (
                 <div className="flex items-baseline gap-2">
                   <p className="text-2xl font-bold text-coral-fuego">{formatCLP(activePrice)}</p>
-                  <p className="text-base text-gray-400 line-through">{formatCLP(originalPrice)}</p>
+                  <p className="text-sm text-gray-400 line-through">{formatCLP(originalPrice)}</p>
                 </div>
               ) : (
                 <p className="text-2xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(classData.price)}</p>
               )}
               {classData.price_suelta && (
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">
                   Suelta:{' '}
                   {discountData.discount_price ? (
                     <>
@@ -694,22 +694,22 @@ export default function ClassDetailClient({
                 )}
               </div>
             ) : isFull && !currentUser ? (
-              <Link href="/auth/login" className="btn-primary px-6 py-3 text-base flex-shrink-0">
-                Inicia sesión para reservar
+              <Link href="/auth/login" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
+                Inicia sesión
               </Link>
             ) : !currentUser ? (
-              <Link href="/auth/login" className="btn-primary px-6 py-3 text-base flex-shrink-0">
+              <Link href="/auth/login" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
                 Inicia sesión para reservar
               </Link>
             ) : !canUserEnroll ? (
-              <Link href="/plans" className="btn-primary px-6 py-3 text-base flex-shrink-0">
-                Obtener plan para reservar
+              <Link href="/plans" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
+                Obtener plan
               </Link>
             ) : (
               <button
                 onClick={handleEnroll}
                 disabled={enrolling}
-                className="btn-primary px-6 py-3 text-base flex-shrink-0"
+                className="btn-primary px-6 py-3 text-base font-bold flex-shrink-0 disabled:opacity-60"
               >
                 {enrolling ? (
                   <span className="flex items-center gap-2">
@@ -722,20 +722,18 @@ export default function ClassDetailClient({
           </div>
 
           {enrollError && (
-            <p className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium">{enrollError}</p>
+            <p className="mb-2 text-xs text-red-600 dark:text-red-400 font-medium">{enrollError}</p>
           )}
 
           {/* 2x button — only for logged-in users when spots available */}
           {currentUser && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
-            <div className="mt-1">
-              <TwoxRequestButton
-                classId={classData.id}
-                classTitle={classData.title}
-                userId={currentUser.id}
-                price2x={classData.price_2x ?? classData.price_suelta_2x}
-                price2xLabel={classData.price_2x ? (isPeriodic ? 'mensual por ambos' : 'total por ambos') : 'suelta por ambos'}
-              />
-            </div>
+            <TwoxRequestButton
+              classId={classData.id}
+              classTitle={classData.title}
+              userId={currentUser.id}
+              price2x={classData.price_2x ?? classData.price_suelta_2x}
+              price2xLabel={classData.price_2x ? (isPeriodic ? 'mensual por ambos' : 'total por ambos') : 'suelta por ambos'}
+            />
           )}
         </div>
       )}
@@ -745,9 +743,9 @@ export default function ClassDetailClient({
 
 function EnrollmentBanner({ enrollment, classId, onLeave }: { enrollment: any; classId: string; onLeave: () => void }) {
   const statusConfig = {
-    pending_payment: { icon: AlertCircle, color: 'bg-yellow-50 border-yellow-200 text-yellow-800', title: 'Reserva pendiente de pago', desc: 'Completa el pago para confirmar tu cupo', showPayButton: true },
-    payment_submitted: { icon: Clock, color: 'bg-blue-50 border-blue-200 text-blue-800', title: 'Comprobante enviado', desc: 'El profesor está verificando tu pago', showPayButton: false },
-    confirmed: { icon: CheckCircle2, color: 'bg-green-50 border-green-200 text-green-800', title: '¡Cupo confirmado!', desc: 'Tu pago fue verificado. Estás inscrito/a.', showPayButton: false },
+    pending_payment: { icon: AlertCircle, color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300', title: 'Reserva pendiente de pago', desc: 'Completa el pago para confirmar tu cupo', showPayButton: true },
+    payment_submitted: { icon: Clock, color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300', title: 'Comprobante enviado', desc: 'El profesor está verificando tu pago', showPayButton: false },
+    confirmed: { icon: CheckCircle2, color: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300', title: '¡Cupo confirmado!', desc: 'Tu pago fue verificado. Estás inscrito/a.', showPayButton: false },
   }
   const config = statusConfig[enrollment.status as keyof typeof statusConfig]
   if (!config) return null

@@ -351,7 +351,7 @@ function TeachingTab({
                     <Link
                       href={`/class/${cls.id}/auditions`}
                       onClick={(e) => e.stopPropagation()}
-                      className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+                      className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200"
                     >
                       <ClipboardList className="h-3 w-3" />
                       Ver postulaciones
@@ -484,7 +484,7 @@ function TeachingTab({
                                             window.open(url, '_blank', 'noopener,noreferrer')
                                           }
                                         }}
-                                        className="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                                        className="inline-flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200 font-medium"
                                       >
                                         Ver comprobante
                                         <ExternalLink className="h-3 w-3" />

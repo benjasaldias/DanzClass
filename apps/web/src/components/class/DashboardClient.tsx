@@ -151,7 +151,7 @@ export default function DashboardClient({ classes }: { classes: any[] }) {
                                             window.open(url, '_blank', 'noopener,noreferrer')
                                           }
                                         }}
-                                        className="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                                        className="inline-flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200 font-medium"
                                       >
                                         Ver comprobante
                                         <ExternalLink className="h-3 w-3" />

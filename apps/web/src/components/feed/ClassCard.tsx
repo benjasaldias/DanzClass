@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { MapPin, Clock, Users, ChevronRight, Music2, Calendar, Share2 } from 'lucide-react'
+import { MapPin, Calendar, Users, ChevronRight, Share2 } from 'lucide-react'
 import { cn, timeAgo, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
@@ -39,10 +39,10 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
   const teacher = classData.teacher
   const media: any[] = classData.media ?? []
   const sortedMedia = media.sort((a: any, b: any) => a.order_index - b.order_index)
-  const isTeacher = classData.teacher_id === currentUserId
 
   const takenCount = (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
   const spotsAvailable = Math.max(0, (classData.max_spots ?? 0) - takenCount)
@@ -72,35 +72,17 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
       : classData.dance_style
     : null
 
-  return (
-    <article className="border-b border-gray-100 dark:border-dark-border bg-blanco-violeta/30 dark:bg-dark-surface">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <Link href={`/teacher/${teacher.username}`}>
-          <Avatar src={teacher.avatar_url} name={teacher.full_name} size="md" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-1">
-            <span className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{teacher.full_name}</span>
-          </Link>
-          {teacherRating && teacherRating.rating_count > 0 && (
-            <div className="mt-0.5">
-              <StarRating value={teacherRating.avg_stars} count={teacherRating.rating_count} size="sm" />
-            </div>
-          )}
-          <p className="text-xs text-gris-humo dark:text-dark-text2">{timeAgo(classData.created_at)}</p>
-        </div>
-        {styleBadge && (
-          <span className="badge bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs">{styleBadge}</span>
-        )}
-      </div>
+  const hasMedia = sortedMedia.length > 0
+  const currentMedia = sortedMedia[currentMediaIndex]
 
-      {/* Media carousel */}
-      {sortedMedia.length > 0 && (
-        <div className="relative aspect-square bg-gray-100 dark:bg-dark-surface2">
-          {sortedMedia[currentMediaIndex].type === 'image' ? (
+  return (
+    <article className="border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface">
+      {/* Media hero — portrait 4:5 */}
+      <div className="relative aspect-[4/5] bg-gray-100 dark:bg-dark-surface2 overflow-hidden">
+        {hasMedia ? (
+          currentMedia.type === 'image' ? (
             <Image
-              src={sortedMedia[currentMediaIndex].url}
+              src={currentMedia.url}
               alt={classData.title}
               fill
               className="object-cover"
@@ -109,57 +91,82 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
             />
           ) : (
             <video
-              src={sortedMedia[currentMediaIndex].url}
+              src={currentMedia.url}
               className="w-full h-full object-cover"
               controls
               playsInline
               preload="metadata"
             />
-          )}
+          )
+        ) : (
+          /* Placeholder cuando no hay media */
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-brand-100 dark:from-dark-surface2 dark:to-dark-surface">
+            <span className="text-5xl opacity-20">🎵</span>
+          </div>
+        )}
 
-          {/* Dot indicators */}
-          {sortedMedia.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {sortedMedia.map((_: any, i: number) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentMediaIndex(i)}
-                  className={cn(
-                    'h-1.5 rounded-full transition-all',
-                    i === currentMediaIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60'
-                  )}
-                />
-              ))}
+        {/* Carousel dots */}
+        {sortedMedia.length > 1 && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {sortedMedia.map((_: any, i: number) => (
+              <button
+                key={i}
+                onClick={() => setCurrentMediaIndex(i)}
+                className={cn(
+                  'h-1.5 rounded-full transition-all',
+                  i === currentMediaIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60'
+                )}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Share button — top left */}
+        <button
+          onClick={handleShare}
+          title={copied ? '¡Copiado!' : 'Compartir clase'}
+          className="absolute top-3 left-3 z-10 h-8 w-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
+          aria-label="Compartir clase"
+        >
+          <Share2 className={cn('h-4 w-4', copied ? 'text-green-400' : 'text-white')} />
+        </button>
+
+        {/* Style badge — top right */}
+        {styleBadge && (
+          <span className="absolute top-3 right-3 z-10 px-2 py-1 rounded-full text-xs font-semibold bg-black/50 backdrop-blur-sm text-white uppercase tracking-wide">
+            {styleBadge}
+          </span>
+        )}
+
+        {/* Teacher overlay — bottom gradient */}
+        <div className="absolute bottom-0 inset-x-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 py-3">
+          <Link href={`/teacher/${teacher.username}`} className="flex items-center gap-2.5">
+            <Avatar src={teacher.avatar_url} name={teacher.full_name} size="sm" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate leading-tight">{teacher.full_name}</p>
+              {teacherRating && teacherRating.rating_count > 0 ? (
+                <div className="mt-0.5">
+                  <StarRating value={teacherRating.avg_stars} count={teacherRating.rating_count} size="sm" />
+                </div>
+              ) : (
+                <p className="text-xs text-white/70">{timeAgo(classData.created_at)}</p>
+              )}
             </div>
-          )}
+          </Link>
         </div>
-      )}
+      </div>
 
       {/* Content */}
-      <div className="px-4 pb-4 pt-3 space-y-3">
-        {/* Title + level */}
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-gray-900 dark:text-dark-text leading-snug">{classData.title}</h3>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              onClick={handleShare}
-              title={copied ? '¡Copiado!' : 'Compartir clase'}
-              className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors"
-            >
-              <Share2 className={cn('h-4 w-4', copied ? 'text-green-500' : 'text-gris-humo dark:text-dark-text2')} />
-            </button>
-            <span className={cn('badge', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400')}>
-              {classData.level}
-            </span>
-          </div>
-        </div>
+      <div className="px-4 pt-3 pb-4 space-y-2.5">
+        {/* Title */}
+        <h3 className="font-bold text-gray-900 dark:text-dark-text leading-snug">{classData.title}</h3>
 
         {/* Description */}
         {classData.description && (
-          <p className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed line-clamp-3">{classData.description}</p>
+          <p className="text-sm text-gray-500 dark:text-dark-text2 leading-relaxed line-clamp-2">{classData.description}</p>
         )}
 
-        {/* Details */}
+        {/* Meta rows */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
             <Calendar className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
@@ -172,66 +179,66 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
             </div>
           )}
           <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
-            <Clock className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
-            <span>{classData.duration_minutes} min</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
             <Users className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
             <span>
               <span className={cn('font-medium', spotsAvailable <= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-emerald-400')}>
-                {Math.max(0, spotsAvailable)}
+                {spotsAvailable}
               </span>
               /{classData.max_spots} cupos disponibles
             </span>
           </div>
         </div>
 
-        {/* Price + CTA */}
-        <div className="-mx-4 -mb-4 px-4 py-3 bg-emerald-100 dark:bg-emerald-900/30 border-t border-emerald-200 dark:border-emerald-900/50">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs text-gris-humo dark:text-dark-text2">
-                {classData.type === 'periodica' || classData.type === 'entrenamiento' ? 'Precio mensual' : 'Precio'}
-              </p>
-              {/* Main price + 2x inline */}
-              <div className="flex items-baseline gap-2 flex-wrap">
-                {classData.discount_price_monthly && classData.type !== 'suelta' ? (
-                  <>
-                    <span className="text-xl font-bold text-coral-fuego">{formatCLP(classData.discount_price_monthly)}</span>
-                    <span className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</span>
-                  </>
-                ) : classData.discount_price && classData.type === 'suelta' ? (
-                  <>
-                    <span className="text-xl font-bold text-coral-fuego">{formatCLP(classData.discount_price)}</span>
-                    <span className="text-sm text-gray-400 line-through">{formatCLP(classData.price)}</span>
-                  </>
-                ) : (
-                  <span className="text-xl font-bold text-gray-900 dark:text-dark-text">{formatCLP(classData.price)}</span>
-                )}
-                {classData.price_2x && (
-                  <span className="text-xs text-brand-600 dark:text-brand-300 font-semibold">· 2x {formatCLP(classData.price_2x)}</span>
-                )}
-              </div>
-              {/* Suelta price + suelta 2x inline */}
-              {classData.price_suelta && (
-                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                  <span className="text-xs text-gris-humo dark:text-dark-text2">Suelta:</span>
-                  {classData.discount_price ? (
-                    <>
-                      <span className="text-xs font-medium text-coral-fuego">{formatCLP(classData.discount_price)}</span>
-                      <span className="text-xs line-through text-gray-400">{formatCLP(classData.price_suelta)}</span>
-                    </>
-                  ) : (
-                    <span className="text-xs font-medium text-gray-700 dark:text-dark-text">{formatCLP(classData.price_suelta)}</span>
-                  )}
-                  {classData.price_suelta_2x && (
-                    <span className="text-xs text-brand-600 dark:text-brand-300 font-semibold">· 2x {formatCLP(classData.price_suelta_2x)}</span>
-                  )}
-                </div>
+        {/* Price + CTA row */}
+        <div className="flex items-end justify-between gap-3 pt-1">
+          <div className="min-w-0">
+            <p className="text-xs text-gris-humo dark:text-dark-text2 mb-0.5">
+              {classData.type === 'periodica' || classData.type === 'entrenamiento' ? 'Precio mensual' : 'Precio'}
+            </p>
+            {/* Main price */}
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              {classData.discount_price_monthly && classData.type !== 'suelta' ? (
+                <>
+                  <span className="text-lg font-bold text-coral-fuego">{formatCLP(classData.discount_price_monthly)}</span>
+                  <span className="text-xs text-gray-400 line-through">{formatCLP(classData.price)}</span>
+                </>
+              ) : classData.discount_price && classData.type === 'suelta' ? (
+                <>
+                  <span className="text-lg font-bold text-coral-fuego">{formatCLP(classData.discount_price)}</span>
+                  <span className="text-xs text-gray-400 line-through">{formatCLP(classData.price)}</span>
+                </>
+              ) : (
+                <span className="text-lg font-bold text-gray-900 dark:text-dark-text">{formatCLP(classData.price)}</span>
+              )}
+              {classData.price_2x && (
+                <span className="text-xs text-brand-600 dark:text-brand-300 font-semibold">· 2x {formatCLP(classData.price_2x)}</span>
               )}
             </div>
+            {/* Suelta price */}
+            {classData.price_suelta && (
+              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                <span className="text-xs text-gris-humo dark:text-dark-text2">Suelta:</span>
+                {classData.discount_price ? (
+                  <>
+                    <span className="text-xs font-medium text-coral-fuego">{formatCLP(classData.discount_price)}</span>
+                    <span className="text-xs line-through text-gray-400">{formatCLP(classData.price_suelta)}</span>
+                  </>
+                ) : (
+                  <span className="text-xs font-medium text-gray-700 dark:text-dark-text">{formatCLP(classData.price_suelta)}</span>
+                )}
+                {classData.price_suelta_2x && (
+                  <span className="text-xs text-brand-600 dark:text-brand-300 font-semibold">· 2x {formatCLP(classData.price_suelta_2x)}</span>
+                )}
+              </div>
+            )}
+          </div>
 
-            <Link href={`/class/${classData.id}`} className="btn-primary flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Level badge */}
+            <span className={cn('badge text-xs', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400')}>
+              {classData.level}
+            </span>
+            <Link href={`/class/${classData.id}`} className="btn-primary">
               Ver clase
               <ChevronRight className="h-4 w-4" />
             </Link>
