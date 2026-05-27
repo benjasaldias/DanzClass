@@ -138,7 +138,7 @@ export default function TwoxRequestButton({
           <button
             onClick={handleCancel}
             disabled={acting}
-            className="flex items-center gap-1.5 rounded-full border border-brand-300 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-full border border-brand-300 dark:border-brand-700 px-3 py-2 text-xs font-medium text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-950/30 transition-colors disabled:opacity-50"
           >
             {acting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
             Cancelar búsqueda
@@ -147,7 +147,7 @@ export default function TwoxRequestButton({
       </div>
 
       {state === 'looking' && (
-        <p className="text-xs text-brand-600 flex items-center gap-1.5">
+        <p className="text-xs text-brand-600 dark:text-brand-300 flex items-center gap-1.5">
           <span className="inline-block h-2 w-2 rounded-full bg-brand-400 animate-pulse" />
           Buscando compañer@... tus amigos verán que quieres ir en pareja
         </p>
@@ -155,7 +155,7 @@ export default function TwoxRequestButton({
 
       {state === 'matched' && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-green-700">¡Emparejad@! Coordinen el pago juntos.</p>
+          <p className="text-xs font-semibold text-green-700 dark:text-green-400">¡Emparejad@! Coordinen el pago juntos.</p>
           {isMyTurnToPay ? (
             <div className="flex gap-2">
               <button

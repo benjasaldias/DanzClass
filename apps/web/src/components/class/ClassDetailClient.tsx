@@ -385,59 +385,65 @@ export default function ClassDetailClient({
 
       {/* Media carousel */}
       {media.length > 0 && (
-        <div
-          className="relative w-full bg-black mt-2 select-none"
-          style={{ minHeight: '240px', cursor: media.length > 1 ? 'grab' : 'default' }}
-          onPointerDown={(e) => { if (media.length > 1) dragStartX.current = e.clientX }}
-          onPointerUp={(e) => {
-            if (dragStartX.current === null || media.length <= 1) return
-            const delta = e.clientX - dragStartX.current
-            if (delta > 50) setCurrentMediaIndex((i) => Math.max(0, i - 1))
-            else if (delta < -50) setCurrentMediaIndex((i) => Math.min(media.length - 1, i + 1))
-            dragStartX.current = null
-          }}
-          onPointerLeave={() => { dragStartX.current = null }}
-        >
-          {media[currentMediaIndex].type === 'image' ? (
-            <img
-              src={media[currentMediaIndex].url}
-              alt={classData.title}
-              className="w-full h-auto max-h-[70vh] object-contain mx-auto block pointer-events-none"
-            />
-          ) : (
-            <video
-              src={media[currentMediaIndex].url}
-              className="w-full h-auto max-h-[85vh] block"
-              controls
-              playsInline
-            />
-          )}
+        <>
+          <div
+            className="relative w-full bg-black mt-2 select-none"
+            style={{ minHeight: '240px', cursor: media.length > 1 ? 'grab' : 'default' }}
+            onPointerDown={(e) => { if (media.length > 1) dragStartX.current = e.clientX }}
+            onPointerUp={(e) => {
+              if (dragStartX.current === null || media.length <= 1) return
+              const delta = e.clientX - dragStartX.current
+              if (delta > 50) setCurrentMediaIndex((i) => Math.max(0, i - 1))
+              else if (delta < -50) setCurrentMediaIndex((i) => Math.min(media.length - 1, i + 1))
+              dragStartX.current = null
+            }}
+            onPointerLeave={() => { dragStartX.current = null }}
+          >
+            {media[currentMediaIndex].type === 'image' ? (
+              <img
+                src={media[currentMediaIndex].url}
+                alt={classData.title}
+                className="w-full h-auto max-h-[70vh] object-contain mx-auto block pointer-events-none"
+              />
+            ) : (
+              <video
+                src={media[currentMediaIndex].url}
+                className="w-full h-auto max-h-[85vh] block"
+                controls
+                playsInline
+              />
+            )}
+          </div>
+
+          {/* Carousel nav — debajo de la imagen, arriba del contenido */}
           {media.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
+            <div className="flex items-center justify-center gap-3 py-2 border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface">
               <button
                 onClick={() => setCurrentMediaIndex((i) => Math.max(0, i - 1))}
                 disabled={currentMediaIndex === 0}
-                className="text-white/70 hover:text-white disabled:text-white/25 transition-colors p-1"
+                className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:text-dark-text2 dark:hover:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors disabled:opacity-25"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-4 w-4" />
               </button>
-              {media.map((_: any, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentMediaIndex(index)}
-                  className={cn('h-1.5 rounded-full transition-all', index === currentMediaIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/60 hover:bg-white/90')}
-                />
-              ))}
+              <div className="flex gap-1.5 items-center">
+                {media.map((_: any, index: number) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentMediaIndex(index)}
+                    className={cn('h-1.5 rounded-full transition-all', index === currentMediaIndex ? 'w-4 bg-brand-600 dark:bg-brand-400' : 'w-1.5 bg-gray-300 dark:bg-dark-border hover:bg-gray-400 dark:hover:bg-dark-text2')}
+                  />
+                ))}
+              </div>
               <button
                 onClick={() => setCurrentMediaIndex((i) => Math.min(media.length - 1, i + 1))}
                 disabled={currentMediaIndex === media.length - 1}
-                className="text-white/70 hover:text-white disabled:text-white/25 transition-colors p-1"
+                className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:text-dark-text2 dark:hover:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors disabled:opacity-25"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           )}
-        </div>
+        </>
       )}
 
       <div className="px-4 py-4 space-y-5">
@@ -445,7 +451,7 @@ export default function ClassDetailClient({
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">{classData.title}</h1>
             {classData.dance_style && (
-              <span className="text-sm text-brand-600 font-medium">
+              <span className="text-sm text-brand-600 dark:text-brand-300 font-medium">
                 {classData.dance_style}
                 {classData.class_type && ` — ${classData.class_type}`}
                 {isEntrenamiento && ' · Entrenamiento'}
@@ -725,8 +731,8 @@ export default function ClassDetailClient({
             <p className="mb-2 text-xs text-red-600 dark:text-red-400 font-medium">{enrollError}</p>
           )}
 
-          {/* 2x button — only for logged-in users when spots available */}
-          {currentUser && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
+          {/* 2x button — solo para usuarios con plan cuando hay cupos */}
+          {currentUser && canUserEnroll && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
             <TwoxRequestButton
               classId={classData.id}
               classTitle={classData.title}
