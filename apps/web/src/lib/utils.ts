@@ -134,20 +134,22 @@ export function getClassSessions(classData: any, fromDate: Date, toDate: Date): 
 
   if (classData.recurrence === 'monthly') {
     const dayOfMonth = start.getDate()
-    const cur = new Date(start)
+    // Track year/month as integers to avoid setMonth overflow when day > 28
+    let year = start.getFullYear()
+    let month = start.getMonth()
     // Advance to a month on or after fromDate
-    while (cur < fromDate) cur.setMonth(cur.getMonth() + 1)
-    while (cur <= endDate) {
-      // Clamp to last valid day of the month
-      const year = cur.getFullYear()
-      const month = cur.getMonth()
+    const fromYM = fromDate.getFullYear() * 12 + fromDate.getMonth()
+    while (year * 12 + month < fromYM) {
+      month++; if (month > 11) { month = 0; year++ }
+    }
+    let safety = 0
+    while (safety++ < 120) {
       const lastDay = new Date(year, month + 1, 0).getDate()
       const actualDay = Math.min(dayOfMonth, lastDay)
       const session = new Date(year, month, actualDay)
-      if (session >= fromDate && session <= endDate) {
-        results.push(toYMD(session))
-      }
-      cur.setMonth(cur.getMonth() + 1)
+      if (session > endDate) break
+      if (session >= fromDate) results.push(toYMD(session))
+      month++; if (month > 11) { month = 0; year++ }
     }
     return results
   }
