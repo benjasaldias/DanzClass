@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createHmac } from 'crypto'
 import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 function verifySignature(request: Request): { ok: boolean; reason?: string } {
@@ -43,7 +44,7 @@ async function activateSubscription(
     .maybeSingle()
 
   if (existing) {
-    console.log('[webhook] subscription already exists for mp_id:', mpId)
+    logger.info('webhook:subscription_already_exists', { mp_id: mpId })
     return
   }
 
@@ -67,9 +68,9 @@ async function activateSubscription(
   })
 
   if (error) {
-    console.error('[webhook] supabase insert error:', error)
+    logger.error('webhook:subscription_insert_failed', error, { user_id: userId, tier })
   } else {
-    console.log('[webhook] subscription activated — user:', userId, 'tier:', tier, 'months:', months)
+    logger.info('webhook:subscription_activated', { user_id: userId, tier, months })
   }
 }
 
@@ -80,17 +81,17 @@ export async function POST(request: Request) {
   const webhookType = url.searchParams.get('type') ?? ''
   const dataId = url.searchParams.get('data.id') ?? ''
 
-  console.log('[MP webhook] received', { type: webhookType, dataId })
+  logger.info('webhook:received', { type: webhookType, data_id: dataId })
 
   // Reject events with no data.id before signature check (prevents manifest spoofing)
   if (!dataId) {
-    console.warn('[MP webhook] empty data.id — rejecting')
+    logger.warn('webhook:empty_data_id')
     return NextResponse.json({ error: 'Missing data.id' }, { status: 400 })
   }
 
   const sig = verifySignature(request)
   if (!sig.ok) {
-    console.error('[MP webhook] signature check failed:', sig.reason)
+    logger.error('webhook:signature_failed', sig.reason)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
     const paymentClient = new Payment(mp)
     const payment = await paymentClient.get({ id: eventDataId })
 
-    console.log('[webhook] payment status:', payment.status, '| ref:', payment.external_reference)
+    logger.info('webhook:payment', { status: payment.status, ref: payment.external_reference })
 
     if (payment.status !== 'approved') return NextResponse.json({ ok: true })
 
@@ -119,7 +120,7 @@ export async function POST(request: Request) {
     const months = period === 'annual' ? 12 : 1
 
     if (!userId || !['basic', 'teacher', 'pro'].includes(tier)) {
-      console.warn('[webhook] invalid external_reference:', payment.external_reference)
+      logger.warn('webhook:invalid_external_reference', { ref: payment.external_reference })
       return NextResponse.json({ ok: true })
     }
 
@@ -132,7 +133,7 @@ export async function POST(request: Request) {
     const preApproval = new PreApproval(mp)
     const sub = await preApproval.get({ id: eventDataId })
 
-    console.log('[webhook] preapproval status:', sub.status, '| id:', sub.id, '| ref:', sub.external_reference)
+    logger.info('webhook:preapproval', { status: sub.status, id: sub.id, ref: sub.external_reference })
 
     if (!sub.id) return NextResponse.json({ ok: true })
 
@@ -156,12 +157,12 @@ export async function POST(request: Request) {
         .eq('mp_subscription_id', sub.id)
         .in('status', ['active', 'grace'])
 
-      console.log('[webhook] subscription cancelled from MP — sub id:', sub.id)
+      logger.info('webhook:subscription_cancelled', { sub_id: sub.id })
 
     } else if (sub.status === 'paused') {
       // MP pausa tras cobro fallido; reintentará. No tocamos el estado en BD:
       // el expires_at natural actúa de grace period. Solo logueamos.
-      console.log('[webhook] subscription paused by MP (failed charge retry pending) — sub id:', sub.id)
+      logger.info('webhook:subscription_paused', { sub_id: sub.id })
     }
 
     return NextResponse.json({ ok: true })
@@ -175,14 +176,14 @@ export async function POST(request: Request) {
     )
 
     if (!mpRes.ok) {
-      console.error('[webhook] failed to fetch authorized payment:', eventDataId)
+      logger.error('webhook:renewal_fetch_failed', `HTTP ${mpRes.status}`, { event_data_id: eventDataId })
       return NextResponse.json({ ok: true })
     }
 
     const authorizedPayment = await mpRes.json()
     const preapprovalId = authorizedPayment.preapproval_id
 
-    console.log('[webhook] renewal — preapproval_id:', preapprovalId, '| status:', authorizedPayment.status)
+    logger.info('webhook:renewal', { preapproval_id: preapprovalId, status: authorizedPayment.status })
 
     if (authorizedPayment.status !== 'approved' || !preapprovalId) {
       return NextResponse.json({ ok: true })
@@ -196,7 +197,7 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (alreadyProcessed) {
-      console.log('[webhook] renewal already processed — mp_payment_id:', eventDataId)
+      logger.info('webhook:renewal_already_processed', { mp_payment_id: eventDataId })
       return NextResponse.json({ ok: true })
     }
 
@@ -221,14 +222,14 @@ export async function POST(request: Request) {
         .from('subscription_renewals')
         .insert({ subscription_id: (existingSub as any).id, mp_payment_id: String(eventDataId) })
 
-      console.log('[webhook] subscription renewed — new expiry:', newExpiry.toISOString())
+      logger.info('webhook:subscription_renewed', { new_expiry: newExpiry.toISOString() })
     } else {
-      console.warn('[webhook] no active subscription found for preapproval:', preapprovalId)
+      logger.warn('webhook:no_subscription_for_renewal', { preapproval_id: preapprovalId })
     }
 
     return NextResponse.json({ ok: true })
   }
 
-  console.log('[MP webhook] ignoring type:', eventType)
+  logger.info('webhook:ignored_type', { type: eventType })
   return NextResponse.json({ ok: true })
 }

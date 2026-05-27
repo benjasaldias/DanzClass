@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 
 // Vercel Cron runs this daily at 03:00 UTC.
 // Deletes class-media storage files + class_media rows + payment-receipt files
@@ -7,9 +8,18 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
 
+async function pingHealthcheck(uuid: string | undefined) {
+  if (!uuid) return
+  try {
+    await fetch(`https://hc-ping.com/${uuid}`, { signal: AbortSignal.timeout(5000) })
+  } catch {
+    // non-critical — never fail the cron because of a missed ping
+  }
+}
+
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET) {
-    console.error('[cleanup-classes] CRON_SECRET not configured')
+    logger.error('cleanup-classes', 'CRON_SECRET not configured')
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
   }
   const authHeader = request.headers.get('authorization')
@@ -79,7 +89,7 @@ export async function GET(request: Request) {
     }
   }
 
-  console.log(`[cleanup-classes] deleted=${deleted} errors=${errors.length}`)
+  logger.info('cleanup-classes:media', { deleted, errors: errors.length })
 
   // ── Recordatorios 24h antes ─────────────────────────────────────────────────
   // D-6: "mañana" siempre en hora Chile, no UTC. Evita perder/duplicar recordatorios cerca de medianoche.
@@ -205,7 +215,7 @@ export async function GET(request: Request) {
     }
   }
 
-  console.log(`[cleanup-classes] reminders=${reminders}`)
+  logger.info('cleanup-classes:reminders', { reminders })
 
   // ── 2x stale enrollment timeout: cancel after 7 days of non-payment ─────────
   const sevenDaysAgo = new Date(now)
@@ -266,7 +276,9 @@ export async function GET(request: Request) {
     cancelled2x++
   }
 
-  if (cancelled2x > 0) console.log(`[cleanup-classes] cancelled_2x=${cancelled2x}`)
+  if (cancelled2x > 0) logger.info('cleanup-classes:2x', { cancelled2x })
+
+  await pingHealthcheck(process.env.HEALTHCHECK_CLEANUP_CLASSES_UUID)
 
   return NextResponse.json({ deleted, errors, reminders, cancelled2x })
 }

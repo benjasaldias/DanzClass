@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@danceclass/shared": "*",
+    "@sentry/nextjs": "^8.0.0",
     "@hookform/resolvers": "^3.4.0",
     "@supabase/ssr": "^0.4.0",
     "@supabase/supabase-js": "^2.43.0",

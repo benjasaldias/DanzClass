@@ -669,6 +669,39 @@ Los siguientes flujos no tienen test automatizado todavía:
 
 ---
 
+## Observabilidad y monitoreo (sesión 2026-05-27)
+
+**Logger estructurado (`apps/web/src/lib/logger.ts`):**
+Helper JSON-structured con `logger.info`, `logger.warn`, `logger.error`. Emite objetos `{ level, event, ...meta, ts }` a `console.log/warn/error` — Vercel los indexa como JSON y permite filtrar por `level` o `event` en el log explorer. Usar en todos los API routes críticos (ya aplicado en cron y webhook).
+
+**Sentry (`@sentry/nextjs` ^8):**
+- Paquete agregado a `apps/web/package.json`. Se instala en el próximo deploy de Vercel.
+- Config cliente: `apps/web/sentry.client.config.ts` — lee `NEXT_PUBLIC_SENTRY_DSN`, `tracesSampleRate: 0.1`, ignora errores de red/fetch.
+- Config server: `apps/web/sentry.server.config.ts` — lee `SENTRY_DSN` o `NEXT_PUBLIC_SENTRY_DSN`.
+- Init server via `apps/web/src/instrumentation.ts` (Next.js 14 stable instrumentation hook).
+- `next.config.js` wrappea con `withSentryConfig` dentro de un try/catch (no rompe si el paquete no está instalado localmente con Node v12).
+- **Acción pendiente del usuario:** crear cuenta Sentry free → obtener DSN → agregar `NEXT_PUBLIC_SENTRY_DSN` en Vercel.
+
+**Healthchecks.io para crons:**
+Ambos crons (`cleanup-classes`, `cleanup-unconfirmed`) llaman a `https://hc-ping.com/<UUID>` al final de cada ejecución exitosa. Si el ping no llega en 26h → alerta al admin.
+- Env vars: `HEALTHCHECK_CLEANUP_CLASSES_UUID` y `HEALTHCHECK_CLEANUP_UNCONFIRMED_UUID`.
+- El ping falla silenciosamente (try/catch, timeout 5s) — nunca bloquea el cron.
+- **Acción pendiente del usuario:** crear cuenta en healthchecks.io → crear 2 monitores (schedule diario, grace 2h) → agregar UUIDs en Vercel.
+
+**Realtime badge de notificaciones (`NotificationBell.tsx`):**
+`TopBar` usa el componente `NotificationBell` (client component) en lugar del Link+Bell estático. Recibe `initialCount` y `userId`; suscribe a Supabase Realtime (`postgres_changes INSERT` en tabla `notifications` filtrado por `user_id`). Al llegar una nueva notificación, incrementa el badge en tiempo real sin recargar la página. Al navegar a `/notifications`, resetea el badge a 0. Requiere que la tabla `notifications` tenga Realtime habilitado en el dashboard de Supabase.
+
+**Cloudinary en `remotePatterns`:**
+`next.config.js` ahora incluye `res.cloudinary.com` como dominio permitido para `next/image`. Esto permite usar `<Image>` en lugar de `<img>` para thumbnails de Cloudinary en iteraciones futuras.
+
+**N+1 queries — verificado no existe:**
+`my-classes/page.tsx` carga todo con `Promise.all` de queries nested (Supabase joins). No hay loops de fetches secuenciales.
+
+**Backups Supabase:**
+Free tier no tiene backups automáticos. Para alpha: hacer dump manual semanal con `supabase db dump > backup_YYYYMMDD.sql` o upgrade a Pro ($25/mes) que incluye daily backups.
+
+---
+
 ## Funcionalidades futuras (no prioritarias para MVP)
 
 - Notificaciones push Expo

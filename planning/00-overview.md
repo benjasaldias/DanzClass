@@ -132,7 +132,7 @@ Sesión 4 → planning/03-payments-and-money.md  ✅ (2026-05-29)
 Sesión 5 → planning/05-mobile-parity-and-platforms.md  ✅ (2026-05-29)
 Sesión 6 → planning/07-testing-and-qa.md  ✅ (2026-05-30)
 Sesión 7 → planning/06-ui-ux-polish.md  ✅ (2026-05-30)
-Sesión 8 → planning/08-performance-and-observability.md
+Sesión 8 → planning/08-performance-and-observability.md  ✅ (2026-05-27)
 Sesión 9 → planning/09-launch-readiness-checklist.md  (≤ 48 h antes del launch)
 Sesión 10 (opcional) → planning/90-feature-suggestions.md
 ```

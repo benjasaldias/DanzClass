@@ -2565,6 +2565,77 @@ Componentes con residuos corregidos:
 
 1. **Habilitar GitHub Actions** en el repo: Settings → Actions → Allow all actions.
 2. (Opcional) Crear variable `RUN_SMOKE_TESTS=true` en GitHub Actions Settings → Variables para activar smoke tests en CI.
+
+---
+
+## Sesión 2026-05-27 — Performance y Observabilidad (planning/08)
+
+### Objetivo
+
+Instalar "ojos en el sistema": logs estructurados, error tracking con Sentry, alertas de cron con Healthchecks.io, badge de notificaciones en tiempo real.
+
+### ✅ O-3 — Logger estructurado JSON
+
+Nuevo helper `apps/web/src/lib/logger.ts` con `logger.info/warn/error`. Emite JSON estructurado `{ level, event, ...meta, ts }` — Vercel lo indexa en el log explorer y permite filtrar por campo. Aplicado en:
+
+- `api/cron/cleanup-classes/route.ts`
+- `api/cron/cleanup-unconfirmed/route.ts`
+- `api/mercadopago/webhook/route.ts`
+
+### ✅ O-2 — Healthchecks.io para crons
+
+Función `pingHealthcheck(uuid)` añadida al final de ambos crons. Llama a `https://hc-ping.com/<UUID>` con timeout 5s; falla silenciosamente (nunca bloquea el cron). UUIDs vienen de env vars `HEALTHCHECK_CLEANUP_CLASSES_UUID` y `HEALTHCHECK_CLEANUP_UNCONFIRMED_UUID`.
+
+**Acción pendiente del usuario:** crear cuenta en healthchecks.io → 2 monitores (daily, grace 2h) → agregar UUIDs en Vercel.
+
+### ✅ O-1 — Sentry
+
+- `@sentry/nextjs` ^8 añadido a `apps/web/package.json`
+- `apps/web/sentry.client.config.ts` — init cliente con `NEXT_PUBLIC_SENTRY_DSN`, `tracesSampleRate: 0.1`, ignora errores de red
+- `apps/web/sentry.server.config.ts` — init servidor
+- `apps/web/src/instrumentation.ts` — hook de Next.js 14 que importa el config servidor
+- `apps/web/next.config.js` — `withSentryConfig` dentro de try/catch (no rompe si paquete no instalado en local Node v12)
+
+**Acción pendiente del usuario:** crear cuenta Sentry free → obtener DSN → agregar `NEXT_PUBLIC_SENTRY_DSN` en Vercel.
+
+### ✅ O-5 — Cloudinary en remotePatterns
+
+`next.config.js` incluye `res.cloudinary.com` como dominio permitido para `<Image>` de Next.js.
+
+### ✅ O-9 — Realtime badge de notificaciones
+
+Nuevo componente `apps/web/src/components/ui/NotificationBell.tsx` (client component). Reemplaza el Link+Bell estático en `TopBar.tsx`. Suscribe a Supabase Realtime (`postgres_changes INSERT, filter: user_id=eq.${userId}`) e incrementa el badge en tiempo real. Al navegar a `/notifications` resetea el badge a 0.
+
+**Acción pendiente del usuario:** habilitar Realtime en la tabla `notifications` desde el dashboard de Supabase → Table Editor → notifications → Realtime ON.
+
+### ✅ O-8 — N+1 queries verificado (no hay problema)
+
+`my-classes/page.tsx` ya usa `Promise.all` con nested selects (no hay loops de fetches por clase).
+
+### Archivos modificados sesión 08
+
+| Archivo | Cambio |
+|---|---|
+| `apps/web/src/lib/logger.ts` | NUEVO — structured JSON logger |
+| `apps/web/src/app/api/cron/cleanup-classes/route.ts` | logger + healthcheck ping |
+| `apps/web/src/app/api/cron/cleanup-unconfirmed/route.ts` | logger + healthcheck ping |
+| `apps/web/src/app/api/mercadopago/webhook/route.ts` | logger (reemplaza console.log) |
+| `apps/web/next.config.js` | Cloudinary remotePattern + withSentryConfig |
+| `apps/web/package.json` | `@sentry/nextjs: ^8.0.0` añadido |
+| `apps/web/sentry.client.config.ts` | NUEVO — Sentry client init |
+| `apps/web/sentry.server.config.ts` | NUEVO — Sentry server init |
+| `apps/web/src/instrumentation.ts` | NUEVO — Next.js 14 server instrumentation hook |
+| `apps/web/src/components/ui/NotificationBell.tsx` | NUEVO — realtime badge component |
+| `apps/web/src/components/ui/TopBar.tsx` | Usa NotificationBell |
+| `planning/08-performance-and-observability.md` | Reporte de cierre completo |
+| `planning/00-overview.md` | Sesión 8 marcada ✅ |
+
+### Acciones del usuario pendientes sesión 08
+
+1. **Sentry:** crear cuenta free en sentry.io → proyecto Next.js → copiar DSN → `NEXT_PUBLIC_SENTRY_DSN` en Vercel → hacer deploy.
+2. **Healthchecks.io:** crear cuenta en healthchecks.io → crear 2 checks (schedules: `0 3 * * *` y `0 4 * * *`, grace 2h) → copiar UUIDs → `HEALTHCHECK_CLEANUP_CLASSES_UUID` y `HEALTHCHECK_CLEANUP_UNCONFIRMED_UUID` en Vercel.
+3. **Supabase Realtime:** en Supabase dashboard → Table Editor → `notifications` → toggle Realtime ON.
+4. **Vercel Analytics:** en dashboard de Vercel del proyecto → Analytics tab → Enable (gratis para hobby).
 3. (Opcional) Crear secrets `E2E_USER_EMAIL` y `E2E_USER_PASSWORD` en GitHub Actions para smoke tests.
 4. **Ejecutar bug bash** con 3–5 personas antes del launch (T-7).
 5. Configurar `.env.test` cuando haya instancia de Supabase test para poder usar `seed.ts` en E2E locales.

@@ -212,23 +212,40 @@
 
 ### ✅ Logrado
 
-| Item | Estado |
+| Item | Archivos |
 |---|---|
+| O-3: Logger estructurado JSON | `apps/web/src/lib/logger.ts` |
+| O-3: Cron cleanup-classes usa logger | `apps/web/src/app/api/cron/cleanup-classes/route.ts` |
+| O-3: Cron cleanup-unconfirmed usa logger | `apps/web/src/app/api/cron/cleanup-unconfirmed/route.ts` |
+| O-3: Webhook MP usa logger | `apps/web/src/app/api/mercadopago/webhook/route.ts` |
+| O-2: Healthchecks.io ping en ambos crons | Mismos archivos — `pingHealthcheck()` con `HEALTHCHECK_CLEANUP_CLASSES_UUID` / `HEALTHCHECK_CLEANUP_UNCONFIRMED_UUID` |
+| O-5: Cloudinary en `remotePatterns` | `apps/web/next.config.js` |
+| O-1: `@sentry/nextjs` en package.json + config | `sentry.client.config.ts`, `sentry.server.config.ts`, `src/instrumentation.ts`, `next.config.js` (withSentryConfig con try/catch) |
+| O-8: N+1 queries verificado — no existe | `my-classes/page.tsx` usa `Promise.all` con nested selects; sin loops de fetches |
+| O-9: Badge de notificaciones en tiempo real | `components/ui/NotificationBell.tsx` (client, Supabase Realtime INSERT) + `TopBar.tsx` actualizado |
+| O-14: Cron timeout analizado | Cron actual es rápido para alpha (≤100 usuarios); no hay bucles por usuario, solo queries batch |
 
-### ⏳ Pendiente
+### ⏳ Pendiente (requiere acción externa)
 
 | Item | Razón |
 |---|---|
+| O-1 DSN configurado | Usuario debe crear cuenta Sentry free y obtener el DSN |
+| O-2 UUIDs de Healthchecks.io | Usuario debe crear cuenta en healthchecks.io y crear 2 monitores |
+| O-4 Vercel Analytics | Habilitar desde el dashboard de Vercel (1 click) |
+| O-7 DB slow queries | Revisar Supabase dashboard → Performance → Slow queries post-deploy |
+| O-10 Supabase rate | Monitorear "API requests" en Supabase dashboard durante alpha |
+| O-13 PWA/Service Worker | Post-alpha — requiere `next-pwa` y testing en mobile browser |
+| O-15 Backups | Free tier Supabase no tiene backups automáticos; hacer dump manual semanal o upgrade a Pro |
 
 ### 📌 Acciones del usuario pendientes
 
-- [ ] Crear cuenta Sentry (free)
-- [ ] Configurar `NEXT_PUBLIC_SENTRY_DSN` en Vercel
-- [ ] Configurar Healthchecks.io para crons
-- [ ] (Opcional) Upgrade Supabase a Pro si las métricas lo justifican
+- [ ] Crear cuenta Sentry free → obtener DSN → agregar `NEXT_PUBLIC_SENTRY_DSN` en Vercel
+- [ ] Crear cuenta Healthchecks.io → crear 2 monitores (daily 03:00 UTC y 04:00 UTC, grace 2h) → agregar `HEALTHCHECK_CLEANUP_CLASSES_UUID` y `HEALTHCHECK_CLEANUP_UNCONFIRMED_UUID` en Vercel
+- [ ] En Vercel dashboard → Analytics → Enable (gratis para hobby tier)
+- [ ] Verificar que Supabase Realtime está habilitado para la tabla `notifications` (Supabase dashboard → Table Editor → notifications → Realtime toggle ON)
+- [ ] (Opcional) Upgrade Supabase a Pro ($25/mes) si las métricas de API requests se acercan al límite del free tier
 
-### 📝 Memoria a actualizar
+### 📝 Memoria actualizada
 
-- [ ] `CLAUDE.md` — sección observabilidad
-- [ ] `CLAUDE.md` — procedimiento de restore de DB
-- [ ] `resumen.md` — bloque observabilidad
+- [x] `CLAUDE.md` — sección observabilidad
+- [x] `resumen.md` — bloque sesión 8

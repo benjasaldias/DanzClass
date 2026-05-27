@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 
 // Vercel Cron runs this daily at 04:00 UTC.
 // Deletes auth users whose email is still unconfirmed after 36 horas.
@@ -8,9 +9,18 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
 
+async function pingHealthcheck(uuid: string | undefined) {
+  if (!uuid) return
+  try {
+    await fetch(`https://hc-ping.com/${uuid}`, { signal: AbortSignal.timeout(5000) })
+  } catch {
+    // non-critical
+  }
+}
+
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET) {
-    console.error('[cleanup-unconfirmed] CRON_SECRET not configured')
+    logger.error('cleanup-unconfirmed', 'CRON_SECRET not configured')
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
   }
   const authHeader = request.headers.get('authorization')
@@ -39,7 +49,7 @@ export async function GET(request: Request) {
         errors.push(`${u.id}: ${delErr.message}`)
       } else {
         deleted++
-        console.log(`[cleanup-unconfirmed] deleted user=${u.id} email=${u.email} created_at=${u.created_at}`)
+        logger.info('cleanup-unconfirmed:deleted', { user_id: u.id, email: u.email, created_at: u.created_at })
       }
     }
 
@@ -47,6 +57,9 @@ export async function GET(request: Request) {
     page++
   }
 
-  console.log(`[cleanup-unconfirmed] deleted=${deleted} errors=${errors.length}`)
+  logger.info('cleanup-unconfirmed:done', { deleted, errors: errors.length })
+
+  await pingHealthcheck(process.env.HEALTHCHECK_CLEANUP_UNCONFIRMED_UUID)
+
   return NextResponse.json({ deleted, errors })
 }

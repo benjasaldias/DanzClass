@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { Bell } from 'lucide-react'
 import type { Profile } from '@danceclass/shared'
 import Avatar from './Avatar'
 import LogoIcon from './LogoIcon'
+import NotificationBell from './NotificationBell'
 
 interface TopBarProps {
   profile: Profile | null
@@ -19,14 +19,7 @@ export default function TopBar({ profile, unreadCount }: TopBarProps) {
         </Link>
 
         <div className="flex items-center gap-2">
-          <Link href="/notifications" className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors">
-            <Bell className="h-5 w-5 text-gray-600 dark:text-dark-text2" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </Link>
+          <NotificationBell initialCount={unreadCount} userId={profile?.id} />
           <Link href="/profile">
             <Avatar
               src={profile?.avatar_url}
