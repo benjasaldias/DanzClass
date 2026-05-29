@@ -58,14 +58,16 @@ Profe pega un iframe en su Linktree/web personal para mostrar sus próximas clas
 
 ## Producto
 
-### F-13 — Chat directo alumno ↔ profesor — ALTA impacto, MEDIA esfuerzo
+### F-13 — Chat directo alumno ↔ profesor — ALTA impacto, MEDIA esfuerzo 
 Hoy todo el contexto se pierde en WhatsApp. Chat in-app reduce fricción.
 
 ### F-14 — Reseñas con texto (no solo estrellas) — ALTA impacto
 "5 estrellas" sin contexto no convence. Reseñas escritas son social proof potente.
 
-### F-15 — Galería de videos de la clase post-evento — MEDIA esfuerzo
+### F-15 — Galería de videos de la clase post-evento — MEDIA esfuerzo ✅ (sesión 10.1)
+
 Profe sube 1-2 videos cortos después de cada clase. Alumno los ve en su perfil "mis clases". Aumenta sensación de comunidad. Un alumno debe poder subir un post de tipo "video" y etiquetar la clases asociada (sale un dropdown de los títulos de clases a las que estuvo inscrito este mes). El post del video luego mostrará una tarjeta en la parte inferior que mostrará el título de la clase y el nombre de usuario del profesor, el cual es clickeable y redirige al perfil del profesor.
+Migración `034_post_class_tag.sql`. Selector de clase en `CreatePostModal` (web) y `create-post.tsx` (mobile). Tarjeta de clase en `PostCard.tsx` y `MobilePostCard.tsx`. Query actualizada en `feed/page.tsx`, `FeedClient.tsx` y `feed.tsx` (mobile).
 
 ### F-16 — Filtrar clases según nivel — MEDIA esfuerzo
 Alumno marca en buscador de clases un filtro opcional según nivel (principiante/intermedio/avanzado) → matching con clases. Hoy es ad-hoc.
@@ -89,8 +91,9 @@ Un profesor puede vender en promoción o paquetes 2 o más clases. Esto aparecer
 ### F-19 — Panel financiero para profesor — MEDIA esfuerzo
 Resumen mensual: ingresos totales, alumnos únicos, clases dictadas, ranking. Hoy `MyClassesClient` lo asoma pero falta detalle.
 
-### F-20 — Exportar historial de pagos a CSV — BAJA esfuerzo
-Profesor descarga CSV para su contadora.
+### F-20 — Exportar historial de pagos a CSV — BAJA esfuerzo ✅ (sesión 10.1)
+
+Profesor descarga CSV para su contadora. Botón "Exportar CSV" en la sección "Pagos recibidos" del tab Historial en `MyClassesClient.tsx`. Genera CSV client-side con columnas: Fecha, Alumno, Clase, Monto (CLP), Estado. BOM UTF-8 para compatibilidad con Excel.
 
 ### F-21 — Recordatorio de pago al alumno (no solo al profesor) — BAJA esfuerzo ✅ (sesión 10)
 
@@ -129,7 +132,7 @@ TikTok-style: scroll vertical de videos cortos de las clases. Reemplazaría el f
 ### F-29 — Stories efímeras — MEDIA esfuerzo ❌
 "Hoy doy clase a las 19 hs" con expiración 24h. Replica el comportamiento que ya hacen en Instagram, dentro de la app.
 
-### F-30 — Crews / grupos privados — ALTA esfuerzo
+### F-30 — Crews / grupos privados — ALTA esfuerzo ❌
 Profesor crea su "crew" y alumnos se afilian. Posts privados al crew. Útil para escuelas establecidas.
 
 ---

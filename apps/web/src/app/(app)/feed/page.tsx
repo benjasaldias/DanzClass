@@ -26,7 +26,7 @@ export default async function FeedPage() {
 
   const postsQuery = (supabase as any)
     .from('posts')
-    .select('id, title, description, video_url, thumbnail_url, visibility, is_public, created_at, user:profiles!user_id(*)')
+    .select('id, title, description, video_url, thumbnail_url, visibility, is_public, class_id, created_at, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
     .eq('visibility', 'public')
     .order('created_at', { ascending: false })
     .limit(20)

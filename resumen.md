@@ -2679,3 +2679,50 @@ Nuevo componente `apps/web/src/components/ui/NotificationBell.tsx` (client compo
 8. **Email de contacto** — verificar que `contacto@danzclass.com` esté operativo (el AlphaBanner lo usa como destino de bugs).
 9. **Supabase Realtime** — confirmar que la tabla `notifications` tiene Realtime habilitado (para el badge en tiempo real del TopBar).
 
+
+---
+
+## Sesión 2026-05-29 — Sesión 10.1: Features post-alpha (F-15 + F-20)
+
+### Objetivo
+
+Implementar 2 features de `planning/90-feature-suggestions.md` seleccionadas para aumentar comunidad y utilidad operativa.
+
+### F-15 — Video de clase etiquetado
+
+Alumno puede asociar un post de video a una clase en la que estuvo inscrito. El post muestra una tarjeta en la parte inferior con el título de la clase y @username del profesor, clickeable al perfil del profesor.
+
+**Implementación:**
+- Migración `034_post_class_tag.sql`: agrega columna `class_id UUID NULL REFERENCES classes(id) ON DELETE SET NULL` a `posts`.
+- `CreatePostModal.tsx` (web): carga enrollments activos del usuario al abrir y muestra un `<select>` opcional "Clase relacionada". El insert incluye `class_id`.
+- `PostCard.tsx` (web): nuevo campo `tagged_class` en el tipo; tarjeta visual morada al fondo del post si existe.
+- `feed/page.tsx` y `FeedClient.tsx`: select de posts actualizado con `tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))`.
+- `create-post.tsx` (mobile): carga enrollments y muestra picker modal deslizante para seleccionar clase.
+- `MobilePostCard.tsx`: tarjeta de clase al fondo si `post.tagged_class` existe; toca → navega al perfil del profesor.
+- `feed.tsx` (mobile): select actualizado con join de clase.
+
+### F-20 — Exportar historial de pagos a CSV
+
+Profesor descarga CSV con todos sus pagos recibidos para entregar a su contadora.
+
+**Implementación:**
+- `MyClassesClient.tsx`: función `exportTeacherCSV(teacherRows)` genera CSV con BOM UTF-8 (para Excel) con columnas: Fecha, Alumno, Clase, Monto (CLP), Estado. Botón "Exportar CSV" con ícono `Download` en el header de "Pagos recibidos".
+
+### Archivos modificados sesión 10.1
+
+| Archivo | Cambio |
+|---|---|
+| `supabase/migrations/034_post_class_tag.sql` | NUEVO — agrega `class_id` a `posts` |
+| `apps/web/src/components/feed/CreatePostModal.tsx` | Dropdown de clase + insert con class_id |
+| `apps/web/src/components/feed/PostCard.tsx` | Tipo extendido + tarjeta de clase |
+| `apps/web/src/app/(app)/feed/page.tsx` | Query de posts con join de clase |
+| `apps/web/src/components/feed/FeedClient.tsx` | Query de posts con join de clase |
+| `apps/web/src/components/class/MyClassesClient.tsx` | `exportTeacherCSV` + botón Exportar CSV |
+| `apps/mobile/app/(app)/class/create-post.tsx` | Picker de clase + insert con class_id |
+| `apps/mobile/components/feed/MobilePostCard.tsx` | Tarjeta de clase |
+| `apps/mobile/app/(app)/(tabs)/feed.tsx` | Query de posts con join de clase |
+| `planning/90-feature-suggestions.md` | F-15 y F-20 marcadas ✅ |
+
+### Acción pendiente del usuario
+
+1. **Migración 034** — aplicar `supabase/migrations/034_post_class_tag.sql` en Supabase producción.

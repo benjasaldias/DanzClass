@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Lock, Users, Flag, MoreVertical, Globe, Trash2, Pencil, Loader2 } from 'lucide-react'
+import { Lock, Users, Flag, MoreVertical, Globe, Trash2, Pencil, Loader2, Clapperboard } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -22,6 +22,12 @@ interface PostCardProps {
     visibility?: Visibility
     city?: string | null
     description?: string | null
+    class_id?: string | null
+    tagged_class?: {
+      id: string
+      title: string
+      teacher: { username: string; full_name: string }
+    } | null
     created_at: string
     user: {
       id: string
@@ -219,6 +225,23 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
 
         {post.description && (
           <p className="mt-3 text-sm text-gray-700 dark:text-dark-text2 leading-relaxed">{post.description}</p>
+        )}
+
+        {post.tagged_class && (
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#EEEDFE] dark:border-dark-border bg-[#F5F3FF] dark:bg-dark-surface2 px-3 py-2">
+            <Clapperboard className="h-3.5 w-3.5 text-[#7F77DD] flex-shrink-0" />
+            <p className="text-sm text-gray-700 dark:text-dark-text2 min-w-0 truncate">
+              {post.tagged_class.title}
+              <span className="mx-1 text-gray-400 dark:text-dark-text2/60">·</span>
+              <Link
+                href={`/teacher/${post.tagged_class.teacher.username}`}
+                className="text-[#7F77DD] hover:underline font-medium"
+                onClick={(e) => e.stopPropagation()}
+              >
+                @{post.tagged_class.teacher.username}
+              </Link>
+            </p>
+          </div>
         )}
       </div>
 

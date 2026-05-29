@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Modal, FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTheme } from '../../../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
-import { ChevronLeft, Video, X, Globe, Lock, Users } from 'lucide-react-native'
+import { ChevronLeft, Video, X, Globe, Lock, Users, Clapperboard, ChevronDown } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 
 type Visibility = 'public' | 'followers' | 'friends'
@@ -55,12 +55,30 @@ export default function CreatePostScreen() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [classId, setClassId] = useState<string | null>(null)
+  const [enrolledClasses, setEnrolledClasses] = useState<{ id: string; title: string }[]>([])
+  const [showClassPicker, setShowClassPicker] = useState(false)
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       setUserId(user.id)
+
+      const { data } = await (supabase as any)
+        .from('enrollments')
+        .select('class:classes!class_id(id, title)')
+        .eq('student_id', user.id)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (data) {
+        const unique = new Map<string, string>()
+        for (const e of data) {
+          if (e.class?.id && e.class?.title) unique.set(e.class.id, e.class.title)
+        }
+        setEnrolledClasses(Array.from(unique.entries()).map(([id, title]) => ({ id, title })))
+      }
     }
     load()
   }, [])
@@ -132,6 +150,7 @@ export default function CreatePostScreen() {
         video_url: url,
         is_public: visibility === 'public',
         visibility,
+        class_id: classId || null,
       } as any)
 
     setLoading(false)
@@ -210,6 +229,64 @@ export default function CreatePostScreen() {
           />
           <Text className="text-xs text-gray-400 dark:text-dark-text2/60 text-right">{description.length}/280</Text>
         </View>
+
+        {/* Class tag */}
+        {enrolledClasses.length > 0 && (
+          <View className="gap-1.5">
+            <View className="flex-row items-center gap-1.5">
+              <Clapperboard size={14} stroke="#7F77DD" />
+              <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
+                Clase relacionada <Text className="font-normal text-gray-400">(opcional)</Text>
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowClassPicker(true)}
+              className="flex-row items-center justify-between border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 bg-white dark:bg-dark-surface2"
+            >
+              <Text className={`text-sm ${classId ? 'text-gray-900 dark:text-dark-text' : 'text-gray-400 dark:text-dark-text2/60'}`}>
+                {classId ? (enrolledClasses.find((c) => c.id === classId)?.title ?? 'Sin etiquetar') : 'Sin etiquetar'}
+              </Text>
+              <ChevronDown size={16} stroke={isDark ? '#A39BBF' : '#9CA3AF'} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Class picker modal */}
+        <Modal visible={showClassPicker} transparent animationType="slide" onRequestClose={() => setShowClassPicker(false)}>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
+            activeOpacity={1}
+            onPress={() => setShowClassPicker(false)}
+          >
+            <View
+              className="bg-white dark:bg-dark-surface rounded-t-2xl"
+              style={{ maxHeight: 400 }}
+              onStartShouldSetResponder={() => true}
+            >
+              <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-dark-border">
+                <Text className="text-base font-bold text-gray-900 dark:text-dark-text">Seleccionar clase</Text>
+                <TouchableOpacity onPress={() => setShowClassPicker(false)}>
+                  <X size={20} stroke={isDark ? '#EEEDFE' : '#374151'} />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={[{ id: '', title: 'Sin etiquetar' }, ...enrolledClasses]}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => { setClassId(item.id || null); setShowClassPicker(false) }}
+                    className="px-4 py-3.5 border-b border-gray-50 dark:border-dark-border"
+                    style={{ backgroundColor: classId === (item.id || null) ? (isDark ? '#2E1B5C' : '#F5F3FF') : undefined }}
+                  >
+                    <Text className={`text-sm ${classId === (item.id || null) ? 'text-[#7F77DD] font-semibold' : 'text-gray-700 dark:text-dark-text2'}`}>
+                      {item.title}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Visibility */}
         <View className="gap-2">

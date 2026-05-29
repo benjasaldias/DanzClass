@@ -118,7 +118,7 @@ export default function FeedClient({
 
     let postQuery = supabase
       .from('posts' as any)
-      .select('*, user:profiles!user_id(*)')
+      .select('id, title, description, video_url, thumbnail_url, visibility, is_public, class_id, created_at, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
       .order('created_at', { ascending: false })
       .limit(20)
 

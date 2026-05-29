@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { X, Upload, Loader2, Globe, Lock, Users } from 'lucide-react'
+import { X, Upload, Loader2, Globe, Lock, Users, Clapperboard } from 'lucide-react'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
 import { createClient } from '@/lib/supabase/client'
 import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
@@ -30,8 +30,31 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
   const [videoFile, setVideoFile] = useState<{ file: File; preview: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [classId, setClassId] = useState<string>('')
+  const [enrolledClasses, setEnrolledClasses] = useState<{ id: string; title: string }[]>([])
 
   useEscapeKey(onClose, !loading)
+
+  useEffect(() => {
+    async function loadEnrolledClasses() {
+      const supabase = createClient()
+      const { data } = await (supabase as any)
+        .from('enrollments')
+        .select('class:classes!class_id(id, title)')
+        .eq('student_id', userId)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (data) {
+        const unique = new Map<string, string>()
+        for (const e of data) {
+          if (e.class?.id && e.class?.title) unique.set(e.class.id, e.class.title)
+        }
+        setEnrolledClasses(Array.from(unique.entries()).map(([id, title]) => ({ id, title })))
+      }
+    }
+    loadEnrolledClasses()
+  }, [userId])
 
   const onDrop = useCallback((accepted: File[]) => {
     if (accepted[0]) {
@@ -87,8 +110,9 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
         video_url: videoUrl,
         is_public: visibility === 'public',
         visibility,
+        class_id: classId || null,
       } as any)
-      .select('*, user:profiles!user_id(*)')
+      .select('*, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
       .single()
 
     if (insertErr || !post) {
@@ -163,6 +187,25 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
             />
             <p className="text-xs text-gray-400 dark:text-dark-text2/60 mt-1 text-right">{description.length}/280</p>
           </div>
+
+          {enrolledClasses.length > 0 && (
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-dark-text2">
+                <Clapperboard className="h-3.5 w-3.5 text-[#7F77DD]" />
+                Clase relacionada <span className="text-gray-400 dark:text-dark-text2/60 font-normal">(opcional)</span>
+              </label>
+              <select
+                value={classId}
+                onChange={(e) => setClassId(e.target.value)}
+                className="input"
+              >
+                <option value="">Sin etiquetar</option>
+                {enrolledClasses.map((c) => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-dark-text2">Visibilidad</label>

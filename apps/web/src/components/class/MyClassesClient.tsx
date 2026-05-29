@@ -7,7 +7,7 @@ import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
   AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2, Bell,
-  CalendarDays, MessageCircle,
+  CalendarDays, MessageCircle, Download,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -550,6 +550,39 @@ function paymentStatusLabel(enrollment: any): { key: keyof typeof PAYMENT_PILL; 
   return { key: 'no_payment', label: 'Sin pago' }
 }
 
+function exportTeacherCSV(teacherRows: any[]) {
+  const STATUS_LABELS: Record<string, string> = {
+    confirmed: 'Confirmado',
+    rejected: 'Rechazado',
+    pending: 'Pendiente',
+    no_payment: 'Sin pago',
+  }
+  const headers = ['Fecha', 'Alumno', 'Clase', 'Monto (CLP)', 'Estado']
+  const rows = teacherRows.map((row: any) => {
+    const statusKey = row.enrollmentStatus === 'confirmed' ? 'confirmed'
+      : row.payment?.status === 'rejected' ? 'rejected'
+      : row.enrollmentStatus === 'payment_submitted' || row.payment ? 'pending'
+      : 'no_payment'
+    return [
+      formatDate(row.createdAt),
+      row.student?.full_name ?? '—',
+      row.classTitle,
+      row.payment?.amount ? String(row.payment.amount) : '—',
+      STATUS_LABELS[statusKey],
+    ]
+  })
+  const csv = [headers, ...rows]
+    .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `pagos-recibidos-${new Date().toISOString().split('T')[0]}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teachingClasses: any[] }) {
   const teacherRows = teachingClasses.flatMap((cls: any) =>
     (cls.enrollments ?? [])
@@ -636,9 +669,18 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
       {/* Teacher history */}
       {hasTeacher && (
         <div>
-          {hasStudent && (
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text2 mb-3">Pagos recibidos</h3>
-          )}
+          <div className="flex items-center justify-between mb-3">
+            {hasStudent && (
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Pagos recibidos</h3>
+            )}
+            <button
+              onClick={() => exportTeacherCSV(teacherRows)}
+              className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </button>
+          </div>
           <div className="space-y-2">
             {teacherRows.map((row: any) => {
               const statusKey = row.enrollmentStatus === 'confirmed' ? 'confirmed'

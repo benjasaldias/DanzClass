@@ -119,7 +119,7 @@ export default function FeedScreen() {
     if (cf !== 'classes') {
       let q = (supabase as any)
         .from('posts')
-        .select('*, author:profiles!user_id(id, username, full_name, avatar_url)')
+        .select('*, author:profiles!user_id(id, username, full_name, avatar_url), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
         .order('created_at', { ascending: false })
         .limit(20)
 

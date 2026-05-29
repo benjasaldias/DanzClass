@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { View, Text, Image, TouchableOpacity, Share } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import { Play, Eye, Users, Lock, Share2 } from 'lucide-react-native'
+import { Play, Eye, Users, Lock, Share2, Clapperboard } from 'lucide-react-native'
 
 const WEB_URL = 'https://dc-project-web.vercel.app'
 
@@ -125,7 +125,7 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
 
       {/* Title + description */}
       {(post.title || post.description) && (
-        <View className="px-4 pt-3 pb-4 gap-1">
+        <View className="px-4 pt-3 gap-1" style={{ paddingBottom: post.tagged_class ? 0 : 16 }}>
           {post.title && (
             <Text className="font-semibold text-gray-900 dark:text-dark-text text-sm">{post.title}</Text>
           )}
@@ -133,6 +133,22 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
             <Text className="text-sm text-gray-600 dark:text-dark-text2 leading-snug">{post.description}</Text>
           )}
         </View>
+      )}
+
+      {/* Class tag */}
+      {post.tagged_class && (
+        <TouchableOpacity
+          onPress={() => post.tagged_class?.teacher?.username && router.push(`/(app)/teacher/${post.tagged_class.teacher.username}` as any)}
+          activeOpacity={0.7}
+          className="mx-4 mb-4 mt-2 flex-row items-center gap-2 rounded-xl border border-lavanda-suave dark:border-dark-border bg-blanco-violeta dark:bg-dark-surface2 px-3 py-2"
+        >
+          <Clapperboard size={14} stroke="#7F77DD" />
+          <Text className="flex-1 text-sm text-gray-700 dark:text-dark-text2" numberOfLines={1}>
+            {post.tagged_class.title}
+            <Text className="text-gray-400 dark:text-dark-text2/60"> · </Text>
+            <Text style={{ color: '#7F77DD' }}>@{post.tagged_class.teacher?.username}</Text>
+          </Text>
+        </TouchableOpacity>
       )}
     </View>
   )
