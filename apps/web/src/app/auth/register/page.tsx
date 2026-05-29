@@ -29,7 +29,7 @@ type FormData = z.infer<typeof schema>
 export default function RegisterPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const refCode = searchParams.get('ref') ?? ''
+  const refCode = searchParams?.get('ref') ?? ''
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emailSent, setEmailSent] = useState(false)
