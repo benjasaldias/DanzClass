@@ -26,7 +26,7 @@ const STEPS = [
     iconColor: '#0284c7',
     bg: 'bg-sky-50 dark:bg-sky-950/30',
     title: 'Marca tus horarios libres',
-    desc: 'En "Agenda" configura cuándo estás disponible. Los profesores podrán coordinarse contigo.',
+    desc: 'En "Agenda" configura cuándo estás disponible. Podrás filtrar clases según tu disponibilidad.',
   },
   {
     Icon: Sparkles,
