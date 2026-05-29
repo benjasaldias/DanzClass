@@ -4,13 +4,14 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle, GraduationCap } from 'lucide-react'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle, GraduationCap, Gift } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import PostCard from '@/components/feed/PostCard'
 import StarRating from '@/components/ui/StarRating'
 import EmbedWidgetButton from '@/components/profile/EmbedWidgetButton'
+import ReferralCopyButton from '@/components/profile/ReferralCopyButton'
 import { formatCLP, formatDate, formatTime } from '@/lib/utils'
 
 const TIER_LABELS: Record<string, string> = {
@@ -228,6 +229,23 @@ export default async function ProfilePage() {
           {tier === 'none' ? 'Suscribirse' : 'Cambiar'}
         </Link>
       </div>
+
+      {/* Referral section */}
+      {profile?.referral_code && (
+        <div className="mx-4 mb-4 rounded-xl border border-violet-100 dark:border-dark-border bg-violet-50/50 dark:bg-dark-surface px-4 py-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Gift className="h-4 w-4 text-violet-500" />
+            <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">Invita un amigo</p>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-dark-text2 mb-2.5 leading-relaxed">
+            Comparte tu enlace. Cuando tu amigo se suscriba por primera vez, ¡ambos reciben 1 mes Pro gratis!
+          </p>
+          <ReferralCopyButton
+            code={profile.referral_code}
+            appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
+          />
+        </div>
+      )}
 
       {/* Estilos de baile */}
       {((profile?.styles_dancing?.length ?? 0) > 0 || (profile?.styles_teaching?.length ?? 0) > 0) && (

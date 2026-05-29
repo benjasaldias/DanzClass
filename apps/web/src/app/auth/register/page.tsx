@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -28,6 +28,8 @@ type FormData = z.infer<typeof schema>
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const refCode = searchParams.get('ref') ?? ''
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emailSent, setEmailSent] = useState(false)
@@ -47,6 +49,7 @@ export default function RegisterPage() {
         data: {
           full_name: data.full_name,
           username: data.username.toLowerCase(),
+          ...(refCode ? { ref_code: refCode } : {}),
         },
         emailRedirectTo: `${window.location.origin}/feed`,
       },

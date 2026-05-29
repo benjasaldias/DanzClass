@@ -3,7 +3,8 @@ import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, ScrollView, Alert, Image, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { MapPin, Users, Music2, AtSign, Sun, Moon, GraduationCap } from 'lucide-react-native'
+import { MapPin, Users, Music2, AtSign, Sun, Moon, GraduationCap, Gift, Copy } from 'lucide-react-native'
+import * as Clipboard from 'expo-clipboard'
 import StarRating from '../../../components/ui/StarRating'
 import { supabase } from '../../../lib/supabase'
 import { canTeach } from '@danceclass/shared'
@@ -210,6 +211,39 @@ export default function ProfileScreen() {
             </View>
           )}
         </View>
+
+        {/* Referral section */}
+        {profile?.referral_code && (
+          <View className="mx-4 mt-4 rounded-2xl border border-violet-200 dark:border-dark-border bg-violet-50/80 dark:bg-dark-surface p-4">
+            <View className="flex-row items-center gap-2 mb-1">
+              <Gift size={16} stroke={isDark ? '#a78bfa' : '#7c3aed'} />
+              <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">Invita un amigo</Text>
+            </View>
+            <Text className="text-xs text-gray-500 dark:text-dark-text2 mb-3 leading-5">
+              Comparte tu código. Cuando tu amigo se suscriba por primera vez, ¡ambos reciben 1 mes Pro gratis!
+            </Text>
+            <TouchableOpacity
+              onPress={async () => {
+                const appUrl = 'https://dc-project-web.vercel.app'
+                const link = `${appUrl}/auth/register?ref=${profile.referral_code}`
+                await Clipboard.setStringAsync(link)
+                Alert.alert('¡Copiado!', 'El enlace de invitación fue copiado al portapapeles.')
+              }}
+              className="flex-row items-center justify-between rounded-xl bg-white dark:bg-dark-surface2 border border-violet-200 dark:border-dark-border px-3 py-2.5"
+            >
+              <Text className="text-xs text-gray-500 dark:text-dark-text2 flex-1 mr-2" numberOfLines={1}>
+                dc-project-web.vercel.app/auth/register?ref={profile.referral_code}
+              </Text>
+              <View className="flex-row items-center gap-1">
+                <Copy size={13} stroke={isDark ? '#a78bfa' : '#7c3aed'} />
+                <Text className="text-xs font-semibold text-violet-600 dark:text-violet-400">Copiar</Text>
+              </View>
+            </TouchableOpacity>
+            <Text className="text-[11px] text-gray-400 dark:text-dark-text2 mt-1.5">
+              Tu código: <Text className="font-bold text-gray-600 dark:text-dark-text">{profile.referral_code}</Text>
+            </Text>
+          </View>
+        )}
 
         {/* Action pills */}
         <View className="mx-4 mt-4 flex-row flex-wrap gap-2">

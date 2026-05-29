@@ -9,6 +9,62 @@ import { SubscriptionPolling } from '@/components/plans/SubscriptionPolling'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 const VALID_TIERS = ['basic', 'teacher', 'pro']
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
+async function rewardReferralIfNeeded(admin: ReturnType<typeof createAdminClient>, referredUserId: string) {
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('referred_by, referral_rewarded')
+    .eq('id', referredUserId)
+    .maybeSingle()
+
+  if (!profile?.referred_by || profile.referral_rewarded) return
+
+  const referrerId = profile.referred_by as string
+
+  // Extend referrer subscription +30 days (or create free Pro month)
+  const { data: referrerSub } = await admin
+    .from('subscriptions')
+    .select('id, expires_at, tier')
+    .eq('user_id', referrerId)
+    .in('status', ['active', 'grace'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (referrerSub) {
+    const newExpiry = new Date(new Date(referrerSub.expires_at).getTime() + THIRTY_DAYS_MS)
+    await admin.from('subscriptions').update({ expires_at: newExpiry.toISOString() }).eq('id', referrerSub.id)
+  } else {
+    const now = new Date()
+    await admin.from('subscriptions').insert({
+      user_id: referrerId,
+      tier: 'pro',
+      status: 'active',
+      started_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + THIRTY_DAYS_MS).toISOString(),
+      mp_subscription_id: `referral_${referredUserId.slice(0, 8)}_${Date.now()}`,
+    })
+  }
+
+  // Extend referred user's new subscription +30 days too
+  const { data: referredSub } = await admin
+    .from('subscriptions')
+    .select('id, expires_at')
+    .eq('user_id', referredUserId)
+    .in('status', ['active', 'grace'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (referredSub) {
+    const newExpiry = new Date(new Date(referredSub.expires_at).getTime() + THIRTY_DAYS_MS)
+    await admin.from('subscriptions').update({ expires_at: newExpiry.toISOString() }).eq('id', referredSub.id)
+  }
+
+  await admin.from('profiles').update({ referral_rewarded: true }).eq('id', referredUserId)
+  console.log('[referral] rewarded — referred:', referredUserId, 'referrer:', referrerId)
+}
 
 async function activateIfNew(
   admin: ReturnType<typeof createAdminClient>,
@@ -68,6 +124,8 @@ export default async function PlanSuccessPage({
   const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
   const admin = createAdminClient()
 
+  let subscriptionActivated = false
+
   // ── Suscripción recurrente (mensual con crédito) ─────────────────────────────
   if (preapproval_id) {
     try {
@@ -80,6 +138,7 @@ export default async function PlanSuccessPage({
         const [refUserId, tier] = sub.external_reference.split(':')
         if (refUserId === user.id && VALID_TIERS.includes(tier)) {
           await activateIfNew(admin, user.id, tier, sub.id, 1)
+          subscriptionActivated = true
         }
       }
     } catch (e) {
@@ -104,10 +163,20 @@ export default async function PlanSuccessPage({
 
         if (refUserId === user.id && VALID_TIERS.includes(tier)) {
           await activateIfNew(admin, user.id, tier, String(payment.id), months)
+          subscriptionActivated = true
         }
       }
     } catch (e) {
       console.error('[plans/success] payment verification error:', e)
+    }
+  }
+
+  // ── Referral reward (first subscription only) ────────────────────────────────
+  if (subscriptionActivated) {
+    try {
+      await rewardReferralIfNeeded(admin, user.id)
+    } catch (e) {
+      console.error('[plans/success] referral reward error:', e)
     }
   }
 

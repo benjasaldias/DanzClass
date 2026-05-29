@@ -47,10 +47,10 @@ Profe vende un video curso, alumno paga una vez y accede de por vida. Buena comp
 ### F-9 — Compartir nativo desde Stories Instagram — ALTA impacto ❌
 Profes ya usan Instagram. Botón "Compartir clase a Instagram Stories" con preview branded sería viral.
 
-### F-10 — Referral program — BAJA esfuerzo
+### F-10 — Referral program — BAJA esfuerzo ✅ (sesión 10.4)
 "Invita un amigo → ambos reciben 1 mes Pro gratis". Mide CAC.
 
-### F-11 — SEO landing pages por estilo de baile y ciudad — MEDIA esfuerzo
+### F-11 — SEO landing pages por estilo de baile y ciudad — MEDIA esfuerzo ⏳ post-alpha
 Pre-renderear `/clases/house/santiago` con clases activas. Google indexa → tráfico orgánico.
 
 ### F-12 — Embeddable widget de clases — BAJA esfuerzo ✅ (sesión 10.3)
@@ -105,7 +105,7 @@ Profesor descarga CSV para su contadora. Botón "Exportar CSV" en la sección "P
 Si pasaron 24 h y no subió comprobante → notif "Te falta subir tu comprobante para X". Reduce deudas.
 Migración `033_payment_reminder_notification.sql`. Lógica en cron `cleanup-classes`. UI en web y mobile.
 
-### F-22 — Reportes admin más finos — MEDIA esfuerzo
+### F-22 — Reportes admin más finos — MEDIA esfuerzo ✅ (sesión 10.4)
 Panel `/admin` con: top reportados, clases canceladas en últimos 7 días, usuarios sin confirmar pendientes, deudores totales.
 
 ---
