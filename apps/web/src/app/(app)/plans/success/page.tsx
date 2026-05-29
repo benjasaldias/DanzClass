@@ -12,7 +12,7 @@ const VALID_TIERS = ['basic', 'teacher', 'pro']
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 async function rewardReferralIfNeeded(admin: ReturnType<typeof createAdminClient>, referredUserId: string) {
-  const { data: profile } = await admin
+  const { data: profile } = await (admin as any)
     .from('profiles')
     .select('referred_by, referral_rewarded')
     .eq('id', referredUserId)
