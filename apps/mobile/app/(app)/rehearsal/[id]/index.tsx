@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ArrowLeft, Calendar, MapPin, Clock, Users, Check, X, ChevronDown, ChevronUp } from 'lucide-react-native'
+import { ArrowLeft, Calendar, MapPin, Clock, Users, Check, X, ChevronDown, ChevronUp, MessageCircle } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
 import { useTheme } from '../../../../context/ThemeContext'
 import Avatar from '../../../../components/ui/Avatar'
@@ -41,6 +41,7 @@ export default function RehearsalDetailScreen() {
   const [loading, setLoading] = useState(true)
   const [rehearsal, setRehearsal] = useState<any>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [responding, setResponding] = useState(false)
   const [localStatus, setLocalStatus] = useState<string | null>(null)
   const [showCustomDates, setShowCustomDates] = useState(false)
@@ -50,6 +51,8 @@ export default function RehearsalDetailScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.back(); return }
       setUserId(user.id)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) setToken(session.access_token)
 
       const { data } = await (supabase as any)
         .from('rehearsals')
@@ -120,6 +123,37 @@ export default function RehearsalDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 16 }}>
+        {/* Group chat button — for creator and accepted invitees */}
+        {(isCreator || localStatus === 'accepted') && (
+          <TouchableOpacity
+            onPress={async () => {
+              if (!token) return
+              const res = await fetch(`${WEB_URL}/api/chat/get-or-create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ type: 'rehearsal', rehearsal_id: id }),
+              })
+              if (res.ok) {
+                const { chat_id } = await res.json()
+                router.push(`/(app)/chat/${chat_id}` as any)
+              }
+            }}
+            className="flex-row items-center justify-between bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-900/40 rounded-2xl p-4"
+          >
+            <View className="flex-row items-center gap-2">
+              <MessageCircle stroke={isDark ? '#c4b5fd' : '#7c3aed'} size={20} />
+              <View>
+                <Text className="text-sm font-semibold text-violet-900 dark:text-violet-200">Chat grupal</Text>
+                <Text className="text-xs text-violet-600 dark:text-violet-400">Coordinación del ensayo</Text>
+              </View>
+            </View>
+            <View className="bg-violet-600 rounded-xl px-3 py-1.5 flex-row items-center gap-1.5">
+              <MessageCircle stroke="white" size={12} />
+              <Text className="text-xs font-semibold text-white">Abrir</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Header card */}
         <View className="bg-white dark:bg-dark-surface rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border">
           <View style={{ height: 4, backgroundColor: '#7F77DD' }} />

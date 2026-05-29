@@ -61,8 +61,9 @@ Ruta pública `/embed/teacher/[username]` (middleware allowlist `PUBLIC_EMBED=/^
 
 ## Producto
 
-### F-13 — Chat directo alumno ↔ profesor — ALTA impacto, MEDIA esfuerzo 
-Hoy todo el contexto se pierde en WhatsApp. Chat in-app reduce fricción.
+### F-13 — Chat directo alumno ↔ profesor — ALTA impacto, MEDIA esfuerzo ✅ (sesión 10.5)
+
+Hoy todo el contexto se pierde en WhatsApp. Chat in-app reduce fricción. Los chats serán estrictamente estudiante<->profesor, y estos chats podrán abrirse ÚNICAMENTE si el estudiante está actualmente inscrito en una clase del profesor. Estos chats son asociados a cada clase y eliminados luego de que la fecha de término de la clase llega. Para los casos de posts tipo "Entrenamiento" funcionará de la misma manera. Para "rehearsals" habrá chat grupal que también se borrará al darse la última fecha del rehearsal. Si consideras que se debe extender por más tiempo la existencia de los chats (como un par de días más luego de la última fecha), hazlo según estimes óptimo, considerando optimizar tanto la experiencia del usuario, como el uso del espacio en la app. Los chats, idealmente, deben ser en tiempo real.
 
 ### F-14 — Reseñas con texto (no solo estrellas) — ALTA impacto 🟡
 "5 estrellas" sin contexto no convence. Reseñas escritas son social proof potente. *(Suspendida — no descartada, evaluar con datos reales post-alpha)*
@@ -86,15 +87,17 @@ URL pública `/teacher/[username]/schedule` que muestra todas sus próximas clas
 
 `LEVEL_LABELS` en `packages/shared/src/types/index.ts` mapea `principiante → 'Básico'`. Todos los formularios (web `CreateClassForm`, `EditClassForm`; mobile `create.tsx`, `edit.tsx`) y todos los displays (`ClassCard`, `ClassDetailClient`, `class/[id]/index.tsx`, `ics.ts`) usan el label. El valor almacenado en DB sigue siendo `'principiante'` (sin migración).
 
-### F-20 — Paquetes de clases — MEDIA esfuerzo 
+### F-20 — Paquetes de clases — MEDIA esfuerzo ✅ (sesión 10.5)
+
 Un profesor puede vender en promoción o paquetes 2 o más clases. Esto aparecerá en el /class de todas las clases involucradas en la promoción, con su precio y botón de pago correspondiente. Si un estudiante decide pagar la promoción, se le inscribirá un cupo y contará como pago confirmado para todas esas clases. Si no paga, no se inscribe a ninguno (más estricto que el pago de clases individuales).
 
 ---
 
 ## Operación
 
-### F-19 — Panel financiero para profesor — MEDIA esfuerzo
-Resumen mensual: ingresos totales, alumnos únicos, clases dictadas, ranking. Hoy `MyClassesClient` lo asoma pero falta detalle.
+### F-19 — Panel financiero para profesor — MEDIA esfuerzo ✅ (sesión 10.5)
+
+Página `/financiero` (web) y pantalla `financiero.tsx` (mobile). Stats: ingresos totales, alumnos únicos, tasa de pago, gráfico 6 meses, top clases por ingreso, filtro por mes.
 
 ### F-20 — Exportar historial de pagos a CSV — BAJA esfuerzo ✅ (sesión 10.1)
 

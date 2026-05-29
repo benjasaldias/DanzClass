@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   MapPin, Clock, Users, Calendar, ChevronLeft, ChevronRight, UserPlus, UserMinus,
   AlertCircle, CheckCircle2, Pencil, Trash2, Flag, Tag, ClipboardList,
-  ChevronDown, ChevronUp, Share2, Bell, CalendarPlus,
+  ChevronDown, ChevronUp, Share2, Bell, CalendarPlus, MessageCircle,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { downloadICS } from '@/lib/ics'
@@ -21,6 +21,7 @@ import ReportModal from '@/components/ui/ReportModal'
 import DiscountModal from '@/components/class/DiscountModal'
 import TwoxRequestButton from '@/components/class/TwoxRequestButton'
 import AuditionModal from '@/components/class/AuditionModal'
+import PackageSection from '@/components/class/PackageSection'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, SubscriptionTier } from '@danceclass/shared'
 import { canEnroll } from '@danceclass/shared'
@@ -36,6 +37,8 @@ interface ClassDetailClientProps {
   friendsTwoxRequests?: any[]
   isInWaitlist?: boolean
   userTier?: SubscriptionTier
+  classPackages?: any[]
+  myPackageEnrollments?: any[]
 }
 
 type FollowInsert = { follower_id: string; following_id: string }
@@ -52,7 +55,7 @@ export default function ClassDetailClient({
   classData, currentUser, currentProfile, enrollment: initialEnrollment,
   spots: initialSpots, isFollowing: initialIsFollowing, myAudition,
   friendsTwoxRequests = [], isInWaitlist: initialIsInWaitlist = false,
-  userTier = 'none',
+  userTier = 'none', classPackages = [], myPackageEnrollments = [],
 }: ClassDetailClientProps) {
   const router = useRouter()
 
@@ -635,6 +638,17 @@ export default function ClassDetailClient({
         {currentUser && enrollment && enrollment.status !== 'cancelled' && (
           <EnrollmentBanner enrollment={enrollment} classId={classData.id} classData={classData} onLeave={() => setShowLeaveConfirm(true)} />
         )}
+
+        {/* Paquetes disponibles para esta clase */}
+        {(classPackages.length > 0 || isTeacher) && (
+          <PackageSection
+            classPackages={classPackages}
+            myPackageEnrollments={myPackageEnrollments}
+            currentUserId={userId}
+            isTeacher={isTeacher}
+            canEnrollUser={canUserEnroll}
+          />
+        )}
       </div>
 
       {/* Bottom CTA — for authenticated enrolled students or guests */}
@@ -749,6 +763,9 @@ export default function ClassDetailClient({
 }
 
 function EnrollmentBanner({ enrollment, classId, classData, onLeave }: { enrollment: any; classId: string; classData: any; onLeave: () => void }) {
+  const router = useRouter()
+  const [openingChat, setOpeningChat] = useState(false)
+
   const statusConfig = {
     pending_payment: { icon: AlertCircle, color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300', title: 'Reserva pendiente de pago', desc: 'Completa el pago para confirmar tu cupo', showPayButton: true },
     payment_submitted: { icon: Clock, color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300', title: 'Comprobante enviado', desc: 'El profesor está verificando tu pago', showPayButton: false },
@@ -757,6 +774,20 @@ function EnrollmentBanner({ enrollment, classId, classData, onLeave }: { enrollm
   const config = statusConfig[enrollment.status as keyof typeof statusConfig]
   if (!config) return null
   const Icon = config.icon as ElementType
+
+  async function openChat() {
+    setOpeningChat(true)
+    const res = await fetch('/api/chat/get-or-create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'class', class_id: classId }),
+    })
+    if (res.ok) {
+      const { chat_id } = await res.json()
+      router.push(`/chat/${chat_id}`)
+    }
+    setOpeningChat(false)
+  }
 
   return (
     <div className={cn('rounded-xl border p-4', config.color)}>
@@ -777,6 +808,15 @@ function EnrollmentBanner({ enrollment, classId, classData, onLeave }: { enrollm
               Agregar a calendario
             </button>
           )}
+          {/* Chat button — for enrolled students (any active status) */}
+          <button
+            onClick={openChat}
+            disabled={openingChat}
+            className="mt-2 mr-3 inline-flex items-center gap-1.5 text-xs font-medium opacity-80 hover:opacity-100 underline disabled:opacity-50"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            {openingChat ? 'Abriendo chat...' : 'Chat con el profesor'}
+          </button>
           <button onClick={onLeave} className="mt-2 text-xs text-red-500 hover:text-red-700 font-medium underline">Salir de la clase</button>
         </div>
       </div>

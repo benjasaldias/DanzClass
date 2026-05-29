@@ -2822,3 +2822,94 @@ Ruta pública `/embed/teacher/[username]` para incrustar en iframes externos.
 | `apps/mobile/components/feed/OnboardingTour.tsx` | **Nuevo** — tour 4 pasos mobile |
 | `planning/90-feature-suggestions.md` | F-3, F-4, F-12 marcadas ✅ (sesión 10.3) |
 | `planning/00-overview.md` | Sesión 10 actualizada con fecha 10.3 |
+
+---
+
+## Sesión 10.5 — 2026-05-31 — Features post-alpha: Panel Financiero, Paquetes de Clases, Chat en Tiempo Real
+
+### Panel Financiero para Profesores
+
+Dashboard de ingresos y actividad para profesores.
+
+**Implementación:**
+- `apps/web/src/app/(app)/financiero/page.tsx`: nueva página server-side. Requiere `canTeach(tier)`. Fetch de payments con join a enrollments + classes + student profile. Fetch de classes con enrollments.
+- `apps/web/src/components/class/FinancialDashboardClient.tsx`: client component con stats cards (ingresos totales, alumnos únicos, clases activas, tasa de pago), gráfico de barras últimos 6 meses, filtro por mes, detalle de pagos recientes, ranking top 5 clases por ingreso.
+- `apps/web/src/app/(app)/profile/page.tsx`: botón "Panel Financiero" (TrendingUp icon) visible para `canTeach(tier)`.
+- `apps/mobile/app/(app)/financiero.tsx`: pantalla mobile equivalente con estadísticas, tendencia mensual y pagos recientes.
+- `apps/mobile/app/(app)/(tabs)/profile.tsx`: botón "Panel Financiero" en pills de acciones.
+
+### F-20 — Paquetes de Clases
+
+Profesores agrupan 2+ clases con precio especial; alumno paga una vez y entra a todas.
+
+**Implementación:**
+- `supabase/migrations/036_class_packages.sql`: tablas `class_packages`, `class_package_items`, `package_enrollments`. RLS: paquetes públicos, solo teacher puede crear; enrollments por student/teacher.
+- `apps/web/src/app/api/packages/route.ts`: `POST` — teacher crea paquete (verifica ownership de clases).
+- `apps/web/src/app/api/packages/[id]/enroll/route.ts`: `POST` — student se inscribe (upsert package_enrollment + enrollments individuales).
+- `apps/web/src/app/api/packages/[id]/submit-payment/route.ts`: `POST` — student sube comprobante (storage → package_enrollment.receipt_url).
+- `apps/web/src/app/api/packages/[id]/confirm/route.ts`: `POST` — teacher confirma/rechaza pago (confirma todos los enrollments individuales, envía notificación).
+- `apps/web/src/components/class/PackageSection.tsx`: sección de paquetes en detalle de clase. Muestra paquetes disponibles para la clase. Cards colapsables con lista de clases incluidas, CTA inscribirse, upload de comprobante inline.
+- `apps/web/src/components/class/CreatePackageModal.tsx`: modal para profesores: seleccionar 2+ clases, título, descripción, precio.
+- `apps/web/src/components/class/MyClassesClient.tsx`: +CreatePackageModal, +pendingPackages state (fetch en useEffect), sección "Pagos de paquetes por verificar", botón "Crear paquete" (visible si ≥2 clases activas).
+- `apps/web/src/components/class/ClassDetailClient.tsx`: +PackageSection render, +props classPackages/myPackageEnrollments.
+- `apps/web/src/app/(app)/class/[id]/page.tsx`: fetch de paquetes activos para la clase + enrollments del student.
+- `apps/mobile/app/(app)/class/[id]/index.tsx`: estado classPackages/myPackageEnrollments, fetch en load(), sección de paquetes con cards colapsables + botón inscribirse con Bearer token.
+
+### F-13 — Chat en Tiempo Real
+
+Chat directo alumno↔profesor por clase y grupal para ensayos. Supabase Realtime.
+
+**Implementación:**
+- `supabase/migrations/037_chat.sql`: tablas `chats` (type: 'class'/'rehearsal', class_id o rehearsal_id, student_id), `chat_participants`, `chat_messages`. Índices únicos (class+student, rehearsal). RLS por participación.
+- `apps/web/src/app/api/chat/get-or-create/route.ts`: `POST` — crea o retorna chat existente. Valida enrollment activo (class) o participación aceptada (rehearsal). Crea participantes.
+- `apps/web/src/app/api/chat/[id]/messages/route.ts`: `GET` — últimos 50 mensajes con cursor. Actualiza `last_read_at`.
+- `apps/web/src/app/api/chat/list/route.ts`: `GET` — lista de chats del usuario con preview de último mensaje.
+- `apps/web/src/app/(app)/chat/[id]/page.tsx`: página de chat individual (server). Verifica participación.
+- `apps/web/src/components/chat/ChatClient.tsx`: client component real-time. Supabase channel `chat:[chatId]` escucha INSERT en `chat_messages`. Burbujas de chat con agrupación por fecha. Envío directo a Supabase (`chat_messages.insert`). Enter para enviar.
+- `apps/web/src/app/(app)/chats/page.tsx`: lista de todos los chats del usuario (server).
+- `apps/web/src/components/chat/ChatsListClient.tsx`: lista con avatar/icono, último mensaje, tiempo relativo, badge de no leídos.
+- `apps/web/src/components/class/ClassDetailClient.tsx`: botón "Chat con el profesor" en EnrollmentBanner para alumnos inscritos (cualquier estado activo). Llama `/api/chat/get-or-create` y navega a `/chat/[id]`.
+- `apps/web/src/app/(app)/rehearsal/[id]/RehearsalDetailClient.tsx`: sección "Chat grupal" para creador/participantes aceptados.
+- `apps/web/src/app/(app)/profile/page.tsx`: botón "Mensajes" (MessageCircle icon) en pills de acción.
+- `apps/mobile/app/(app)/chat/[id].tsx`: pantalla mobile de chat. FlatList de mensajes, TextInput multiline, Supabase Realtime. Burbujas diferenciadas por sender.
+- `apps/mobile/app/(app)/chats.tsx`: pantalla de lista de chats mobile. Llama `/api/chat/list` con Bearer.
+- `apps/mobile/app/(app)/(tabs)/profile.tsx`: botón "Mensajes" navega a chats.
+- `apps/mobile/app/(app)/class/[id]/index.tsx`: botón "Chat con el profesor" + import MessageCircle.
+- `apps/mobile/app/(app)/rehearsal/[id]/index.tsx`: botón "Chat grupal" para ensayos + token state.
+- `apps/web/src/app/api/cron/cleanup-classes/route.ts`: limpieza de chats huérfanos (48h post-clase/ensayo).
+
+### Archivos modificados sesión 10.5
+
+| Archivo | Cambio |
+|---|---|
+| `supabase/migrations/036_class_packages.sql` | **Nuevo** — tablas de paquetes |
+| `supabase/migrations/037_chat.sql` | **Nuevo** — tablas de chat |
+| `apps/web/src/app/(app)/financiero/page.tsx` | **Nuevo** — panel financiero |
+| `apps/web/src/components/class/FinancialDashboardClient.tsx` | **Nuevo** |
+| `apps/web/src/app/api/packages/route.ts` | **Nuevo** |
+| `apps/web/src/app/api/packages/[id]/enroll/route.ts` | **Nuevo** |
+| `apps/web/src/app/api/packages/[id]/submit-payment/route.ts` | **Nuevo** |
+| `apps/web/src/app/api/packages/[id]/confirm/route.ts` | **Nuevo** |
+| `apps/web/src/components/class/PackageSection.tsx` | **Nuevo** |
+| `apps/web/src/components/class/CreatePackageModal.tsx` | **Nuevo** |
+| `apps/web/src/app/api/chat/get-or-create/route.ts` | **Nuevo** |
+| `apps/web/src/app/api/chat/[id]/messages/route.ts` | **Nuevo** |
+| `apps/web/src/app/api/chat/list/route.ts` | **Nuevo** |
+| `apps/web/src/app/(app)/chat/[id]/page.tsx` | **Nuevo** |
+| `apps/web/src/components/chat/ChatClient.tsx` | **Nuevo** |
+| `apps/web/src/app/(app)/chats/page.tsx` | **Nuevo** |
+| `apps/web/src/components/chat/ChatsListClient.tsx` | **Nuevo** |
+| `apps/mobile/app/(app)/financiero.tsx` | **Nuevo** |
+| `apps/mobile/app/(app)/chat/[id].tsx` | **Nuevo** |
+| `apps/mobile/app/(app)/chats.tsx` | **Nuevo** |
+| `apps/web/src/components/class/MyClassesClient.tsx` | +CreatePackageModal, +pendingPackages, +botón crear paquete |
+| `apps/web/src/components/class/ClassDetailClient.tsx` | +PackageSection, +EnrollmentBanner chat button |
+| `apps/web/src/app/(app)/class/[id]/page.tsx` | +fetch paquetes y enrollments |
+| `apps/web/src/app/(app)/profile/page.tsx` | +Panel Financiero y Mensajes pills |
+| `apps/web/src/app/(app)/rehearsal/[id]/RehearsalDetailClient.tsx` | +chat grupal |
+| `apps/web/src/app/api/cron/cleanup-classes/route.ts` | +limpieza de chats |
+| `apps/mobile/app/(app)/(tabs)/profile.tsx` | +Panel Financiero y Mensajes pills |
+| `apps/mobile/app/(app)/class/[id]/index.tsx` | +paquetes, +chat button, +MessageCircle |
+| `apps/mobile/app/(app)/rehearsal/[id]/index.tsx` | +chat grupal button, +token state |
+| `planning/90-feature-suggestions.md` | Panel financiero, F-20, F-13 marcadas ✅ |
+| `planning/00-overview.md` | Sesión 10 actualizada |

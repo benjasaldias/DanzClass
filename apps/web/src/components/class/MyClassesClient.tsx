@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
   Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
   AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2, Bell,
-  CalendarDays, MessageCircle, Download,
+  CalendarDays, MessageCircle, Download, Package, Plus,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK } from '@danceclass/shared'
@@ -15,6 +15,7 @@ import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
+import CreatePackageModal from '@/components/class/CreatePackageModal'
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -145,6 +146,41 @@ function TeachingTab({
   const [removing, setRemoving] = useState(false)
   const [dismissedIds, setDismissedIds] = useState<string[]>(initialDismissed)
   const [copiedClassId, setCopiedClassId] = useState<string | null>(null)
+  const [showCreatePackage, setShowCreatePackage] = useState(false)
+  const [pendingPackages, setPendingPackages] = useState<any[]>([])
+  const [confirmingPkg, setConfirmingPkg] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchPendingPackages() {
+      const supabase = createClient()
+      const { data } = await (supabase as any)
+        .from('package_enrollments')
+        .select(`
+          id, status, amount, created_at,
+          student:profiles!student_id(id, full_name, username, avatar_url),
+          package:class_packages!inner(id, title, price, teacher_id,
+            items:class_package_items(class_id, class:classes(title))
+          )
+        `)
+        .eq('package.teacher_id', currentUserId)
+        .eq('status', 'payment_submitted')
+      setPendingPackages(data ?? [])
+    }
+    fetchPendingPackages()
+  }, [currentUserId])
+
+  async function handlePackageAction(pkgId: string, pkgEnrollmentId: string, action: 'confirm' | 'reject') {
+    setConfirmingPkg(pkgEnrollmentId)
+    const res = await fetch(`/api/packages/${pkgId}/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ package_enrollment_id: pkgEnrollmentId, action }),
+    })
+    if (res.ok) {
+      setPendingPackages((prev) => prev.filter((e) => e.id !== pkgEnrollmentId))
+    }
+    setConfirmingPkg(null)
+  }
 
   function copyClassLink(classId: string) {
     navigator.clipboard.writeText(`${window.location.origin}/class/${classId}`)
@@ -267,6 +303,57 @@ function TeachingTab({
         />
       )}
 
+      {showCreatePackage && (
+        <CreatePackageModal
+          classes={classData}
+          onClose={() => setShowCreatePackage(false)}
+          onCreated={() => setShowCreatePackage(false)}
+        />
+      )}
+
+      {/* Pending package payments */}
+      {pendingPackages.length > 0 && (
+        <div className="mb-4 rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-900/10 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Package className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            <p className="text-sm font-semibold text-violet-800 dark:text-violet-300">Pagos de paquetes por verificar</p>
+          </div>
+          <div className="space-y-2">
+            {pendingPackages.map((pe: any) => (
+              <div key={pe.id} className="rounded-xl bg-white dark:bg-dark-surface border border-violet-100 dark:border-dark-border p-3">
+                <div className="flex items-start gap-3 mb-2">
+                  <Avatar src={pe.student?.avatar_url} name={pe.student?.full_name ?? '?'} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">{pe.student?.full_name}</p>
+                    <p className="text-xs text-gray-500 dark:text-dark-text2">{pe.package?.title}</p>
+                    <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">{formatCLP(pe.amount ?? pe.package?.price)}</p>
+                    <div className="text-xs text-gray-400 dark:text-dark-text2 mt-0.5">
+                      {(pe.package?.items ?? []).map((i: any) => i.class?.title).filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handlePackageAction(pe.package?.id, pe.id, 'confirm')}
+                    disabled={confirmingPkg === pe.id}
+                    className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Confirmar pago
+                  </button>
+                  <button
+                    onClick={() => handlePackageAction(pe.package?.id, pe.id, 'reject')}
+                    disabled={confirmingPkg === pe.id}
+                    className="flex items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-800 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                  >
+                    <XCircle className="h-3.5 w-3.5" /> Rechazar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {pendingPayments > 0 && (
         <p className="text-sm text-yellow-700 dark:text-yellow-400 font-medium mb-3">
           {pendingPayments} pago{pendingPayments !== 1 ? 's' : ''} por verificar
@@ -300,6 +387,19 @@ function TeachingTab({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Create package CTA */}
+      {classData.length >= 2 && (
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => setShowCreatePackage(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-900/10 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/20 transition-colors"
+          >
+            <Package className="h-3.5 w-3.5" />
+            Crear paquete
+          </button>
         </div>
       )}
 

@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle, GraduationCap, Gift } from 'lucide-react'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle, GraduationCap, Gift, TrendingUp, MessageCircle } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -176,6 +176,24 @@ export default async function ProfilePage() {
               Datos Transferencia
             </Link>
           )}
+
+          {canTeach(tier) && (
+            <Link
+              href="/financiero"
+              className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
+            >
+              <TrendingUp className="h-4 w-4" />
+              Panel Financiero
+            </Link>
+          )}
+
+          <Link
+            href="/chats"
+            className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Mensajes
+          </Link>
 
           {canTeach(tier) && profile?.username && (
             <EmbedWidgetButton

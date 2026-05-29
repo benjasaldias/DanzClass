@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, MapPin, Clock, Users, Check, X, Pencil, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Clock, Users, Check, X, Pencil, ChevronDown, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Avatar from '@/components/ui/Avatar'
 import dynamic from 'next/dynamic'
@@ -270,6 +270,36 @@ export default function RehearsalDetailClient({ rehearsal: initialRehearsal, cur
             </div>
           )}
         </div>
+
+        {/* Group chat — for creator or accepted invitees */}
+        {(isCreator || localStatus === 'accepted') && (
+          <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-violet-500" />
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">Chat grupal</p>
+                <p className="text-xs text-gray-500 dark:text-dark-text2">Coordinación del ensayo</p>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                const res = await fetch('/api/chat/get-or-create', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ type: 'rehearsal', rehearsal_id: rehearsal.id }),
+                })
+                if (res.ok) {
+                  const { chat_id } = await res.json()
+                  router.push(`/chat/${chat_id}`)
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-700 transition-colors"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Abrir chat
+            </button>
+          </div>
+        )}
 
         {/* Coordination calendar */}
         {rehearsal.date_mode === 'coordinate' && rehearsal.coordinate_month && (isCreator || localStatus === 'accepted') && (

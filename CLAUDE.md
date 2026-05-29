@@ -763,6 +763,18 @@ Query `enrollments.student_id=user.id&status=confirmed` con `count` en `/profile
 
 Ruta pública (`PUBLIC_EMBED = /^\/embed\//` en middleware). Layout propio `app/embed/layout.tsx` (sin topbar/bottomnav). Página `app/embed/teacher/[username]/page.tsx` usa inline styles (no Tailwind) para ser segura en cualquier iframe. No usa `createClient()` con cookies de sesión — solo lectura pública de clases activas. El botón "Widget para tu web" (`EmbedWidgetButton.tsx`, client component) en `/profile` para `canTeach(tier)` copia el código `<iframe>` al portapapeles con `APP_URL` inyectado como prop desde el server component. La ruta `/embed/*` no tiene rastreadores ni cookies, apta para embeber en webs externas.
 
+**Panel Financiero para Profesores (sesión 2026-05-31):**
+
+Página `/financiero` (web) y `financiero.tsx` (mobile). Solo accesible para `canTeach(tier)`. Muestra: ingresos totales all-time, alumnos únicos con pago confirmado, clases activas + inscripciones, tasa de pago (confirmed/total), gráfico de barras 6 meses, filtro por mes, top 5 clases por ingreso. Datos de `payments` filtrados por `status='verified'` con join a `enrollments→classes`. Link desde `/profile` y desde el perfil mobile. No requiere migración — usa tablas existentes.
+
+**Paquetes de clases (F-20, sesión 2026-05-31):**
+
+Migración `036_class_packages.sql`: tablas `class_packages`, `class_package_items`, `package_enrollments`. Un paquete agrupa 2+ clases activas del mismo profesor con precio especial. Flujo alumno: `PackageSection.tsx` en ClassDetailClient → `POST /api/packages/[id]/enroll` (crea package_enrollment + enrollments individuales pending_payment) → upload comprobante inline → `POST /api/packages/[id]/submit-payment`. Flujo profesor: `CreatePackageModal.tsx` en MyClassesClient (botón "Crear paquete" cuando ≥2 clases) → sección "Pagos de paquetes por verificar" cargada en `useEffect` → `POST /api/packages/[id]/confirm` (confirma todos los enrollments). Mobile: paquetes colapsables en class detail con enroll via Bearer. Regla: si el alumno no paga → los enrollments individuales quedan pending_payment (no se eliminan automáticamente; el teacher puede eliminar manualmente o esperar el cron de 2x stale si aplica).
+
+**Chat en tiempo real (F-13, sesión 2026-05-31):**
+
+Migración `037_chat.sql`: tablas `chats` (type: 'class'|'rehearsal', class_id o rehearsal_id, student_id), `chat_participants`, `chat_messages`. Índices únicos: `(class_id, student_id)` para chats de clase y `(rehearsal_id)` para grupales. RLS: solo participantes pueden leer/enviar. Chats eliminados automáticamente 48h después de que termina la clase/ensayo (por el cron). API: `POST /api/chat/get-or-create` (valida enrollment activo o participación aceptada, crea chat + participants), `GET /api/chat/[id]/messages` (50 últimos, cursor), `GET /api/chat/list`. Web: `ChatClient.tsx` con Supabase Realtime (`channel.on('postgres_changes', INSERT en chat_messages)`). Mobile: `chat/[id].tsx` con el mismo canal Realtime. Acceso: botón "Chat con el profesor" en `EnrollmentBanner` (cualquier status activo), botón "Chat grupal" en rehearsal detail (creator o accepted invite). Lista de chats en `/chats` (web) y `chats.tsx` (mobile), accesibles desde `/profile`. **IMPORTANTE: los mensajes se insertan directamente desde el cliente via `supabase.from('chat_messages').insert(...)` (no via API route) porque la RLS lo permite para participantes. El `get-or-create` sí requiere service role porque la RLS no permite INSERT en `chats` ni `chat_participants` desde el cliente.**
+
 ---
 
 ## Funcionalidades futuras (no prioritarias para MVP)

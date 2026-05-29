@@ -134,7 +134,7 @@ Sesión 6 → planning/07-testing-and-qa.md  ✅ (2026-05-30)
 Sesión 7 → planning/06-ui-ux-polish.md  ✅ (2026-05-30)
 Sesión 8 → planning/08-performance-and-observability.md  ✅ (2026-05-27)
 Sesión 9 → planning/09-launch-readiness-checklist.md  ✅ (2026-05-27)
-Sesión 10 (opcional) → planning/90-feature-suggestions.md  ✅ (2026-05-27 / 10.3: 2026-05-30)
+Sesión 10 (opcional) → planning/90-feature-suggestions.md  ✅ (2026-05-27 / 10.3: 2026-05-30 / 10.5: 2026-05-31)
 ```
 
 El orden está calibrado para:

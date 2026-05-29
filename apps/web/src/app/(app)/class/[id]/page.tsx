@@ -109,6 +109,35 @@ export default async function ClassDetailPage({ params }: Props) {
     isInWaitlist = !!waitlistEntry
   }
 
+  // Fetch packages for this class (public)
+  const { data: rawPackages } = await (supabase as any)
+    .from('class_packages')
+    .select(`
+      id, title, description, price, status,
+      items:class_package_items(
+        class_id,
+        class:classes(id, title, dance_style)
+      )
+    `)
+    .eq('status', 'active')
+
+  // Filter to only packages that include this class
+  const classPackages = ((rawPackages ?? []) as any[]).filter((pkg: any) =>
+    (pkg.items ?? []).some((item: any) => item.class_id === params.id)
+  )
+
+  // Student's existing package enrollments
+  let myPackageEnrollments: any[] = []
+  if (user && classPackages.length > 0) {
+    const packageIds = classPackages.map((p: any) => p.id)
+    const { data: pkgEnrollments } = await (supabase as any)
+      .from('package_enrollments')
+      .select('*')
+      .in('package_id', packageIds)
+      .eq('student_id', user.id)
+    myPackageEnrollments = (pkgEnrollments ?? []) as any[]
+  }
+
   return (
     <ClassDetailClient
       classData={classData}
@@ -121,6 +150,8 @@ export default async function ClassDetailPage({ params }: Props) {
       friendsTwoxRequests={friendsTwox}
       isInWaitlist={isInWaitlist}
       userTier={userTier}
+      classPackages={classPackages}
+      myPackageEnrollments={myPackageEnrollments}
     />
   )
 }

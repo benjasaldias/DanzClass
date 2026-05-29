@@ -330,9 +330,54 @@ export async function GET(request: Request) {
 
   if (paymentReminders > 0) logger.info('cleanup-classes:payment-reminders', { paymentReminders })
 
+  // ── Delete stale chats (class chats 48h after class ended, rehearsal chats 48h after last date) ──
+  let deletedChats = 0
+  const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+  try {
+    // Class chats: delete if the class is soft-deleted or past its last date by 48h
+    const { data: staleClassChats } = await (supabase as any)
+      .from('chats')
+      .select('id, class_id, class:classes(status, date, ends_at, ends_indefinitely, type)')
+      .eq('type', 'class')
+    for (const chat of (staleClassChats ?? []) as any[]) {
+      const cls = chat.class
+      if (!cls) { await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++; continue }
+      if (cls.status === 'cancelled') { await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++; continue }
+      // Suelta class — delete if date + 48h has passed
+      if (cls.type === 'suelta' && cls.date && new Date(cls.date).getTime() + 48 * 3600 * 1000 < Date.now()) {
+        await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++
+      }
+      // Periodica/entrenamiento with ends_at — delete if ends_at + 48h has passed
+      if (cls.ends_at && !cls.ends_indefinitely && new Date(cls.ends_at).getTime() + 48 * 3600 * 1000 < Date.now()) {
+        await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++
+      }
+    }
+    // Rehearsal chats: delete if the rehearsal's last date + 48h has passed
+    const { data: staleRehearsalChats } = await (supabase as any)
+      .from('chats')
+      .select('id, rehearsal_id, rehearsal:rehearsals(rehearsal_date, custom_dates, date_mode, status)')
+      .eq('type', 'rehearsal')
+    for (const chat of (staleRehearsalChats ?? []) as any[]) {
+      const r = chat.rehearsal
+      if (!r || r.status === 'cancelled') { await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++; continue }
+      let lastDate: Date | null = null
+      if (r.date_mode === 'single' && r.rehearsal_date) lastDate = new Date(r.rehearsal_date)
+      if (r.date_mode === 'custom' && r.custom_dates?.length) {
+        const sorted = [...r.custom_dates].sort()
+        lastDate = new Date(sorted[sorted.length - 1])
+      }
+      if (lastDate && lastDate.getTime() + 48 * 3600 * 1000 < Date.now()) {
+        await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++
+      }
+    }
+  } catch (e) {
+    logger.error('cleanup-classes:chats', { error: String(e) })
+  }
+  if (deletedChats > 0) logger.info('cleanup-classes:chats', { deletedChats })
+
   await pingHealthcheck(process.env.HEALTHCHECK_CLEANUP_CLASSES_UUID)
 
-  return NextResponse.json({ deleted, errors, reminders, cancelled2x, paymentReminders })
+  return NextResponse.json({ deleted, errors, reminders, cancelled2x, paymentReminders, deletedChats })
 }
 
 async function cleanClassMedia(supabase: ReturnType<typeof createAdminClient>, cls: any) {

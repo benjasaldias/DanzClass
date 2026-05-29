@@ -263,6 +263,22 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
 
+          {canTeach(tier) && (
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/financiero' as any)}
+              className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
+            >
+              <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Panel Financiero</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/chats' as any)}
+            className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
+          >
+            <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Mensajes</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => router.push('/(app)/plans' as any)}
             className="border border-brand-200 rounded-full px-4 py-2 bg-brand-50"

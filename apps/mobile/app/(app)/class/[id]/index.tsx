@@ -13,7 +13,7 @@ import * as Linking from 'expo-linking'
 import {
   ChevronLeft, MapPin, Clock, Users, Calendar, ChevronDown,
   ChevronRight, CheckCircle2, Tag, Music2, AlertCircle,
-  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell, CalendarPlus,
+  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell, CalendarPlus, MessageCircle,
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
@@ -502,6 +502,12 @@ export default function ClassDetailScreen() {
   const [isInWaitlist, setIsInWaitlist] = useState(false)
   const [waitlistLoading, setWaitlistLoading] = useState(false)
 
+  // Package state
+  const [classPackages, setClassPackages] = useState<any[]>([])
+  const [myPackageEnrollments, setMyPackageEnrollments] = useState<any[]>([])
+  const [pkgEnrolling, setPkgEnrolling] = useState<string | null>(null)
+  const [expandedPkg, setExpandedPkg] = useState<string | null>(null)
+
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -594,6 +600,25 @@ export default function ClassDetailScreen() {
         .eq('user_id', session.user.id)
         .maybeSingle()
       setIsInWaitlist(!!waitlistEntry)
+
+      // Packages for this class
+      const { data: pkgsData } = await (supabase as any)
+        .from('class_packages')
+        .select(`id, title, description, price, status, items:class_package_items(class_id, class:classes(id, title, dance_style))`)
+        .eq('status', 'active')
+      const filtered = ((pkgsData ?? []) as any[]).filter((p: any) =>
+        (p.items ?? []).some((item: any) => item.class_id === id)
+      )
+      setClassPackages(filtered)
+      if (filtered.length > 0) {
+        const pkgIds = filtered.map((p: any) => p.id)
+        const { data: myPkgEnrollments } = await (supabase as any)
+          .from('package_enrollments')
+          .select('*')
+          .in('package_id', pkgIds)
+          .eq('student_id', session.user.id)
+        setMyPackageEnrollments((myPkgEnrollments ?? []) as any[])
+      }
 
       setLoading(false)
     }
@@ -1198,6 +1223,25 @@ export default function ClassDetailScreen() {
                       <Text className="text-xs text-green-700 dark:text-green-400 font-medium">Agregar a calendario</Text>
                     </TouchableOpacity>
                   )}
+                  {/* Chat con el profesor */}
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (!token) return
+                      const res = await fetch(`${WEB_URL}/api/chat/get-or-create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ type: 'class', class_id: id }),
+                      })
+                      if (res.ok) {
+                        const { chat_id } = await res.json()
+                        router.push(`/(app)/chat/${chat_id}` as any)
+                      }
+                    }}
+                    className="flex-row items-center justify-center gap-1.5 py-2"
+                  >
+                    <MessageCircle size={14} stroke={isDark ? '#c4b5fd' : '#7c3aed'} />
+                    <Text className="text-xs text-violet-600 dark:text-violet-400 font-medium">Chat con el profesor</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={handleLeave} disabled={leaving} className="py-2 items-center">
                     <Text className="text-xs text-red-500">{leaving ? 'Saliendo...' : 'Salir de la clase'}</Text>
                   </TouchableOpacity>
@@ -1243,6 +1287,66 @@ export default function ClassDetailScreen() {
                   </Text>
                 </TouchableOpacity>
               )
+            )}
+
+            {/* Paquetes disponibles */}
+            {classPackages.length > 0 && !isTeacher && (
+              <View className="mt-3">
+                <Text className="text-xs font-semibold text-gray-700 dark:text-dark-text2 mb-2">Paquetes disponibles</Text>
+                {classPackages.map((pkg: any) => {
+                  const myEnrollment = myPackageEnrollments.find((e: any) => e.package_id === pkg.id)
+                  const isExpanded = expandedPkg === pkg.id
+                  return (
+                    <View key={pkg.id} className="mb-2 rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50/30 dark:bg-dark-surface overflow-hidden">
+                      <TouchableOpacity onPress={() => setExpandedPkg(isExpanded ? null : pkg.id)} className="p-3 flex-row items-center gap-2">
+                        <View className="flex-1">
+                          <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">{pkg.title}</Text>
+                          <Text className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{formatCLP(pkg.price)}</Text>
+                          <Text className="text-xs text-gray-400 dark:text-dark-text2">{(pkg.items ?? []).length} clases incluidas</Text>
+                        </View>
+                        <ChevronDown size={16} stroke={isDark ? '#A39BBF' : '#9ca3af'} />
+                      </TouchableOpacity>
+                      {isExpanded && (
+                        <View className="border-t border-violet-100 dark:border-dark-border px-3 pb-3 pt-2">
+                          {(pkg.items ?? []).map((item: any) => (
+                            <Text key={item.class_id} className="text-xs text-gray-600 dark:text-dark-text2 mb-0.5">• {item.class?.title}</Text>
+                          ))}
+                          {myEnrollment ? (
+                            <View className="mt-2 rounded-lg bg-violet-100 dark:bg-violet-900/20 px-3 py-2">
+                              <Text className="text-xs font-semibold text-violet-700 dark:text-violet-400">
+                                {myEnrollment.status === 'confirmed' ? '✓ Pago confirmado' :
+                                 myEnrollment.status === 'payment_submitted' ? 'Comprobante enviado — pendiente de verificación' :
+                                 'Inscrito — pendiente de pago'}
+                              </Text>
+                            </View>
+                          ) : canEnroll(tier) ? (
+                            <TouchableOpacity
+                              onPress={async () => {
+                                setPkgEnrolling(pkg.id)
+                                const res = await fetch(`${WEB_URL}/api/packages/${pkg.id}/enroll`, {
+                                  method: 'POST',
+                                  headers: { Authorization: `Bearer ${token}` },
+                                })
+                                if (res.ok) {
+                                  const data = await res.json()
+                                  setMyPackageEnrollments((prev) => [...prev, { id: data.package_enrollment_id, package_id: pkg.id, status: 'pending_payment' }])
+                                }
+                                setPkgEnrolling(null)
+                              }}
+                              disabled={pkgEnrolling === pkg.id}
+                              className="mt-2 rounded-xl bg-violet-600 py-2.5 items-center"
+                            >
+                              <Text className="text-sm font-semibold text-white">{pkgEnrolling === pkg.id ? 'Inscribiendo...' : `Inscribirse — ${formatCLP(pkg.price)}`}</Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <Text className="text-xs text-gray-400 dark:text-dark-text2 mt-1 text-center">Necesitas un plan para inscribirte.</Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  )
+                })}
+              </View>
             )}
 
             {/* 2x button — shown if class has 2x price and is not full */}
