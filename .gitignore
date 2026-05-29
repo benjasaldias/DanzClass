@@ -1,4 +1,12 @@
 node_modules/
+tests/
+test-results/
+playwright-report/
+playwright-report-prod/
+TEST.md
+CLAUDE.md
+resumen.md
+*.png
 .next/
 .expo/
 dist/
