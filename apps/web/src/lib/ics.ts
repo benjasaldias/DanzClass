@@ -1,6 +1,8 @@
 // Generates an .ics (iCalendar) string for a DanzClass class.
 // Triggers a browser file download when called from the client.
 
+import { LEVEL_LABELS } from '@danceclass/shared'
+
 function pad(n: number) { return String(n).padStart(2, '0') }
 
 // Format a local date + time as iCal DTSTART/DTEND value (no UTC suffix — keeps local time)
@@ -47,7 +49,8 @@ export function generateICS(classData: any): string {
   const location = classData.city ?? classData.location ?? ''
   const duration = classData.duration_minutes ?? 60
   const summary = `${title} — DanzClass`
-  const description = `Profesor: ${teacher}${classData.level ? `\nNivel: ${classData.level}` : ''}`
+  const levelLabel = classData.level ? (LEVEL_LABELS[classData.level as keyof typeof LEVEL_LABELS] ?? classData.level) : null
+  const description = `Profesor: ${teacher}${levelLabel ? `\nNivel: ${levelLabel}` : ''}`
 
   const events: string[] = []
 

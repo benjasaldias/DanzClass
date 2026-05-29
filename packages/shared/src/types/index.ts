@@ -42,6 +42,13 @@ export type RehearsalInviteStatus = 'pending' | 'accepted' | 'rejected'
 export type ClassType = 'suelta' | 'periodica' | 'entrenamiento'
 export type AuditionStatus = 'pending' | 'accepted' | 'rejected'
 export type ClassLevel = 'principiante' | 'intermedio' | 'avanzado' | 'todos'
+
+export const LEVEL_LABELS: Record<ClassLevel, string> = {
+  principiante: 'Básico',
+  intermedio: 'Intermedio',
+  avanzado: 'Avanzado',
+  todos: 'Todos los niveles',
+}
 export type ClassStatus = 'active' | 'cancelled' | 'completed'
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly' | 'custom'
 export type SessionStatus = 'scheduled' | 'cancelled' | 'completed'

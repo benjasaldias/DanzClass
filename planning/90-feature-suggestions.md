@@ -61,16 +61,17 @@ Profe pega un iframe en su Linktree/web personal para mostrar sus próximas clas
 ### F-13 — Chat directo alumno ↔ profesor — ALTA impacto, MEDIA esfuerzo 
 Hoy todo el contexto se pierde en WhatsApp. Chat in-app reduce fricción.
 
-### F-14 — Reseñas con texto (no solo estrellas) — ALTA impacto
-"5 estrellas" sin contexto no convence. Reseñas escritas son social proof potente.
+### F-14 — Reseñas con texto (no solo estrellas) — ALTA impacto 🟡
+"5 estrellas" sin contexto no convence. Reseñas escritas son social proof potente. *(Suspendida — no descartada, evaluar con datos reales post-alpha)*
 
 ### F-15 — Galería de videos de la clase post-evento — MEDIA esfuerzo ✅ (sesión 10.1)
 
 Profe sube 1-2 videos cortos después de cada clase. Alumno los ve en su perfil "mis clases". Aumenta sensación de comunidad. Un alumno debe poder subir un post de tipo "video" y etiquetar la clases asociada (sale un dropdown de los títulos de clases a las que estuvo inscrito este mes). El post del video luego mostrará una tarjeta en la parte inferior que mostrará el título de la clase y el nombre de usuario del profesor, el cual es clickeable y redirige al perfil del profesor.
 Migración `034_post_class_tag.sql`. Selector de clase en `CreatePostModal` (web) y `create-post.tsx` (mobile). Tarjeta de clase en `PostCard.tsx` y `MobilePostCard.tsx`. Query actualizada en `feed/page.tsx`, `FeedClient.tsx` y `feed.tsx` (mobile).
 
-### F-16 — Filtrar clases según nivel — MEDIA esfuerzo
-Alumno marca en buscador de clases un filtro opcional según nivel (principiante/intermedio/avanzado) → matching con clases. Hoy es ad-hoc.
+### F-16 — Filtrar clases según nivel — MEDIA esfuerzo ✅ (sesión 10.2)
+
+Chips Básico / Intermedio / Avanzado en el panel de filtros de Explorar (web `ExploreClient.tsx` + mobile `explore.tsx`). Las clases con `level='todos'` aparecen en todos los filtros. Badge de count de filtros activos actualizado.
 
 ### F-17 — Filtro "Buenos para principiantes" — BAJA esfuerzo ❌
 Curado: profe marca "Apto principiantes". Filtro en explore. Útil para no-bailarines que entran.
@@ -78,8 +79,9 @@ Curado: profe marca "Apto principiantes". Filtro en explore. Útil para no-baila
 ### F-18 — Calendario público del profesor — BAJA esfuerzo ❌
 URL pública `/teacher/[username]/schedule` que muestra todas sus próximas clases con CTA inscribirse. Útil para compartir.
 
-### F-19 — Cambiar "nivel principiante" en clases por "nivel básico" — BAJA esfuerzo 
-"Nivel básico" es el término correcto en la danza.
+### F-19 — Cambiar "nivel principiante" en clases por "nivel básico" — BAJA esfuerzo ✅ (sesión 10.2)
+
+`LEVEL_LABELS` en `packages/shared/src/types/index.ts` mapea `principiante → 'Básico'`. Todos los formularios (web `CreateClassForm`, `EditClassForm`; mobile `create.tsx`, `edit.tsx`) y todos los displays (`ClassCard`, `ClassDetailClient`, `class/[id]/index.tsx`, `ics.ts`) usan el label. El valor almacenado en DB sigue siendo `'principiante'` (sin migración).
 
 ### F-20 — Paquetes de clases — MEDIA esfuerzo 
 Un profesor puede vender en promoción o paquetes 2 o más clases. Esto aparecerá en el /class de todas las clases involucradas en la promoción, con su precio y botón de pago correspondiente. Si un estudiante decide pagar la promoción, se le inscribirá un cupo y contará como pago confirmado para todas esas clases. Si no paga, no se inscribe a ninguno (más estricto que el pago de clases individuales).

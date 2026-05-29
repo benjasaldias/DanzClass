@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { SlidersHorizontal, X } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
-import { DANCE_STYLES } from '@danceclass/shared'
+import { DANCE_STYLES, LEVEL_LABELS } from '@danceclass/shared'
+import type { ClassLevel } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 
 type UserTab = 'all' | 'friends' | 'following'
@@ -20,6 +21,7 @@ export default function ExploreScreen() {
   const [userTab, setUserTab] = useState<UserTab>('all')
   const [query, setQuery] = useState('')
   const [selectedStyle, setSelectedStyle] = useState('')
+  const [selectedLevel, setSelectedLevel] = useState<ClassLevel | ''>('')
   const [showFilters, setShowFilters] = useState(false)
   const [classes, setClasses] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -77,7 +79,8 @@ export default function ExploreScreen() {
       c.title.toLowerCase().includes(query.toLowerCase()) ||
       c.dance_style?.toLowerCase().includes(query.toLowerCase())
     const matchStyle = !selectedStyle || c.dance_style === selectedStyle
-    return matchQuery && matchStyle
+    const matchLevel = !selectedLevel || c.level === selectedLevel || c.level === 'todos'
+    return matchQuery && matchStyle && matchLevel
   })
 
   const baseUsers = users.filter((u) => u.id !== userId)
@@ -93,7 +96,7 @@ export default function ExploreScreen() {
       u.username?.toLowerCase().includes(query.toLowerCase())
     )
 
-  const activeFilterCount = selectedStyle ? 1 : 0
+  const activeFilterCount = (selectedStyle ? 1 : 0) + (selectedLevel ? 1 : 0)
   const hasActiveFilters = activeFilterCount > 0
 
   return (
@@ -171,9 +174,35 @@ export default function ExploreScreen() {
                 ))}
               </View>
             </ScrollView>
+            {/* Level filter */}
+            <View className="gap-1.5">
+              <Text className="text-xs font-medium text-gray-500 dark:text-dark-text2">Nivel</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-1">
+                <View className="flex-row gap-2 px-1">
+                  {(['principiante', 'intermedio', 'avanzado'] as ClassLevel[]).map((lvl) => (
+                    <TouchableOpacity
+                      key={lvl}
+                      onPress={() => setSelectedLevel(selectedLevel === lvl ? '' : lvl)}
+                      className={`rounded-full px-3 py-1.5 border ${
+                        selectedLevel === lvl
+                          ? 'bg-morado-flow border-morado-flow'
+                          : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
+                      }`}
+                    >
+                      <Text className={`text-xs font-medium ${
+                        selectedLevel === lvl ? 'text-white' : 'text-gray-600 dark:text-dark-text2'
+                      }`}>
+                        {LEVEL_LABELS[lvl]}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
             {hasActiveFilters && (
               <TouchableOpacity
-                onPress={() => setSelectedStyle('')}
+                onPress={() => { setSelectedStyle(''); setSelectedLevel('') }}
                 className="flex-row items-center gap-1 self-start"
               >
                 <X size={12} stroke="#7F77DD" />

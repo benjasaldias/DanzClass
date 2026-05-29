@@ -10,7 +10,7 @@ import { Upload, X, Loader2, AlertCircle, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 import { cn } from '@/lib/utils'
-import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo } from '@danceclass/shared'
+import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, LEVEL_LABELS } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
 import DateInput from '@/components/ui/DateInput'
@@ -427,7 +427,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Nivel</label>
             <select {...register('level')} className="input">
               {(['todos', 'principiante', 'intermedio', 'avanzado'] as ClassLevel[]).map((l) => (
-                <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
+                <option key={l} value={l}>{LEVEL_LABELS[l]}</option>
               ))}
             </select>
           </div>

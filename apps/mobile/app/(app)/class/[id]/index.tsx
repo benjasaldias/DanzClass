@@ -18,7 +18,7 @@ import {
 import { Icon } from '../../../../components/ui/Icon'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
-import { formatCLP, DAYS_OF_WEEK, canEnroll, pluralize } from '@danceclass/shared'
+import { formatCLP, DAYS_OF_WEEK, canEnroll, pluralize, LEVEL_LABELS } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -44,7 +44,7 @@ function icsDateStr(dateStr: string, timeStr: string | null | undefined, duratio
 function escICS(s: string) { return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n') }
 function buildICS(cls: any): string {
   const summary = escICS(`${cls.title ?? 'Clase DanzClass'} — DanzClass`)
-  const description = escICS(`Profesor: ${cls.teacher?.username ? '@' + cls.teacher.username : 'Profesor'}${cls.level ? '\nNivel: ' + cls.level : ''}`)
+  const description = escICS(`Profesor: ${cls.teacher?.username ? '@' + cls.teacher.username : 'Profesor'}${cls.level ? '\nNivel: ' + (LEVEL_LABELS[cls.level as keyof typeof LEVEL_LABELS] ?? cls.level) : ''}`)
   const location = escICS(cls.city ?? cls.location ?? '')
   const duration = cls.duration_minutes ?? 60
   const events: string[] = []
@@ -1023,7 +1023,7 @@ export default function ClassDetailScreen() {
                 </View>
               )}
               <View className="rounded-full px-3 py-1" style={{ backgroundColor: levelColors.bg }}>
-                <Text className="text-xs font-medium" style={{ color: levelColors.text }}>{cls.level}</Text>
+                <Text className="text-xs font-medium" style={{ color: levelColors.text }}>{LEVEL_LABELS[cls.level as keyof typeof LEVEL_LABELS] ?? cls.level}</Text>
               </View>
             </View>
           </View>

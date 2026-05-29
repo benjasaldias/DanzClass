@@ -2726,3 +2726,49 @@ Profesor descarga CSV con todos sus pagos recibidos para entregar a su contadora
 ### Acción pendiente del usuario
 
 1. **Migración 034** — aplicar `supabase/migrations/034_post_class_tag.sql` en Supabase producción.
+
+---
+
+## Sesión 2026-05-29 — Sesión 10.2: Features post-alpha (F-16 + F-19)
+
+### Objetivo
+
+Implementar 2 features de `planning/90-feature-suggestions.md`: filtro por nivel en Explorar y renombrar "principiante" → "Básico".
+
+### F-19 — Renombrar nivel "principiante" → "Básico"
+
+El término correcto en la cultura de la danza es "básico", no "principiante". Se crea un mapa de labels en shared para cambiar todos los displays sin necesidad de migración de DB.
+
+**Implementación:**
+- `packages/shared/src/types/index.ts`: constante `LEVEL_LABELS` exportada: `{ principiante: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado', todos: 'Todos los niveles' }`.
+- Todos los displays web: `ClassCard.tsx`, `ClassDetailClient.tsx` usan `LEVEL_LABELS[level]`.
+- Formularios web: `CreateClassForm.tsx`, `EditClassForm.tsx` muestran `LEVEL_LABELS[l]` en el `<select>`.
+- `lib/ics.ts`: exportación .ics usa el label en la descripción del evento.
+- Mobile `create.tsx`, `edit.tsx`: `LEVEL_OPTIONS` con label 'Básico' (valor almacenado sigue siendo 'principiante').
+- Mobile `class/[id]/index.tsx`: usa `LEVEL_LABELS` para mostrar el badge de nivel.
+- **Sin migración de DB**: el valor `'principiante'` se conserva en storage; solo cambia la presentación.
+
+### F-16 — Filtrar clases según nivel en Explorar
+
+Chips de nivel (Básico / Intermedio / Avanzado) en el panel de filtros colapsable de Explorar. Las clases con `level='todos'` pasan todos los filtros.
+
+**Implementación:**
+- `ExploreClient.tsx` (web): nuevo estado `selectedLevel: ClassLevel | ''`; chips de nivel bajo el GenreFilter; filtro `matchLevel = !selectedLevel || c.level === selectedLevel || c.level === 'todos'`; badge count actualizado; botón "Limpiar filtros" resetea los 3 filtros.
+- `explore.tsx` (mobile): mismo estado + mismo filtro + chips de nivel en ScrollView horizontal bajo los estilos.
+
+### Archivos modificados sesión 10.2
+
+| Archivo | Cambio |
+|---|---|
+| `packages/shared/src/types/index.ts` | Constante `LEVEL_LABELS` exportada |
+| `apps/web/src/components/feed/ClassCard.tsx` | Usa `LEVEL_LABELS` para display |
+| `apps/web/src/components/class/ClassDetailClient.tsx` | Usa `LEVEL_LABELS` para display |
+| `apps/web/src/components/class/CreateClassForm.tsx` | Select con `LEVEL_LABELS` |
+| `apps/web/src/components/class/EditClassForm.tsx` | Select con `LEVEL_LABELS` |
+| `apps/web/src/lib/ics.ts` | Usa `LEVEL_LABELS` en descripción ICS |
+| `apps/web/src/components/feed/ExploreClient.tsx` | Filtro por nivel (chips + estado + lógica) |
+| `apps/mobile/app/(app)/class/create.tsx` | Label 'Básico' en LEVEL_OPTIONS |
+| `apps/mobile/app/(app)/class/[id]/edit.tsx` | Label 'Básico' en LEVEL_OPTIONS |
+| `apps/mobile/app/(app)/class/[id]/index.tsx` | Usa `LEVEL_LABELS` para display |
+| `apps/mobile/app/(app)/(tabs)/explore.tsx` | Filtro por nivel (chips + estado + lógica) |
+| `planning/90-feature-suggestions.md` | F-16 y F-19 marcadas ✅; F-14 marcada 🟡 |

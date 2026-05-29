@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils'
 import ClassCard from './ClassCard'
 import UserCard from './UserCard'
 import GenreFilter from './GenreFilter'
-import { classConflictsWithSchedule } from '@danceclass/shared'
-import type { Profile } from '@danceclass/shared'
+import { classConflictsWithSchedule, LEVEL_LABELS } from '@danceclass/shared'
+import type { Profile, ClassLevel } from '@danceclass/shared'
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
 type Tab = 'classes' | 'users'
@@ -33,6 +33,7 @@ export default function ExploreClient({ classes, users, currentUserId, following
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('classes')
   const [selectedStyle, setSelectedStyle] = useState('')
+  const [selectedLevel, setSelectedLevel] = useState<ClassLevel | ''>('')
   const [userFilter, setUserFilter] = useState<UserFilter>('all')
   const [showFilters, setShowFilters] = useState(false)
   const [noConflicts, setNoConflicts] = useState(false)
@@ -43,7 +44,8 @@ export default function ExploreClient({ classes, users, currentUserId, following
     const matchQuery = !query || c.title.toLowerCase().includes(query.toLowerCase()) ||
       c.dance_style?.toLowerCase().includes(query.toLowerCase())
     const matchStyle = !selectedStyle || c.dance_style === selectedStyle
-    if (!matchQuery || !matchStyle) return false
+    const matchLevel = !selectedLevel || c.level === selectedLevel || c.level === 'todos'
+    if (!matchQuery || !matchStyle || !matchLevel) return false
 
     // "Sin topes" filter
     if (noConflicts && userAvailability) {
@@ -81,7 +83,7 @@ export default function ExploreClient({ classes, users, currentUserId, following
     users: 'Buscar usuarios...',
   }
 
-  const activeFilterCount = (selectedStyle ? 1 : 0) + (noConflicts ? 1 : 0)
+  const activeFilterCount = (selectedStyle ? 1 : 0) + (selectedLevel ? 1 : 0) + (noConflicts ? 1 : 0)
   const hasActiveFilters = activeFilterCount > 0
 
   return (
@@ -143,6 +145,27 @@ export default function ExploreClient({ classes, users, currentUserId, following
           <div className="space-y-3">
             <GenreFilter selected={selectedStyle} onChange={setSelectedStyle} />
 
+            {/* Level filter */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-gray-500 dark:text-dark-text2">Nivel</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(['principiante', 'intermedio', 'avanzado'] as ClassLevel[]).map((lvl) => (
+                  <button
+                    key={lvl}
+                    onClick={() => setSelectedLevel(selectedLevel === lvl ? '' : lvl)}
+                    className={cn(
+                      'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                      selectedLevel === lvl
+                        ? 'border-morado-flow bg-morado-flow text-white'
+                        : 'border-gray-200 dark:border-dark-border text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface2'
+                    )}
+                  >
+                    {LEVEL_LABELS[lvl]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Sin topes filter */}
             <div className="flex items-center gap-2">
               {isLoggedIn ? (
@@ -175,7 +198,7 @@ export default function ExploreClient({ classes, users, currentUserId, following
 
             {hasActiveFilters && (
               <button
-                onClick={() => { setSelectedStyle(''); setNoConflicts(false) }}
+                onClick={() => { setSelectedStyle(''); setSelectedLevel(''); setNoConflicts(false) }}
                 className="flex items-center gap-1 text-xs text-morado-flow hover:text-morado-flow/80 font-medium"
               >
                 <X className="h-3 w-3" />

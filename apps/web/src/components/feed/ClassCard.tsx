@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { MapPin, Calendar, Users, ChevronRight, ChevronLeft, Share2, Play } from 'lucide-react'
 import { cn, timeAgo, formatCLP, formatDate, formatTime } from '@/lib/utils'
-import { DAYS_OF_WEEK } from '@danceclass/shared'
+import { DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
 import StarRating from '@/components/ui/StarRating'
 
@@ -327,7 +327,7 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className={cn('badge text-xs', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400')}>
-              {classData.level}
+              {LEVEL_LABELS[classData.level as keyof typeof LEVEL_LABELS] ?? classData.level}
             </span>
             <Link href={`/class/${classData.id}`} className="btn-primary">
               Ver clase

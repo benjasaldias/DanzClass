@@ -22,8 +22,8 @@ import MobileMonthCalendar from '../../../components/ui/MobileMonthCalendar'
 type MediaItem = { uri: string; type: 'image' | 'video'; mimeType: string; fileName: string }
 
 const LEVEL_OPTIONS = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'principiante', label: 'Principiante' },
+  { value: 'todos', label: 'Todos los niveles' },
+  { value: 'principiante', label: 'Básico' },
   { value: 'intermedio', label: 'Intermedio' },
   { value: 'avanzado', label: 'Avanzado' },
 ]

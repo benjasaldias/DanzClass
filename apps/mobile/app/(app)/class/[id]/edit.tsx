@@ -20,8 +20,8 @@ type NewMediaItem = { uri: string; type: 'image' | 'video'; mimeType: string; fi
 type ExistingMedia = { id: string; url: string; type: 'image' | 'video'; order_index: number }
 
 const LEVEL_OPTIONS = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'principiante', label: 'Principiante' },
+  { value: 'todos', label: 'Todos los niveles' },
+  { value: 'principiante', label: 'Básico' },
   { value: 'intermedio', label: 'Intermedio' },
   { value: 'avanzado', label: 'Avanzado' },
 ]

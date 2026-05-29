@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { downloadICS } from '@/lib/ics'
-import { DAYS_OF_WEEK } from '@danceclass/shared'
+import { DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 import Avatar from '@/components/ui/Avatar'
@@ -460,7 +460,7 @@ export default function ClassDetailClient({
             )}
           </div>
           <span className={cn('badge', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600')}>
-            {classData.level}
+            {LEVEL_LABELS[classData.level as keyof typeof LEVEL_LABELS] ?? classData.level}
           </span>
         </div>
 
