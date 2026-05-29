@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, Package, CheckCircle2 } from 'lucide-react'
 import { cn, formatCLP } from '@/lib/utils'
-import useEscapeKey from '@/hooks/useEscapeKey'
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 
 type Props = {
   classes: any[]
