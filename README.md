@@ -8,7 +8,7 @@
 
 ## El problema que resuelve
 
-El mercado de clases de baile urbano en Chile opera completamente de forma informal: los profesores publican sus clases en Instagram Stories, coordinan inscripciones por WhatsApp y reciben pagos via transferencia bancaria con captura de pantalla. No hay sistema de reservas, no hay control de cupos, no hay historial de pagos. DanzClass digitaliza todo ese flujo.
+El mercado de clases de baile urbano en Chile opera completamente de forma informal: los profesores publican sus clases en historias de Instagram, coordinan inscripciones por mensaje y reciben pagos via transferencia bancaria con captura de pantalla. No hay sistema de reservas, no hay control de cupos, no hay historial de pagos. DanzClass digitaliza todo ese flujo.
 
 ---
 
