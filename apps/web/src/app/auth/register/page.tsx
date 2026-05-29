@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -26,7 +26,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const refCode = searchParams?.get('ref') ?? ''
@@ -214,5 +214,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   )
 }
