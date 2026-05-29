@@ -3,6 +3,7 @@ tests/
 test-results/
 playwright-report/
 playwright-report-prod/
+planning/
 TEST.md
 CLAUDE.md
 resumen.md
