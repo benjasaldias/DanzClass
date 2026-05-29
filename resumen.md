@@ -2772,3 +2772,53 @@ Chips de nivel (Básico / Intermedio / Avanzado) en el panel de filtros colapsab
 | `apps/mobile/app/(app)/class/[id]/index.tsx` | Usa `LEVEL_LABELS` para display |
 | `apps/mobile/app/(app)/(tabs)/explore.tsx` | Filtro por nivel (chips + estado + lógica) |
 | `planning/90-feature-suggestions.md` | F-16 y F-19 marcadas ✅; F-14 marcada 🟡 |
+
+---
+
+## Sesión 10.3 — 2026-05-30 — Features post-alpha: Onboarding, Badge clases, Widget embed
+
+### F-4 — Badge "clases tomadas" en perfil
+
+Stat "N clases tomadas" (enrollments confirmados como alumno) en el perfil web y mobile.
+
+**Implementación:**
+- `apps/web/src/app/(app)/profile/page.tsx`: nueva query `enrollments.student_id=user.id&status=confirmed` con `count` (index 6 en Promise.all). Import `GraduationCap`. Stats row: "clases tomadas" siempre visible; "clases dictadas", "cupos pagados" y valoraciones solo para `canTeach(tier)`.
+- `apps/mobile/app/(app)/(tabs)/profile.tsx`: estado `classesTaken`, misma query al final del Promise.all. Stats row agrega stat entre "seguidores" y "dictadas".
+
+### F-3 — Onboarding interactivo 4 pasos
+
+Modal "bienvenida guiada" que aparece una sola vez en el feed (primera visita).
+
+**Implementación:**
+- `apps/web/src/components/feed/OnboardingTour.tsx`: client component con 4 pasos (Seguir profes / Ciudad / Horarios / Inscribirse). `useEffect` lee `localStorage['danzclass_onboarding_v1_seen']`. Dots de progreso, botones "Saltar" y "Siguiente/¡Empezar!". Backdrop semitransparente con `backdrop-blur-sm`.
+- `apps/web/src/components/feed/FeedClient.tsx`: monta `<OnboardingTour />` al inicio del return.
+- `apps/mobile/components/feed/OnboardingTour.tsx`: misma lógica con `AsyncStorage` + React Native `Modal`. Usa `lucide-react-native` para íconos.
+- `apps/mobile/app/(app)/(tabs)/feed.tsx`: monta `<OnboardingTour />`.
+
+### F-12 — Embeddable widget de clases
+
+Ruta pública `/embed/teacher/[username]` para incrustar en iframes externos.
+
+**Implementación:**
+- `apps/web/src/middleware.ts`: regex `PUBLIC_EMBED = /^\/embed\//` agregada a `isPublic`.
+- `apps/web/src/app/embed/layout.tsx`: layout mínimo sin nav (inline styles).
+- `apps/web/src/app/embed/teacher/[username]/page.tsx`: server component. Query de clases activas del profesor igual que el feed. Renderiza header del profe + lista de cards con inline styles. Link "Ver perfil" y botón "DanzClass" con `APP_URL`. Metadata `robots: { index: false }`.
+- `apps/web/src/components/profile/EmbedWidgetButton.tsx`: client component. Genera código `<iframe src="...">` con dimensiones razonables y copia al portapapeles con feedback visual (CheckIcon 2 s).
+- `apps/web/src/app/(app)/profile/page.tsx`: botón `EmbedWidgetButton` visible solo para `canTeach(tier) && profile?.username`.
+
+### Archivos modificados sesión 10.3
+
+| Archivo | Cambio |
+|---|---|
+| `apps/web/src/app/(app)/profile/page.tsx` | +classesTakenCount query, +EmbedWidgetButton, +GraduationCap icon |
+| `apps/web/src/components/feed/OnboardingTour.tsx` | **Nuevo** — tour 4 pasos web |
+| `apps/web/src/components/feed/FeedClient.tsx` | +OnboardingTour import y render |
+| `apps/web/src/middleware.ts` | +PUBLIC_EMBED allowlist |
+| `apps/web/src/app/embed/layout.tsx` | **Nuevo** — layout mínimo embed |
+| `apps/web/src/app/embed/teacher/[username]/page.tsx` | **Nuevo** — página widget embeddable |
+| `apps/web/src/components/profile/EmbedWidgetButton.tsx` | **Nuevo** — botón copiar iframe |
+| `apps/mobile/app/(app)/(tabs)/profile.tsx` | +classesTaken state, query, stats |
+| `apps/mobile/app/(app)/(tabs)/feed.tsx` | +OnboardingTour import y render |
+| `apps/mobile/components/feed/OnboardingTour.tsx` | **Nuevo** — tour 4 pasos mobile |
+| `planning/90-feature-suggestions.md` | F-3, F-4, F-12 marcadas ✅ (sesión 10.3) |
+| `planning/00-overview.md` | Sesión 10 actualizada con fecha 10.3 |

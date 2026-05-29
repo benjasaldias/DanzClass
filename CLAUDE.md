@@ -751,6 +751,20 @@ La app está lista para invitar a los primeros usuarios alpha. Todos los P0 del 
 
 ---
 
+**Onboarding interactivo — una sola vez (sesión 2026-05-30):**
+
+`OnboardingTour` muestra un modal de 4 pasos la primera vez que el usuario entra al feed. Persiste con clave `danzclass_onboarding_v1_seen` en localStorage (web) y AsyncStorage (mobile). El componente se monta directamente en `FeedClient.tsx` (web) y `feed.tsx` (mobile); chequea el storage en un `useEffect` para no bloquear el render inicial. Si hay que resetear el tour en un usuario (debugging), borrando la clave del storage vuelve a mostrarse.
+
+**Badge "clases tomadas" en perfil (sesión 2026-05-30):**
+
+Query `enrollments.student_id=user.id&status=confirmed` con `count` en `/profile` (web) y `profile.tsx` (mobile). Aparece como stat `GraduationCap + "N clases tomadas"`. Para usuarios que también enseñan, el stat se agrega junto a "clases dictadas" y "cupos pagados". Para alumnos puros, es el único stat de clases visible (no se muestran los stats de profesor).
+
+**Embeddable widget `/embed/teacher/[username]` (sesión 2026-05-30):**
+
+Ruta pública (`PUBLIC_EMBED = /^\/embed\//` en middleware). Layout propio `app/embed/layout.tsx` (sin topbar/bottomnav). Página `app/embed/teacher/[username]/page.tsx` usa inline styles (no Tailwind) para ser segura en cualquier iframe. No usa `createClient()` con cookies de sesión — solo lectura pública de clases activas. El botón "Widget para tu web" (`EmbedWidgetButton.tsx`, client component) en `/profile` para `canTeach(tier)` copia el código `<iframe>` al portapapeles con `APP_URL` inyectado como prop desde el server component. La ruta `/embed/*` no tiene rastreadores ni cookies, apta para embeber en webs externas.
+
+---
+
 ## Funcionalidades futuras (no prioritarias para MVP)
 
 - Notificaciones push Expo

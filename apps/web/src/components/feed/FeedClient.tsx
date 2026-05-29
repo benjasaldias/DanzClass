@@ -10,6 +10,7 @@ import PostCard from './PostCard'
 import RehearsalCard from './RehearsalCard'
 import FriendsTwoxList from '@/components/class/FriendsTwoxList'
 import CreateRehearsalModal from '@/components/rehearsal/CreateRehearsalModal'
+import OnboardingTour from './OnboardingTour'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, FeedFilter } from '@danceclass/shared'
 
@@ -177,6 +178,7 @@ export default function FeedClient({
 
   return (
     <div className="flex flex-col">
+      <OnboardingTour />
       {showCreateRehearsal && (
         <CreateRehearsalModal
           onClose={() => setShowCreateRehearsal(false)}

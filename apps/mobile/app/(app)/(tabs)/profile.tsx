@@ -3,7 +3,7 @@ import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, ScrollView, Alert, Image, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { MapPin, Users, Music2, AtSign, Sun, Moon } from 'lucide-react-native'
+import { MapPin, Users, Music2, AtSign, Sun, Moon, GraduationCap } from 'lucide-react-native'
 import StarRating from '../../../components/ui/StarRating'
 import { supabase } from '../../../lib/supabase'
 import { canTeach } from '@danceclass/shared'
@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const [posts, setPosts] = useState<any[]>([])
   const [showAllClasses, setShowAllClasses] = useState(false)
   const [showAllPosts, setShowAllPosts] = useState(false)
+  const [classesTaken, setClassesTaken] = useState(0)
 
   const load = useCallback(async () => {
     try {
@@ -39,13 +40,14 @@ export default function ProfileScreen() {
       if (!user) return
       setUserId(user.id)
 
-      const [profileRes, subRes, followersRes, ratingsRes, classesRes, postsRes] = await Promise.all([
+      const [profileRes, subRes, followersRes, ratingsRes, classesRes, postsRes, takenRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').single(),
         supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', user.id),
         (supabase as any).from('ratings').select('stars').eq('rated_user_id', user.id),
         (supabase as any).from('classes').select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id,status)').eq('teacher_id', user.id).eq('status', 'active'),
         (supabase as any).from('posts').select('*, author:profiles!user_id(id, username, full_name, avatar_url)').eq('user_id', user.id).order('created_at', { ascending: false }),
+        (supabase as any).from('enrollments').select('*', { count: 'exact', head: true }).eq('student_id', user.id).eq('status', 'confirmed'),
       ])
 
       const ratingRows: any[] = ratingsRes.data ?? []
@@ -61,6 +63,7 @@ export default function ProfileScreen() {
       setAvgRating(avg)
       setClasses(classesRes.data ?? [])
       setPosts(postsRes.data ?? [])
+      setClassesTaken(takenRes.count ?? 0)
     } catch {
       // profile fails silently; user sees empty screen with retry via pull-to-refresh
     }
@@ -149,14 +152,22 @@ export default function ProfileScreen() {
             </View>
             <View className="w-px bg-gray-100 dark:bg-dark-border" />
             <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{classes.length}</Text>
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{classesTaken}</Text>
               <View className="flex-row items-center gap-1">
-                <Music2 size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo dark:text-dark-text2">clases</Text>
+                <GraduationCap size={11} stroke={isDark ? '#A39BBF' : '#6B6880'} />
+                <Text className="text-xs text-gris-humo dark:text-dark-text2">tomadas</Text>
               </View>
             </View>
             {canTeach(tier) && (
               <>
+                <View className="w-px bg-gray-100 dark:bg-dark-border" />
+                <View className="items-center">
+                  <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{classes.length}</Text>
+                  <View className="flex-row items-center gap-1">
+                    <Music2 size={11} stroke="#6B6880" />
+                    <Text className="text-xs text-gris-humo dark:text-dark-text2">dictadas</Text>
+                  </View>
+                </View>
                 <View className="w-px bg-gray-100 dark:bg-dark-border" />
                 <View className="items-center justify-center">
                   {ratingCount > 0

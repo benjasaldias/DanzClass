@@ -14,11 +14,13 @@ Sin push, recordatorios y notificaciones de pago confirmado pasan desapercibidos
 Hoy Supabase manda emails default (confirmación, reset). Custom + branded subimos confianza inmediatamente.
 Templates HTML creados en `supabase/email-templates/`. Ver `README.md` ahí para instrucciones de aplicación.
 
-### F-3 — Onboarding interactivo (primera vez en feed) — MEDIA esfuerzo
-Tour de 4 pasos: "1. Sigue a profes que te interesan • 2. Configura tu ciudad • 3. Marca tus horarios disponibles • 4. Empieza a inscribirte". Aumenta activación.
+### F-3 — Onboarding interactivo (primera vez en feed) — MEDIA esfuerzo ✅ (sesión 10.3)
 
-### F-4 — Streak / gamificación leve — BAJA esfuerzo
-Badge "5 clases este mes" o "20 clases tomadas en total" en el perfil. Bajo riesgo, alto delight.
+Modal de 4 pasos mostrado una vez al entrar al feed. Persiste en localStorage (web) y AsyncStorage (mobile). Web: `OnboardingTour.tsx` montado en `FeedClient.tsx`. Mobile: `components/feed/OnboardingTour.tsx` montado en `feed.tsx`.
+
+### F-4 — Streak / gamificación leve — BAJA esfuerzo ✅ (sesión 10.3)
+
+Badge "N clases tomadas" (enrollments confirmados como alumno) en stats row del perfil. Web: query `enrollments.student_id=user.id&status=confirmed` + `GraduationCap` icon. Mobile: mismo count en stats row con `GraduationCap`. Solo alumno visible cuando no es profesor; aparece junto a "dictadas" y valoraciones cuando sí lo es.
 
 ### F-5 — Calendario downloadable .ics — BAJA esfuerzo ✅ (sesión 10)
 
@@ -51,8 +53,9 @@ Profes ya usan Instagram. Botón "Compartir clase a Instagram Stories" con previ
 ### F-11 — SEO landing pages por estilo de baile y ciudad — MEDIA esfuerzo
 Pre-renderear `/clases/house/santiago` con clases activas. Google indexa → tráfico orgánico.
 
-### F-12 — Embeddable widget de clases — BAJA esfuerzo
-Profe pega un iframe en su Linktree/web personal para mostrar sus próximas clases.
+### F-12 — Embeddable widget de clases — BAJA esfuerzo ✅ (sesión 10.3)
+
+Ruta pública `/embed/teacher/[username]` (middleware allowlist `PUBLIC_EMBED=/^\/embed\//`). Renderiza clases activas del profesor con inline styles (sin Tailwind, compatible con cualquier iframe). Botón "Widget para tu web" en `/profile` de profesores (`EmbedWidgetButton.tsx`) copia código `<iframe>` al portapapeles. Layout minimalista en `app/embed/layout.tsx`.
 
 ---
 

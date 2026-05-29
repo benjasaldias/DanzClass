@@ -11,6 +11,7 @@ import MobileRehearsalCard from '../../../components/feed/MobileRehearsalCard'
 import TopBar from '../../../components/ui/TopBar'
 import RatingPopup from '../../../components/ui/RatingPopup'
 import FloatingActionButton from '../../../components/ui/FloatingActionButton'
+import OnboardingTour from '../../../components/feed/OnboardingTour'
 import { useTheme } from '../../../context/ThemeContext'
 import { canTeach } from '@danceclass/shared'
 import type { FeedFilter, SubscriptionTier } from '@danceclass/shared'
@@ -191,6 +192,7 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
+      <OnboardingTour />
       {userId && <RatingPopup userId={userId} />}
       <TopBar />
 

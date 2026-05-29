@@ -4,12 +4,13 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle } from 'lucide-react'
+import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle, GraduationCap } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import PostCard from '@/components/feed/PostCard'
 import StarRating from '@/components/ui/StarRating'
+import EmbedWidgetButton from '@/components/profile/EmbedWidgetButton'
 import { formatCLP, formatDate, formatTime } from '@/lib/utils'
 
 const TIER_LABELS: Record<string, string> = {
@@ -31,6 +32,7 @@ export default async function ProfilePage() {
     { count: followersCount },
     { count: classesCount },
     { count: paidSpotsCount },
+    { count: classesTakenCount },
     { data: ratingRows },
     { data: classes },
     { data: enrolledData },
@@ -50,6 +52,11 @@ export default async function ProfilePage() {
       .from('enrollments')
       .select('*, class:classes!inner(*)', { count: 'exact', head: true })
       .eq('class.teacher_id', user.id)
+      .eq('status', 'confirmed'),
+    (supabase as any)
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('student_id', user.id)
       .eq('status', 'confirmed'),
     (supabase as any).from('ratings').select('stars').eq('rated_user_id', user.id),
     (supabase as any)
@@ -116,16 +123,21 @@ export default async function ProfilePage() {
         {/* Stats row */}
         <div className="flex items-center gap-4 flex-wrap justify-center mt-1">
           <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesCount ?? 0}</span>
-            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
-          </div>
-          <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
-          <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{paidSpotsCount ?? 0}</span>
-            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
+            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesTakenCount ?? 0}</span>
+            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><GraduationCap className="h-3 w-3" /> clases tomadas</span>
           </div>
           {canTeach(tier) && (
             <>
+              <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
+              <div className="flex flex-col items-center">
+                <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesCount ?? 0}</span>
+                <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
+              </div>
+              <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
+              <div className="flex flex-col items-center">
+                <span className="text-base font-bold text-gray-900 dark:text-dark-text">{paidSpotsCount ?? 0}</span>
+                <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
+              </div>
               <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
               <div className="flex flex-col items-center">
                 {ratingCount > 0
@@ -162,6 +174,13 @@ export default async function ProfilePage() {
               <CreditCard className="h-4 w-4" />
               Datos Transferencia
             </Link>
+          )}
+
+          {canTeach(tier) && profile?.username && (
+            <EmbedWidgetButton
+              username={profile.username}
+              appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
+            />
           )}
 
           <LogoutButton asButton />
