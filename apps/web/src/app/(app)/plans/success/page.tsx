@@ -62,7 +62,7 @@ async function rewardReferralIfNeeded(admin: ReturnType<typeof createAdminClient
     await admin.from('subscriptions').update({ expires_at: newExpiry.toISOString() }).eq('id', referredSub.id)
   }
 
-  await admin.from('profiles').update({ referral_rewarded: true }).eq('id', referredUserId)
+  await (admin as any).from('profiles').update({ referral_rewarded: true }).eq('id', referredUserId)
   console.log('[referral] rewarded — referred:', referredUserId, 'referrer:', referrerId)
 }
 
