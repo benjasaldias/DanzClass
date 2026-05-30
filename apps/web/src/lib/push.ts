@@ -25,7 +25,7 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
 
   if (!tokens || tokens.length === 0) return
 
-  const messages = (tokens as { token: string; user_id: string }[])
+  const messages = (tokens as unknown as { token: string; user_id: string }[])
     .filter((t) => Expo.isExpoPushToken(t.token))
     .map((t) => ({
       to: t.token,
