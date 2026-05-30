@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Calendar, Video, ChevronRight, Lock, Music2 } from 'lucide-react'
+import { Calendar, Video, ChevronRight, Lock, Music2, Trophy } from 'lucide-react'
 import CreatePostModal from '@/components/feed/CreatePostModal'
 import CreateRehearsalModal from '@/components/rehearsal/CreateRehearsalModal'
 import { BASIC_VIDEO_POST_LIMIT, canPostVideo } from '@danceclass/shared'
@@ -49,6 +49,21 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-gray-900 dark:text-dark-text">Clase</p>
             <p className="text-sm text-gray-500 dark:text-dark-text2 mt-0.5">Suelta o periódica, con cupos e inscripciones</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
+        </Link>
+
+        {/* Evento */}
+        <Link
+          href="/event/create"
+          className="flex items-center gap-4 rounded-2xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface p-5 shadow-sm hover:shadow-md transition-shadow active:scale-[0.98]"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-900/20 flex-shrink-0">
+            <Trophy className="h-6 w-6 text-orange-500 dark:text-orange-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 dark:text-dark-text">Evento</p>
+            <p className="text-sm text-gray-500 dark:text-dark-text2 mt-0.5">Batalla, masterclass u otro evento comunitario</p>
           </div>
           <ChevronRight className="h-5 w-5 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
         </Link>

@@ -65,7 +65,22 @@ export default async function FeedPage() {
     .order('created_at', { ascending: false })
     .limit(20)
 
-  const [{ data: rawClasses }, { data: posts }, { data: rawRehearsals }] = await Promise.all([classesQuery, postsQuery, rehearsalsQuery])
+  const eventsQuery = (supabase as any)
+    .from('events')
+    .select(`
+      *,
+      creator:profiles!creator_id(id, username, full_name, avatar_url),
+      event_invites(id, status, teacher_id, teacher:profiles!teacher_id(id, username, full_name, avatar_url)),
+      event_enrollments(id, user_id, status)
+    `)
+    .eq('status', 'active')
+    .gte('event_date', today)
+    .order('event_date', { ascending: true })
+    .limit(20)
+
+  const [{ data: rawClasses }, { data: posts }, { data: rawRehearsals }, { data: rawEvents }] = await Promise.all([
+    classesQuery, postsQuery, rehearsalsQuery, eventsQuery,
+  ])
 
   // Attach my_invite to each rehearsal (for action buttons)
   const rehearsals = (rawRehearsals ?? []).map((r: any) => ({
@@ -101,6 +116,7 @@ export default async function FeedPage() {
       initialClasses={(classes as any[]) ?? []}
       initialPosts={(posts as any[]) ?? []}
       initialRehearsals={rehearsals}
+      initialEvents={(rawEvents as any[]) ?? []}
       currentUser={user!}
       currentProfile={profile}
       followingIds={followingIds}

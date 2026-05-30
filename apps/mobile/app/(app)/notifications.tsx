@@ -146,6 +146,21 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
     label: (data) => `Tienes un pago pendiente para "${data.class_title ?? 'una clase'}". Sube tu comprobante para confirmar tu cupo.`,
     route: (data) => data.enrollment_id ? `/(app)/payment/${data.enrollment_id}` : '/(app)/(tabs)/my-classes',
   },
+  event_invite: {
+    icon: Users, bgColor: '#fff7ed', iconColor: '#ea580c',
+    label: (data) => `Te invitaron a participar como profe en "${data.event_title ?? 'un evento'}"`,
+    route: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
+  },
+  event_invite_accepted: {
+    icon: UserCheck, bgColor: '#f0fdf4', iconColor: '#16a34a',
+    label: (data, pm) => pm[data.teacher_id] ? `@${pm[data.teacher_id].username} aceptó tu invitación al evento` : 'Un profesor aceptó tu invitación',
+    route: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
+  },
+  event_invite_rejected: {
+    icon: XCircle, bgColor: '#f9fafb', iconColor: '#6b7280',
+    label: (data, pm) => pm[data.teacher_id] ? `@${pm[data.teacher_id].username} declinó tu invitación al evento` : 'Un profesor declinó tu invitación',
+    route: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
+  },
 }
 
 export default function NotificationsScreen() {

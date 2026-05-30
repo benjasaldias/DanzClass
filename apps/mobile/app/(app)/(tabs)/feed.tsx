@@ -8,6 +8,7 @@ import { supabase } from '../../../lib/supabase'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
 import MobileRehearsalCard from '../../../components/feed/MobileRehearsalCard'
+import MobileEventCard from '../../../components/feed/MobileEventCard'
 import TopBar from '../../../components/ui/TopBar'
 import RatingPopup from '../../../components/ui/RatingPopup'
 import FloatingActionButton from '../../../components/ui/FloatingActionButton'
@@ -24,12 +25,13 @@ const FEED_FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'nearby', label: 'Cerca' },
 ]
 
-type ContentFilter = 'all' | 'classes' | 'posts' | 'rehearsals'
+type ContentFilter = 'all' | 'classes' | 'posts' | 'rehearsals' | 'events'
 const CONTENT_FILTERS: { key: ContentFilter; label: string }[] = [
   { key: 'all', label: 'Todos' },
   { key: 'classes', label: 'Clases' },
   { key: 'posts', label: 'Videos' },
   { key: 'rehearsals', label: 'Ensayos' },
+  { key: 'events', label: 'Eventos' },
 ]
 
 export default function FeedScreen() {
@@ -154,6 +156,33 @@ export default function FeedScreen() {
       })
     }
 
+    // Fetch events
+    if (cf === 'all' || cf === 'events') {
+      const todayStr = new Date().toISOString().split('T')[0]
+      let evQ = (supabase as any)
+        .from('events')
+        .select('*, creator:profiles!creator_id(id, username, full_name, avatar_url), event_invites(id, status, teacher_id, teacher:profiles!teacher_id(id, username, full_name)), event_enrollments(id, user_id, status)')
+        .eq('status', 'active')
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending: true })
+        .limit(20)
+
+      if (ff === 'following') {
+        if (followingIds.length > 0) {
+          const { data: evData } = await evQ
+          const filtered = (evData ?? []).filter((ev: any) =>
+            followingIds.includes(ev.creator_id) ||
+            (ev.event_invites ?? []).some((inv: any) => inv.status === 'accepted' && followingIds.includes(inv.teacher_id))
+          )
+          filtered.forEach((ev: any) => allItems.push({ _type: 'event', ...ev }))
+        }
+      } else {
+        if (ff === 'nearby' && userCity) evQ = evQ.eq('city', userCity)
+        const { data: evData } = await evQ
+        ;(evData ?? []).forEach((ev: any) => allItems.push({ _type: 'event', ...ev }))
+      }
+    }
+
     // Sort mixed feed by created_at descending
     allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setItems(allItems)
@@ -255,7 +284,9 @@ export default function FeedScreen() {
               ? <MobileClassCard classData={item} currentUserId={userId ?? ''} teacherRating={teacherRatings[item.teacher_id]} />
               : item._type === 'rehearsal'
                 ? <MobileRehearsalCard rehearsal={item} currentUserId={userId ?? ''} onUpdate={() => loadFeed(feedFilter, contentFilter)} />
-                : <MobilePostCard post={item} currentUserId={userId ?? ''} />
+                : item._type === 'event'
+                  ? <MobileEventCard event={item} />
+                  : <MobilePostCard post={item} currentUserId={userId ?? ''} />
           }
           refreshControl={
             <RefreshControl

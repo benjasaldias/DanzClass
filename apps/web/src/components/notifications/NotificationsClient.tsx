@@ -208,6 +208,30 @@ const NOTIF_CONFIG: Record<string, {
     label: (data) => `Tienes un pago pendiente para "${data.class_title ?? 'una clase'}". Sube tu comprobante para confirmar tu cupo.`,
     href: (data) => data.enrollment_id ? `/payment/${data.enrollment_id}` : '/my-classes',
   },
+  event_invite: {
+    icon: Users,
+    color: 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
+    label: (data) => `Te invitaron a participar como profe en "${data.event_title ?? 'un evento'}"`,
+    href: (data) => data.event_id ? `/event/${data.event_id}` : '/feed',
+  },
+  event_invite_accepted: {
+    icon: UserCheck,
+    color: 'text-green-500 bg-green-50 dark:bg-green-950/30 dark:text-green-400',
+    label: (data) => {
+      const who = data.teacher_username ? `@${data.teacher_username}` : 'Un profesor'
+      return `${who} aceptó tu invitación al evento`
+    },
+    href: (data) => data.event_id ? `/event/${data.event_id}` : '/feed',
+  },
+  event_invite_rejected: {
+    icon: XCircle,
+    color: 'text-gray-400 bg-gray-50 dark:bg-dark-surface2 dark:text-dark-text2',
+    label: (data) => {
+      const who = data.teacher_username ? `@${data.teacher_username}` : 'Un profesor'
+      return `${who} declinó tu invitación al evento`
+    },
+    href: (data) => data.event_id ? `/event/${data.event_id}` : '/feed',
+  },
 }
 
 export default function NotificationsClient({ notifications, profileMap, classMap, userId }: NotificationsClientProps) {

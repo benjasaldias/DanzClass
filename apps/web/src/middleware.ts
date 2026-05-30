@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = ['/', '/auth/login', '/auth/register', '/terms', '/privacy']
 
-// Solo el detalle público de una clase (/class/:id) es accesible sin sesión.
-// Subrutas como /class/:id/edit o /class/:id/auditions exigen login y guards de ownership server-side.
+// Solo el detalle público de una clase o evento (:id) es accesible sin sesión.
+// Subrutas como /edit exigen login y guards de ownership server-side.
 const PUBLIC_CLASS_DETAIL = /^\/class\/[^/]+\/?$/
+const PUBLIC_EVENT_DETAIL = /^\/event\/[^/]+\/?$/
 
 // Embeddable widget — completamente público (se embebe en iframes externos)
 const PUBLIC_EMBED = /^\/embed\//
@@ -44,6 +45,7 @@ export async function middleware(request: NextRequest) {
     PUBLIC_ROUTES.includes(pathname) ||
     pathname.startsWith('/auth') ||
     PUBLIC_CLASS_DETAIL.test(pathname) ||
+    PUBLIC_EVENT_DETAIL.test(pathname) ||
     PUBLIC_EMBED.test(pathname)
 
   if (!user && !isPublic) {

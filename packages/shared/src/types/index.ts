@@ -34,6 +34,20 @@ export type NotificationType =
   | 'rehearsal_accepted'
   | 'rehearsal_rejected'
   | 'payment_reminder'
+  | 'event_invite'
+  | 'event_invite_accepted'
+  | 'event_invite_rejected'
+
+export type EventType = 'batalla' | 'masterclass' | 'otro'
+export type EventStatus = 'active' | 'cancelled' | 'finished'
+export type EventInviteStatus = 'pending' | 'accepted' | 'rejected'
+export type EventEnrollmentStatus = 'pending_payment' | 'payment_submitted' | 'confirmed' | 'cancelled'
+
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  batalla: 'Batalla',
+  masterclass: 'Masterclass',
+  otro: 'Otro',
+}
 
 export type RehearsalDateMode = 'single' | 'custom' | 'coordinate'
 export type RehearsalStatus = 'active' | 'cancelled'

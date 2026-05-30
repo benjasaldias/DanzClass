@@ -8,19 +8,21 @@ import { createClient } from '@/lib/supabase/client'
 import ClassCard from './ClassCard'
 import PostCard from './PostCard'
 import RehearsalCard from './RehearsalCard'
+import EventCard from './EventCard'
 import FriendsTwoxList from '@/components/class/FriendsTwoxList'
 import CreateRehearsalModal from '@/components/rehearsal/CreateRehearsalModal'
 import OnboardingTour from './OnboardingTour'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, FeedFilter } from '@danceclass/shared'
 
-type ContentType = 'all' | 'classes' | 'posts' | 'rehearsals'
+type ContentType = 'all' | 'classes' | 'posts' | 'rehearsals' | 'events'
 type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
 
 interface FeedClientProps {
   initialClasses: any[]
   initialPosts: any[]
   initialRehearsals?: any[]
+  initialEvents?: any[]
   currentUser: User
   currentProfile: Profile | null
   followingIds: string[]
@@ -39,6 +41,7 @@ const CONTENT_LABELS: Record<ContentType, string> = {
   classes: 'Clases',
   posts: 'Videos',
   rehearsals: 'Ensayos',
+  events: 'Eventos',
 }
 
 async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, teacherIds: string[]): Promise<TeacherRatings> {
@@ -60,6 +63,7 @@ export default function FeedClient({
   initialClasses,
   initialPosts,
   initialRehearsals = [],
+  initialEvents = [],
   currentUser,
   currentProfile,
   followingIds,
@@ -72,6 +76,7 @@ export default function FeedClient({
   const [classes, setClasses] = useState(initialClasses)
   const [posts, setPosts] = useState(initialPosts)
   const [rehearsals, setRehearsals] = useState(initialRehearsals)
+  const [events, setEvents] = useState(initialEvents)
   const [loading, setLoading] = useState(false)
   const [teacherRatings, setTeacherRatings] = useState<TeacherRatings>(initialTeacherRatings)
   const [showCreateRehearsal, setShowCreateRehearsal] = useState(false)
@@ -138,7 +143,38 @@ export default function FeedClient({
       postQuery = (postQuery as any).in('visibility', ['public', 'followers', 'friends'])
     }
 
-    const [{ data: classData }, { data: postData }] = await Promise.all([classQuery, postQuery])
+    // Events query
+    const today = new Date().toISOString().split('T')[0]
+    let eventQuery = (supabase as any)
+      .from('events')
+      .select(`
+        *,
+        creator:profiles!creator_id(id, username, full_name, avatar_url),
+        event_invites(id, status, teacher_id, teacher:profiles!teacher_id(id, username, full_name, avatar_url)),
+        event_enrollments(id, user_id, status)
+      `)
+      .eq('status', 'active')
+      .gte('event_date', today)
+      .order('event_date', { ascending: true })
+      .limit(20)
+
+    if (filter === 'following') {
+      if (followingIds.length === 0) {
+        setClasses([]); setPosts([]); setEvents([]); setLoading(false); return
+      }
+      classQuery = classQuery.in('teacher_id', followingIds)
+      postQuery = postQuery.in('user_id', followingIds)
+      // Events: creator followed OR accepted invite from followed teacher
+      eventQuery = eventQuery.or(
+        `creator_id.in.(${followingIds.join(',')}),event_invites.teacher_id.in.(${followingIds.join(',')})`
+      )
+    } else if (filter === 'nearby' && currentProfile?.city) {
+      classQuery = classQuery.eq('city', currentProfile.city)
+      postQuery = postQuery.eq('city', currentProfile.city)
+      eventQuery = eventQuery.eq('city', currentProfile.city)
+    }
+
+    const [{ data: classData }, { data: postData }, { data: eventData }] = await Promise.all([classQuery, postQuery, eventQuery])
     // Client-side: filter custom-recurrence classes where all dates have passed
     const todayStr = new Date().toISOString().split('T')[0]
     const newClasses = (classData ?? []).filter((c: any) => {
@@ -147,8 +183,19 @@ export default function FeedClient({
       }
       return true
     })
+
+    // For "following" filter, filter events to only those where creator or an accepted-invite teacher is followed
+    let newEvents = (eventData ?? [])
+    if (filter === 'following') {
+      newEvents = newEvents.filter((ev: any) =>
+        followingIds.includes(ev.creator_id) ||
+        (ev.event_invites ?? []).some((inv: any) => inv.status === 'accepted' && followingIds.includes(inv.teacher_id))
+      )
+    }
+
     setClasses(newClasses)
     setPosts((postData as any[]) ?? [])
+    setEvents(newEvents)
 
     // Fetch ratings for the new set of teachers
     const teacherIds = [...new Set(newClasses.map((c: any) => c.teacher_id as string))]
@@ -163,7 +210,7 @@ export default function FeedClient({
     loadFeed(filter)
   }
 
-  const feedItems: { type: 'class' | 'post' | 'rehearsal'; data: any; created_at: string }[] = []
+  const feedItems: { type: 'class' | 'post' | 'rehearsal' | 'event'; data: any; created_at: string }[] = []
   if (contentType === 'all' || contentType === 'classes') {
     classes.forEach((c) => feedItems.push({ type: 'class', data: c, created_at: c.created_at }))
   }
@@ -171,8 +218,10 @@ export default function FeedClient({
     posts.forEach((p) => feedItems.push({ type: 'post', data: p, created_at: p.created_at }))
   }
   if (contentType === 'all' || contentType === 'rehearsals') {
-    // Rehearsals only show to creator and invitees (RLS already handles DB-side)
     rehearsals.forEach((r) => feedItems.push({ type: 'rehearsal', data: r, created_at: r.created_at }))
+  }
+  if (contentType === 'all' || contentType === 'events') {
+    events.forEach((ev) => feedItems.push({ type: 'event', data: ev, created_at: ev.created_at }))
   }
   feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
@@ -283,7 +332,11 @@ export default function FeedClient({
                     onEdited={reloadRehearsals}
                     onCancelled={(id) => setRehearsals((prev) => prev.filter((r: any) => r.id !== id))}
                   />
-                : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser.id} />
+                : item.type === 'event'
+                  ? <div key={`event-${item.data.id}`} className="mx-4 mb-4">
+                      <EventCard event={item.data} currentUserId={currentUser.id} />
+                    </div>
+                  : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser.id} />
           )
         )}
       </div>
