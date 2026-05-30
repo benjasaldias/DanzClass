@@ -33,7 +33,7 @@ function StylesPicker({
             <TouchableOpacity
               key={s}
               onPress={() => toggle(s)}
-              className={`rounded-full px-3 py-1.5 border ${active ? 'bg-brand-600 border-brand-600' : 'bg-white dark:bg-dark-surface2 border-gray-200 dark:border-dark-border'}`}
+              className={`rounded-full px-3 py-1.5 border ${active ? 'bg-morado-flow border-morado-flow' : 'bg-white dark:bg-dark-surface2 border-gray-200 dark:border-dark-border'}`}
             >
               <Text className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-600 dark:text-dark-text2'}`}>{s}</Text>
             </TouchableOpacity>
