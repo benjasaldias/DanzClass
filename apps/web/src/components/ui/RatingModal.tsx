@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, Star } from 'lucide-react'
 import StarRating from './StarRating'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
+import { submitRating } from '@/app/actions/ratings'
 
 interface RatingModalProps {
   teacherId: string
@@ -35,14 +36,10 @@ export default function RatingModal({
     setLoading(true)
     setError(null)
 
-    const res = await fetch('/api/ratings/upsert', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rated_user_id: teacherId, stars: selected }),
-    })
+    const result = await submitRating({ rated_user_id: teacherId, stars: selected })
 
-    if (!res.ok) {
-      setError('No se pudo guardar la valoración. Intenta de nuevo.')
+    if (!result.ok) {
+      setError(result.error ?? 'No se pudo guardar la valoración. Intenta de nuevo.')
       setLoading(false)
       return
     }

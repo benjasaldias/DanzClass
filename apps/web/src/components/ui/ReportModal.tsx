@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, Loader2, Flag } from 'lucide-react'
+import { submitReport } from '@/app/actions/reports'
 
 type Reason = 'copyright' | 'inappropriate' | 'spam' | 'other'
 type ContentType = 'post' | 'class'
@@ -49,15 +50,10 @@ export default function ReportModal({ contentType, contentId, reporterId: _repor
     setLoading(true)
     setError(null)
 
-    const res = await fetch('/api/reports', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentType, contentId, reason, description }),
-    })
+    const result = await submitReport({ contentType, contentId, reason, description })
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      if (data.error === 'duplicate' || res.status === 409) {
+    if (!result.ok) {
+      if (result.error === 'duplicate') {
         setError('Ya reportaste este contenido anteriormente.')
       } else {
         setError('Error al enviar el reporte. Intenta de nuevo.')

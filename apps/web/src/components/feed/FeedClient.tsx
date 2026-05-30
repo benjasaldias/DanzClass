@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Users, Globe, MapPin, ChevronDown, Music2 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useFeed } from '@/hooks/queries/useFeed'
 import ClassCard from './ClassCard'
 import PostCard from './PostCard'
 import RehearsalCard from './RehearsalCard'
@@ -44,21 +45,6 @@ const CONTENT_LABELS: Record<ContentType, string> = {
   events: 'Eventos',
 }
 
-async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, teacherIds: string[]): Promise<TeacherRatings> {
-  if (teacherIds.length === 0) return {}
-  const { data } = await (supabase as any).from('ratings').select('rated_user_id, stars').in('rated_user_id', teacherIds)
-  const map: TeacherRatings = {}
-  for (const row of (data ?? []) as { rated_user_id: string; stars: number }[]) {
-    if (!map[row.rated_user_id]) map[row.rated_user_id] = { avg_stars: 0, rating_count: 0 }
-    map[row.rated_user_id].rating_count++
-    map[row.rated_user_id].avg_stars += Number(row.stars)
-  }
-  for (const id of Object.keys(map)) {
-    map[id].avg_stars = Math.round((map[id].avg_stars / map[id].rating_count) * 10) / 10
-  }
-  return map
-}
-
 export default function FeedClient({
   initialClasses,
   initialPosts,
@@ -73,16 +59,28 @@ export default function FeedClient({
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('global')
   const [contentType, setContentType] = useState<ContentType>('all')
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [classes, setClasses] = useState(initialClasses)
-  const [posts, setPosts] = useState(initialPosts)
   const [rehearsals, setRehearsals] = useState(initialRehearsals)
-  const [events, setEvents] = useState(initialEvents)
-  const [loading, setLoading] = useState(false)
-  const [teacherRatings, setTeacherRatings] = useState<TeacherRatings>(initialTeacherRatings)
   const [showCreateRehearsal, setShowCreateRehearsal] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  async function reloadRehearsals() {
+  const { data: feedData, isLoading, isFetching } = useFeed({
+    filter: activeFilter,
+    followingIds,
+    currentProfile,
+    initialData: {
+      classes: initialClasses,
+      posts: initialPosts,
+      events: initialEvents,
+      teacherRatings: initialTeacherRatings,
+    },
+  })
+
+  const classes = feedData?.classes ?? initialClasses
+  const posts = feedData?.posts ?? initialPosts
+  const events = feedData?.events ?? initialEvents
+  const teacherRatings = feedData?.teacherRatings ?? initialTeacherRatings
+
+  const reloadRehearsals = useCallback(async () => {
     const supabase = createClient()
     const { data } = await (supabase as any)
       .from('rehearsals')
@@ -96,7 +94,7 @@ export default function FeedClient({
         my_invite: (r.invites ?? []).find((i: any) => i.user_id === currentUser.id) ?? null,
       })))
     }
-  }
+  }, [currentUser.id])
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -105,109 +103,6 @@ export default function FeedClient({
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
-
-  const loadFeed = useCallback(async (filter: FeedFilter) => {
-    setLoading(true)
-    const supabase = createClient()
-    const today = new Date().toISOString().split('T')[0]
-
-    let classQuery = supabase
-      .from('classes')
-      .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
-      .eq('status', 'active')
-      // Exclude expired sueltas
-      .or(`type.neq.suelta,date.gte.${today}`)
-      // Exclude expired periodica/entrenamiento
-      .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${today}`)
-      .order('created_at', { ascending: false })
-      .limit(20)
-
-    let postQuery = supabase
-      .from('posts' as any)
-      .select('id, title, description, video_url, thumbnail_url, visibility, is_public, class_id, created_at, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
-      .order('created_at', { ascending: false })
-      .limit(20)
-
-    if (filter === 'following') {
-      if (followingIds.length === 0) { setClasses([]); setPosts([]); setLoading(false); return }
-      classQuery = classQuery.in('teacher_id', followingIds)
-      postQuery = postQuery.in('user_id', followingIds)
-    } else if (filter === 'nearby' && currentProfile?.city) {
-      classQuery = classQuery.eq('city', currentProfile.city)
-      postQuery = postQuery.eq('city', currentProfile.city)
-    }
-
-    if (filter !== 'following') {
-      postQuery = (postQuery as any).eq('visibility', 'public')
-    } else {
-      postQuery = (postQuery as any).in('visibility', ['public', 'followers', 'friends'])
-    }
-
-    // Events query
-    let eventQuery = (supabase as any)
-      .from('events')
-      .select(`
-        *,
-        creator:profiles!creator_id(id, username, full_name, avatar_url),
-        event_invites(id, status, teacher_id, teacher:profiles!teacher_id(id, username, full_name, avatar_url)),
-        event_enrollments(id, user_id, status)
-      `)
-      .eq('status', 'active')
-      .gte('event_date', today)
-      .order('event_date', { ascending: true })
-      .limit(20)
-
-    if (filter === 'following') {
-      if (followingIds.length === 0) {
-        setClasses([]); setPosts([]); setEvents([]); setLoading(false); return
-      }
-      classQuery = classQuery.in('teacher_id', followingIds)
-      postQuery = postQuery.in('user_id', followingIds)
-      // Events: creator followed OR accepted invite from followed teacher
-      eventQuery = eventQuery.or(
-        `creator_id.in.(${followingIds.join(',')}),event_invites.teacher_id.in.(${followingIds.join(',')})`
-      )
-    } else if (filter === 'nearby' && currentProfile?.city) {
-      classQuery = classQuery.eq('city', currentProfile.city)
-      postQuery = postQuery.eq('city', currentProfile.city)
-      eventQuery = eventQuery.eq('city', currentProfile.city)
-    }
-
-    const [{ data: classData }, { data: postData }, { data: eventData }] = await Promise.all([classQuery, postQuery, eventQuery])
-    // Client-side: filter custom-recurrence classes where all dates have passed
-    const todayStr = new Date().toISOString().split('T')[0]
-    const newClasses = (classData ?? []).filter((c: any) => {
-      if (c.recurrence === 'custom') {
-        return (c.custom_dates ?? []).some((d: string) => d >= todayStr)
-      }
-      return true
-    })
-
-    // For "following" filter, filter events to only those where creator or an accepted-invite teacher is followed
-    let newEvents = (eventData ?? [])
-    if (filter === 'following') {
-      newEvents = newEvents.filter((ev: any) =>
-        followingIds.includes(ev.creator_id) ||
-        (ev.event_invites ?? []).some((inv: any) => inv.status === 'accepted' && followingIds.includes(inv.teacher_id))
-      )
-    }
-
-    setClasses(newClasses)
-    setPosts((postData as any[]) ?? [])
-    setEvents(newEvents)
-
-    // Fetch ratings for the new set of teachers
-    const teacherIds = [...new Set(newClasses.map((c: any) => c.teacher_id as string))]
-    const ratings = await fetchTeacherRatings(supabase, teacherIds)
-    setTeacherRatings((prev) => ({ ...prev, ...ratings }))
-
-    setLoading(false)
-  }, [followingIds, currentProfile])
-
-  function handleFilterChange(filter: FeedFilter) {
-    setActiveFilter(filter)
-    loadFeed(filter)
-  }
 
   const feedItems: { type: 'class' | 'post' | 'rehearsal' | 'event'; data: any; created_at: string }[] = []
   if (contentType === 'all' || contentType === 'classes') {
@@ -241,7 +136,7 @@ export default function FeedClient({
             {FILTERS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
-                onClick={() => handleFilterChange(key)}
+                onClick={() => setActiveFilter(key)}
                 className={cn(
                   'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors whitespace-nowrap',
                   activeFilter === key ? 'bg-brand-600 text-white' : 'text-gray-600 dark:text-dark-text2 hover:bg-gray-200 dark:hover:bg-dark-surface'
@@ -252,6 +147,11 @@ export default function FeedClient({
               </button>
             ))}
           </div>
+
+          {/* Subtle fetching indicator */}
+          {isFetching && !isLoading && (
+            <div className="h-1 w-1 rounded-full bg-brand-600 animate-pulse flex-shrink-0" />
+          )}
 
           <div ref={dropdownRef} className="relative flex-shrink-0">
             <button
@@ -289,7 +189,7 @@ export default function FeedClient({
         />
       )}
 
-      {/* Create rehearsal banner — shown when viewing Ensayos tab or when there are none */}
+      {/* Create rehearsal banner */}
       {contentType === 'rehearsals' && (
         <div className="mx-4 mt-3 mb-1 rounded-xl border border-[#7F77DD]/30 bg-[#EEEDFE]/50 dark:bg-dark-surface2/60 p-3 flex items-center gap-3">
           <Music2 className="h-4 w-4 text-[#7F77DD] flex-shrink-0" />
@@ -307,7 +207,7 @@ export default function FeedClient({
 
       {/* Feed */}
       <div className="flex flex-col pt-3">
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-600 border-t-transparent" />
           </div>
