@@ -46,11 +46,13 @@ export async function POST(request: NextRequest) {
 
   if (event?.creator_id && event.creator_id !== authed.user.id) {
     const notifType = status === 'accepted' ? 'event_invite_accepted' : 'event_invite_rejected'
-    await admin.from('notifications').insert({
-      user_id: event.creator_id,
-      type: notifType,
-      data: { event_id, teacher_id: authed.user.id },
-    } as any).catch(() => {})
+    try {
+      await admin.from('notifications').insert({
+        user_id: event.creator_id,
+        type: notifType,
+        data: { event_id, teacher_id: authed.user.id },
+      } as any)
+    } catch { /* best-effort */ }
   }
 
   return NextResponse.json({ ok: true, status })
