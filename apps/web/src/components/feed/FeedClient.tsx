@@ -144,7 +144,6 @@ export default function FeedClient({
     }
 
     // Events query
-    const today = new Date().toISOString().split('T')[0]
     let eventQuery = (supabase as any)
       .from('events')
       .select(`
