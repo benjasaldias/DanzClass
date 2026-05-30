@@ -234,7 +234,7 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
 
       {/* Organizer */}
       <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 dark:bg-dark-surface border border-gray-100 dark:border-dark-border">
-        <Avatar url={event.creator?.avatar_url} name={event.creator?.full_name} size={40} />
+        <Avatar src={event.creator?.avatar_url} name={event.creator?.full_name} size="md" />
         <div>
           <p className="text-xs text-gray-500 dark:text-dark-text2">Organizador</p>
           <Link href={`/teacher/${event.creator?.username}`} className="font-semibold text-gray-900 dark:text-dark-text hover:text-brand-600">
@@ -255,7 +255,7 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
                 href={`/teacher/${invite.teacher?.username}`}
                 className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border hover:border-violet-200 transition-colors"
               >
-                <Avatar url={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size={36} />
+                <Avatar src={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-gray-900 dark:text-dark-text">{invite.teacher?.full_name}</p>
                   <p className="text-xs text-gray-500 dark:text-dark-text2">@{invite.teacher?.username}</p>
@@ -267,7 +267,7 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
             ))}
             {isCreator && pendingInvites.map((invite: any) => (
               <div key={invite.id} className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border opacity-60">
-                <Avatar url={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size={36} />
+                <Avatar src={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-gray-900 dark:text-dark-text">{invite.teacher?.full_name}</p>
                   <p className="text-xs text-gray-500 dark:text-dark-text2">@{invite.teacher?.username}</p>
@@ -441,7 +441,7 @@ function EnrollmentConfirmList({ eventId }: { eventId: string }) {
         const pay = enroll.event_payments?.[0]
         return (
           <div key={enroll.id} className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border">
-            <Avatar url={enroll.user?.avatar_url} name={enroll.user?.full_name} size={32} />
+            <Avatar src={enroll.user?.avatar_url} name={enroll.user?.full_name} size="sm" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{enroll.user?.full_name}</p>
               <p className="text-xs text-gray-500 dark:text-dark-text2">

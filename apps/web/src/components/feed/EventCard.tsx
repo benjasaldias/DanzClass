@@ -94,9 +94,9 @@ export default function EventCard({ event, currentUserId }: EventCardProps) {
           {/* Organizer */}
           <div className="flex items-center gap-2">
             <Avatar
-              url={event.creator?.avatar_url}
+              src={event.creator?.avatar_url}
               name={event.creator?.full_name}
-              size={24}
+              size="xs"
             />
             <span className="text-sm text-gray-600 dark:text-dark-text2">
               Organiza{' '}
@@ -135,7 +135,7 @@ export default function EventCard({ event, currentUserId }: EventCardProps) {
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-1 px-2 py-0.5 bg-violet-50 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800 rounded-full text-xs text-violet-700 dark:text-violet-400 hover:bg-violet-100 transition-colors"
                 >
-                  <Avatar url={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size={16} />
+                  <Avatar src={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size="xs" />
                   @{invite.teacher?.username}
                 </Link>
               ))}

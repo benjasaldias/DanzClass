@@ -104,7 +104,7 @@ export default function InviteTeachersModal({ eventId, existingInvites, onClose 
               const isInvited = invitedIds.has(user.id)
               return (
                 <div key={user.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-surface2">
-                  <Avatar url={user.avatar_url} name={user.full_name} size={36} />
+                  <Avatar src={user.avatar_url} name={user.full_name} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{user.full_name}</p>
                     <p className="text-xs text-gray-500 dark:text-dark-text2">@{user.username}</p>
