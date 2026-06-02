@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
   let userId: string
@@ -26,6 +27,10 @@ export async function POST(request: Request) {
     userId = user.id
     supabaseForSignOut = supabase
   }
+
+  // Rate limit: destructive operation — max 5 per minute (prevents accidental loops)
+  const deleteLimit = await checkRateLimit(`account:delete:${userId}`, 'destructive')
+  if (deleteLimit) return deleteLimit
 
   const admin = createAdminClient()
   const now = new Date().toISOString()

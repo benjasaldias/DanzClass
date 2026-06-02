@@ -3,6 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(req: NextRequest) {
+  // M-6: fail fast if admin not configured — prevents silent 403 masking bad config
+  if (!process.env.SUPERADMIN_USER_ID) {
+    return NextResponse.json({ error: 'Admin not configured' }, { status: 503 })
+  }
+
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -19,6 +24,8 @@ export async function POST(req: NextRequest) {
       await (admin as any).from('posts').delete().eq('id', contentId)
     } else if (contentType === 'class') {
       await (admin as any).from('classes').update({ status: 'cancelled' }).eq('id', contentId)
+      // M-4: clean up chats so cancelled class data doesn't linger
+      await (admin as any).from('chats').delete().eq('class_id', contentId)
     } else {
       return NextResponse.json({ error: 'Unknown contentType' }, { status: 400 })
     }

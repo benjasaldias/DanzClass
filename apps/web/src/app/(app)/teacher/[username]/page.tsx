@@ -55,8 +55,8 @@ export default async function UserProfilePage({ params }: Props) {
     .eq('is_confirmed', true)
     .single()
 
-  const profileUser = rawProfile as Profile | null
-  if (!profileUser) notFound()
+  const profileUser = rawProfile as (Profile & { deleted_at?: string | null }) | null
+  if (!profileUser || profileUser.deleted_at) notFound()
 
   const isOwnProfile = user?.id === profileUser.id
 

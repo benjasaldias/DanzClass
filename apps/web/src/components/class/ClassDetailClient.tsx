@@ -224,8 +224,12 @@ export default function ClassDetailClient({
         }))
       )
     }
-    // Soft-delete the class record
-    await supabase.from('classes' as any).update({ status: 'cancelled' } as any).eq('id', classData.id)
+    // Soft-delete the class record and clean up chats (via API to allow admin client)
+    await fetch('/api/class/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ class_id: classData.id }),
+    })
     // Immediately purge Storage media (cron keeps this as fallback)
     const { data: mediaRows } = await supabase.from('class_media' as any).select('url').eq('class_id', classData.id)
     if (mediaRows && mediaRows.length > 0) {

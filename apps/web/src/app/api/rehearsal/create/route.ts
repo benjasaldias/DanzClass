@@ -1,19 +1,34 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { z } from 'zod'
+
+const RehearsalSchema = z.object({
+  title: z.string().min(1, 'El título es requerido').max(100),
+  description: z.string().max(500).optional().nullable(),
+  city: z.string().max(100).optional().nullable(),
+  location: z.string().max(200).optional().nullable(),
+  date_mode: z.enum(['single', 'custom', 'coordinate']),
+  rehearsal_date: z.string().max(10).optional().nullable(),
+  rehearsal_time: z.string().max(5).optional().nullable(),
+  custom_dates: z.array(z.string().max(10)).max(60).optional().nullable(),
+  coordinate_month: z.string().max(7).optional().nullable(),
+  duration_minutes: z.number().int().min(10).max(480).optional(),
+  invite_ids: z.array(z.string().uuid()).max(100).optional(),
+})
 
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
-  const { title, description, city, location, date_mode, rehearsal_date, rehearsal_time, custom_dates, coordinate_month, duration_minutes, invite_ids } = body
-
-  if (!title?.trim()) return NextResponse.json({ error: 'El título es requerido' }, { status: 400 })
-  if (!['single', 'custom', 'coordinate'].includes(date_mode)) {
-    return NextResponse.json({ error: 'date_mode inválido' }, { status: 400 })
+  const rawBody = await req.json().catch(() => null)
+  const parsed = RehearsalSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
   }
+
+  const { title, description, city, location, date_mode, rehearsal_date, rehearsal_time, custom_dates, coordinate_month, duration_minutes, invite_ids } = parsed.data
 
   const admin = createAdminClient()
 

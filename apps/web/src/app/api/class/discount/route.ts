@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   let user: any = null
@@ -24,8 +25,12 @@ export async function POST(req: NextRequest) {
   }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Rate limit: max 3 discount operations per 30 min per user+class
   const { class_id, discount_price, discount_price_monthly, notify_enrolled } = await req.json()
   if (!class_id) return NextResponse.json({ error: 'Missing class_id' }, { status: 400 })
+
+  const discountLimit = await checkRateLimit(`discount:${user.id}:${class_id}`, 'discount')
+  if (discountLimit) return discountLimit
 
   const admin = createAdminClient()
 
@@ -40,6 +45,12 @@ export async function POST(req: NextRequest) {
   if (!cls) return NextResponse.json({ error: 'Class not found or not yours' }, { status: 404 })
 
   // Server-side price validation
+  if (discount_price != null && (!Number.isInteger(discount_price) || discount_price < 0)) {
+    return NextResponse.json({ error: 'Precio de descuento inválido' }, { status: 400 })
+  }
+  if (discount_price_monthly != null && (!Number.isInteger(discount_price_monthly) || discount_price_monthly < 0)) {
+    return NextResponse.json({ error: 'Precio de descuento mensual inválido' }, { status: 400 })
+  }
   const basePrice = (cls as any).price_suelta ?? (cls as any).price
   if (discount_price != null && discount_price >= basePrice) {
     return NextResponse.json({ error: 'El descuento debe ser menor al precio original' }, { status: 400 })

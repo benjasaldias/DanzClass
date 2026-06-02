@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireUser } from '@/lib/supabase/require-user'
 import { sendPushToUsers } from '@/lib/push'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 // Tipos que un usuario autenticado puede enviar a otros usuarios (acciones sociales).
 // Los tipos de pago/cron quedan FUERA — solo se insertan desde API routes server-side específicas.
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
   if ('error' in authed) return authed.error
   const senderId = authed.user.id
 
+  // Rate limit: social actions use stricter limit per type
   const body = await request.json().catch(() => ({}))
   const rawNotifs: NotifInput[] = Array.isArray(body?.notifications)
     ? body.notifications
@@ -72,6 +74,15 @@ export async function POST(request: NextRequest) {
   if (!SENDER_INITIATED_TYPES.has(type)) {
     return NextResponse.json({ error: `Type "${type}" cannot be sent by clients` }, { status: 403 })
   }
+
+  // Rate limit: social types (follow/friend) are stricter; class_discount has per-class key
+  const isSocial = type === 'follow' || type === 'friend_request' || type === 'friend_accepted'
+  const isDiscount = type === 'class_discount'
+  const classId = rawNotifs[0]?.data?.class_id ?? ''
+  const rateLimitKey = isDiscount ? `notif:discount:${senderId}:${classId}` : `notif:${senderId}`
+  const rateLimitType = isSocial ? 'social' : isDiscount ? 'discount' : 'notif'
+  const limitHit = await checkRateLimit(rateLimitKey, rateLimitType)
+  if (limitHit) return limitHit
 
   const admin = createAdminClient()
 

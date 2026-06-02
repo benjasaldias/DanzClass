@@ -15,6 +15,21 @@ const nextConfig = {
   },
   transpilePackages: ['@danceclass/shared'],
   async headers() {
+    const csp = [
+      "default-src 'self'",
+      // Next.js App Router requires inline scripts for hydration; unsafe-eval for some edge configs
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co",
+      "media-src 'self' blob: https://res.cloudinary.com https://*.supabase.co",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://api.cloudinary.com https://exp.host",
+      "font-src 'self' data:",
+      "frame-src https://www.mercadopago.com.ar https://www.mercadopago.cl",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ')
+
     return [
       {
         source: '/(.*)',
@@ -23,6 +38,7 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+          { key: 'Content-Security-Policy', value: csp },
         ],
       },
     ]

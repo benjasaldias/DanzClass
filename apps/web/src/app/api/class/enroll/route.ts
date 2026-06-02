@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
 import { getActiveTier } from '@/lib/subscription'
 import { canEnroll } from '@danceclass/shared'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
@@ -33,6 +34,10 @@ export async function POST(request: Request) {
     userId = user.id
     supabaseForTier = supabase
   }
+
+  // Rate limit: max 10 enroll attempts per minute per user
+  const enrollLimit = await checkRateLimit(`enroll:${userId}`, 'enroll')
+  if (enrollLimit) return enrollLimit
 
   // Check subscription tier (includes grace period via getActiveTier)
   const tier = await getActiveTier(userId, supabaseForTier)
