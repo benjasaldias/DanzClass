@@ -29,6 +29,41 @@ interface ExploreClientProps {
   isLoggedIn?: boolean
 }
 
+// Returns true if the class has fully ended (last session + duration has passed)
+function isClassExpired(cls: any): boolean {
+  const now = new Date()
+  const durationMs = (cls.duration_minutes ?? 60) * 60 * 1000
+
+  if (cls.type === 'suelta') {
+    if (!cls.date) return false
+    const [h = 0, m = 0] = (cls.time ?? '00:00').split(':').map(Number)
+    const [y, mo, d] = cls.date.split('-').map(Number)
+    const end = new Date(y, mo - 1, d, h, m)
+    end.setTime(end.getTime() + durationMs)
+    return end < now
+  }
+
+  if (cls.recurrence === 'custom' || cls.custom_dates?.length) {
+    const dates: string[] = cls.custom_dates ?? []
+    if (!dates.length) return false
+    const last = [...dates].sort().at(-1)!
+    const [h = 0, m = 0] = (cls.recurring_time ?? cls.time ?? '00:00').split(':').map(Number)
+    const [y, mo, d] = last.split('-').map(Number)
+    const end = new Date(y, mo - 1, d, h, m)
+    end.setTime(end.getTime() + durationMs)
+    return end < now
+  }
+
+  // periodic / entrenamiento
+  if (cls.ends_indefinitely) return false
+  if (!cls.ends_at) return false
+  const [h = 0, m = 0] = (cls.recurring_time ?? '00:00').split(':').map(Number)
+  const [y, mo, d] = cls.ends_at.split('-').map(Number)
+  const end = new Date(y, mo - 1, d, h, m)
+  end.setTime(end.getTime() + durationMs)
+  return end < now
+}
+
 export default function ExploreClient({ classes, users, currentUserId, followingIds, friendStatuses, userAvailability, isLoggedIn }: ExploreClientProps) {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('classes')
@@ -41,6 +76,7 @@ export default function ExploreClient({ classes, users, currentUserId, following
   const followingSet = new Set(followingIds)
 
   const filteredClasses = classes.filter((c) => {
+    if (isClassExpired(c)) return false
     const matchQuery = !query || c.title.toLowerCase().includes(query.toLowerCase()) ||
       c.dance_style?.toLowerCase().includes(query.toLowerCase())
     const matchStyle = !selectedStyle || c.dance_style === selectedStyle

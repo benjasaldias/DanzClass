@@ -49,7 +49,7 @@ export async function GET(request: Request) {
         errors.push(`${u.id}: ${delErr.message}`)
       } else {
         deleted++
-        logger.info('cleanup-unconfirmed:deleted', { user_id: u.id, email: u.email, created_at: u.created_at })
+        logger.info('cleanup-unconfirmed:deleted', { user_id: u.id })
       }
     }
 
