@@ -29,6 +29,39 @@ function isDeleted(deletionDate: string | null): boolean {
   return new Date(deletionDate) <= new Date()
 }
 
+// A class is "current" (vigente) if it hasn't ended yet, considering its last session + duration.
+// Used to filter which classes are eligible for package creation.
+function isClassCurrent(cls: any): boolean {
+  const now = new Date()
+  const durationMs = (cls.duration_minutes ?? 60) * 60 * 1000
+
+  if (cls.type === 'suelta') {
+    if (!cls.date) return true
+    const [h = 0, m = 0] = (cls.time ?? '00:00').split(':').map(Number)
+    const [y, mo, d] = cls.date.split('-').map(Number)
+    const end = new Date(y, mo - 1, d, h, m)
+    end.setTime(end.getTime() + durationMs)
+    return end >= now
+  }
+  if (cls.recurrence === 'custom' || cls.custom_dates?.length) {
+    const dates: string[] = cls.custom_dates ?? []
+    if (!dates.length) return true
+    const last = [...dates].sort().at(-1)!
+    const [h = 0, m = 0] = (cls.recurring_time ?? cls.time ?? '00:00').split(':').map(Number)
+    const [y, mo, d] = last.split('-').map(Number)
+    const end = new Date(y, mo - 1, d, h, m)
+    end.setTime(end.getTime() + durationMs)
+    return end >= now
+  }
+  // periodic / entrenamiento: current if no ends_at, or ends_at+time hasn't passed
+  if (cls.ends_indefinitely || !cls.ends_at) return true
+  const [h = 0, m = 0] = (cls.recurring_time ?? '00:00').split(':').map(Number)
+  const [y, mo, d] = cls.ends_at.split('-').map(Number)
+  const end = new Date(y, mo - 1, d, h, m)
+  end.setTime(end.getTime() + durationMs)
+  return end >= now
+}
+
 // ─── Enrolled tab ────────────────────────────────────────────────────────────
 
 const ENROLL_STATUS = {
@@ -308,7 +341,7 @@ function TeachingTab({
 
       {showCreatePackage && (
         <CreatePackageModal
-          classes={classData}
+          classes={classData.filter((cls: any) => !isDeleted(cls.deletion_date ?? null) && isClassCurrent(cls))}
           onClose={() => setShowCreatePackage(false)}
           onCreated={() => setShowCreatePackage(false)}
         />
@@ -393,8 +426,8 @@ function TeachingTab({
         </div>
       )}
 
-      {/* Create package CTA */}
-      {classData.length >= 2 && (
+      {/* Create package CTA — only when ≥2 current classes exist */}
+      {classData.filter((cls: any) => !isDeleted(cls.deletion_date ?? null) && isClassCurrent(cls)).length >= 2 && (
         <div className="flex justify-end mb-2">
           <button
             onClick={() => setShowCreatePackage(true)}

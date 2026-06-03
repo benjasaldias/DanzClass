@@ -8,6 +8,37 @@ import { DANCE_STYLES, LEVEL_LABELS } from '@danceclass/shared'
 import type { ClassLevel } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 
+// Returns true if the class has fully ended (last session + duration in the past)
+function isClassExpired(cls: any): boolean {
+  const now = new Date()
+  const durationMs = (cls.duration_minutes ?? 60) * 60 * 1000
+
+  if (cls.type === 'suelta') {
+    if (!cls.date) return false
+    const [h = 0, m = 0] = (cls.time ?? '00:00').split(':').map(Number)
+    const [y, mo, d] = cls.date.split('-').map(Number)
+    const end = new Date(y, mo - 1, d, h, m)
+    end.setTime(end.getTime() + durationMs)
+    return end < now
+  }
+  if (cls.recurrence === 'custom' || cls.custom_dates?.length) {
+    const dates: string[] = cls.custom_dates ?? []
+    if (!dates.length) return false
+    const last = [...dates].sort().at(-1)!
+    const [h = 0, m = 0] = (cls.recurring_time ?? cls.time ?? '00:00').split(':').map(Number)
+    const [y, mo, d] = last.split('-').map(Number)
+    const end = new Date(y, mo - 1, d, h, m)
+    end.setTime(end.getTime() + durationMs)
+    return end < now
+  }
+  if (cls.ends_indefinitely || !cls.ends_at) return false
+  const [h = 0, m = 0] = (cls.recurring_time ?? '00:00').split(':').map(Number)
+  const [y, mo, d] = cls.ends_at.split('-').map(Number)
+  const end = new Date(y, mo - 1, d, h, m)
+  end.setTime(end.getTime() + durationMs)
+  return end < now
+}
+
 type UserTab = 'all' | 'friends' | 'following'
 const USER_TABS: { key: UserTab; label: string }[] = [
   { key: 'all', label: 'Tod@s' },
@@ -75,6 +106,7 @@ export default function ExploreScreen() {
   }, [])
 
   const filteredClasses = classes.filter((c) => {
+    if (isClassExpired(c)) return false
     const matchQuery = !query ||
       c.title.toLowerCase().includes(query.toLowerCase()) ||
       c.dance_style?.toLowerCase().includes(query.toLowerCase())

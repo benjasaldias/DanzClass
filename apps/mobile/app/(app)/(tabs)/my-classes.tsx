@@ -134,9 +134,12 @@ function TeachingTab({
   const [expandedClass, setExpandedClass] = useState<string | null>(initialClasses[0]?.id ?? null)
   const [loadingEnrollment, setLoadingEnrollment] = useState<string | null>(null)
 
+  // Only show non-archived classes in the teaching view (archived → historial only)
+  const activeClasses = classData.filter((cls: any) => !isDeleted(cls.deletion_date ?? null))
+
   const today = new Date().toISOString().split('T')[0]
 
-  const debtors = classData.flatMap((cls: any) =>
+  const debtors = activeClasses.flatMap((cls: any) =>
     cls.enrollments
       .filter((e: any) =>
         e.status === 'pending_payment' &&
@@ -222,7 +225,7 @@ function TeachingTab({
     setDismissedIds((prev) => [...prev, studentId])
   }
 
-  if (classData.length === 0) {
+  if (activeClasses.length === 0) {
     return (
       <View className="items-center py-16">
         <View className="mb-3">
@@ -234,8 +237,8 @@ function TeachingTab({
     )
   }
 
-  const pendingPayments = classData.reduce(
-    (acc, cls) => acc + cls.enrollments.filter((e: any) => e.status === 'payment_submitted').length,
+  const pendingPayments = activeClasses.reduce(
+    (acc: number, cls: any) => acc + cls.enrollments.filter((e: any) => e.status === 'payment_submitted').length,
     0
   )
 
@@ -281,8 +284,8 @@ function TeachingTab({
         </View>
       )}
 
-      {/* Classes list */}
-      {classData.map((cls) => {
+      {/* Classes list — only active (non-archived) classes */}
+      {activeClasses.map((cls: any) => {
         const isExpanded = expandedClass === cls.id
         const enrollments = cls.enrollments ?? []
         const confirmed = enrollments.filter((e: any) => e.status === 'confirmed').length
@@ -324,7 +327,7 @@ function TeachingTab({
                     <View className="flex-row items-center gap-1 mt-1.5">
                       <AlertTriangle size={11} stroke="#D85A30" />
                       <Text className="text-xs" style={{ color: '#D85A30' }}>
-                        Archivos eliminados el {formatDeletionDate(cls.deletion_date)}
+                        Archivos serán eliminados el {formatDeletionDate(cls.deletion_date)}
                       </Text>
                     </View>
                   )}
