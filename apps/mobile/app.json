@@ -4,11 +4,11 @@
     "slug": "danzclass",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "../../assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "../../assets/splash.png",
       "resizeMode": "cover",
       "backgroundColor": "#1A1035"
     },
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "../../assets/adaptive-icon.png",
         "backgroundColor": "#c026d3"
       },
       "package": "cl.danceclass.app",
@@ -44,7 +44,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "../../assets/icon.png",
           "color": "#c026d3",
           "sounds": [],
           "androidMode": "default",
@@ -55,7 +55,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#1A1035",
-          "image": "./assets/splash.png",
+          "image": "../../assets/splash.png",
           "resizeMode": "cover"
         }
       ],

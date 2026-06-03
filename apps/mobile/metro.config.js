@@ -3,8 +3,12 @@ const { withNativeWind } = require('nativewind/metro')
 const path = require('path')
 
 const mobileNodeModules = path.resolve(__dirname, 'node_modules')
+// Root-level assets shared across the monorepo (icons, splash, etc.)
+const repoAssetsDir = path.resolve(__dirname, '../../assets')
 
 const config = getDefaultConfig(__dirname)
+// Allow Metro to bundle files from the shared root assets directory
+config.watchFolders = [...(config.watchFolders ?? []), repoAssetsDir]
 const nativeWindConfig = withNativeWind(config, { input: './global.css' })
 
 // react-native@0.81.5 uses React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE

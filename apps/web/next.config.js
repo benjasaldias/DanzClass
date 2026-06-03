@@ -17,7 +17,7 @@ const nextConfig = {
   async redirects() {
     return [
       // Browsers auto-request /favicon.ico; redirect to the App Router icon
-      { source: '/favicon.ico', destination: '/icon.png', permanent: false },
+      { source: '/favicon.ico', destination: '/favicon.png', permanent: false },
     ]
   },
   async headers() {

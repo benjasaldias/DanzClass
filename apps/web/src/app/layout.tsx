@@ -13,9 +13,9 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'DanzClass' },
   icons: {
-    icon: [{ url: '/icon.png', type: 'image/png' }],
-    shortcut: '/icon.png',
-    apple: [{ url: '/icon-192.png', type: 'image/png' }],
+    icon: [{ url: '/favicon.png', type: 'image/png' }],
+    shortcut: '/favicon.png',
+    apple: [{ url: '/favicon.png', type: 'image/png' }],
   },
 }
 
