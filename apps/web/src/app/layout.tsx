@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   description: 'Conectando profesores y estudiantes de baile en Chile',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'DanzClass' },
+  icons: {
+    icon: [{ url: '/icon.png', type: 'image/png' }],
+    shortcut: '/icon.png',
+    apple: [{ url: '/icon-192.png', type: 'image/png' }],
+  },
 }
 
 export const viewport: Viewport = {

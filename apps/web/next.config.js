@@ -14,6 +14,12 @@ const nextConfig = {
     ],
   },
   transpilePackages: ['@danceclass/shared'],
+  async redirects() {
+    return [
+      // Browsers auto-request /favicon.ico; redirect to the App Router icon
+      { source: '/favicon.ico', destination: '/icon.png', permanent: false },
+    ]
+  },
   async headers() {
     const csp = [
       "default-src 'self'",
