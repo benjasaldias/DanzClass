@@ -116,11 +116,11 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
 
       <div className="border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-4">
         <div className="flex items-center gap-3 mb-3">
-          <Link href={`/teacher/${user.username}`}>
+          <Link href={isAuthor ? '/profile' : `/teacher/${user.username}`}>
             <Avatar src={user.avatar_url} name={user.full_name} size="md" />
           </Link>
           <div className="flex-1 min-w-0">
-            <Link href={`/teacher/${user.username}`} className="text-sm font-semibold text-gray-900 dark:text-dark-text hover:text-brand-600 dark:hover:text-brand-300">
+            <Link href={isAuthor ? '/profile' : `/teacher/${user.username}`} className="text-sm font-semibold text-gray-900 dark:text-dark-text hover:text-brand-600 dark:hover:text-brand-300">
               {user.full_name}
             </Link>
             <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-dark-text2 flex-wrap">

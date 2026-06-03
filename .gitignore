@@ -16,3 +16,4 @@ build/
 *.tsbuildinfo
 .DS_Store
 .turbo/
+design-preview/

@@ -120,7 +120,7 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
       )}
 
       <div
-        onClick={() => router.push(`/teacher/${user.username}`)}
+        onClick={() => router.push(user.id === currentUserId ? '/profile' : `/teacher/${user.username}`)}
         className="card p-4 flex items-center gap-3 hover:shadow-md transition-shadow cursor-pointer"
       >
         <Avatar src={user.avatar_url} name={user.full_name} size="md" />
