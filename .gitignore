@@ -6,7 +6,6 @@ planning/
 TEST.md
 CLAUDE.md
 resumen.md
-*.png
 .next/
 .expo/
 dist/
