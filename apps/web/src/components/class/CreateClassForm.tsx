@@ -131,6 +131,9 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
   const isEntrenamiento = classType === 'entrenamiento'
   const isPeriodic = classType === 'periodica' || isEntrenamiento
 
+  const MAX_VIDEO_BYTES = 200 * 1024 * 1024
+  const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const available = mediaLimit - mediaFiles.length
     if (acceptedFiles.length > available) {
@@ -144,6 +147,15 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
     }))
     if (!canUploadVideo(tier) && newFiles.some((f) => f.type === 'video')) {
       setError('Tu plan no permite subir videos. Solo imágenes.')
+      return
+    }
+    const oversized = newFiles.find((f) =>
+      f.type === 'video' ? f.file.size > MAX_VIDEO_BYTES : f.file.size > MAX_IMAGE_BYTES
+    )
+    if (oversized) {
+      setError(oversized.type === 'video'
+        ? 'El video supera los 200 MB. Comprímelo antes de subir.'
+        : 'La imagen supera los 10 MB.')
       return
     }
     setError(null)

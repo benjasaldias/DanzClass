@@ -134,12 +134,25 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   const recurrence = watch('recurrence')
   const endsIndefinitely = watch('ends_indefinitely')
 
+  const MAX_VIDEO_BYTES = 200 * 1024 * 1024
+  const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const slots = 5 - totalMedia
     const newFiles = acceptedFiles.slice(0, slots).map((file) => ({
       file, preview: URL.createObjectURL(file),
       type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
     }))
+    const oversized = newFiles.find((f) =>
+      f.type === 'video' ? f.file.size > MAX_VIDEO_BYTES : f.file.size > MAX_IMAGE_BYTES
+    )
+    if (oversized) {
+      setError(oversized.type === 'video'
+        ? 'El video supera los 200 MB. Comprímelo antes de subir.'
+        : 'La imagen supera los 10 MB.')
+      return
+    }
+    setError(null)
     setNewMediaFiles((prev) => [...prev, ...newFiles])
   }, [totalMedia])
 

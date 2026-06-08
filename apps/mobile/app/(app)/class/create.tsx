@@ -134,6 +134,14 @@ export default function CreateClassScreen() {
         Alert.alert('Plan insuficiente', 'Tu plan no permite subir videos en clases.')
         return
       }
+      if (isVideo && (asset.fileSize ?? 0) > 200 * 1024 * 1024) {
+        Alert.alert('Video muy pesado', 'El video supera los 200 MB. Comprímelo antes de subir.')
+        return
+      }
+      if (!isVideo && (asset.fileSize ?? 0) > 10 * 1024 * 1024) {
+        Alert.alert('Imagen muy pesada', 'La imagen supera los 10 MB.')
+        return
+      }
       if (mediaItems.length >= mediaLimit) return
       setMediaItems((prev) => [...prev, {
         uri: asset.uri,

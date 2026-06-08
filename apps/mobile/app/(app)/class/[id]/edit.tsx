@@ -157,6 +157,14 @@ export default function EditClassScreen() {
       if (result.canceled || !result.assets[0]) return
       const asset = result.assets[0]
       const isVideo = asset.type === 'video'
+      if (isVideo && (asset.fileSize ?? 0) > 200 * 1024 * 1024) {
+        Alert.alert('Video muy pesado', 'El video supera los 200 MB. Comprímelo antes de subir.')
+        return
+      }
+      if (!isVideo && (asset.fileSize ?? 0) > 10 * 1024 * 1024) {
+        Alert.alert('Imagen muy pesada', 'La imagen supera los 10 MB.')
+        return
+      }
       setNewMediaItems((prev) => [...prev, {
         uri: asset.uri,
         type: isVideo ? 'video' : 'image',
