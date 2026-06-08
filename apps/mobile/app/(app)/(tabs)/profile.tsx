@@ -3,21 +3,73 @@ import { useFocusEffect } from 'expo-router'
 import { View, Text, TouchableOpacity, ScrollView, Alert, Image, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { MapPin, Users, Music2, AtSign, Sun, Moon, GraduationCap, Gift, Copy } from 'lucide-react-native'
+import {
+  AtSign, Gift, Copy, TrendingUp, CreditCard, MessageCircle,
+  CalendarDays, ChevronRight, LogOut, Crown, Eye, Settings, Sun, Moon,
+} from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
-import StarRating from '../../../components/ui/StarRating'
+import StyleChip from '../../../components/ui/StyleChip'
+import ProfilePostsGrid from '../../../components/profile/ProfilePostsGrid'
 import { supabase } from '../../../lib/supabase'
 import { canTeach } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
-import MobilePostCard from '../../../components/feed/MobilePostCard'
 import { useTheme } from '../../../context/ThemeContext'
 
 const TIER_LABELS: Record<string, string> = {
-  none: 'Sin plan activo',
+  none: 'Sin plan',
   basic: 'Plan Básico',
   teacher: 'Plan Profesor',
   pro: 'Plan Pro',
+}
+
+/* ── Helpers ──────────────────────────────────────────────── */
+
+function SectionCard({ title, action, children, isDark }: {
+  title?: string; action?: React.ReactNode; children: React.ReactNode; isDark: boolean
+}) {
+  return (
+    <View
+      className="mb-2.5 bg-white dark:bg-dark-surface"
+      style={{ borderTopWidth: 1, borderBottomWidth: 1, borderColor: isDark ? '#3D2870' : '#f3f4f6' }}
+    >
+      {title && (
+        <View className="flex-row items-center justify-between px-4 pt-3.5 pb-1.5">
+          <Text className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-dark-text2">{title}</Text>
+          {action}
+        </View>
+      )}
+      {children}
+    </View>
+  )
+}
+
+function SettingRow({ icon: Icon, title, sub, onPress, isDark, right, danger, tintBg, tintStroke, isLast }: {
+  icon: any; title: string; sub?: string; onPress?: () => void; isDark: boolean
+  right?: React.ReactNode; danger?: boolean; tintBg?: string; tintStroke?: string; isLast?: boolean
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      className="flex-row items-center gap-3 px-4 py-3.5"
+      style={isLast ? undefined : { borderBottomWidth: 1, borderBottomColor: isDark ? '#3D2870' : '#f3f4f6' }}
+    >
+      <View
+        style={{
+          width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+          backgroundColor: tintBg ?? (danger ? (isDark ? '#3A1713' : '#FBE6E3') : (isDark ? '#2E1B5C' : '#EEEDFE')),
+        }}
+      >
+        <Icon size={18} stroke={tintStroke ?? (danger ? (isDark ? '#FF6E60' : '#DC4438') : (isDark ? '#B3A6F8' : '#534AB7'))} />
+      </View>
+      <View className="flex-1">
+        <Text className={`text-sm font-semibold ${danger ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-dark-text'}`}>{title}</Text>
+        {sub && <Text className="text-xs text-gray-400 dark:text-dark-text2">{sub}</Text>}
+      </View>
+      {right !== undefined ? right : <ChevronRight size={18} stroke={isDark ? '#A39BBF' : '#cbd5e1'} />}
+    </TouchableOpacity>
+  )
 }
 
 export default function ProfileScreen() {
@@ -32,7 +84,6 @@ export default function ProfileScreen() {
   const [classes, setClasses] = useState<any[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [showAllClasses, setShowAllClasses] = useState(false)
-  const [showAllPosts, setShowAllPosts] = useState(false)
   const [classesTaken, setClassesTaken] = useState(0)
 
   const load = useCallback(async () => {
@@ -95,29 +146,29 @@ export default function ProfileScreen() {
     .join('')
     .toUpperCase() || 'U'
 
-  const tierLabel = TIER_LABELS[tier] ?? 'Sin plan'
-  const tierColors = tier === 'none'
-    ? { bg: 'bg-gray-100 dark:bg-dark-surface2', text: 'text-gray-600 dark:text-dark-text2', border: 'border-gray-200 dark:border-dark-border' }
-    : { bg: 'bg-brand-50 dark:bg-brand-950/30', text: 'text-brand-700 dark:text-brand-300', border: 'border-brand-200 dark:border-brand-900/50' }
+  const isTeacher = canTeach(tier)
+  const subActive = tier !== 'none'
+  const border = isDark ? '#3D2870' : '#f3f4f6'
+
+  // Stats: profesores 4, alumnos 2.
+  const stats: { value: React.ReactNode; label: string }[] = isTeacher
+    ? [
+        { value: ratingCount > 0 ? <Text style={{ color: '#F59E0B', fontWeight: '700' }}>★ {avgRating}</Text> : '—', label: 'valoraciones' },
+        { value: followers, label: 'seguidores' },
+        { value: classesTaken, label: 'tomadas' },
+        { value: classes.length, label: 'dictadas' },
+      ]
+    : [
+        { value: classesTaken, label: 'tomadas' },
+        { value: followers, label: 'seguidores' },
+      ]
 
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       <ScrollView className="flex-1">
-        {/* Profile header */}
-        <View className="bg-white dark:bg-dark-surface px-4 py-6 gap-4 border-b border-gray-100 dark:border-dark-border">
-          {/* Theme toggle */}
-          <View className="absolute top-4 right-4 z-10">
-            <TouchableOpacity
-              onPress={toggleTheme}
-              className="h-8 w-8 rounded-full bg-gray-100 dark:bg-dark-surface2 items-center justify-center"
-            >
-              {isDark
-                ? <Sun size={16} stroke="#A39BBF" />
-                : <Moon size={16} stroke="#6B6880" />}
-            </TouchableOpacity>
-          </View>
-          {/* Avatar + name */}
-          <View className="items-center gap-2">
+        {/* ── Header ─────────────────────────────────────── */}
+        <View className="bg-white dark:bg-dark-surface px-4 pt-6 pb-5 items-center" style={{ borderBottomWidth: 1, borderBottomColor: border }}>
+          <View>
             {profile.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} className="w-20 h-20 rounded-full" />
             ) : (
@@ -125,96 +176,115 @@ export default function ProfileScreen() {
                 <Text className="text-brand-700 text-2xl font-bold">{initials}</Text>
               </View>
             )}
-            <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">{profile.full_name}</Text>
-            <Text className="text-gris-humo dark:text-dark-text2 text-sm">@{profile.username}</Text>
-            {profile.city && (
-              <View className="flex-row items-center gap-1">
-                <MapPin size={12} stroke="#6B6880" />
-                <Text className="text-xs text-gray-400 dark:text-dark-text2">{profile.city}</Text>
-              </View>
-            )}
-            {profile.instagram_handle && (
-              <View className="flex-row items-center gap-1">
-                <AtSign size={12} stroke="#6B6880" />
-                <Text className="text-xs text-gray-400 dark:text-dark-text2">@{profile.instagram_handle}</Text>
-              </View>
-            )}
-            {profile.bio && <Text className="text-sm text-gray-600 dark:text-dark-text2 text-center">{profile.bio}</Text>}
+            <View style={{ position: 'absolute', bottom: 2, right: 2, width: 18, height: 18, borderRadius: 9, backgroundColor: '#10B981', borderWidth: 3, borderColor: isDark ? '#241547' : '#fff' }} />
           </View>
-
-          {/* Stats */}
-          <View className="flex-row justify-around">
-            <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{followers}</Text>
-              <View className="flex-row items-center gap-1">
-                <Users size={11} stroke="#6B6880" />
-                <Text className="text-xs text-gris-humo dark:text-dark-text2">seguidores</Text>
-              </View>
-            </View>
-            <View className="w-px bg-gray-100 dark:bg-dark-border" />
-            <View className="items-center">
-              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{classesTaken}</Text>
-              <View className="flex-row items-center gap-1">
-                <GraduationCap size={11} stroke={isDark ? '#A39BBF' : '#6B6880'} />
-                <Text className="text-xs text-gris-humo dark:text-dark-text2">tomadas</Text>
-              </View>
-            </View>
-            {canTeach(tier) && (
-              <>
-                <View className="w-px bg-gray-100 dark:bg-dark-border" />
-                <View className="items-center">
-                  <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">{classes.length}</Text>
-                  <View className="flex-row items-center gap-1">
-                    <Music2 size={11} stroke="#6B6880" />
-                    <Text className="text-xs text-gris-humo dark:text-dark-text2">dictadas</Text>
-                  </View>
-                </View>
-                <View className="w-px bg-gray-100 dark:bg-dark-border" />
-                <View className="items-center justify-center">
-                  {ratingCount > 0
-                    ? <StarRating value={avgRating} count={ratingCount} size="sm" />
-                    : <Text className="text-xs text-gris-humo dark:text-dark-text2">Sin valoraciones</Text>
-                  }
-                </View>
-              </>
-            )}
-          </View>
-
-          {/* Plan badge */}
-          <View className={`self-center border rounded-full px-4 py-1.5 ${tierColors.bg} ${tierColors.border}`}>
-            <Text className={`text-xs font-semibold ${tierColors.text}`}>{tierLabel}</Text>
-          </View>
-
-          {/* Dance styles */}
-          {profile.styles_teaching?.length > 0 && (
-            <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Enseña</Text>
-              <View className="flex-row flex-wrap gap-1.5">
-                {profile.styles_teaching.map((s: string) => (
-                  <View key={s} className="bg-emerald-50 dark:bg-emerald-900/20 rounded-full px-3 py-1">
-                    <Text className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{s}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+          <Text className="mt-3 text-xl font-bold text-gray-900 dark:text-dark-text">{profile.full_name}</Text>
+          <Text className="mt-0.5 text-gris-humo dark:text-dark-text2 text-sm">
+            @{profile.username}{profile.city ? ` · ${profile.city}` : ''}
+          </Text>
+          {profile.bio && <Text className="mt-2 text-sm text-gray-600 dark:text-dark-text2 text-center">{profile.bio}</Text>}
+          {profile.instagram_handle && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`https://instagram.com/${profile.instagram_handle}`)}
+              className="mt-2 flex-row items-center gap-1"
+            >
+              <AtSign size={13} stroke="#DB2777" />
+              <Text className="text-sm text-pink-600">@{profile.instagram_handle}</Text>
+            </TouchableOpacity>
           )}
-          {profile.styles_dancing?.length > 0 && (
-            <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Baila</Text>
-              <View className="flex-row flex-wrap gap-1.5">
-                {profile.styles_dancing.map((s: string) => (
-                  <View key={s} className="bg-lavanda-suave dark:bg-dark-surface2 rounded-full px-3 py-1">
-                    <Text className="text-xs font-medium" style={{ color: isDark ? '#A39BBF' : '#534AB7' }}>{s}</Text>
-                  </View>
-                ))}
+
+          {/* stats */}
+          <View className="mt-4 pt-4 flex-row w-full" style={{ borderTopWidth: 1, borderTopColor: border }}>
+            {stats.map((s, i) => (
+              <View key={i} className="flex-1 items-center" style={i < stats.length - 1 ? { borderRightWidth: 1, borderRightColor: border } : undefined}>
+                {typeof s.value === 'object' ? s.value : <Text className="text-base font-bold text-gray-900 dark:text-dark-text">{s.value}</Text>}
+                <Text className="mt-0.5 text-[11px] text-gray-400 dark:text-dark-text2">{s.label}</Text>
               </View>
-            </View>
-          )}
+            ))}
+          </View>
         </View>
 
-        {/* Referral section */}
+        {/* ── Suscripción (tappable) ───────────────────────── */}
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/plans' as any)}
+          activeOpacity={0.8}
+          className="flex-row items-center justify-between px-4 py-3.5 bg-white dark:bg-dark-surface"
+          style={{ borderBottomWidth: 1, borderBottomColor: border }}
+        >
+          <View className="flex-row items-center gap-3">
+            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#2D1B69', alignItems: 'center', justifyContent: 'center' }}>
+              <Crown size={20} stroke="#fff" />
+            </View>
+            <View>
+              <View className="flex-row items-center gap-2">
+                <Text className="font-bold text-gray-900 dark:text-dark-text">{TIER_LABELS[tier] ?? 'Sin plan'}</Text>
+                {subActive && (
+                  <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: isDark ? '#10331F' : '#DDF2E5' }}>
+                    <Text className="text-[10px] font-bold" style={{ color: isDark ? '#45D389' : '#1E9D57' }}>Activo</Text>
+                  </View>
+                )}
+              </View>
+              <Text className="mt-0.5 text-xs text-gray-400 dark:text-dark-text2">Ver planes y beneficios</Text>
+            </View>
+          </View>
+          <ChevronRight size={20} stroke={isDark ? '#A39BBF' : '#cbd5e1'} />
+        </TouchableOpacity>
+
+        {/* ── Acción primaria ──────────────────────────────── */}
+        <View className="flex-row gap-2 px-4 py-3">
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/profile/edit' as any)}
+            className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-brand-600 dark:bg-morado-flow py-3"
+          >
+            <Settings size={16} stroke="#fff" />
+            <Text className="text-sm font-semibold text-white">Editar perfil</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push(`/(app)/teacher/${profile.username}` as any)}
+            className="w-12 items-center justify-center rounded-xl border bg-white dark:bg-dark-surface"
+            style={{ borderColor: isDark ? '#3D2870' : '#e5e7eb' }}
+          >
+            <Eye size={20} stroke={isDark ? '#A39BBF' : '#6B6880'} />
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Gestión ──────────────────────────────────────── */}
+        <SectionCard title="Gestión" isDark={isDark}>
+          {isTeacher && (
+            <SettingRow icon={TrendingUp} title="Panel Financiero" sub="Ingresos y estadísticas" isDark={isDark}
+              tintBg={isDark ? '#10331F' : '#DDF2E5'} tintStroke={isDark ? '#45D389' : '#1E9D57'}
+              onPress={() => router.push('/(app)/financiero' as any)} />
+          )}
+          {isTeacher && (
+            <SettingRow icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" isDark={isDark}
+              onPress={() => router.push('/(app)/profile/payment-info' as any)} />
+          )}
+          <SettingRow icon={MessageCircle} title="Mis chats" isDark={isDark}
+            onPress={() => router.push('/(app)/chats' as any)} />
+          <SettingRow icon={CalendarDays} title="Mi agenda" isDark={isDark} isLast
+            onPress={() => router.push('/(app)/(tabs)/agenda' as any)} />
+        </SectionCard>
+
+        {/* ── Preferencias ─────────────────────────────────── */}
+        <SectionCard title="Preferencias" isDark={isDark}>
+          <SettingRow
+            icon={isDark ? Moon : Sun}
+            title="Apariencia"
+            sub={isDark ? 'Modo oscuro' : 'Modo claro'}
+            isDark={isDark}
+            onPress={toggleTheme}
+            right={
+              <View style={{ width: 44, height: 26, borderRadius: 999, backgroundColor: isDark ? '#7059E6' : '#cbd5e1', justifyContent: 'center' }}>
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', marginLeft: isDark ? 21 : 3 }} />
+              </View>
+            }
+          />
+          <SettingRow icon={LogOut} title="Cerrar sesión" isDark={isDark} danger isLast onPress={handleLogout} />
+        </SectionCard>
+
+        {/* ── Referral ─────────────────────────────────────── */}
         {profile?.referral_code && (
-          <View className="mx-4 mt-4 rounded-2xl border border-violet-200 dark:border-dark-border bg-violet-50/80 dark:bg-dark-surface p-4">
+          <View className="mx-4 mb-2.5 rounded-2xl border border-violet-200 dark:border-dark-border bg-violet-50/80 dark:bg-dark-surface p-4">
             <View className="flex-row items-center gap-2 mb-1">
               <Gift size={16} stroke={isDark ? '#a78bfa' : '#7c3aed'} />
               <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">Invita un amigo</Text>
@@ -224,8 +294,7 @@ export default function ProfileScreen() {
             </Text>
             <TouchableOpacity
               onPress={async () => {
-                const appUrl = 'https://dc-project-web.vercel.app'
-                const link = `${appUrl}/auth/register?ref=${profile.referral_code}`
+                const link = `https://dc-project-web.vercel.app/auth/register?ref=${profile.referral_code}`
                 await Clipboard.setStringAsync(link)
                 Alert.alert('¡Copiado!', 'El enlace de invitación fue copiado al portapapeles.')
               }}
@@ -239,114 +308,70 @@ export default function ProfileScreen() {
                 <Text className="text-xs font-semibold text-violet-600 dark:text-violet-400">Copiar</Text>
               </View>
             </TouchableOpacity>
-            <Text className="text-[11px] text-gray-400 dark:text-dark-text2 mt-1.5">
-              Tu código: <Text className="font-bold text-gray-600 dark:text-dark-text">{profile.referral_code}</Text>
-            </Text>
           </View>
         )}
 
-        {/* Action pills */}
-        <View className="mx-4 mt-4 flex-row flex-wrap gap-2">
-          <TouchableOpacity
-            onPress={() => router.push('/(app)/profile/edit' as any)}
-            className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
-          >
-            <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Editar perfil</Text>
-          </TouchableOpacity>
+        {/* ── Estilos de baile ─────────────────────────────── */}
+        {(profile.styles_teaching?.length > 0 || profile.styles_dancing?.length > 0) && (
+          <SectionCard title="Estilos de baile" isDark={isDark}>
+            <View className="px-4 pb-4 gap-3">
+              {profile.styles_dancing?.length > 0 && (
+                <View className="gap-1.5">
+                  <Text className="text-[11px] font-semibold text-gray-400 dark:text-dark-text2 uppercase tracking-wide">Baila</Text>
+                  <View className="flex-row flex-wrap gap-1.5">
+                    {profile.styles_dancing.map((s: string) => <StyleChip key={s} style={s} />)}
+                  </View>
+                </View>
+              )}
+              {profile.styles_teaching?.length > 0 && (
+                <View className="gap-1.5">
+                  <Text className="text-[11px] font-semibold text-gray-400 dark:text-dark-text2 uppercase tracking-wide">Enseña</Text>
+                  <View className="flex-row flex-wrap gap-1.5">
+                    {profile.styles_teaching.map((s: string) => <StyleChip key={s} style={s} />)}
+                  </View>
+                </View>
+              )}
+            </View>
+          </SectionCard>
+        )}
 
-          {canTeach(tier) && (
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/profile/payment-info' as any)}
-              className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
-            >
-              <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Datos transferencia</Text>
-            </TouchableOpacity>
-          )}
+        {/* ── Mis clases activas ───────────────────────────── */}
+        {classes.length > 0 && (
+          <SectionCard title={`Mis clases activas (${classes.length})`} isDark={isDark}>
+            <View className="pb-2">
+              {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
+                <MobileClassCard key={c.id} classData={c} currentUserId={userId ?? ''} compact />
+              ))}
+              {classes.length > 5 && !showAllClasses && (
+                <TouchableOpacity
+                  onPress={() => setShowAllClasses(true)}
+                  className="mx-4 mt-2 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl items-center bg-white dark:bg-dark-surface"
+                >
+                  <Text className="text-sm text-brand-600 dark:text-brand-300 font-semibold">Ver todas ({classes.length})</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </SectionCard>
+        )}
 
-          {canTeach(tier) && (
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/financiero' as any)}
-              className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
-            >
-              <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Panel Financiero</Text>
-            </TouchableOpacity>
-          )}
+        {/* ── Mis publicaciones (grilla Instagram) ─────────── */}
+        {posts.length > 0 && (
+          <SectionCard title={`Mis publicaciones (${posts.length})`} isDark={isDark}>
+            <View className="pb-1">
+              <ProfilePostsGrid posts={posts} currentUserId={userId ?? ''} />
+            </View>
+          </SectionCard>
+        )}
 
-          <TouchableOpacity
-            onPress={() => router.push('/(app)/chats' as any)}
-            className="border border-gray-200 dark:border-dark-border rounded-full px-4 py-2 bg-white dark:bg-dark-surface"
-          >
-            <Text className="text-sm font-semibold text-gray-700 dark:text-dark-text2">Mensajes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push('/(app)/plans' as any)}
-            className="border border-brand-200 rounded-full px-4 py-2 bg-brand-50"
-          >
-            <Text className="text-sm font-semibold text-brand-700">Ver planes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleLogout}
-            className="border border-red-100 rounded-full px-4 py-2 bg-white"
-          >
-            <Text className="text-sm font-semibold text-red-600">Cerrar sesión</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push('/(app)/profile/delete-account' as any)}
-            className="px-2 py-1"
-          >
+        {/* ── Zona peligrosa + reporte ─────────────────────── */}
+        <View className="items-center py-5 gap-3">
+          <TouchableOpacity onPress={() => router.push('/(app)/profile/delete-account' as any)}>
             <Text className="text-xs text-red-400">Eliminar cuenta</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => Linking.openURL('mailto:contacto@danzclass.com?subject=Bug%20DanzClass')}
-            className="px-2 py-1"
-          >
+          <TouchableOpacity onPress={() => Linking.openURL('mailto:contacto@danzclass.com?subject=Bug%20DanzClass')}>
             <Text className="text-xs text-violet-500">¿Encontraste algo raro? Reportar</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Active classes */}
-        {classes.length > 0 && (
-          <View className="mt-4">
-            <Text className="px-4 pb-2 text-sm font-bold text-gray-700 dark:text-dark-text2">
-              Mis clases activas ({classes.length})
-            </Text>
-            {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
-              <MobileClassCard key={c.id} classData={c} currentUserId={userId ?? ''} compact />
-            ))}
-            {classes.length > 5 && !showAllClasses && (
-              <TouchableOpacity
-                onPress={() => setShowAllClasses(true)}
-                className="mx-4 mt-2 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl items-center bg-white dark:bg-dark-surface"
-              >
-                <Text className="text-sm text-brand-600 dark:text-brand-300 font-semibold">Ver todas ({classes.length})</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Posts */}
-        {posts.length > 0 && (
-          <View className="mt-4">
-            <Text className="px-4 pb-2 text-sm font-bold text-gray-700 dark:text-dark-text2">
-              Mis publicaciones ({posts.length})
-            </Text>
-            {(showAllPosts ? posts : posts.slice(0, 5)).map((p: any) => (
-              <MobilePostCard key={p.id} post={p} currentUserId={userId ?? ''} />
-            ))}
-            {posts.length > 5 && !showAllPosts && (
-              <TouchableOpacity
-                onPress={() => setShowAllPosts(true)}
-                className="mx-4 mt-2 py-2.5 border border-gray-200 dark:border-dark-border rounded-xl items-center bg-white dark:bg-dark-surface"
-              >
-                <Text className="text-sm text-brand-600 dark:text-brand-300 font-semibold">Ver todas ({posts.length})</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
 
         <View style={{ height: 24 }} />
       </ScrollView>

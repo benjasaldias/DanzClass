@@ -8,6 +8,7 @@ import { sendNotifications } from '../../../lib/notifications'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
 import StarRating from '../../../components/ui/StarRating'
+import StyleChip from '../../../components/ui/StyleChip'
 import { useTheme } from '../../../context/ThemeContext'
 
 function classSessionHasEnded(cls: any, enrollmentCreatedAt: string): boolean {
@@ -438,9 +439,7 @@ export default function TeacherProfileScreen() {
               <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Enseña</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_teaching.map((s: string) => (
-                  <View key={s} className="bg-emerald-50 dark:bg-emerald-900/20 rounded-full px-3 py-1">
-                    <Text className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">{s}</Text>
-                  </View>
+                  <StyleChip key={s} style={s} />
                 ))}
               </View>
             </View>
@@ -450,9 +449,7 @@ export default function TeacherProfileScreen() {
               <Text className="text-xs font-semibold text-gris-humo dark:text-dark-text2 uppercase tracking-wide">Baila</Text>
               <View className="flex-row flex-wrap gap-1.5">
                 {profile.styles_dancing.map((s: string) => (
-                  <View key={s} className="bg-lavanda-suave dark:bg-dark-surface2 rounded-full px-3 py-1">
-                    <Text className="text-xs font-medium" style={{ color: isDark ? '#A39BBF' : '#534AB7' }}>{s}</Text>
-                  </View>
+                  <StyleChip key={s} style={s} />
                 ))}
               </View>
             </View>

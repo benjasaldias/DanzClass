@@ -8,6 +8,7 @@ import { cn, timeAgo, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
 import StarRating from '@/components/ui/StarRating'
+import StyleChip from '@/components/ui/StyleChip'
 
 interface TeacherRating {
   avg_stars: number
@@ -233,10 +234,8 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
             </div>
           </Link>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {styleBadge && (
-              <span className="badge bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs uppercase font-semibold">
-                {styleBadge}
-              </span>
+            {classData.dance_style && (
+              <StyleChip style={classData.dance_style} sub={classData.class_type} />
             )}
             <button
               onClick={handleShare}

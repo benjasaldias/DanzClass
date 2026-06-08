@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/ui/BottomNav'
+import PublishFab from '@/components/ui/PublishFab'
 import TopBar from '@/components/ui/TopBar'
 import RatingPopupLoader from '@/components/ui/RatingPopup'
 import type { SubscriptionTier } from '@danceclass/shared'
@@ -45,7 +46,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="flex-1 pb-20 pt-14 max-w-lg mx-auto w-full">
         {children}
       </main>
-      <BottomNav tier={activeTier} />
+      <PublishFab tier={activeTier} />
+      <BottomNav />
       <RatingPopupLoader userId={user.id} />
     </div>
   )

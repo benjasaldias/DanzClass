@@ -2,39 +2,21 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, PlusSquare, BookOpen, User, CalendarDays } from 'lucide-react'
+import { Home, Search, BookOpen, User, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { canTeach } from '@danceclass/shared'
-import type { SubscriptionTier } from '@danceclass/shared'
 
-interface BottomNavProps {
-  tier: SubscriptionTier
-}
-
-export default function BottomNav({ tier }: BottomNavProps) {
+export default function BottomNav() {
   const pathname = usePathname()
 
-  const baseLinks = [
+  // 5 ítems fijos. "Publicar" salió del nav y vive en el FAB flotante
+  // (sobre el ítem Perfil) para los usuarios que pueden enseñar.
+  const links = [
     { href: '/feed', icon: Home, label: 'Inicio' },
     { href: '/explore', icon: Search, label: 'Explorar' },
-  ]
-
-  const teacherLinks = [
-    ...baseLinks,
-    { href: '/publish', icon: PlusSquare, label: 'Publicar' },
     { href: '/my-classes', icon: BookOpen, label: 'Mis clases' },
     { href: '/agenda', icon: CalendarDays, label: 'Agenda' },
     { href: '/profile', icon: User, label: 'Perfil' },
   ]
-
-  const studentLinks = [
-    ...baseLinks,
-    { href: '/my-classes', icon: BookOpen, label: 'Mis clases' },
-    { href: '/agenda', icon: CalendarDays, label: 'Agenda' },
-    { href: '/profile', icon: User, label: 'Perfil' },
-  ]
-
-  const links = canTeach(tier) ? teacherLinks : studentLinks
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-dark-bg/95 backdrop-blur-md border-t border-gray-100 dark:border-dark-border safe-area-pb">

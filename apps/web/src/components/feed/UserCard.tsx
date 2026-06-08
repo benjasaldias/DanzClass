@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import StyleChip from '@/components/ui/StyleChip'
 import type { Profile } from '@danceclass/shared'
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'accepted'
@@ -129,6 +130,14 @@ export default function UserCard({ user, currentUserId, initialFollowing, initia
           <p className="font-semibold text-sm text-gray-900 dark:text-dark-text truncate">{user.full_name}</p>
           <p className="text-xs text-gray-500 dark:text-dark-text2">@{user.username}</p>
           {user.city && <p className="text-xs text-gray-400 dark:text-dark-text2/70 mt-0.5">{user.city}</p>}
+          {(() => {
+            const styles = Array.from(new Set([...(user.styles_teaching ?? []), ...(user.styles_dancing ?? [])])).slice(0, 3)
+            return styles.length > 0 ? (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {styles.map((s) => <StyleChip key={s} style={s} size="xs" />)}
+              </div>
+            ) : null
+          })()}
         </div>
 
         <div className="flex flex-col gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>

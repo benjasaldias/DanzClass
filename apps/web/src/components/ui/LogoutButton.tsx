@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 
 interface LogoutButtonProps {
   asButton?: boolean
+  asRow?: boolean
 }
 
-export default function LogoutButton({ asButton }: LogoutButtonProps = {}) {
+export default function LogoutButton({ asButton, asRow }: LogoutButtonProps = {}) {
   const router = useRouter()
 
   async function handleLogout() {
@@ -16,6 +17,20 @@ export default function LogoutButton({ asButton }: LogoutButtonProps = {}) {
     await supabase.auth.signOut()
     router.push('/auth/login')
     router.refresh()
+  }
+
+  if (asRow) {
+    return (
+      <button
+        onClick={handleLogout}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+      >
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 dark:bg-red-950/40 dark:text-red-400">
+          <LogOut className="h-[18px] w-[18px]" />
+        </div>
+        <span className="flex-1 text-sm font-semibold text-red-600 dark:text-red-400">Cerrar sesión</span>
+      </button>
+    )
   }
 
   if (asButton) {

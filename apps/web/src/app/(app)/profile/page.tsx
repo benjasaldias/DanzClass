@@ -4,15 +4,15 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, MapPin, Users, BookOpen, Star, Instagram, Music2, Video, Trash2, AlertCircle, GraduationCap, Gift, TrendingUp, MessageCircle } from 'lucide-react'
+import { Crown, Settings, CreditCard, Instagram, Music2, Video, Trash2, AlertCircle, Gift, TrendingUp, MessageCircle, CalendarDays, ChevronRight, Eye } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
-import ThemeToggle from '@/components/ui/ThemeToggle'
-import PostCard from '@/components/feed/PostCard'
-import StarRating from '@/components/ui/StarRating'
+import StyleChip from '@/components/ui/StyleChip'
+import AppearanceRow from '@/components/profile/AppearanceRow'
+import ProfilePostsGrid from '@/components/profile/ProfilePostsGrid'
 import EmbedWidgetButton from '@/components/profile/EmbedWidgetButton'
 import ReferralCopyButton from '@/components/profile/ReferralCopyButton'
-import { formatCLP, formatDate, formatTime } from '@/lib/utils'
+import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 
 const TIER_LABELS: Record<string, string> = {
   none: 'Sin plan',
@@ -91,131 +91,96 @@ export default async function ProfilePage() {
     ? Math.round((ratingList.reduce((a: number, r: any) => a + Number(r.stars), 0) / ratingCount) * 10) / 10
     : 0
 
+  const isTeacher = canTeach(tier)
+  const subActive = tier !== 'none'
+
+  // Stats: profesores ven 4, alumnos 2.
+  const stats: { value: React.ReactNode; label: string }[] = isTeacher
+    ? [
+        {
+          value: ratingCount > 0
+            ? <span className="text-amber-500">★ {avgRating}</span>
+            : <span className="text-gray-400 dark:text-dark-text2">—</span>,
+          label: ratingCount > 0 ? `${ratingCount} valoraciones` : 'valoraciones',
+        },
+        { value: followersCount ?? 0, label: 'seguidores' },
+        { value: classesCount ?? 0, label: 'clases dictadas' },
+        { value: paidSpotsCount ?? 0, label: 'cupos pagados' },
+      ]
+    : [
+        { value: classesTakenCount ?? 0, label: 'clases tomadas' },
+        { value: followersCount ?? 0, label: 'seguidores' },
+      ]
+
   return (
     <div className="flex flex-col">
-      {/* Theme toggle — top-right */}
-      <div className="flex justify-end px-4 pt-3">
-        <ThemeToggle />
-      </div>
-
-      {/* Header */}
-      <div className="px-4 py-4 flex flex-col items-center text-center gap-3">
-        <Avatar src={profile?.avatar_url} name={profile?.full_name ?? '?'} size="xl" />
-
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">{profile?.full_name ?? 'Usuario'}</h1>
-          <p className="text-sm text-gray-500 dark:text-dark-text2">@{profile?.username ?? 'sin-usuario'}</p>
+      {/* ── Header ─────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-dark-surface px-4 pt-6 pb-5 text-center border-b border-gray-100 dark:border-dark-border">
+        <div className="relative inline-block">
+          <Avatar src={profile?.avatar_url} name={profile?.full_name ?? '?'} size="xl" className="mx-auto" />
+          <span className="absolute bottom-1 right-1 h-5 w-5 rounded-full bg-emerald-500 border-[3px] border-white dark:border-dark-surface" />
         </div>
+
+        <h1 className="mt-3 text-xl font-bold text-gray-900 dark:text-dark-text">{profile?.full_name ?? 'Usuario'}</h1>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-dark-text2">
+          @{profile?.username ?? 'sin-usuario'}
+          {profile?.city && <> · {profile.city}</>}
+        </p>
 
         {profile?.bio && (
-          <p className="text-sm text-gray-600 dark:text-dark-text2 leading-relaxed max-w-xs">{profile.bio}</p>
+          <p className="mx-auto mt-2.5 max-w-xs text-sm leading-relaxed text-gray-600 dark:text-dark-text2">{profile.bio}</p>
         )}
 
-        <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-dark-text2 flex-wrap justify-center">
-          {profile?.city && (
-            <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{profile.city}</span>
-          )}
-          <span className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            <strong className="text-gray-900 dark:text-dark-text">{followersCount ?? 0}</strong> seguidores
-          </span>
-        </div>
-
-        {/* Stats row */}
-        <div className="flex items-center gap-4 flex-wrap justify-center mt-1">
-          <div className="flex flex-col items-center">
-            <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesTakenCount ?? 0}</span>
-            <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><GraduationCap className="h-3 w-3" /> clases tomadas</span>
-          </div>
-          {canTeach(tier) && (
-            <>
-              <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
-              <div className="flex flex-col items-center">
-                <span className="text-base font-bold text-gray-900 dark:text-dark-text">{classesCount ?? 0}</span>
-                <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><BookOpen className="h-3 w-3" /> clases dictadas</span>
-              </div>
-              <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
-              <div className="flex flex-col items-center">
-                <span className="text-base font-bold text-gray-900 dark:text-dark-text">{paidSpotsCount ?? 0}</span>
-                <span className="text-[11px] text-gray-500 dark:text-dark-text2 flex items-center gap-0.5"><Star className="h-3 w-3" /> cupos pagados</span>
-              </div>
-              <div className="h-7 w-px bg-gray-200 dark:bg-dark-border" />
-              <div className="flex flex-col items-center">
-                {ratingCount > 0
-                  ? <StarRating value={avgRating} count={ratingCount} size="sm" />
-                  : <span className="text-xs text-gray-400 dark:text-dark-text2">Sin valoraciones</span>
-                }
-              </div>
-            </>
-          )}
-        </div>
-
         {profile?.instagram_handle && (
-          <a href={`https://instagram.com/${profile.instagram_handle}`} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-pink-600 hover:text-pink-700">
+          <a
+            href={`https://instagram.com/${profile.instagram_handle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 text-sm text-pink-600 hover:text-pink-700"
+          >
             <Instagram className="h-4 w-4" />@{profile.instagram_handle}
           </a>
         )}
 
-        {/* Own-profile action buttons */}
-        <div className="flex gap-2 flex-wrap justify-center">
-          <Link
-            href="/profile/edit"
-            className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
-          >
-            <Settings className="h-4 w-4" />
-            Editar perfil
-          </Link>
-
-          {canTeach(tier) && (
-            <Link
-              href="/profile/payment-info"
-              className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
+        {/* stats row */}
+        <div className="mt-4 flex items-stretch border-t border-gray-100 dark:border-dark-border pt-4">
+          {stats.map((s, i) => (
+            <div
+              key={i}
+              className={cn('flex-1 px-1', i < stats.length - 1 && 'border-r border-gray-100 dark:border-dark-border')}
             >
-              <CreditCard className="h-4 w-4" />
-              Datos Transferencia
-            </Link>
-          )}
-
-          {canTeach(tier) && (
-            <Link
-              href="/financiero"
-              className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
-            >
-              <TrendingUp className="h-4 w-4" />
-              Panel Financiero
-            </Link>
-          )}
-
-          <Link
-            href="/chats"
-            className="flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text2 hover:border-brand-400 dark:hover:border-brand-400 hover:text-brand-700 transition-colors"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Mensajes
-          </Link>
-
-          {canTeach(tier) && profile?.username && (
-            <EmbedWidgetButton
-              username={profile.username}
-              appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
-            />
-          )}
-
-          <LogoutButton asButton />
-        </div>
-
-        {/* Danger zone */}
-        <div className="mt-2">
-          <Link
-            href="/profile/delete-account"
-            className="flex items-center gap-1.5 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Eliminar cuenta
-          </Link>
+              <p className="text-base font-bold text-gray-900 dark:text-dark-text">{s.value}</p>
+              <p className="mt-0.5 text-[11px] text-gray-400 dark:text-dark-text2">{s.label}</p>
+            </div>
+          ))}
         </div>
       </div>
+
+      {/* ── Suscripción (tappable) ─────────────────────────── */}
+      <Link
+        href="/plans"
+        className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-dark-border bg-gradient-to-r from-lavanda-suave/70 to-white px-4 py-3.5 dark:from-dark-surface2 dark:to-dark-surface"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-600 text-white">
+            <Crown className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-900 dark:text-dark-text">{TIER_LABELS[tier] ?? 'Sin plan'}</span>
+              {subActive && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  Activo
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-gray-400 dark:text-dark-text2">
+              {planInfo?.description ?? 'Conoce los planes disponibles'}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-300 dark:text-dark-text2" />
+      </Link>
 
       {/* Subscription expiry warning — shown 7 days before expiry */}
       {activeSub && (() => {
@@ -224,7 +189,7 @@ export default async function ProfilePage() {
         const [y, m, d] = activeSub.expires_at.split('T')[0].split('-').map(Number)
         const label = new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
         return (
-          <div className="mx-4 mb-2 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
+          <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
             <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-amber-700 dark:text-amber-400">
               Tu plan vence el <span className="font-semibold">{label}</span>.{' '}
@@ -234,25 +199,63 @@ export default async function ProfilePage() {
         )
       })()}
 
-      {/* Subscription banner */}
-      <div className="mx-4 mb-4 rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Crown className="h-5 w-5 text-brand-500 dark:text-brand-300" />
-          <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{TIER_LABELS[tier] ?? 'Sin plan'}</p>
-            {planInfo && <p className="text-xs text-gray-500 dark:text-dark-text2">{planInfo.description}</p>}
-          </div>
-        </div>
-        <Link href="/plans" className="text-xs font-semibold text-brand-600 dark:text-brand-300 hover:text-brand-700">
-          {tier === 'none' ? 'Suscribirse' : 'Cambiar'}
+      {/* ── Acción primaria ────────────────────────────────── */}
+      <div className="flex gap-2 px-4 py-3">
+        <Link href="/profile/edit" className="btn-primary flex-1">
+          <Settings className="h-4 w-4" />
+          Editar perfil
         </Link>
+        {profile?.username && (
+          <Link
+            href={`/teacher/${profile.username}`}
+            aria-label="Ver perfil público"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50 dark:border-dark-border dark:bg-dark-surface dark:text-dark-text2 dark:hover:bg-dark-surface2"
+          >
+            <Eye className="h-5 w-5" />
+          </Link>
+        )}
       </div>
+
+      {/* ── Gestión ────────────────────────────────────────── */}
+      <SectionCard title="Gestión" bleed>
+        <div className="divide-y divide-gray-100 dark:divide-dark-border">
+          {isTeacher && (
+            <SettingRow
+              href="/financiero"
+              icon={TrendingUp}
+              title="Panel Financiero"
+              sub="Ingresos y estadísticas"
+              tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+            />
+          )}
+          {isTeacher && (
+            <SettingRow href="/profile/payment-info" icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" />
+          )}
+          <SettingRow href="/chats" icon={MessageCircle} title="Mis chats" />
+          <SettingRow href="/agenda" icon={CalendarDays} title="Mi agenda" />
+          {isTeacher && profile?.username && (
+            <EmbedWidgetButton
+              username={profile.username}
+              appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
+              asRow
+            />
+          )}
+        </div>
+      </SectionCard>
+
+      {/* ── Preferencias ───────────────────────────────────── */}
+      <SectionCard title="Preferencias" bleed>
+        <div className="divide-y divide-gray-100 dark:divide-dark-border">
+          <AppearanceRow />
+          <LogoutButton asRow />
+        </div>
+      </SectionCard>
 
       {/* Referral section */}
       {profile?.referral_code && (
-        <div className="mx-4 mb-4 rounded-xl border border-violet-100 dark:border-dark-border bg-violet-50/50 dark:bg-dark-surface px-4 py-3">
+        <div className="mx-4 mb-3 rounded-2xl border border-violet-100 dark:border-dark-border bg-violet-50/60 dark:bg-dark-surface px-4 py-3.5">
           <div className="flex items-center gap-2 mb-1.5">
-            <Gift className="h-4 w-4 text-violet-500" />
+            <Gift className="h-4 w-4 text-morado-flow" />
             <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">Invita un amigo</p>
           </div>
           <p className="text-xs text-gray-500 dark:text-dark-text2 mb-2.5 leading-relaxed">
@@ -265,65 +268,59 @@ export default async function ProfilePage() {
         </div>
       )}
 
-      {/* Estilos de baile */}
+      {/* ── Estilos de baile ───────────────────────────────── */}
       {((profile?.styles_dancing?.length ?? 0) > 0 || (profile?.styles_teaching?.length ?? 0) > 0) && (
-        <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-dark-border pt-4">
-          {(profile?.styles_dancing?.length ?? 0) > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Baila</p>
-              <div className="flex flex-wrap gap-1.5">
-                {profile.styles_dancing.map((s: string) => (
-                  <span key={s} className="badge bg-lavanda-suave text-violeta-oscuro">{s}</span>
-                ))}
+        <SectionCard title="Estilos de baile">
+          <div className="space-y-3">
+            {(profile?.styles_dancing?.length ?? 0) > 0 && (
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-dark-text2">Baila</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.styles_dancing.map((s: string) => <StyleChip key={s} style={s} />)}
+                </div>
               </div>
-            </div>
-          )}
-          {(profile?.styles_teaching?.length ?? 0) > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Enseña</p>
-              <div className="flex flex-wrap gap-1.5">
-                {profile.styles_teaching.map((s: string) => (
-                  <span key={s} className="badge bg-brand-50 text-brand-700">{s}</span>
-                ))}
+            )}
+            {(profile?.styles_teaching?.length ?? 0) > 0 && (
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-dark-text2">Enseña</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.styles_teaching.map((s: string) => <StyleChip key={s} style={s} />)}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </SectionCard>
       )}
 
-      {/* Clases publicadas */}
+      {/* ── Mis clases ─────────────────────────────────────── */}
       {(classes ?? []).length > 0 && (
-        <div className="px-4 pb-6 border-t border-gray-100 dark:border-dark-border pt-4">
-          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">Mis clases activas</h2>
+        <SectionCard title="Mis clases activas">
           <div className="space-y-3">
             {(classes ?? []).map((cls: any) => <ClassMiniCard key={cls.id} cls={cls} />)}
           </div>
-        </div>
+        </SectionCard>
       )}
 
-      {/* Inscripciones */}
+      {/* ── Mis inscripciones ──────────────────────────────── */}
       {enrolledClasses.length > 0 && (
-        <div className="px-4 pb-6 border-t border-gray-100 dark:border-dark-border pt-4">
-          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-3">Mis inscripciones</h2>
+        <SectionCard title="Mis inscripciones">
           <div className="space-y-3">
             {enrolledClasses.map((e: any) => e.class && <ClassMiniCard key={e.id} cls={e.class} />)}
           </div>
-        </div>
+        </SectionCard>
       )}
 
-      {/* Publicaciones propias */}
+      {/* ── Mis publicaciones (grilla estilo Instagram) ────── */}
       {ownPosts.length > 0 && (
-        <div className="border-t border-gray-100 dark:border-dark-border pt-4 pb-2">
-          <h2 className="font-bold text-gray-900 dark:text-dark-text mb-1 px-4 flex items-center gap-2">
-            <Video className="h-4 w-4 text-brand-500 dark:text-brand-300" />
-            Mis publicaciones
-          </h2>
-          <div>
-            {ownPosts.map((post: any) => (
-              <PostCard key={post.id} post={post} currentUserId={user.id} />
-            ))}
+        <SectionCard
+          title="Mis publicaciones"
+          bleed
+          action={<span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-dark-text2"><Video className="h-3.5 w-3.5" /> {ownPosts.length}</span>}
+        >
+          <div className="px-0.5 pb-0.5">
+            <ProfilePostsGrid posts={ownPosts} currentUserId={user.id} />
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {(classes ?? []).length === 0 && enrolledClasses.length === 0 && ownPosts.length === 0 && (
@@ -332,7 +329,71 @@ export default async function ProfilePage() {
           <p className="text-sm">Sin actividad pública aún</p>
         </div>
       )}
+
+      {/* Danger zone */}
+      <div className="flex justify-center py-5">
+        <Link
+          href="/profile/delete-account"
+          className="flex items-center gap-1.5 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Eliminar cuenta
+        </Link>
+      </div>
     </div>
+  )
+}
+
+/* ── Helpers ──────────────────────────────────────────────── */
+
+function SectionCard({
+  title,
+  action,
+  bleed = false,
+  children,
+}: {
+  title?: string
+  action?: React.ReactNode
+  bleed?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <section className="mb-3 border-y border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface">
+      {title && (
+        <div className="flex items-center justify-between px-4 pt-3.5 pb-1.5">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-dark-text2">{title}</h2>
+          {action}
+        </div>
+      )}
+      <div className={bleed ? 'pb-1' : 'px-4 pb-4'}>{children}</div>
+    </section>
+  )
+}
+
+function SettingRow({
+  href,
+  icon: Icon,
+  title,
+  sub,
+  tint,
+}: {
+  href: string
+  icon: React.ElementType
+  title: string
+  sub?: string
+  tint?: string
+}) {
+  return (
+    <Link href={href} className="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-dark-surface2">
+      <div className={cn('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl', tint ?? 'bg-lavanda-suave text-violeta-oscuro dark:bg-dark-surface2 dark:text-brand-200')}>
+        <Icon className="h-[18px] w-[18px]" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">{title}</p>
+        {sub && <p className="text-xs text-gray-400 dark:text-dark-text2">{sub}</p>}
+      </div>
+      <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-dark-text2" />
+    </Link>
   )
 }
 

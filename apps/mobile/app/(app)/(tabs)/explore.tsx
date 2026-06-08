@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { SlidersHorizontal, X } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
-import { DANCE_STYLES, LEVEL_LABELS } from '@danceclass/shared'
+import { DANCE_STYLES, LEVEL_LABELS, styleColor } from '@danceclass/shared'
 import type { ClassLevel } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
+import StyleChip from '../../../components/ui/StyleChip'
 
 // Returns true if the class has fully ended (last session + duration in the past)
 function isClassExpired(cls: any): boolean {
@@ -191,12 +192,18 @@ export default function ExploreScreen() {
                   <TouchableOpacity
                     key={style}
                     onPress={() => setSelectedStyle(selectedStyle === style ? '' : style)}
-                    className={`rounded-full px-3 py-1.5 border ${
+                    className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border ${
                       selectedStyle === style
                         ? 'bg-morado-flow border-morado-flow'
                         : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface2'
                     }`}
                   >
+                    <View
+                      style={{
+                        width: 8, height: 8, borderRadius: 4,
+                        backgroundColor: selectedStyle === style ? 'rgba(255,255,255,0.9)' : styleColor(style).gradB,
+                      }}
+                    />
                     <Text className={`text-xs font-medium ${
                       selectedStyle === style ? 'text-white' : 'text-gray-600 dark:text-dark-text2'
                     }`}>
@@ -319,9 +326,7 @@ export default function ExploreScreen() {
                   {u.styles_teaching?.length > 0 && (
                     <View className="flex-row flex-wrap gap-1 mt-1">
                       {u.styles_teaching.slice(0, 3).map((s: string) => (
-                        <View key={s} className="bg-lavanda-suave rounded-full px-2 py-0.5">
-                          <Text className="text-xs" style={{ color: '#534AB7' }}>{s}</Text>
-                        </View>
+                        <StyleChip key={s} style={s} size="xs" />
                       ))}
                     </View>
                   )}

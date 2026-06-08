@@ -15,6 +15,7 @@ import { DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 import Avatar from '@/components/ui/Avatar'
+import StyleChip from '@/components/ui/StyleChip'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import CustomDatesCalendar from '@/components/class/CustomDatesCalendar'
 import ReportModal from '@/components/ui/ReportModal'
@@ -458,12 +459,17 @@ export default function ClassDetailClient({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text">{classData.title}</h1>
-            {classData.dance_style && (
-              <span className="text-sm text-brand-600 dark:text-brand-300 font-medium">
-                {classData.dance_style}
-                {classData.class_type && ` — ${classData.class_type}`}
-                {isEntrenamiento && ' · Entrenamiento'}
-              </span>
+            {(classData.dance_style || isEntrenamiento) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {classData.dance_style && (
+                  <StyleChip style={classData.dance_style} sub={classData.class_type} />
+                )}
+                {isEntrenamiento && (
+                  <span className="inline-flex items-center rounded-full bg-lavanda-suave px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-violeta-oscuro dark:bg-dark-surface2 dark:text-brand-200">
+                    Entrenamiento
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <span className={cn('badge', LEVEL_COLORS[classData.level as keyof typeof LEVEL_COLORS] ?? 'bg-gray-100 text-gray-600')}>

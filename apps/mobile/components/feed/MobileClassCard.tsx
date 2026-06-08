@@ -5,6 +5,7 @@ import { useVideoPlayer, VideoView } from 'expo-video'
 import { MapPin, Clock, Users, ChevronRight, ChevronLeft, Music2 } from 'lucide-react-native'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
 import StarRating from '../ui/StarRating'
+import StyleChip from '../ui/StyleChip'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -144,9 +145,7 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
           </View>
         </View>
         {classData.dance_style && (
-          <View className="bg-emerald-50 dark:bg-emerald-900/20 rounded-full px-2.5 py-1">
-            <Text className="text-emerald-700 dark:text-emerald-400 text-xs font-medium">{classData.dance_style}</Text>
-          </View>
+          <StyleChip style={classData.dance_style} sub={classData.class_type} />
         )}
       </TouchableOpacity>
 

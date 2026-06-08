@@ -6,9 +6,10 @@ import { Code2, Check } from 'lucide-react'
 interface Props {
   username: string
   appUrl: string
+  asRow?: boolean
 }
 
-export default function EmbedWidgetButton({ username, appUrl }: Props) {
+export default function EmbedWidgetButton({ username, appUrl, asRow }: Props) {
   const [copied, setCopied] = useState(false)
 
   const embedUrl = `${appUrl}/embed/teacher/${username}`
@@ -19,6 +20,23 @@ export default function EmbedWidgetButton({ username, appUrl }: Props) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }).catch(() => {})
+  }
+
+  if (asRow) {
+    return (
+      <button
+        onClick={copy}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-dark-surface2"
+      >
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-lavanda-suave text-violeta-oscuro dark:bg-dark-surface2 dark:text-brand-200">
+          {copied ? <Check className="h-[18px] w-[18px] text-emerald-500" /> : <Code2 className="h-[18px] w-[18px]" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">Widget para tu web</p>
+          <p className="text-xs text-gray-400 dark:text-dark-text2">{copied ? '¡Código copiado!' : 'Copia el código del iframe'}</p>
+        </div>
+      </button>
+    )
   }
 
   return (

@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import type { Profile } from '@danceclass/shared'
-import Avatar from './Avatar'
 import LogoIcon from './LogoIcon'
 import NotificationBell from './NotificationBell'
 
@@ -29,13 +28,6 @@ export default function TopBar({ profile, unreadCount }: TopBarProps) {
 
         <div className="flex items-center gap-2">
           <NotificationBell initialCount={unreadCount} userId={profile?.id} />
-          <Link href="/profile">
-            <Avatar
-              src={profile?.avatar_url}
-              name={profile?.full_name ?? '?'}
-              size="sm"
-            />
-          </Link>
         </div>
       </div>
     </header>

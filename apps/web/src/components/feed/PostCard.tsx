@@ -114,7 +114,7 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
         />
       )}
 
-      <div className="border-b border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-4">
+      <div className="mx-3 mb-4 rounded-2xl shadow-sm overflow-hidden border border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-4">
         <div className="flex items-center gap-3 mb-3">
           <Link href={isAuthor ? '/profile' : `/teacher/${user.username}`}>
             <Avatar src={user.avatar_url} name={user.full_name} size="md" />

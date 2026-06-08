@@ -16,6 +16,7 @@ import {
   UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell, CalendarPlus, MessageCircle,
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
+import StyleChip from '../../../../components/ui/StyleChip'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
 import { formatCLP, DAYS_OF_WEEK, canEnroll, pluralize, LEVEL_LABELS } from '@danceclass/shared'
@@ -1036,16 +1037,9 @@ export default function ClassDetailScreen() {
           {/* Title + badges */}
           <View>
             <Text className="text-xl font-bold text-gray-900 dark:text-dark-text">{cls.title}</Text>
-            <View className="flex-row flex-wrap gap-2 mt-2">
+            <View className="flex-row flex-wrap items-center gap-2 mt-2">
               {cls.dance_style && (
-                <View className="bg-brand-50 rounded-full px-3 py-1">
-                  <Text className="text-brand-700 text-xs font-medium">{cls.dance_style}</Text>
-                </View>
-              )}
-              {cls.class_type && (
-                <View className="bg-morado-flow/10 rounded-full px-3 py-1">
-                  <Text className="text-xs font-medium" style={{ color: '#7F77DD' }}>{cls.class_type}</Text>
-                </View>
+                <StyleChip style={cls.dance_style} sub={cls.class_type} />
               )}
               <View className="rounded-full px-3 py-1" style={{ backgroundColor: levelColors.bg }}>
                 <Text className="text-xs font-medium" style={{ color: levelColors.text }}>{LEVEL_LABELS[cls.level as keyof typeof LEVEL_LABELS] ?? cls.level}</Text>
