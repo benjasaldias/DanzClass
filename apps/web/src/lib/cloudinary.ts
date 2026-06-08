@@ -29,7 +29,6 @@ export async function uploadToCloudinary(
   const formData = new FormData()
   formData.append('file', file)
   formData.append('upload_preset', uploadPreset)
-  formData.append('eager_async', 'true')
   if (folder) formData.append('folder', folder)
 
   const res = await fetch(
