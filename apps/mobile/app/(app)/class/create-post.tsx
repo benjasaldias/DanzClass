@@ -32,6 +32,7 @@ async function uploadToCloudinary(uri: string): Promise<string> {
   const formData = new FormData()
   formData.append('file', { uri, type: 'video/mp4', name: 'video.mp4' } as any)
   formData.append('upload_preset', uploadPreset)
+  formData.append('eager_async', 'true')
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
