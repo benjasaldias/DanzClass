@@ -10,6 +10,7 @@ import Image from 'next/image'
 import { Upload, X, Loader2, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
+import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
@@ -245,13 +246,21 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
     const nextIndex = existingMedia.length
     for (let i = 0; i < newMediaFiles.length; i++) {
       const { file, type } = newMediaFiles[i]
-      const ext = file.name.split('.').pop()
-      const path = `${classData.id}/${nextIndex + i}.${ext}`
-      const { data: uploadData, error: uploadErr } = await supabase.storage.from('class-media').upload(path, file)
-      if (!uploadErr && uploadData) {
-        const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
-        await supabase.from('class_media').insert({ class_id: classData.id, type, url: urlData.publicUrl, order_index: nextIndex + i })
-      }
+      let mediaUrl: string
+      try {
+        if (type === 'video' && isCloudinaryConfigured()) {
+          const result = await uploadToCloudinary(file, 'video', 'classes')
+          mediaUrl = result.secure_url
+        } else {
+          const ext = file.name.split('.').pop()
+          const path = `${classData.id}/${nextIndex + i}.${ext}`
+          const { data: uploadData, error: uploadErr } = await supabase.storage.from('class-media').upload(path, file)
+          if (uploadErr || !uploadData) continue
+          const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+          mediaUrl = urlData.publicUrl
+        }
+      } catch { continue }
+      await supabase.from('class_media').insert({ class_id: classData.id, type, url: mediaUrl, order_index: nextIndex + i })
     }
 
     await notifyEnrolledStudents(data.title, 'class_updated')

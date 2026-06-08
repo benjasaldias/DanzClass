@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { Upload, X, Loader2, AlertCircle, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
+import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, LEVEL_LABELS } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
@@ -276,13 +277,22 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
     let mediaError = false
     for (let i = 0; i < mediaFiles.length; i++) {
       const { file, type } = mediaFiles[i]
-      const ext = file.name.split('.').pop()
-      const path = `${classRecord.id}/${i}.${ext}`
-      const { data: uploadData, error: uploadErr } = await supabase.storage.from('class-media').upload(path, file)
-      if (uploadErr || !uploadData) { mediaError = true; continue }
-      const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+      let mediaUrl: string
+      try {
+        if (type === 'video' && isCloudinaryConfigured()) {
+          const result = await uploadToCloudinary(file, 'video', 'classes')
+          mediaUrl = result.secure_url
+        } else {
+          const ext = file.name.split('.').pop()
+          const path = `${classRecord.id}/${i}.${ext}`
+          const { data: uploadData, error: uploadErr } = await supabase.storage.from('class-media').upload(path, file)
+          if (uploadErr || !uploadData) { mediaError = true; continue }
+          const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+          mediaUrl = urlData.publicUrl
+        }
+      } catch { mediaError = true; continue }
       const { error: mediaInsertErr } = await supabase.from('class_media').insert({
-        class_id: classRecord.id, type, url: urlData.publicUrl, order_index: i,
+        class_id: classRecord.id, type, url: mediaUrl, order_index: i,
       })
       if (mediaInsertErr) mediaError = true
     }

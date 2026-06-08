@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, X, ImagePlus, AlertCircle } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import { sendNotifications } from '../../../lib/notifications'
+import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../lib/cloudinary'
 import {
   DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo,
 } from '@danceclass/shared'
@@ -242,23 +243,25 @@ export default function CreateClassScreen() {
     for (let i = 0; i < mediaItems.length; i++) {
       const item = mediaItems[i]
       try {
-        const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
-        const path = `${classRecord.id}/${i}.${ext}`
-
-        const response = await fetch(item.uri)
-        const blob = await response.blob()
-
-        const { data: uploadData, error: uploadErr } = await supabase.storage
-          .from('class-media')
-          .upload(path, blob, { contentType: item.mimeType })
-
-        if (uploadErr || !uploadData) { mediaError = true; continue }
-
-        const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+        let mediaUrl: string
+        if (item.type === 'video' && isCloudinaryConfigured()) {
+          mediaUrl = await uploadVideoToCloudinary(item.uri, 'classes')
+        } else {
+          const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
+          const path = `${classRecord.id}/${i}.${ext}`
+          const response = await fetch(item.uri)
+          const blob = await response.blob()
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from('class-media')
+            .upload(path, blob, { contentType: item.mimeType })
+          if (uploadErr || !uploadData) { mediaError = true; continue }
+          const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+          mediaUrl = urlData.publicUrl
+        }
         await supabase.from('class_media').insert({
           class_id: classRecord.id,
           type: item.type,
-          url: urlData.publicUrl,
+          url: mediaUrl,
           order_index: i,
         })
       } catch {

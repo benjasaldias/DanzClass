@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, X, ImagePlus, Trash2 } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
+import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../../lib/cloudinary'
 import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
 import MobileSelect from '../../../../components/ui/MobileSelect'
 import MobileDateInput from '../../../../components/ui/MobileDateInput'
@@ -249,15 +250,22 @@ export default function EditClassScreen() {
     const nextIndex = existingMedia.length
     for (let i = 0; i < newMediaItems.length; i++) {
       const item = newMediaItems[i]
-      const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
-      const path = `${id}/${nextIndex + i}.${ext}`
-      const response = await fetch(item.uri)
-      const blob = await response.blob()
-      const { data: uploadData } = await supabase.storage.from('class-media').upload(path, blob, { contentType: item.mimeType })
-      if (uploadData) {
-        const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
-        await supabase.from('class_media').insert({ class_id: id, type: item.type, url: urlData.publicUrl, order_index: nextIndex + i })
-      }
+      try {
+        let mediaUrl: string
+        if (item.type === 'video' && isCloudinaryConfigured()) {
+          mediaUrl = await uploadVideoToCloudinary(item.uri, 'classes')
+        } else {
+          const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
+          const path = `${id}/${nextIndex + i}.${ext}`
+          const response = await fetch(item.uri)
+          const blob = await response.blob()
+          const { data: uploadData } = await supabase.storage.from('class-media').upload(path, blob, { contentType: item.mimeType })
+          if (!uploadData) continue
+          const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+          mediaUrl = urlData.publicUrl
+        }
+        await supabase.from('class_media').insert({ class_id: id, type: item.type, url: mediaUrl, order_index: nextIndex + i })
+      } catch { continue }
     }
 
     // Notify enrolled students
