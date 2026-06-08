@@ -263,7 +263,7 @@ export default async function ProfilePage() {
           </p>
           <ReferralCopyButton
             code={profile.referral_code}
-            appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
+            appUrl="https://danzclass.com"
           />
         </div>
       )}

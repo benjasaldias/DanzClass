@@ -294,14 +294,14 @@ export default function ProfileScreen() {
             </Text>
             <TouchableOpacity
               onPress={async () => {
-                const link = `https://dc-project-web.vercel.app/auth/register?ref=${profile.referral_code}`
+                const link = `https://danzclass.com/auth/register?ref=${profile.referral_code}`
                 await Clipboard.setStringAsync(link)
                 Alert.alert('¡Copiado!', 'El enlace de invitación fue copiado al portapapeles.')
               }}
               className="flex-row items-center justify-between rounded-xl bg-white dark:bg-dark-surface2 border border-violet-200 dark:border-dark-border px-3 py-2.5"
             >
               <Text className="text-xs text-gray-500 dark:text-dark-text2 flex-1 mr-2" numberOfLines={1}>
-                dc-project-web.vercel.app/auth/register?ref={profile.referral_code}
+                danzclass.com/auth/register?ref={profile.referral_code}
               </Text>
               <View className="flex-row items-center gap-1">
                 <Copy size={13} stroke={isDark ? '#a78bfa' : '#7c3aed'} />
