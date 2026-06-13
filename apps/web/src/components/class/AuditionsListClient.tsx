@@ -262,7 +262,7 @@ export default function AuditionsListClient({
 
       {/* Sticky publish bar */}
       {!auditionClosed && pendingDecisionsCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-3 shadow-lg">
+        <div className="fixed bottom-app-nav left-0 right-0 z-30 mx-auto max-w-lg border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-3 shadow-lg">
           <button
             onClick={handlePublish}
             disabled={publishing}

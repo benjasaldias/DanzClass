@@ -182,7 +182,7 @@ export default function EditRehearsalModal({ rehearsal, onClose, onSaved, onUpda
               <h2 className="font-bold text-lg text-gray-900 dark:text-dark-text">Editar ensayo</h2>
               <p className="text-xs text-gris-humo dark:text-dark-text2">{rehearsal.title}</p>
             </div>
-            <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
+            <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
               <X className="h-5 w-5 text-gray-500 dark:text-dark-text2" />
             </button>
           </div>

@@ -75,3 +75,54 @@
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 }
+
+@layer utilities {
+  /* Hide scrollbars while keeping scroll (horizontal filter/chip rows). */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe-area helpers. Require viewport-fit=cover (set in the root viewport);
+     env() resolves to 0px on non-notched devices and in normal browser chrome,
+     so these are no-ops except where a real inset exists (PWA/standalone, home indicator). */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* App-shell offsets: fixed TopBar (3.5rem) + fixed BottomNav (5rem) plus device insets. */
+  .pt-app-header {
+    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  }
+  .pb-app-nav {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+  .top-app-header {
+    top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  }
+  .bottom-fab {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Park a sticky/fixed bar directly above the BottomNav (4rem tall + bottom inset). */
+  .bottom-app-nav {
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Prevent iOS Safari auto-zoom when focusing form controls (it zooms whenever the
+   computed font-size is < 16px). Scoped to small screens; pinch-zoom stays enabled
+   (we intentionally do NOT set maximum-scale, for accessibility). !important is needed
+   to win over Tailwind's text-sm utility used by the shared .input class. */
+@media (max-width: 640px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

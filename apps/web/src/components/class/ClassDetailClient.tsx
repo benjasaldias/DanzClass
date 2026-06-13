@@ -663,7 +663,7 @@ export default function ClassDetailClient({
 
       {/* Bottom CTA — for authenticated enrolled students or guests */}
       {!isTeacher && (!enrollment || enrollment.status === 'cancelled') && canEnrollDirectly && (
-        <div className="sticky bottom-16 left-0 right-0 border-t border-gray-100 dark:border-dark-border bg-white/95 dark:bg-dark-surface/95 backdrop-blur-md px-4 pt-3 pb-4">
+        <div className="sticky bottom-app-nav left-0 right-0 border-t border-gray-100 dark:border-dark-border bg-white/95 dark:bg-dark-surface/95 backdrop-blur-md px-4 pt-3 pb-4">
           <div className="flex items-center justify-between gap-4 mb-2">
             <div>
               <p className="text-xs text-gray-500 dark:text-dark-text2">

@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, ActivityIndicator, ScrollView,
   Image, Alert, Linking,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTheme } from '../../../../context/ThemeContext'
 import {
@@ -128,6 +128,7 @@ function AuditionCard({
 
 export default function AuditionsScreen() {
   const { isDark } = useTheme()
+  const insets = useSafeAreaInsets()
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -422,7 +423,7 @@ export default function AuditionsScreen() {
 
       {/* Sticky publish bar */}
       {!auditionClosed && pendingDecisionsCount > 0 && (
-        <View className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 py-3">
+        <View className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-4 pt-3" style={{ paddingBottom: insets.bottom + 12 }}>
           <TouchableOpacity
             onPress={handlePublish}
             disabled={publishing}

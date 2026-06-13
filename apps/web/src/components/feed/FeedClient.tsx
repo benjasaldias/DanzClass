@@ -143,7 +143,7 @@ export default function FeedClient({
       )}
 
       {/* Filter bar */}
-      <div className="sticky top-14 z-30 bg-blanco-violeta/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border px-4">
+      <div className="sticky top-app-header z-30 bg-blanco-violeta/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border px-4">
         <div className="flex items-center gap-2 py-2">
           <div className="flex gap-1 flex-1 overflow-x-auto no-scrollbar">
             {FILTERS.map(({ key, label, icon: Icon }) => (

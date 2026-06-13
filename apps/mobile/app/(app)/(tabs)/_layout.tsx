@@ -1,9 +1,13 @@
 import { Tabs } from 'expo-router'
 import { Home, Search, CalendarDays, BookOpen, User } from 'lucide-react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../../../context/ThemeContext'
 
 export default function TabsLayout() {
   const { isDark } = useTheme()
+  // Explicit tabBar height suppresses React Navigation's automatic bottom inset,
+  // so add it back manually — otherwise icons/labels collide with the iPhone home indicator.
+  const insets = useSafeAreaInsets()
 
   return (
     <Tabs
@@ -15,8 +19,8 @@ export default function TabsLayout() {
           backgroundColor: isDark ? '#241547' : 'white',
           borderTopWidth: 1,
           borderTopColor: isDark ? '#3D2870' : '#f3f4f6',
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '500' },
       }}

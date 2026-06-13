@@ -58,7 +58,7 @@ export default function CustomDatesCalendar({ dates, onClose }: CustomDatesCalen
             <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Fechas de la clase</h2>
             <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">{dates.length} clases programadas</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 dark:text-dark-text2 hover:text-gray-600 dark:hover:text-dark-text">
+          <button onClick={onClose} aria-label="Cerrar" className="text-gray-400 dark:text-dark-text2 hover:text-gray-600 dark:hover:text-dark-text">
             <X className="h-5 w-5" />
           </button>
         </div>

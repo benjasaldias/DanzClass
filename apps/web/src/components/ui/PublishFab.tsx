@@ -26,7 +26,7 @@ export default function PublishFab({ tier }: PublishFabProps) {
       <Link
         href="/publish"
         aria-label="Publicar"
-        className="pointer-events-auto absolute bottom-[4.75rem] right-4 flex h-14 w-14 items-center justify-center rounded-2xl
+        className="pointer-events-auto absolute bottom-fab right-4 flex h-14 w-14 items-center justify-center rounded-2xl
                    border border-white/50 bg-white/70 text-brand-600 shadow-[0_10px_30px_-6px_rgba(45,27,105,0.35)] backdrop-blur-xl
                    transition-all hover:scale-105 hover:bg-white active:scale-95
                    dark:border-white/10 dark:bg-dark-surface/70 dark:text-brand-200 dark:shadow-[0_10px_30px_-6px_rgba(0,0,0,0.6)] dark:hover:bg-dark-surface2"

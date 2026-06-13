@@ -51,6 +51,7 @@ export default function NotificationBell({ initialCount, userId }: NotificationB
   return (
     <Link
       href="/notifications"
+      aria-label={count > 0 ? `Notificaciones (${count} sin leer)` : 'Notificaciones'}
       className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
     >
       <Bell className="h-5 w-5 text-gray-600 dark:text-dark-text2" />
