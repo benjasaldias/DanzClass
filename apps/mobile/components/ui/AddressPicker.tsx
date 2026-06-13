@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Check } from 'lucide-react-native'
 import type { GeocodeResult } from '@danceclass/shared'
@@ -22,10 +22,23 @@ export default function AddressPicker({ value, onChange, hasCoords, label }: Pro
   const [loading, setLoading] = useState(false)
   const [show, setShow] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
+
+  // Keep a ref to the latest onChange to avoid stale-closure captures.
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   function handleChange(text: string) {
     setQuery(text)
-    onChange(text, null) // typing invalidates any resolved coords
+    onChangeRef.current(text, null)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (text.trim().length < 3) {
       setResults([])
@@ -34,16 +47,19 @@ export default function AddressPicker({ value, onChange, hasCoords, label }: Pro
     }
     setLoading(true)
     debounceRef.current = setTimeout(async () => {
-      const res = await geocodeSearch(text)
-      setResults(res)
-      setShow(res.length > 0)
+      const geocodeResults = await geocodeSearch(text)
+      if (!mountedRef.current) return
+      setResults(geocodeResults)
+      setShow(geocodeResults.length > 0)
       setLoading(false)
     }, 400)
   }
 
-  function handleSelect(item: GeocodeResult) {
-    setQuery(item.address)
-    onChange(item.address, { lat: item.lat, lng: item.lng })
+  function handleSelect(suggestion: GeocodeResult) {
+    // Cancel any pending debounce so the dropdown doesn't reopen after selection.
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    setQuery(suggestion.address)
+    onChangeRef.current(suggestion.address, { lat: suggestion.lat, lng: suggestion.lng })
     setResults([])
     setShow(false)
   }
@@ -75,13 +91,13 @@ export default function AddressPicker({ value, onChange, hasCoords, label }: Pro
           className="absolute left-0 right-0 bg-white dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border rounded-xl shadow-md overflow-hidden"
           style={{ top: label ? 76 : 48, zIndex: 100 }}
         >
-          {results.map((item, i) => (
+          {results.map((suggestion, idx) => (
             <TouchableOpacity
-              key={`${item.lat},${item.lng},${i}`}
-              onPress={() => handleSelect(item)}
+              key={`${suggestion.lat},${suggestion.lng},${idx}`}
+              onPress={() => handleSelect(suggestion)}
               className="px-3 py-2.5 border-b border-gray-50 dark:border-dark-border/40"
             >
-              <Text className="text-sm text-gray-800 dark:text-dark-text">{item.label}</Text>
+              <Text className="text-sm text-gray-800 dark:text-dark-text">{suggestion.label}</Text>
             </TouchableOpacity>
           ))}
         </View>

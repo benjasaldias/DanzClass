@@ -33,65 +33,94 @@ export default function AddressAutocomplete({
   const [results, setResults] = useState<GeocodeResult[]>([])
   const [loading, setLoading] = useState(false)
   const [justSelected, setJustSelected] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const mountedRef = useRef(true)
+
+  // Keep a ref to the latest onChange so callbacks never capture a stale closure.
+  // This is the key fix: calling onChangeRef.current(...) instead of onChange(...)
+  // directly avoids any Terser minification variable-shadowing conflicts.
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
 
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      abortRef.current?.abort()
     }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  const search = useCallback((q: string) => {
+  useEffect(() => {
+    function handleClickOutside(evt: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(evt.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const search = useCallback((query: string) => {
     abortRef.current?.abort()
-    if (q.trim().length < 3) {
+    if (query.trim().length < 3) {
       setResults([])
       setLoading(false)
       return
     }
-    const ac = new AbortController()
-    abortRef.current = ac
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
-    fetch(`/api/geocode/search?q=${encodeURIComponent(q)}`, { signal: ac.signal })
-      .then((response) => response.json())
-      .then((data) => {
-        setResults(data.results ?? [])
-        setOpen(true)
+    fetch(`/api/geocode/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((payload) => {
+        if (!mountedRef.current) return
+        const items: GeocodeResult[] = Array.isArray(payload.results) ? payload.results : []
+        setResults(items)
+        if (items.length > 0) setOpen(true)
       })
-      .catch((err) => {
-        if (err?.name !== 'AbortError') setResults([])
+      .catch((fetchErr) => {
+        if (fetchErr?.name !== 'AbortError' && mountedRef.current) setResults([])
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (mountedRef.current) setLoading(false)
+      })
   }, [])
 
-  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const text = e.target.value
+  const handleInput = useCallback((evt: React.ChangeEvent<HTMLInputElement>) => {
+    const text = evt.target.value
     setJustSelected(false)
-    onChange(text, null) // typing invalidates any previously resolved coords
+    onChangeRef.current(text, null)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => search(text), 350)
-  }
+  }, [search])
 
-  function handleSelect(item: GeocodeResult) {
-    onChange(item.address, { lat: item.lat, lng: item.lng })
+  const handleSelect = useCallback((geocodeResult: GeocodeResult) => {
+    // Cancel any pending debounce and in-flight request so the dropdown
+    // does not re-open after the user has already chosen a suggestion.
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    abortRef.current?.abort()
+    onChangeRef.current(geocodeResult.address, { lat: geocodeResult.lat, lng: geocodeResult.lng })
     setResults([])
     setOpen(false)
     setJustSelected(true)
-  }
+  }, [])
 
-  function handleClear() {
-    onChange('', null)
+  const handleClear = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    abortRef.current?.abort()
+    onChangeRef.current('', null)
     setResults([])
+    setOpen(false)
     setJustSelected(false)
-  }
+  }, [])
 
   const showCheck = (hasCoords || justSelected) && value.trim().length > 0
 
   return (
-    <div ref={ref} className={cn('relative', className)}>
+    <div ref={containerRef} className={cn('relative', className)}>
       <div className="relative">
         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
         <input
@@ -119,15 +148,15 @@ export default function AddressAutocomplete({
 
       {open && results.length > 0 && (
         <ul className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-lg overflow-hidden max-h-60 overflow-y-auto">
-          {results.map((item, i) => (
-            <li key={`${item.lat},${item.lng},${i}`}>
+          {results.map((suggestion, idx) => (
+            <li key={`${suggestion.lat},${suggestion.lng},${idx}`}>
               <button
                 type="button"
-                onClick={() => handleSelect(item)}
+                onClick={() => handleSelect(suggestion)}
                 className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-dark-text hover:bg-brand-50 dark:hover:bg-dark-surface2 hover:text-brand-700 dark:hover:text-brand-300 transition-colors flex items-start gap-2"
               >
                 <MapPin className="h-4 w-4 mt-0.5 text-brand-500 flex-shrink-0" />
-                <span>{item.label}</span>
+                <span>{suggestion.label}</span>
               </button>
             </li>
           ))}
