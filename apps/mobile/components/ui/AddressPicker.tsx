@@ -41,9 +41,9 @@ export default function AddressPicker({ value, onChange, hasCoords, label }: Pro
     }, 400)
   }
 
-  function handleSelect(r: GeocodeResult) {
-    setQuery(r.address)
-    onChange(r.address, { lat: r.lat, lng: r.lng })
+  function handleSelect(item: GeocodeResult) {
+    setQuery(item.address)
+    onChange(item.address, { lat: item.lat, lng: item.lng })
     setResults([])
     setShow(false)
   }
@@ -75,13 +75,13 @@ export default function AddressPicker({ value, onChange, hasCoords, label }: Pro
           className="absolute left-0 right-0 bg-white dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border rounded-xl shadow-md overflow-hidden"
           style={{ top: label ? 76 : 48, zIndex: 100 }}
         >
-          {results.map((r, i) => (
+          {results.map((item, i) => (
             <TouchableOpacity
-              key={`${r.lat},${r.lng},${i}`}
-              onPress={() => handleSelect(r)}
+              key={`${item.lat},${item.lng},${i}`}
+              onPress={() => handleSelect(item)}
               className="px-3 py-2.5 border-b border-gray-50 dark:border-dark-border/40"
             >
-              <Text className="text-sm text-gray-800 dark:text-dark-text">{r.label}</Text>
+              <Text className="text-sm text-gray-800 dark:text-dark-text">{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>

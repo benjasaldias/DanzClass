@@ -155,7 +155,7 @@ no cost (already enabled).
 
 1. **Vercel:** `npm install` runs automatically on deploy and pulls `leaflet`, `react-leaflet`, `@types/leaflet`. No action needed beyond a redeploy.
 2. **Mobile:** run `npm install` in `apps/mobile` (or let EAS do it) so `expo-location` + `react-native-webview` are installed, then `eas build` (these are native modules → needs a new dev/preview build, not just OTA).
-3. **Supabase:** apply migration `044_class_event_coordinates.sql` in production. Confirm PostGIS is enabled (it is, from migration 001).
+3. **Supabase:** apply migration `045_class_event_coordinates.sql` in production. Confirm PostGIS is enabled (it is, from migration 001).
 4. **Optional env:** set `GEOCODE_CONTACT_EMAIL` (defaults to `contacto@danzclass.com`) and, at scale, `NOMINATIM_BASE_URL` to a self-hosted instance.
 5. **Backfill existing rows:** after migration, run the backfill (superadmin): `POST /api/admin/geocode-backfill` repeatedly until `hasMore=false`, or use `supabase/scripts/geocode-backfill.mjs`. Idempotent and rate-limited (1 req/s).
 6. **Upstash:** the `geocode` rate limiter is active only when Upstash env vars are set (degrades gracefully otherwise — already the project's pattern).

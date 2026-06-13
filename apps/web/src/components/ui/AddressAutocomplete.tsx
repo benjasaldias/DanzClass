@@ -56,7 +56,7 @@ export default function AddressAutocomplete({
     abortRef.current = ac
     setLoading(true)
     fetch(`/api/geocode/search?q=${encodeURIComponent(q)}`, { signal: ac.signal })
-      .then((r) => r.json())
+      .then((response) => response.json())
       .then((data) => {
         setResults(data.results ?? [])
         setOpen(true)
@@ -75,8 +75,8 @@ export default function AddressAutocomplete({
     debounceRef.current = setTimeout(() => search(text), 350)
   }
 
-  function handleSelect(r: GeocodeResult) {
-    onChange(r.address, { lat: r.lat, lng: r.lng })
+  function handleSelect(item: GeocodeResult) {
+    onChange(item.address, { lat: item.lat, lng: item.lng })
     setResults([])
     setOpen(false)
     setJustSelected(true)
@@ -119,15 +119,15 @@ export default function AddressAutocomplete({
 
       {open && results.length > 0 && (
         <ul className="absolute z-50 mt-1 w-full rounded-xl border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-lg overflow-hidden max-h-60 overflow-y-auto">
-          {results.map((r, i) => (
-            <li key={`${r.lat},${r.lng},${i}`}>
+          {results.map((item, i) => (
+            <li key={`${item.lat},${item.lng},${i}`}>
               <button
                 type="button"
-                onClick={() => handleSelect(r)}
+                onClick={() => handleSelect(item)}
                 className="w-full text-left px-4 py-2.5 text-sm text-gray-800 dark:text-dark-text hover:bg-brand-50 dark:hover:bg-dark-surface2 hover:text-brand-700 dark:hover:text-brand-300 transition-colors flex items-start gap-2"
               >
                 <MapPin className="h-4 w-4 mt-0.5 text-brand-500 flex-shrink-0" />
-                <span>{r.label}</span>
+                <span>{item.label}</span>
               </button>
             </li>
           ))}
