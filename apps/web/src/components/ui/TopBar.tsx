@@ -10,11 +10,12 @@ interface TopBarProps {
 
 export default function TopBar({ profile, unreadCount }: TopBarProps) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 dark:bg-dark-bg/90 backdrop-blur-md border-b border-gray-100 dark:border-dark-border pt-safe">
       <div className="relative mx-auto max-w-lg px-4 h-14 flex items-center justify-between">
         <Link href="/feed" className="flex items-center gap-2">
           <LogoIcon className="h-6 w-6 text-brand-600 dark:text-brand-300" />
-          <span className="text-lg font-bold text-gray-900 dark:text-dark-text">DanzClass</span>
+          {/* Hidden on the narrowest screens (≤380px) so it can't collide with the centered Alpha pill */}
+          <span className="text-lg font-bold text-gray-900 dark:text-dark-text max-[380px]:hidden">DanzClass</span>
         </Link>
 
         {/* Alpha pill — centered */}

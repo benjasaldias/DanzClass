@@ -43,6 +43,9 @@ export default function TopBar({ title }: TopBarProps) {
         {/* Notification bell */}
         <TouchableOpacity
           onPress={() => router.push('/(app)/notifications' as any)}
+          accessibilityLabel="Notificaciones"
+          accessibilityRole="button"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="relative"
         >
           <Bell size={22} stroke={isDark ? '#A39BBF' : '#6b7280'} />

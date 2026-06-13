@@ -123,7 +123,7 @@ export default function AuditionModal({ classId, userId, teacherId, existing, on
       <div className="w-full max-w-lg rounded-t-2xl bg-white dark:bg-dark-surface p-5 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Postularme al entrenamiento</h2>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
+          <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
             <X className="h-4 w-4 text-gray-500 dark:text-dark-text2" />
           </button>
         </div>

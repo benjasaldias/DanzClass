@@ -85,10 +85,10 @@ export default function ReportModal({ contentType, contentId, reporterId: _repor
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white dark:bg-dark-surface p-6 shadow-2xl">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl bg-white dark:bg-dark-surface p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Reportar contenido</h2>
-          <button onClick={onClose} className="text-gray-400 dark:text-dark-text2 hover:text-gray-600 dark:hover:text-dark-text">
+          <button onClick={onClose} aria-label="Cerrar" className="text-gray-400 dark:text-dark-text2 hover:text-gray-600 dark:hover:text-dark-text">
             <X className="h-5 w-5" />
           </button>
         </div>

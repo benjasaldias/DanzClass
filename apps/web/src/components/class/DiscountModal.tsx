@@ -89,8 +89,8 @@ export default function DiscountModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-t-2xl bg-white dark:bg-dark-surface p-5 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white dark:bg-dark-surface p-5 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-coral-fuego/15">
@@ -98,7 +98,7 @@ export default function DiscountModal({
             </div>
             <h2 className="text-base font-bold text-gray-900 dark:text-dark-text">Precio con descuento</h2>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
+          <button onClick={onClose} aria-label="Cerrar" className="rounded-full p-1.5 hover:bg-gray-100 dark:hover:bg-dark-surface2 transition-colors">
             <X className="h-4 w-4 text-gray-500 dark:text-dark-text2" />
           </button>
         </div>

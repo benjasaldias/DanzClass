@@ -77,7 +77,7 @@ export default function InviteTeachersModal({ eventId, existingInvites, onClose 
             <UserPlus className="h-4 w-4 text-brand-600 dark:text-brand-400" />
             Invitar profesor
           </h2>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface2">
+          <button onClick={onClose} aria-label="Cerrar" className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface2">
             <X className="h-5 w-5 text-gray-500 dark:text-dark-text2" />
           </button>
         </div>

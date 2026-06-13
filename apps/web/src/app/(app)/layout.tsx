@@ -43,7 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-blanco-violeta dark:bg-dark-bg flex flex-col">
       <TopBar profile={profile} unreadCount={unreadCount ?? 0} />
-      <main className="flex-1 pb-20 pt-14 max-w-lg mx-auto w-full">
+      <main className="flex-1 pb-app-nav pt-app-header max-w-lg mx-auto w-full">
         {children}
       </main>
       <PublishFab tier={activeTier} />
