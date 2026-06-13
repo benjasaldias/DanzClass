@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
@@ -23,7 +23,10 @@ function verifySignature(request: Request): { ok: boolean; reason?: string } {
   const manifest = `id=${dataId}&request-id=${requestId}&ts=${ts}`
   const computed = createHmac('sha256', secret).update(manifest).digest('hex')
 
-  if (computed !== v1) {
+  // Constant-time comparison to avoid leaking the HMAC via response-timing.
+  const a = Buffer.from(computed, 'hex')
+  const b = Buffer.from(v1, 'hex')
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     return { ok: false, reason: `signature mismatch — manifest: "${manifest}"` }
   }
   return { ok: true }
