@@ -1,9 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { Component, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import { MapPin, Maximize2, Minimize2, ExternalLink, Loader2 } from 'lucide-react'
 import { isValidChileCoord } from '@danceclass/shared'
+
+class MapErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { crashed: boolean }
+> {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
+    super(props)
+    this.state = { crashed: false }
+  }
+  static getDerivedStateFromError() {
+    return { crashed: true }
+  }
+  render() {
+    return this.state.crashed ? this.props.fallback : this.props.children
+  }
+}
 
 // Leaflet must not render on the server (uses `window`).
 const LocationMapInner = dynamic(() => import('./LocationMapInner'), {
@@ -74,7 +90,15 @@ export default function LocationMap({ lat, lng, address, name }: LocationMapProp
           expanded ? 'h-[60vh]' : 'h-48'
         }`}
       >
-        <LocationMapInner lat={lat as number} lng={lng as number} className="h-full w-full" />
+        <MapErrorBoundary
+          fallback={
+            <div className="flex h-full w-full items-center justify-center bg-gray-100 dark:bg-dark-surface2 text-xs text-gray-400">
+              Mapa no disponible
+            </div>
+          }
+        >
+          <LocationMapInner lat={lat as number} lng={lng as number} className="h-full w-full" />
+        </MapErrorBoundary>
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}

@@ -13,7 +13,7 @@ const nextConfig = {
       },
     ],
   },
-  transpilePackages: ['@danceclass/shared', 'react-leaflet', '@react-leaflet/core'],
+  transpilePackages: ['@danceclass/shared'],
   async redirects() {
     return [
       // Browsers auto-request /favicon.ico; redirect to the App Router icon
