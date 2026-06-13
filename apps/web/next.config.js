@@ -13,7 +13,7 @@ const nextConfig = {
       },
     ],
   },
-  transpilePackages: ['@danceclass/shared'],
+  transpilePackages: ['@danceclass/shared', 'react-leaflet', '@react-leaflet/core'],
   async redirects() {
     return [
       // Browsers auto-request /favicon.ico; redirect to the App Router icon
@@ -26,7 +26,8 @@ const nextConfig = {
       // Next.js App Router requires inline scripts for hydration; unsafe-eval for some edge configs
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co",
+      // OSM tile servers power the Leaflet maps (class/event location).
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.tile.openstreetmap.org https://tile.openstreetmap.org",
       "media-src 'self' blob: https://res.cloudinary.com https://*.supabase.co",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://api.cloudinary.com https://exp.host",
       "font-src 'self' data:",

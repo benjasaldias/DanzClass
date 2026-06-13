@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import DateInput from '@/components/ui/DateInput'
 import type { ClassLevel } from '@danceclass/shared'
@@ -94,6 +95,12 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   const [newMediaFiles, setNewMediaFiles] = useState<{ file: File; preview: string; type: 'image' | 'video' }[]>([])
   const [customDates, setCustomDates] = useState<string[]>(classData.custom_dates ?? [])
   const [cityValue, setCityValue] = useState<string>(classData.city ?? '')
+  const [addressValue, setAddressValue] = useState<string>(classData.location_address ?? '')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    classData.latitude != null && classData.longitude != null
+      ? { lat: classData.latitude, lng: classData.longitude }
+      : null
+  )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -197,6 +204,29 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       const invalid = customDates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(new Date(d + 'T00:00:00').getTime()))
       if (invalid) { setError(`Fecha inválida: ${invalid}`); return }
     }
+    // Re-geocode if the address changed and has no resolved coordinates.
+    let resolvedCoords = coords
+    const addr = addressValue.trim()
+    if (addr && !coords) {
+      setSubmitting(true)
+      try {
+        const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(addr)}&limit=1`)
+        const json = await res.json()
+        const best = json.results?.[0]
+        if (best) {
+          resolvedCoords = { lat: best.lat, lng: best.lng }
+        } else {
+          setSubmitting(false)
+          setError('No pudimos ubicar esa dirección en el mapa. Selecciona una sugerencia o revisa que sea una dirección válida en Chile.')
+          return
+        }
+      } catch {
+        setSubmitting(false)
+        setError('No se pudo validar la dirección. Revisa tu conexión e intenta de nuevo.')
+        return
+      }
+    }
+
     setSubmitting(true); setError(null)
 
     // Backfill start_date if missing and class is periodic
@@ -229,7 +259,9 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       custom_dates: isPeriodic && data.recurrence === 'custom' ? customDates : [],
       duration_minutes: data.duration_minutes,
       location_name: data.location_name || null,
-      location_address: data.location_address || null,
+      location_address: addressValue.trim() || null,
+      latitude: resolvedCoords?.lat ?? null,
+      longitude: resolvedCoords?.lng ?? null,
       city: cityValue || null,
       max_spots: data.max_spots,
       price: data.price,
@@ -521,7 +553,12 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Dirección</label>
-            <input {...register('location_address')} className="input" />
+            <AddressAutocomplete
+              value={addressValue}
+              hasCoords={!!coords}
+              onChange={(addr, c) => { setAddressValue(addr); setCoords(c) }}
+            />
+            <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2">Elige una sugerencia para fijar la ubicación en el mapa y aparecer en "Cerca".</p>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</label>

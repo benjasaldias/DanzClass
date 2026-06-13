@@ -3,6 +3,8 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, Alert, KeyboardAvo
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { supabase } from '../../../lib/supabase'
+import AddressPicker from '../../../components/ui/AddressPicker'
+import { geocodeSearch } from '../../../lib/location'
 import type { EventType } from '@danceclass/shared'
 
 const EVENT_TYPES: { key: EventType; label: string }[] = [
@@ -19,6 +21,8 @@ export default function CreateEventScreen() {
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
   const [city, setCity] = useState('')
+  const [address, setAddress] = useState('')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [hasSpots, setHasSpots] = useState(false)
   const [maxSpots, setMaxSpots] = useState('')
   const [hasEntry, setHasEntry] = useState(false)
@@ -30,6 +34,15 @@ export default function CreateEventScreen() {
     if (!eventDate.trim()) return Alert.alert('Error', 'La fecha es obligatoria (YYYY-MM-DD)')
     if (hasSpots && (!maxSpots || Number(maxSpots) < 1)) return Alert.alert('Error', 'Ingresa número de cupos válido')
     if (hasEntry && (!entryPrice || Number(entryPrice) < 0)) return Alert.alert('Error', 'Ingresa precio de entrada válido')
+
+    // Geocode the address if provided; block on failure.
+    let resolvedCoords = coords
+    const addr = address.trim()
+    if (addr && !coords) {
+      const res = await geocodeSearch(addr)
+      if (res.length > 0) resolvedCoords = { lat: res[0].lat, lng: res[0].lng }
+      else return Alert.alert('Error', 'No pudimos ubicar esa dirección. Selecciona una sugerencia o revisa que sea válida en Chile.')
+    }
 
     setLoading(true)
     try {
@@ -46,6 +59,9 @@ export default function CreateEventScreen() {
           event_date: eventDate.trim(),
           event_time: eventTime.trim() || null,
           city: city.trim() || null,
+          location_address: addr || null,
+          latitude: resolvedCoords?.lat ?? null,
+          longitude: resolvedCoords?.lng ?? null,
           has_spots: hasSpots,
           max_spots: hasSpots ? Number(maxSpots) : null,
           has_entry: hasEntry,
@@ -154,6 +170,16 @@ export default function CreateEventScreen() {
             placeholderTextColor="#9CA3AF"
             className="text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl px-4 py-3 mb-4"
           />
+
+          {/* Dirección (geocodificada) */}
+          <View className="mb-4">
+            <AddressPicker
+              label="Dirección (opcional)"
+              value={address}
+              hasCoords={!!coords}
+              onChange={(a, c) => { setAddress(a); setCoords(c) }}
+            />
+          </View>
 
           {/* Cupos */}
           <View className="border border-gray-200 dark:border-dark-border rounded-xl p-4 mb-4 bg-white dark:bg-dark-surface">

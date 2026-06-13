@@ -8,6 +8,7 @@ import { formatCLP } from '@/lib/utils'
 import { EVENT_TYPE_LABELS } from '@danceclass/shared'
 import type { EventType } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
+import LocationMap from '@/components/map/LocationMap'
 import { createClient } from '@/lib/supabase/client'
 import InviteTeachersModal from './InviteTeachersModal'
 
@@ -211,6 +212,13 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
             <MapPin className="h-4 w-4 text-brand-500 shrink-0" />
             {event.city}
           </div>
+        )}
+        {(event.location_address || event.latitude != null) && (
+          <LocationMap
+            lat={event.latitude}
+            lng={event.longitude}
+            address={event.location_address}
+          />
         )}
         {event.has_spots && (
           <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-dark-text">

@@ -7,6 +7,7 @@ import { useTheme } from '../../../../context/ThemeContext'
 import { EVENT_TYPE_LABELS } from '@danceclass/shared'
 import type { EventType } from '@danceclass/shared'
 import Avatar from '../../../../components/ui/Avatar'
+import LeafletMap from '../../../../components/ui/LeafletMap'
 
 function formatCLP(n: number) { return `$${n.toLocaleString('es-CL')}` }
 function formatEventDate(dateStr: string): string {
@@ -173,6 +174,9 @@ export default function EventDetailScreen() {
               {event.event_time ? ` · ${event.event_time}` : ''}
             </Text>
             {event.city && <Text className="text-sm text-gray-700 dark:text-dark-text">📍 {event.city}</Text>}
+            {(event.location_address || event.latitude != null) && (
+              <LeafletMap lat={event.latitude} lng={event.longitude} address={event.location_address} />
+            )}
             {event.has_spots && (
               <Text className="text-sm text-gray-700 dark:text-dark-text">
                 👥 {enrolledCount}/{event.max_spots} inscritos{isFull ? ' · Lleno' : ''}

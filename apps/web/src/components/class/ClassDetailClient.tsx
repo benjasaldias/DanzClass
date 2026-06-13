@@ -23,6 +23,7 @@ import DiscountModal from '@/components/class/DiscountModal'
 import TwoxRequestButton from '@/components/class/TwoxRequestButton'
 import AuditionModal from '@/components/class/AuditionModal'
 import PackageSection from '@/components/class/PackageSection'
+import LocationMap from '@/components/map/LocationMap'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, SubscriptionTier } from '@danceclass/shared'
 import { canEnroll } from '@danceclass/shared'
@@ -533,14 +534,13 @@ export default function ClassDetailClient({
             <Clock className="h-4 w-4 text-brand-500 flex-shrink-0" />
             <span className="text-gray-700 dark:text-dark-text2">{classData.duration_minutes} minutos</span>
           </div>
-          {classData.location_name && (
-            <div className="flex items-center gap-3 text-sm">
-              <MapPin className="h-4 w-4 text-brand-500 flex-shrink-0" />
-              <div>
-                <p className="text-gray-700 dark:text-dark-text2">{classData.location_name}</p>
-                {classData.location_address && <p className="text-xs text-gray-500 dark:text-dark-text2">{classData.location_address}</p>}
-              </div>
-            </div>
+          {(classData.location_name || classData.location_address) && (
+            <LocationMap
+              lat={(classData as any).latitude}
+              lng={(classData as any).longitude}
+              name={classData.location_name}
+              address={classData.location_address}
+            />
           )}
           <div className="flex items-center gap-3 text-sm">
             <Users className="h-4 w-4 text-brand-500 flex-shrink-0" />

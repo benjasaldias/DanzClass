@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { MapPin, Calendar, Users, ChevronRight, ChevronLeft, Share2, Play } from 'lucide-react'
 import { cn, timeAgo, formatCLP, formatDate, formatTime } from '@/lib/utils'
-import { DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
+import { DAYS_OF_WEEK, LEVEL_LABELS, formatDistance } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
 import StarRating from '@/components/ui/StarRating'
 import StyleChip from '@/components/ui/StyleChip'
@@ -20,6 +20,8 @@ interface ClassCardProps {
   currentUserId: string
   currentUserRole?: string
   teacherRating?: TeacherRating
+  /** Distance in meters from the user (only shown in the "Cerca" feed). */
+  distanceM?: number | null
 }
 
 const LEVEL_COLORS = {
@@ -29,7 +31,7 @@ const LEVEL_COLORS = {
   todos: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 }
 
-export default function ClassCard({ classData, currentUserId, currentUserRole, teacherRating }: ClassCardProps) {
+export default function ClassCard({ classData, currentUserId, currentUserRole, teacherRating, distanceM }: ClassCardProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
   const [copied, setCopied] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -269,6 +271,19 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
             <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
               <MapPin className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
               <span>{classData.location_name}</span>
+              {typeof distanceM === 'number' && (
+                <span className="ml-auto flex-shrink-0 inline-flex items-center rounded-full bg-[#EEEDFE] dark:bg-dark-surface2 px-2 py-0.5 text-xs font-semibold text-[#534AB7] dark:text-brand-300">
+                  a {formatDistance(distanceM)}
+                </span>
+              )}
+            </div>
+          )}
+          {!classData.location_name && typeof distanceM === 'number' && (
+            <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">
+              <MapPin className="h-4 w-4 text-gray-400 dark:text-dark-text2 flex-shrink-0" />
+              <span className="inline-flex items-center rounded-full bg-[#EEEDFE] dark:bg-dark-surface2 px-2 py-0.5 text-xs font-semibold text-[#534AB7] dark:text-brand-300">
+                a {formatDistance(distanceM)}
+              </span>
             </div>
           )}
           <div className="flex items-center gap-2 text-sm text-gris-humo dark:text-dark-text2">

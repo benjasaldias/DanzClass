@@ -19,6 +19,8 @@ import MobileSelect from '../../../components/ui/MobileSelect'
 import MobileDateInput from '../../../components/ui/MobileDateInput'
 import MobileCityPicker from '../../../components/ui/MobileCityPicker'
 import MobileMonthCalendar from '../../../components/ui/MobileMonthCalendar'
+import AddressPicker from '../../../components/ui/AddressPicker'
+import { geocodeSearch } from '../../../lib/location'
 
 type MediaItem = { uri: string; type: 'image' | 'video'; mimeType: string; fileName: string }
 
@@ -72,6 +74,7 @@ export default function CreateClassScreen() {
   const [billingDay, setBillingDay] = useState('1')
   const [locationName, setLocationName] = useState('')
   const [locationAddress, setLocationAddress] = useState('')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [city, setCity] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('60')
   const [maxSpots, setMaxSpots] = useState('15')
@@ -197,6 +200,20 @@ export default function CreateClassScreen() {
     setSubmitting(true)
     setGlobalError(null)
 
+    // Geocode the address (Chile only). Block the save if it can't be located.
+    let resolvedCoords = coords
+    const addr = locationAddress.trim()
+    if (addr && !coords) {
+      const res = await geocodeSearch(addr)
+      if (res.length > 0) {
+        resolvedCoords = { lat: res[0].lat, lng: res[0].lng }
+      } else {
+        setSubmitting(false)
+        setGlobalError('No pudimos ubicar esa dirección en el mapa. Selecciona una sugerencia o revisa que sea válida en Chile.')
+        return
+      }
+    }
+
     const { data: classRecord, error: classError } = await supabase
       .from('classes')
       .insert({
@@ -215,7 +232,9 @@ export default function CreateClassScreen() {
         custom_dates: (isPeriodic && recurrence === 'custom') ? customDates : [],
         duration_minutes: Number(durationMinutes) || 60,
         location_name: locationName.trim() || null,
-        location_address: locationAddress.trim() || null,
+        location_address: addr || null,
+        latitude: resolvedCoords?.lat ?? null,
+        longitude: resolvedCoords?.lng ?? null,
         city: city.trim() || null,
         max_spots: Number(maxSpots),
         price: Number(price),
@@ -598,16 +617,12 @@ export default function CreateClassScreen() {
               className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
             />
           </View>
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Dirección</Text>
-            <TextInput
-              value={locationAddress}
-              onChangeText={setLocationAddress}
-              placeholder="ej: Av. Providencia 1234"
-              placeholderTextColor="#9CA3AF"
-              className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2"
-            />
-          </View>
+          <AddressPicker
+            label="Dirección"
+            value={locationAddress}
+            hasCoords={!!coords}
+            onChange={(addr, c) => { setLocationAddress(addr); setCoords(c) }}
+          />
           <MobileCityPicker label="Ciudad" value={city} onChange={setCity} />
         </View>
 

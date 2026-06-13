@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import CityCombobox from '@/components/ui/CityCombobox'
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import type { EventType } from '@danceclass/shared'
 
 const noExp = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -27,6 +28,8 @@ export default function CreateEventForm({ userId, userCity }: CreateEventFormPro
   const [eventDate, setEventDate] = useState('')
   const [eventTime, setEventTime] = useState('')
   const [city, setCity] = useState(userCity ?? '')
+  const [address, setAddress] = useState('')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [hasSpots, setHasSpots] = useState(false)
   const [maxSpots, setMaxSpots] = useState('')
   const [hasEntry, setHasEntry] = useState(false)
@@ -52,6 +55,22 @@ export default function CreateEventForm({ userId, userCity }: CreateEventFormPro
     if (hasSpots && (!maxSpots || Number(maxSpots) < 1)) return setError('Ingresa un número válido de cupos.')
     if (hasEntry && (!entryPrice || Number(entryPrice) < 0)) return setError('Ingresa un precio de entrada válido.')
 
+    // Geocode the address if provided; block on failure so we never save an
+    // un-locatable event.
+    let resolvedCoords = coords
+    const addr = address.trim()
+    if (addr && !coords) {
+      try {
+        const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(addr)}&limit=1`)
+        const json = await res.json()
+        const best = json.results?.[0]
+        if (best) resolvedCoords = { lat: best.lat, lng: best.lng }
+        else return setError('No pudimos ubicar esa dirección en el mapa. Selecciona una sugerencia o revisa que sea válida en Chile.')
+      } catch {
+        return setError('No se pudo validar la dirección. Revisa tu conexión e intenta de nuevo.')
+      }
+    }
+
     setLoading(true)
     try {
       let coverUrl: string | null = null
@@ -75,6 +94,9 @@ export default function CreateEventForm({ userId, userCity }: CreateEventFormPro
         event_date: eventDate,
         event_time: eventTime || null,
         city: city.trim() || null,
+        location_address: addr || null,
+        latitude: resolvedCoords?.lat ?? null,
+        longitude: resolvedCoords?.lng ?? null,
         cover_url: coverUrl,
         has_spots: hasSpots,
         max_spots: hasSpots ? Number(maxSpots) : null,
@@ -187,6 +209,17 @@ export default function CreateEventForm({ userId, userCity }: CreateEventFormPro
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-1">Ciudad</label>
         <CityCombobox value={city} onChange={setCity} />
+      </div>
+
+      {/* Dirección (geocodificada) */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-1">Dirección (opcional)</label>
+        <AddressAutocomplete
+          value={address}
+          hasCoords={!!coords}
+          onChange={(addr, c) => { setAddress(addr); setCoords(c) }}
+        />
+        <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2">Elige una sugerencia para mostrar el evento en el mapa y en "Cerca".</p>
       </div>
 
       {/* Cover */}
