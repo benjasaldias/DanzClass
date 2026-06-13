@@ -23,6 +23,19 @@ export async function submitReport(params: {
     return { ok: false, error: 'invalid' }
   }
 
+  // Validate enums + id format and cap free-text length (defense in depth — a
+  // direct server-action call can supply arbitrary args, bypassing the modal UI).
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!['post', 'class'].includes(contentType)) return { ok: false, error: 'invalid' }
+  if (!['copyright', 'inappropriate', 'spam', 'other'].includes(reason)) {
+    return { ok: false, error: 'invalid' }
+  }
+  if (typeof contentId !== 'string' || !UUID_RE.test(contentId)) {
+    return { ok: false, error: 'invalid' }
+  }
+  const cleanDescription =
+    typeof description === 'string' ? description.trim().slice(0, 1000) : ''
+
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'unauthorized' }
@@ -34,7 +47,7 @@ export async function submitReport(params: {
     content_type: contentType,
     content_id: contentId,
     reason,
-    description: description?.trim() || null,
+    description: cleanDescription || null,
   })
 
   if (reportErr) {

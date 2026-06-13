@@ -7,12 +7,27 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
+  const body = await req.json().catch(() => ({}))
   const { contentType, contentId, reason, description } = body
 
   if (!contentType || !contentId || !reason) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
+
+  // Validate enums + id format server-side (clients/DB CHECK aside) and cap the
+  // free-text length to prevent malformed inserts and storage-abuse via reports.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!['post', 'class'].includes(contentType)) {
+    return NextResponse.json({ error: 'invalid_contentType' }, { status: 400 })
+  }
+  if (!['copyright', 'inappropriate', 'spam', 'other'].includes(reason)) {
+    return NextResponse.json({ error: 'invalid_reason' }, { status: 400 })
+  }
+  if (typeof contentId !== 'string' || !UUID_RE.test(contentId)) {
+    return NextResponse.json({ error: 'invalid_contentId' }, { status: 400 })
+  }
+  const cleanDescription =
+    typeof description === 'string' ? description.trim().slice(0, 1000) : ''
 
   const admin = createAdminClient()
 
@@ -22,7 +37,7 @@ export async function POST(req: NextRequest) {
     content_type: contentType,
     content_id: contentId,
     reason,
-    description: description?.trim() || null,
+    description: cleanDescription || null,
   })
 
   if (reportErr) {
