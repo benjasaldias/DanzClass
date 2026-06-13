@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, ScrollView, Dimensions } from 'rea
 import { useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { MapPin, Clock, Users, ChevronRight, ChevronLeft, Music2 } from 'lucide-react-native'
-import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
+import { DAYS_OF_WEEK, formatCLP, formatDistance } from '@danceclass/shared'
 import StarRating from '../ui/StarRating'
 import StyleChip from '../ui/StyleChip'
 
@@ -27,6 +27,8 @@ interface MobileClassCardProps {
   currentUserId: string
   compact?: boolean
   teacherRating?: { avg_stars: number; rating_count: number }
+  /** Distance in meters from the user (only shown in the "Cerca" feed). */
+  distanceM?: number | null
 }
 
 function timeAgo(date: string): string {
@@ -49,7 +51,7 @@ function formatDate(date: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
 }
 
-export default function MobileClassCard({ classData, currentUserId, compact = false, teacherRating }: MobileClassCardProps) {
+export default function MobileClassCard({ classData, currentUserId, compact = false, teacherRating, distanceM }: MobileClassCardProps) {
   const router = useRouter()
   const [mediaIndex, setMediaIndex] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
@@ -222,7 +224,20 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
           {classData.location_name && (
             <View className="flex-row items-center gap-2">
               <MapPin size={14} stroke="#9ca3af" />
-              <Text className="text-sm text-gris-humo dark:text-dark-text2">{classData.location_name}</Text>
+              <Text className="flex-1 text-sm text-gris-humo dark:text-dark-text2">{classData.location_name}</Text>
+              {typeof distanceM === 'number' && (
+                <View className="rounded-full bg-lavanda-suave dark:bg-dark-surface2 px-2 py-0.5">
+                  <Text className="text-xs font-semibold text-[#534AB7] dark:text-brand-300">a {formatDistance(distanceM)}</Text>
+                </View>
+              )}
+            </View>
+          )}
+          {!classData.location_name && typeof distanceM === 'number' && (
+            <View className="flex-row items-center gap-2">
+              <MapPin size={14} stroke="#9ca3af" />
+              <View className="rounded-full bg-lavanda-suave dark:bg-dark-surface2 px-2 py-0.5">
+                <Text className="text-xs font-semibold text-[#534AB7] dark:text-brand-300">a {formatDistance(distanceM)}</Text>
+              </View>
             </View>
           )}
           <View className="flex-row items-center gap-2">

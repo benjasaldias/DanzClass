@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Users, Globe, MapPin, ChevronDown, Music2 } from 'lucide-react'
+import { Users, Globe, MapPin, ChevronDown, Music2, Navigation, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useFeed } from '@/hooks/queries/useFeed'
+import { useUserLocation } from '@/hooks/useUserLocation'
 import ClassCard from './ClassCard'
 import PostCard from './PostCard'
 import RehearsalCard from './RehearsalCard'
@@ -63,10 +64,17 @@ export default function FeedClient({
   const [showCreateRehearsal, setShowCreateRehearsal] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Device location for the "Cerca" tab — requested only when that tab is active.
+  const { location, status: locStatus, request: requestLocation } = useUserLocation()
+  useEffect(() => {
+    if (activeFilter === 'nearby') requestLocation()
+  }, [activeFilter, requestLocation])
+
   const { data: feedData, isLoading, isFetching } = useFeed({
     filter: activeFilter,
     followingIds,
     currentProfile,
+    userCoords: activeFilter === 'nearby' ? location : null,
     initialData: {
       classes: initialClasses,
       posts: initialPosts,
@@ -117,7 +125,12 @@ export default function FeedClient({
   if (contentType === 'all' || contentType === 'events') {
     events.forEach((ev) => feedItems.push({ type: 'event', data: ev, created_at: ev.created_at }))
   }
-  feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  // Nearby with a location fix → sort by distance; otherwise newest first.
+  if (activeFilter === 'nearby' && location) {
+    feedItems.sort((a, b) => (a.data._distance_m ?? Infinity) - (b.data._distance_m ?? Infinity))
+  } else {
+    feedItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  }
 
   return (
     <div className="flex flex-col">
@@ -205,6 +218,40 @@ export default function FeedClient({
         </div>
       )}
 
+      {/* Nearby location status */}
+      {activeFilter === 'nearby' && (
+        <div className="mx-4 mt-3">
+          {locStatus === 'loading' && (
+            <div className="flex items-center gap-2 rounded-xl border border-[#7F77DD]/30 bg-[#EEEDFE]/50 dark:bg-dark-surface2/60 p-3 text-sm text-gray-700 dark:text-dark-text">
+              <Loader2 className="h-4 w-4 animate-spin text-[#7F77DD] flex-shrink-0" />
+              Obteniendo tu ubicación…
+            </div>
+          )}
+          {locStatus === 'granted' && location && (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/20 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+              <Navigation className="h-4 w-4 flex-shrink-0" />
+              Mostrando clases ordenadas por cercanía a ti.
+            </div>
+          )}
+          {(locStatus === 'denied' || locStatus === 'unavailable') && (
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-coral-fuego/30 bg-coral-fuego/10 p-3 text-sm">
+              <span className="text-gray-700 dark:text-dark-text">
+                {locStatus === 'denied'
+                  ? 'Activa el permiso de ubicación para ver clases por cercanía.'
+                  : 'No pudimos obtener tu ubicación.'}
+                {currentProfile?.city ? ' Mostrando por tu ciudad.' : ''}
+              </span>
+              <button
+                onClick={requestLocation}
+                className="flex-shrink-0 rounded-lg bg-[#7F77DD] hover:bg-[#6B64C8] text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Feed */}
       <div className="flex flex-col pt-3">
         {isLoading ? (
@@ -222,6 +269,7 @@ export default function FeedClient({
                   currentUserId={currentUser.id}
                   currentUserRole={currentProfile?.role ?? 'user'}
                   teacherRating={teacherRatings[item.data.teacher_id]}
+                  distanceM={activeFilter === 'nearby' ? item.data._distance_m ?? null : null}
                 />
               : item.type === 'rehearsal'
                 ? <RehearsalCard
@@ -277,7 +325,7 @@ function EmptyState({ filter, contentType }: { filter: FeedFilter; contentType: 
           <MapPin className="h-8 w-8 text-gray-400 dark:text-dark-text2" />
         </div>
         <h3 className="font-semibold text-gray-900 dark:text-dark-text">Sin {typeLabel} cerca</h3>
-        <p className="mt-1 text-sm text-gray-500 dark:text-dark-text2">Configura tu ciudad para ver {typeLabel} disponibles.</p>
+        <p className="mt-1 text-sm text-gray-500 dark:text-dark-text2">Activa tu ubicación para descubrir {typeLabel} cercanas, o configura tu ciudad en tu perfil.</p>
         <Link href="/profile/edit" className="mt-4 btn-primary text-sm">Editar perfil</Link>
       </div>
     )

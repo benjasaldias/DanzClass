@@ -197,6 +197,9 @@ export interface Class {
   location_name: string | null
   location_address: string | null
   city: string | null
+  // Geocoded coordinates of location_address (Chile). Null until geocoded/backfilled.
+  latitude: number | null
+  longitude: number | null
   max_spots: number
   price: number
   price_suelta: number | null

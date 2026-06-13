@@ -39,6 +39,9 @@ const limiters = {
   discount: makeRatelimiter(3, '30 m'),
   // Destructive ops (delete account, admin actions): 5/min per user
   destructive: makeRatelimiter(5, '1 m'),
+  // Geocoding proxy (address autocomplete): 30/min per user — protects the
+  // upstream Nominatim instance from our own clients.
+  geocode: makeRatelimiter(30, '1 m'),
 }
 
 type LimiterKey = keyof typeof limiters

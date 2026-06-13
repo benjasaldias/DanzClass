@@ -9,6 +9,7 @@ import { useTheme } from '../../../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, Video, X, Globe, Lock, Users, Clapperboard, ChevronDown } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
+import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../lib/cloudinary'
 
 type Visibility = 'public' | 'followers' | 'friends'
 
@@ -17,30 +18,6 @@ const VISIBILITY_OPTIONS: { value: Visibility; label: string; icon: typeof Globe
   { value: 'followers', label: 'Seguidores', icon: Lock },
   { value: 'friends', label: 'Amigos', icon: Users },
 ]
-
-function isCloudinaryConfigured(): boolean {
-  return !!(
-    process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME &&
-    process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET
-  )
-}
-
-async function uploadToCloudinary(uri: string): Promise<string> {
-  const cloudName = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME!
-  const uploadPreset = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET!
-
-  const formData = new FormData()
-  formData.append('file', { uri, type: 'video/mp4', name: 'video.mp4' } as any)
-  formData.append('upload_preset', uploadPreset)
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
-    { method: 'POST', body: formData }
-  )
-  const result = await response.json()
-  if (!result.secure_url) throw new Error('Cloudinary upload failed')
-  return result.secure_url
-}
 
 export default function CreatePostScreen() {
   const router = useRouter()
@@ -121,7 +98,7 @@ export default function CreatePostScreen() {
     if (videoUri) {
       try {
         if (isCloudinaryConfigured()) {
-          url = await uploadToCloudinary(videoUri)
+          url = await uploadVideoToCloudinary(videoUri, 'posts')
         } else {
           const ext = videoUri.split('.').pop() ?? 'mp4'
           const path = `${userId}/${Date.now()}.${ext}`

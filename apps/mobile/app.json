@@ -18,7 +18,8 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "DanzClass necesita acceso a tus fotos para subir imágenes de clase, foto de perfil y comprobantes de pago.",
-        "NSPhotoLibraryAddUsageDescription": "DanzClass puede guardar fotos en tu galería."
+        "NSPhotoLibraryAddUsageDescription": "DanzClass puede guardar fotos en tu galería.",
+        "NSLocationWhenInUseUsageDescription": "DanzClass usa tu ubicación para mostrarte clases de baile cercanas, ordenadas por distancia."
       }
     },
     "android": {
@@ -34,7 +35,9 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "plugins": [
@@ -63,6 +66,12 @@
         "expo-image-picker",
         {
           "photosPermission": "DanzClass necesita acceso a tus fotos para subir imágenes de clase, foto de perfil y comprobantes de pago."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "DanzClass usa tu ubicación para mostrarte clases de baile cercanas, ordenadas por distancia."
         }
       ]
     ],

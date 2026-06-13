@@ -189,8 +189,10 @@ export type Database = {
           duration_minutes: number
           id: string
           level: string | null
+          latitude: number | null
           location_address: string | null
           location_name: string | null
+          longitude: number | null
           max_spots: number
           price: number
           price_2x: number | null
@@ -215,8 +217,10 @@ export type Database = {
           duration_minutes?: number
           id?: string
           level?: string | null
+          latitude?: number | null
           location_address?: string | null
           location_name?: string | null
+          longitude?: number | null
           max_spots: number
           price: number
           price_2x?: number | null
@@ -241,8 +245,10 @@ export type Database = {
           duration_minutes?: number
           id?: string
           level?: string | null
+          latitude?: number | null
           location_address?: string | null
           location_name?: string | null
+          longitude?: number | null
           max_spots?: number
           price?: number
           price_2x?: number | null

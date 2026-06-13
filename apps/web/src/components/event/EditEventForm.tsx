@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CityCombobox from '@/components/ui/CityCombobox'
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { EventType } from '@danceclass/shared'
 
@@ -26,6 +27,10 @@ export default function EditEventForm({ event, userId }: EditEventFormProps) {
   const [eventDate, setEventDate] = useState(event.event_date)
   const [eventTime, setEventTime] = useState(event.event_time ?? '')
   const [city, setCity] = useState(event.city ?? '')
+  const [address, setAddress] = useState(event.location_address ?? '')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    event.latitude != null && event.longitude != null ? { lat: event.latitude, lng: event.longitude } : null
+  )
   const [hasSpots, setHasSpots] = useState(event.has_spots)
   const [maxSpots, setMaxSpots] = useState(event.max_spots?.toString() ?? '')
   const [hasEntry, setHasEntry] = useState(event.has_entry)
@@ -42,6 +47,21 @@ export default function EditEventForm({ event, userId }: EditEventFormProps) {
     if (hasSpots && (!maxSpots || Number(maxSpots) < 1)) return setError('Ingresa un número válido de cupos.')
     if (hasEntry && (!entryPrice || Number(entryPrice) < 0)) return setError('Ingresa un precio de entrada válido.')
 
+    // Re-geocode if the address changed and has no resolved coordinates.
+    let resolvedCoords = coords
+    const addr = address.trim()
+    if (addr && !coords) {
+      try {
+        const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(addr)}&limit=1`)
+        const json = await res.json()
+        const best = json.results?.[0]
+        if (best) resolvedCoords = { lat: best.lat, lng: best.lng }
+        else return setError('No pudimos ubicar esa dirección en el mapa. Selecciona una sugerencia o revisa que sea válida en Chile.')
+      } catch {
+        return setError('No se pudo validar la dirección. Revisa tu conexión e intenta de nuevo.')
+      }
+    }
+
     setLoading(true)
     try {
       const { error: err } = await (supabase as any)
@@ -53,6 +73,9 @@ export default function EditEventForm({ event, userId }: EditEventFormProps) {
           event_date: eventDate,
           event_time: eventTime || null,
           city: city.trim() || null,
+          location_address: addr || null,
+          latitude: resolvedCoords?.lat ?? null,
+          longitude: resolvedCoords?.lng ?? null,
           has_spots: hasSpots,
           max_spots: hasSpots ? Number(maxSpots) : null,
           has_entry: hasEntry,
@@ -125,6 +148,16 @@ export default function EditEventForm({ event, userId }: EditEventFormProps) {
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-1">Ciudad</label>
           <CityCombobox value={city} onChange={setCity} />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-1">Dirección (opcional)</label>
+          <AddressAutocomplete
+            value={address}
+            hasCoords={!!coords}
+            onChange={(a, c) => { setAddress(a); setCoords(c) }}
+          />
+          <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2">Elige una sugerencia para mostrar el evento en el mapa y en "Cerca".</p>
         </div>
 
         <div className="rounded-xl border border-gray-200 dark:border-dark-border p-4 space-y-3">

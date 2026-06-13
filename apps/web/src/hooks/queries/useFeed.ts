@@ -18,6 +18,8 @@ interface FeedOptions {
   filter: FeedFilter
   followingIds: string[]
   currentProfile: Profile | null
+  /** When set on the 'nearby' filter, sort by real distance via PostGIS RPC. */
+  userCoords?: { lat: number; lng: number } | null
 }
 
 async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, teacherIds: string[]): Promise<TeacherRatings> {
@@ -38,7 +40,64 @@ async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, te
   return map
 }
 
-export async function fetchFeedData({ filter, followingIds, currentProfile }: FeedOptions): Promise<FeedData> {
+// Distance-sorted "nearby" using PostGIS RPCs. Returns classes/events with a
+// `_distance_m` field, nearest first. Posts/rehearsals have no location so they
+// are omitted from this view.
+async function fetchNearbyData(coords: { lat: number; lng: number }): Promise<FeedData> {
+  const supabase = createClient()
+  const today = new Date().toISOString().split('T')[0]
+  const RADIUS_M = 50000
+
+  const [{ data: nearClasses }, { data: nearEvents }] = await Promise.all([
+    (supabase as any).rpc('nearby_classes', { p_lat: coords.lat, p_lng: coords.lng, p_radius_m: RADIUS_M, p_limit: 60 }),
+    (supabase as any).rpc('nearby_events', { p_lat: coords.lat, p_lng: coords.lng, p_radius_m: RADIUS_M, p_limit: 60 }),
+  ])
+
+  const classDist = new Map<string, number>((nearClasses ?? []).map((r: any) => [r.id, r.distance_m]))
+  const eventDist = new Map<string, number>((nearEvents ?? []).map((r: any) => [r.id, r.distance_m]))
+  const classIds = [...classDist.keys()]
+  const eventIds = [...eventDist.keys()]
+
+  let classes: any[] = []
+  if (classIds.length) {
+    const { data } = await (supabase as any)
+      .from('classes')
+      .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+      .eq('status', 'active')
+      .in('id', classIds)
+      .or(`type.neq.suelta,date.gte.${today}`)
+      .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${today}`)
+    classes = (data ?? [])
+      .filter((c: any) => (c.recurrence === 'custom' ? (c.custom_dates ?? []).some((d: string) => d >= today) : true))
+      .map((c: any) => ({ ...c, _distance_m: classDist.get(c.id) ?? null }))
+      .sort((a: any, b: any) => (a._distance_m ?? Infinity) - (b._distance_m ?? Infinity))
+  }
+
+  let events: any[] = []
+  if (eventIds.length) {
+    const { data } = await (supabase as any)
+      .from('events')
+      .select(`*, creator:profiles!creator_id(id, username, full_name, avatar_url), event_invites(id, status, teacher_id, teacher:profiles!teacher_id(id, username, full_name, avatar_url)), event_enrollments(id, user_id, status)`)
+      .eq('status', 'active')
+      .gte('event_date', today)
+      .in('id', eventIds)
+    events = (data ?? [])
+      .map((e: any) => ({ ...e, _distance_m: eventDist.get(e.id) ?? null }))
+      .sort((a: any, b: any) => (a._distance_m ?? Infinity) - (b._distance_m ?? Infinity))
+  }
+
+  const teacherIds = [...new Set(classes.map((c: any) => c.teacher_id as string))]
+  const teacherRatings = await fetchTeacherRatings(supabase, teacherIds)
+
+  return { classes, posts: [], events, teacherRatings }
+}
+
+export async function fetchFeedData({ filter, followingIds, currentProfile, userCoords }: FeedOptions): Promise<FeedData> {
+  // Location-based nearby: defer to the PostGIS distance query.
+  if (filter === 'nearby' && userCoords) {
+    return fetchNearbyData(userCoords)
+  }
+
   const supabase = createClient()
   const today = new Date().toISOString().split('T')[0]
 
@@ -123,6 +182,7 @@ export function useFeed({
   filter,
   followingIds,
   currentProfile,
+  userCoords,
   initialData,
 }: FeedOptions & { initialData: FeedData }) {
   const queryClient = useQueryClient()
@@ -133,9 +193,14 @@ export function useFeed({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Round coords so tiny GPS jitter doesn't bust the cache / refetch constantly.
+  const coordKey = filter === 'nearby' && userCoords
+    ? `${userCoords.lat.toFixed(3)},${userCoords.lng.toFixed(3)}`
+    : ''
+
   return useQuery<FeedData>({
-    queryKey: ['feed', filter, followingIds.join(','), currentProfile?.city ?? ''],
-    queryFn: () => fetchFeedData({ filter, followingIds, currentProfile }),
+    queryKey: ['feed', filter, followingIds.join(','), currentProfile?.city ?? '', coordKey],
+    queryFn: () => fetchFeedData({ filter, followingIds, currentProfile, userCoords }),
     staleTime: 2 * 60 * 1000,
     placeholderData: keepPreviousData,
   })

@@ -9,10 +9,12 @@ import { z } from 'zod'
 import { Upload, X, Loader2, AlertCircle, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
+import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { cn } from '@/lib/utils'
 import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, LEVEL_LABELS } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import DateInput from '@/components/ui/DateInput'
 import type { ClassLevel, Recurrence, SubscriptionTier } from '@danceclass/shared'
 
@@ -100,6 +102,8 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
   const [mediaFiles, setMediaFiles] = useState<{ file: File; preview: string; type: 'image' | 'video' }[]>([])
   const [customDates, setCustomDates] = useState<string[]>([])
   const [cityValue, setCityValue] = useState('')
+  const [addressValue, setAddressValue] = useState('')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showIndefinitePopup, setShowIndefinitePopup] = useState(false)
@@ -203,6 +207,30 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       }
     }
 
+    // Geocode the address (Chile only). If an address was typed but couldn't be
+    // resolved to coordinates, block the save so we never persist an invalid location.
+    let resolvedCoords = coords
+    const addr = addressValue.trim()
+    if (addr && !coords) {
+      setSubmitting(true)
+      try {
+        const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(addr)}&limit=1`)
+        const json = await res.json()
+        const best = json.results?.[0]
+        if (best) {
+          resolvedCoords = { lat: best.lat, lng: best.lng }
+        } else {
+          setSubmitting(false)
+          setError('No pudimos ubicar esa dirección en el mapa. Selecciona una sugerencia o revisa que sea una dirección válida en Chile.')
+          return
+        }
+      } catch {
+        setSubmitting(false)
+        setError('No se pudo validar la dirección. Revisa tu conexión e intenta de nuevo.')
+        return
+      }
+    }
+
     setSubmitting(true)
     setError(null)
     const supabase = createClient()
@@ -240,7 +268,9 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         custom_dates: isPeriodic && data.recurrence === 'custom' ? customDates : [],
         duration_minutes: data.duration_minutes,
         location_name: data.location_name || null,
-        location_address: data.location_address || null,
+        location_address: addressValue.trim() || null,
+        latitude: resolvedCoords?.lat ?? null,
+        longitude: resolvedCoords?.lng ?? null,
         city: cityValue || null,
         max_spots: data.max_spots,
         price: data.price,
@@ -276,13 +306,22 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
     let mediaError = false
     for (let i = 0; i < mediaFiles.length; i++) {
       const { file, type } = mediaFiles[i]
-      const ext = file.name.split('.').pop()
-      const path = `${classRecord.id}/${i}.${ext}`
-      const { data: uploadData, error: uploadErr } = await supabase.storage.from('class-media').upload(path, file)
-      if (uploadErr || !uploadData) { mediaError = true; continue }
-      const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+      let mediaUrl: string
+      try {
+        if (type === 'video' && isCloudinaryConfigured()) {
+          const result = await uploadToCloudinary(file, 'video', 'classes')
+          mediaUrl = result.secure_url
+        } else {
+          const ext = file.name.split('.').pop()
+          const path = `${classRecord.id}/${i}.${ext}`
+          const { data: uploadData, error: uploadErr } = await supabase.storage.from('class-media').upload(path, file)
+          if (uploadErr || !uploadData) { mediaError = true; continue }
+          const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+          mediaUrl = urlData.publicUrl
+        }
+      } catch { mediaError = true; continue }
       const { error: mediaInsertErr } = await supabase.from('class_media').insert({
-        class_id: classRecord.id, type, url: urlData.publicUrl, order_index: i,
+        class_id: classRecord.id, type, url: mediaUrl, order_index: i,
       })
       if (mediaInsertErr) mediaError = true
     }
@@ -635,7 +674,12 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Dirección</label>
-            <input {...register('location_address')} placeholder="ej: Av. Providencia 1234, Santiago" className="input" />
+            <AddressAutocomplete
+              value={addressValue}
+              hasCoords={!!coords}
+              onChange={(addr, c) => { setAddressValue(addr); setCoords(c) }}
+            />
+            <p className="mt-1 text-xs text-gray-400 dark:text-dark-text2">Escribe y elige una sugerencia para fijar la ubicación en el mapa y aparecer en "Cerca".</p>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Ciudad</label>

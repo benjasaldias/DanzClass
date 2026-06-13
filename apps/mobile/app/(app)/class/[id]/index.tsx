@@ -17,6 +17,7 @@ import {
 } from 'lucide-react-native'
 import { Icon } from '../../../../components/ui/Icon'
 import StyleChip from '../../../../components/ui/StyleChip'
+import LeafletMap from '../../../../components/ui/LeafletMap'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
 import { formatCLP, DAYS_OF_WEEK, canEnroll, pluralize, LEVEL_LABELS } from '@danceclass/shared'
@@ -1076,14 +1077,13 @@ export default function ClassDetailScreen() {
                 <Text className="text-sm text-gray-800 dark:text-dark-text">Cobro mensual el día <Text className="font-semibold">{cls.billing_day}</Text> de cada mes</Text>
               </View>
             )}
-            {cls.location_name && (
-              <View className="flex-row items-center gap-3">
-                <MapPin size={16} stroke="#6B6880" />
-                <View className="flex-1">
-                  <Text className="text-sm text-gray-800 dark:text-dark-text">{cls.location_name}</Text>
-                  {cls.location_address && <Text className="text-xs text-gris-humo dark:text-dark-text2">{cls.location_address}</Text>}
-                </View>
-              </View>
+            {(cls.location_name || cls.location_address) && (
+              <LeafletMap
+                lat={cls.latitude}
+                lng={cls.longitude}
+                name={cls.location_name}
+                address={cls.location_address}
+              />
             )}
             <View className="flex-row items-center gap-3">
               <Users size={16} stroke="#6B6880" />

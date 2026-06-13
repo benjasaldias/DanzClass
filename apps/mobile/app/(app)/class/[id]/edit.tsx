@@ -9,11 +9,14 @@ import * as ImagePicker from 'expo-image-picker'
 import { ChevronLeft, X, ImagePlus, Trash2 } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
+import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../../lib/cloudinary'
 import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
 import MobileSelect from '../../../../components/ui/MobileSelect'
 import MobileDateInput from '../../../../components/ui/MobileDateInput'
 import MobileCityPicker from '../../../../components/ui/MobileCityPicker'
 import MobileMonthCalendar from '../../../../components/ui/MobileMonthCalendar'
+import AddressPicker from '../../../../components/ui/AddressPicker'
+import { geocodeSearch } from '../../../../lib/location'
 import { useTheme } from '../../../../context/ThemeContext'
 
 type NewMediaItem = { uri: string; type: 'image' | 'video'; mimeType: string; fileName: string }
@@ -62,6 +65,7 @@ export default function EditClassScreen() {
   const [billingDay, setBillingDay] = useState('1')
   const [locationName, setLocationName] = useState('')
   const [locationAddress, setLocationAddress] = useState('')
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [city, setCity] = useState('')
   const [durationMinutes, setDurationMinutes] = useState('60')
   const [maxSpots, setMaxSpots] = useState('15')
@@ -105,6 +109,7 @@ export default function EditClassScreen() {
       setBillingDay(data.billing_day ? String(data.billing_day) : '1')
       setLocationName(data.location_name ?? '')
       setLocationAddress(data.location_address ?? '')
+      setCoords(data.latitude != null && data.longitude != null ? { lat: data.latitude, lng: data.longitude } : null)
       setCity(data.city ?? '')
       setDurationMinutes(String(data.duration_minutes ?? 60))
       setMaxSpots(String(data.max_spots ?? 15))
@@ -210,6 +215,20 @@ export default function EditClassScreen() {
     setSubmitting(true)
     setGlobalError(null)
 
+    // Re-geocode if the address changed and has no resolved coordinates.
+    let resolvedCoords = coords
+    const addr = locationAddress.trim()
+    if (addr && !coords) {
+      const res = await geocodeSearch(addr)
+      if (res.length > 0) {
+        resolvedCoords = { lat: res[0].lat, lng: res[0].lng }
+      } else {
+        setSubmitting(false)
+        setGlobalError('No pudimos ubicar esa dirección en el mapa. Selecciona una sugerencia o revisa que sea válida en Chile.')
+        return
+      }
+    }
+
     const { error: updateError } = await supabase
       .from('classes')
       .update({
@@ -226,7 +245,9 @@ export default function EditClassScreen() {
         custom_dates: (isPeriodic && recurrence === 'custom') ? customDates : [],
         duration_minutes: Number(durationMinutes) || 60,
         location_name: locationName.trim() || null,
-        location_address: locationAddress.trim() || null,
+        location_address: addr || null,
+        latitude: resolvedCoords?.lat ?? null,
+        longitude: resolvedCoords?.lng ?? null,
         city: city.trim() || null,
         max_spots: Number(maxSpots),
         price: Number(price),
@@ -249,15 +270,22 @@ export default function EditClassScreen() {
     const nextIndex = existingMedia.length
     for (let i = 0; i < newMediaItems.length; i++) {
       const item = newMediaItems[i]
-      const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
-      const path = `${id}/${nextIndex + i}.${ext}`
-      const response = await fetch(item.uri)
-      const blob = await response.blob()
-      const { data: uploadData } = await supabase.storage.from('class-media').upload(path, blob, { contentType: item.mimeType })
-      if (uploadData) {
-        const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
-        await supabase.from('class_media').insert({ class_id: id, type: item.type, url: urlData.publicUrl, order_index: nextIndex + i })
-      }
+      try {
+        let mediaUrl: string
+        if (item.type === 'video' && isCloudinaryConfigured()) {
+          mediaUrl = await uploadVideoToCloudinary(item.uri, 'classes')
+        } else {
+          const ext = item.fileName.split('.').pop() ?? (item.type === 'video' ? 'mp4' : 'jpg')
+          const path = `${id}/${nextIndex + i}.${ext}`
+          const response = await fetch(item.uri)
+          const blob = await response.blob()
+          const { data: uploadData } = await supabase.storage.from('class-media').upload(path, blob, { contentType: item.mimeType })
+          if (!uploadData) continue
+          const { data: urlData } = supabase.storage.from('class-media').getPublicUrl(uploadData.path)
+          mediaUrl = urlData.publicUrl
+        }
+        await supabase.from('class_media').insert({ class_id: id, type: item.type, url: mediaUrl, order_index: nextIndex + i })
+      } catch { continue }
     }
 
     // Notify enrolled students
@@ -511,10 +539,12 @@ export default function EditClassScreen() {
             <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Lugar</Text>
             <TextInput value={locationName} onChangeText={setLocationName} placeholder="ej: Estudio Dance House" placeholderTextColor="#9CA3AF" className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2" />
           </View>
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Dirección</Text>
-            <TextInput value={locationAddress} onChangeText={setLocationAddress} placeholder="ej: Av. Providencia 1234" placeholderTextColor="#9CA3AF" className="border border-gray-200 dark:border-dark-border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2" />
-          </View>
+          <AddressPicker
+            label="Dirección"
+            value={locationAddress}
+            hasCoords={!!coords}
+            onChange={(a, c) => { setLocationAddress(a); setCoords(c) }}
+          />
           <MobileCityPicker label="Ciudad" value={city} onChange={setCity} />
         </View>
 

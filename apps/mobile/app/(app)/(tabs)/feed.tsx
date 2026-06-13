@@ -14,6 +14,7 @@ import RatingPopup from '../../../components/ui/RatingPopup'
 import FloatingActionButton from '../../../components/ui/FloatingActionButton'
 import OnboardingTour from '../../../components/feed/OnboardingTour'
 import { useTheme } from '../../../context/ThemeContext'
+import { getUserLocation, type LocationResult } from '../../../lib/location'
 import { canTeach } from '@danceclass/shared'
 import type { FeedFilter, SubscriptionTier } from '@danceclass/shared'
 
@@ -49,6 +50,21 @@ export default function FeedScreen() {
   const [friendIds, setFriendIds] = useState<string[]>([])
   const [teacherRatings, setTeacherRatings] = useState<TeacherRatings>({})
   const [tier, setTier] = useState<SubscriptionTier>('none')
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [locStatus, setLocStatus] = useState<LocationResult['status'] | 'loading' | 'idle'>('idle')
+
+  // Request device location when the "Cerca" tab becomes active.
+  useEffect(() => {
+    if (feedFilter !== 'nearby' || userLocation) return
+    let cancelled = false
+    setLocStatus('loading')
+    getUserLocation().then((res) => {
+      if (cancelled) return
+      setLocStatus(res.status)
+      if (res.status === 'granted') setUserLocation(res.location)
+    })
+    return () => { cancelled = true }
+  }, [feedFilter, userLocation])
 
   useEffect(() => {
     async function init() {
@@ -83,6 +99,8 @@ export default function FeedScreen() {
     const uid = userId
     if (!uid) return
     const allItems: any[] = []
+    // Location-based nearby: distance-sort via PostGIS RPC (classes/events only).
+    const nearbyCoords = ff === 'nearby' ? userLocation : null
 
     // Fetch classes (if not posts-only)
     if (cf !== 'posts') {
@@ -111,6 +129,25 @@ export default function FeedScreen() {
           const { data } = await q.in('teacher_id', followingIds)
           filterCustom(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
         }
+      } else if (nearbyCoords) {
+        // Distance-ranked via PostGIS, then hydrate the rows.
+        const { data: near } = await (supabase as any).rpc('nearby_classes', {
+          p_lat: nearbyCoords.lat, p_lng: nearbyCoords.lng, p_radius_m: 50000, p_limit: 60,
+        })
+        const distById = new Map<string, number>((near ?? []).map((r: any) => [r.id, r.distance_m]))
+        const ids = [...distById.keys()]
+        if (ids.length > 0) {
+          const { data } = await (supabase as any)
+            .from('classes')
+            .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+            .eq('status', 'active')
+            .in('id', ids)
+            .or(`type.neq.suelta,date.gte.${todayStr}`)
+            .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${todayStr}`)
+          filterCustom(data ?? []).forEach((c: any) =>
+            allItems.push({ _type: 'class', _distance_m: distById.get(c.id) ?? null, ...c })
+          )
+        }
       } else {
         if (ff === 'nearby' && userCity) q = q.eq('city', userCity)
         const { data } = await q
@@ -118,8 +155,8 @@ export default function FeedScreen() {
       }
     }
 
-    // Fetch posts (if not classes-only)
-    if (cf !== 'classes') {
+    // Fetch posts (if not classes-only). Skipped in location-based nearby (no geo on posts).
+    if (cf !== 'classes' && !nearbyCoords) {
       let q = (supabase as any)
         .from('posts')
         .select('*, author:profiles!user_id(id, username, full_name, avatar_url), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
@@ -142,8 +179,8 @@ export default function FeedScreen() {
       }
     }
 
-    // Fetch rehearsals (if not classes-only or posts-only)
-    if (cf === 'all' || cf === 'rehearsals') {
+    // Fetch rehearsals (if not classes-only or posts-only). Skipped in location-based nearby.
+    if ((cf === 'all' || cf === 'rehearsals') && !nearbyCoords) {
       const { data: rehearsalData } = await (supabase as any)
         .from('rehearsals')
         .select('*, creator:profiles!creator_id(id, username, full_name, avatar_url), invites:rehearsal_invites(id, user_id, status, user:profiles!user_id(id, username, full_name, avatar_url))')
@@ -176,6 +213,23 @@ export default function FeedScreen() {
           )
           filtered.forEach((ev: any) => allItems.push({ _type: 'event', ...ev }))
         }
+      } else if (nearbyCoords) {
+        const { data: nearEv } = await (supabase as any).rpc('nearby_events', {
+          p_lat: nearbyCoords.lat, p_lng: nearbyCoords.lng, p_radius_m: 50000, p_limit: 60,
+        })
+        const distById = new Map<string, number>((nearEv ?? []).map((r: any) => [r.id, r.distance_m]))
+        const ids = [...distById.keys()]
+        if (ids.length > 0) {
+          const { data: evData } = await (supabase as any)
+            .from('events')
+            .select('*, creator:profiles!creator_id(id, username, full_name, avatar_url), event_invites(id, status, teacher_id, teacher:profiles!teacher_id(id, username, full_name)), event_enrollments(id, user_id, status)')
+            .eq('status', 'active')
+            .gte('event_date', todayStr)
+            .in('id', ids)
+          ;(evData ?? []).forEach((ev: any) =>
+            allItems.push({ _type: 'event', _distance_m: distById.get(ev.id) ?? null, ...ev })
+          )
+        }
       } else {
         if (ff === 'nearby' && userCity) evQ = evQ.eq('city', userCity)
         const { data: evData } = await evQ
@@ -183,8 +237,12 @@ export default function FeedScreen() {
       }
     }
 
-    // Sort mixed feed by created_at descending
-    allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    // Sort by distance for location-based nearby, otherwise newest first.
+    if (nearbyCoords) {
+      allItems.sort((a, b) => (a._distance_m ?? Infinity) - (b._distance_m ?? Infinity))
+    } else {
+      allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
     setItems(allItems)
 
     // Batch-fetch ratings for visible teachers
@@ -211,7 +269,7 @@ export default function FeedScreen() {
     setLoading(false)
     setRefreshing(false)
   }
-  }, [followingIds, userCity, userId])
+  }, [followingIds, userCity, userId, userLocation])
 
   useEffect(() => {
     if (userId !== null) loadFeed(feedFilter, contentFilter)
@@ -281,12 +339,39 @@ export default function FeedScreen() {
           keyExtractor={(item: any) => `${item._type}-${item.id}`}
           renderItem={({ item }: { item: any }) =>
             item._type === 'class'
-              ? <MobileClassCard classData={item} currentUserId={userId ?? ''} teacherRating={teacherRatings[item.teacher_id]} />
+              ? <MobileClassCard classData={item} currentUserId={userId ?? ''} teacherRating={teacherRatings[item.teacher_id]} distanceM={feedFilter === 'nearby' ? item._distance_m ?? null : null} />
               : item._type === 'rehearsal'
                 ? <MobileRehearsalCard rehearsal={item} currentUserId={userId ?? ''} onUpdate={() => loadFeed(feedFilter, contentFilter)} />
                 : item._type === 'event'
                   ? <MobileEventCard event={item} />
                   : <MobilePostCard post={item} currentUserId={userId ?? ''} />
+          }
+          ListHeaderComponent={
+            feedFilter === 'nearby' ? (
+              <View className="px-4 pt-3">
+                {locStatus === 'loading' && (
+                  <View className="flex-row items-center gap-2 rounded-xl border border-[#7F77DD]/30 bg-[#EEEDFE]/50 dark:bg-dark-surface2/60 p-3">
+                    <ActivityIndicator size="small" color="#7F77DD" />
+                    <Text className="text-sm text-gray-700 dark:text-dark-text">Obteniendo tu ubicación…</Text>
+                  </View>
+                )}
+                {locStatus === 'granted' && userLocation && (
+                  <View className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/20 p-3">
+                    <Text className="text-sm text-emerald-700 dark:text-emerald-400">📍 Clases ordenadas por cercanía a ti.</Text>
+                  </View>
+                )}
+                {(locStatus === 'denied' || locStatus === 'unavailable') && (
+                  <View className="rounded-xl border border-coral-fuego/30 bg-coral-fuego/10 p-3">
+                    <Text className="text-sm text-gray-700 dark:text-dark-text">
+                      {locStatus === 'denied'
+                        ? 'Activa el permiso de ubicación para ver clases por cercanía.'
+                        : 'No pudimos obtener tu ubicación.'}
+                      {userCity ? ' Mostrando por tu ciudad.' : ''}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : null
           }
           refreshControl={
             <RefreshControl
