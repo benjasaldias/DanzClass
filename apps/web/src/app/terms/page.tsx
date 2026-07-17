@@ -6,8 +6,8 @@ export const metadata = {
   description: 'Terms and conditions of use for the DanzClass platform',
 }
 
-const LAST_UPDATED_ES = '27 de mayo de 2026'
-const LAST_UPDATED_EN = 'May 27, 2026'
+const LAST_UPDATED_ES = '17 de julio de 2026'
+const LAST_UPDATED_EN = 'July 17, 2026'
 const CONTACT_EMAIL = 'contacto@danzclass.com'
 
 export default async function TermsPage({
@@ -137,7 +137,56 @@ function TermsES() {
             reembolsos proporcionales; el acceso se mantiene hasta el fin del período pagado.
           </p>
         </Section>
-        <Section title="7. Eventos publicados en la Plataforma">
+        <Section title="7. Escaneo automatizado de comprobantes de pago (IA)">
+          <p>
+            Para agilizar la verificación de pagos, DanzClass ofrece un sistema de{' '}
+            <strong>escaneo automatizado mediante inteligencia artificial</strong> que analiza los comprobantes
+            de transferencia bancaria subidos a la Plataforma (monto, número de operación, fecha y banco emisor)
+            y entrega una recomendación al profesor.
+          </p>
+          <ul>
+            <li>
+              El escaneo es una <strong>herramienta de apoyo</strong>, no un medio de pago ni un servicio
+              financiero regulado. DanzClass no procesa, custodia ni transfiere fondos: las transferencias
+              ocurren directamente entre el estudiante y el profesor a través de sus propios bancos.
+            </li>
+            <li>Cada profesor puede elegir si sus pagos se revisan con IA o de forma manual, desde la configuración de su cuenta.</li>
+            <li>
+              <strong>La confirmación automática de pagos está desactivada de forma predeterminada.</strong>{' '}
+              Mientras esté desactivada, un profesor siempre revisa el resultado del escaneo antes de confirmar
+              un pago; el sistema automatizado solo sugiere.
+            </li>
+            <li>El sistema puede cometer errores. DanzClass realiza revisiones periódicas de su desempeño, pero no garantiza que el escaneo sea exacto en el 100% de los casos.</li>
+            <li>Para detectar comprobantes reutilizados, guardamos el número de operación de cada transferencia y lo comparamos contra pagos anteriores dirigidos al mismo profesor.</li>
+          </ul>
+          <p>
+            <strong>Eres responsable de la veracidad de los comprobantes que subes</strong> y de la exactitud de
+            los datos bancarios que publicas como profesor. Subir un comprobante adulterado o falso constituye
+            una infracción grave a estos Términos y puede configurar delitos contemplados en el Código Penal
+            chileno (por ejemplo, estafa o falsificación de instrumento privado), sin perjuicio de las acciones
+            civiles o penales que el afectado pueda ejercer.
+          </p>
+          <p>
+            El tratamiento de los datos personales y bancarios contenidos en los comprobantes se rige por
+            nuestra{' '}
+            <Link href="/privacy" className="text-brand-600 hover:text-brand-700">
+              Política de Privacidad
+            </Link>{' '}
+            y por la Ley N° 19.628 sobre Protección de la Vida Privada. A partir del 1 de diciembre de 2026
+            entrará en vigencia la Ley N° 21.719, que reforma la Ley 19.628 y reconoce expresamente el derecho
+            a no ser sometido a decisiones basadas únicamente en tratamiento automatizado que te afecten
+            significativamente, con derecho a intervención humana, explicación y revisión — un estándar que ya
+            aplicamos hoy: mientras la confirmación automática esté desactivada (ver arriba), un profesor
+            siempre revisa el resultado del escaneo antes de confirmar tu pago. Adicionalmente, el uso de
+            sistemas de inteligencia artificial en relaciones de consumo en Chile está sujeto a la Circular
+            Interpretativa de SERNAC (Resolución Exenta N° 33 de 2022), que exige transparencia sobre el
+            funcionamiento del sistema, estándares adecuados de precisión y fiabilidad con evaluación continua
+            de riesgo, y no discriminación algorítmica. Dado que la confirmación de un pago afecta tu acceso a
+            un servicio, este proceso también se enmarca dentro de la Ley N° 19.496 sobre Protección de los
+            Derechos de los Consumidores.
+          </p>
+        </Section>
+        <Section title="8. Eventos publicados en la Plataforma">
           <p>
             Los organizadores de eventos (batallas, masterclasses u otros) son los únicos responsables del
             contenido, logística y condiciones de sus eventos. DanzClass actúa como canal de difusión y no
@@ -145,7 +194,7 @@ function TermsES() {
             directamente con el organizador.
           </p>
         </Section>
-        <Section title="8. Limitación de responsabilidad">
+        <Section title="9. Limitación de responsabilidad">
           <p>En la máxima medida permitida por la ley, DanzClass no será responsable por:</p>
           <ul>
             <li>Daños derivados del contenido publicado por los usuarios</li>
@@ -154,25 +203,25 @@ function TermsES() {
             <li>Infracciones de derechos de autor cometidas por los usuarios</li>
           </ul>
         </Section>
-        <Section title="9. Suspensión y eliminación de cuentas">
+        <Section title="10. Suspensión y eliminación de cuentas">
           <p>
             DanzClass se reserva el derecho de suspender o eliminar, sin previo aviso, cualquier cuenta que
             infrinja estos términos, publique contenido ilegal o cause daño a otros usuarios o a la Plataforma.
           </p>
         </Section>
-        <Section title="10. Modificaciones a los términos">
+        <Section title="11. Modificaciones a los términos">
           <p>
             Podemos actualizar estos Términos de Uso en cualquier momento. Los cambios se publicarán en esta
             página con la fecha de actualización.
           </p>
         </Section>
-        <Section title="11. Ley aplicable y jurisdicción">
+        <Section title="12. Ley aplicable y jurisdicción">
           <p>
             Estos términos se rigen por las leyes de la República de Chile. Cualquier controversia será
             sometida a los tribunales competentes de la ciudad de Santiago, Chile.
           </p>
         </Section>
-        <Section title="12. Contacto">
+        <Section title="13. Contacto">
           <p>
             Para consultas, denuncias de contenido o notificaciones legales:{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-600 hover:text-brand-700 font-medium">
@@ -264,7 +313,52 @@ function TermsEN() {
             proportionally refunded; access is maintained until the end of the paid period.
           </p>
         </Section>
-        <Section title="7. Events published on the Platform">
+        <Section title="7. Automated AI receipt scanning">
+          <p>
+            To speed up payment verification, DanzClass offers an{' '}
+            <strong>automated scanning system powered by artificial intelligence</strong> that analyzes bank
+            transfer receipts uploaded to the Platform (amount, operation number, date, and issuing bank) and
+            provides a recommendation to the teacher.
+          </p>
+          <ul>
+            <li>
+              The scan is a <strong>support tool</strong>, not a payment method or a regulated financial
+              service. DanzClass does not process, hold, or transfer funds: transfers occur directly between
+              the student and the teacher through their own banks.
+            </li>
+            <li>Each teacher can choose whether their payments are reviewed by AI or manually, from their account settings.</li>
+            <li>
+              <strong>Automatic payment confirmation is disabled by default.</strong> While disabled, a teacher
+              always reviews the scan result before confirming a payment; the automated system only suggests.
+            </li>
+            <li>The system can make mistakes. DanzClass periodically reviews its performance, but does not guarantee the scan will be accurate 100% of the time.</li>
+            <li>To detect reused receipts, we store the operation number of each transfer and compare it against previous payments made to the same teacher.</li>
+          </ul>
+          <p>
+            <strong>You are responsible for the accuracy of the receipts you upload</strong> and for the
+            accuracy of the bank details you publish as a teacher. Uploading a falsified or altered receipt is
+            a serious violation of these Terms and may constitute an offense under Chilean criminal law (e.g.,
+            fraud or falsification of a private instrument), without prejudice to any civil or criminal action
+            the affected party may pursue.
+          </p>
+          <p>
+            The processing of personal and banking data contained in receipts is governed by our{' '}
+            <Link href="/privacy?lang=en" className="text-brand-600 hover:text-brand-700">
+              Privacy Policy
+            </Link>{' '}
+            and by Chilean Law No. 19,628 on the Protection of Private Life. Starting December 1, 2026, Law No.
+            21,719 will take effect, reforming Law 19,628 and expressly recognizing the right not to be subject
+            to decisions based solely on automated processing that significantly affect you, with a right to
+            human intervention, explanation, and review — a standard we already apply today: while automatic
+            confirmation is disabled (see above), a teacher always reviews the scan result before confirming
+            your payment. Additionally, the use of AI systems in consumer relations in Chile is subject to
+            SERNAC's Interpretive Circular (Resolución Exenta No. 33 of 2022), which requires transparency
+            about how the system works, adequate accuracy and reliability standards with ongoing risk
+            assessment, and non-discrimination. Because payment confirmation affects your access to a service,
+            this process also falls within the scope of Law No. 19,496 on Consumer Rights Protection.
+          </p>
+        </Section>
+        <Section title="8. Events published on the Platform">
           <p>
             Event organizers (battles, masterclasses, or other events) are solely responsible for the content,
             logistics, and conditions of their events. DanzClass acts as a distribution channel and does not
@@ -272,7 +366,7 @@ function TermsEN() {
             the organizer.
           </p>
         </Section>
-        <Section title="8. Limitation of liability">
+        <Section title="9. Limitation of liability">
           <p>To the maximum extent permitted by law, DanzClass shall not be liable for:</p>
           <ul>
             <li>Damages arising from content published by users</li>
@@ -281,26 +375,26 @@ function TermsEN() {
             <li>Copyright infringements committed by users</li>
           </ul>
         </Section>
-        <Section title="9. Account suspension and deletion">
+        <Section title="10. Account suspension and deletion">
           <p>
             DanzClass reserves the right to suspend or delete, without notice, any account that violates these
             terms, publishes illegal content, or causes harm to other users or the Platform.
           </p>
         </Section>
-        <Section title="10. Amendments to these terms">
+        <Section title="11. Amendments to these terms">
           <p>
             We may update these Terms of Use at any time. Changes will be published on this page with the
             updated date. Continued use of the Platform after changes are published constitutes your
             acceptance of the new terms.
           </p>
         </Section>
-        <Section title="11. Governing law and jurisdiction">
+        <Section title="12. Governing law and jurisdiction">
           <p>
             These terms are governed by the laws of the Republic of Chile. Any disputes arising from their
             interpretation or enforcement shall be submitted to the competent courts of Santiago, Chile.
           </p>
         </Section>
-        <Section title="12. Contact">
+        <Section title="13. Contact">
           <p>
             For inquiries, content reports, or legal notices:{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-600 hover:text-brand-700 font-medium">

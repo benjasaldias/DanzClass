@@ -20,11 +20,11 @@ export default function TopBar({ profile, unreadCount }: TopBarProps) {
 
         {/* Alpha pill — centered */}
         <a
-          href="mailto:contacto@danzclass.com?subject=Bug%20DanzClass"
+          href="mailto:contacto@danzclass.com?subject=Error%20o%20sugerencia%20DanzClass"
           className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center rounded-full border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 px-3 py-1 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
         >
           <span className="text-[10px] font-bold leading-tight text-violet-700 dark:text-violet-300">Versión Alpha</span>
-          <span className="text-[9px] leading-tight text-violet-500 dark:text-violet-400">Reportar Error</span>
+          <span className="text-[9px] leading-tight text-violet-500 dark:text-violet-400">Error o sugerencia</span>
         </a>
 
         <div className="flex items-center gap-2">

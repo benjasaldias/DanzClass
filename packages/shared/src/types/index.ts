@@ -134,6 +134,7 @@ export interface Profile {
   styles_teaching: string[]
   enrolled_classes_public: boolean
   is_confirmed: boolean
+  ai_scan_preference: AiScanPreference | null // null = no respondida aún (migración 047)
   created_at: string
   updated_at: string
 }
@@ -263,6 +264,17 @@ export interface Enrollment {
   created_at: string
 }
 
+export type ScanStatus = 'pending' | 'scanned' | 'failed' | 'skipped'
+export type AiVerdict = 'clean' | 'issue' | 'none'
+export type ConfirmedBy = 'ai' | 'teacher' | 'admin'
+export type AiScanPreference = 'ai' | 'manual'
+
+export interface PaymentScanResult {
+  fields?: Record<string, unknown>
+  confidence?: Record<string, number>
+  issues?: string[]
+}
+
 export interface Payment {
   id: string
   enrollment_id: string
@@ -272,6 +284,14 @@ export interface Payment {
   submitted_at: string
   verified_at: string | null
   rejection_reason: string | null
+  // Escaneo de comprobantes (migración 047)
+  scan_status: ScanStatus
+  scan_result: PaymentScanResult | null
+  ai_verdict: AiVerdict
+  confirmed_by: ConfirmedBy | null
+  confirmed_at: string | null
+  operation_number: string | null
+  recipient_teacher_id: string | null
 }
 
 export interface Rehearsal {
