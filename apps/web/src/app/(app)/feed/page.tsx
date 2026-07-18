@@ -4,13 +4,16 @@ import FeedClient from '@/components/feed/FeedClient'
 export default async function FeedPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
 
-  const [{ data: profile }, { data: follows }, { data: friendships }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user!.id).single(),
-    supabase.from('follows').select('following_id').eq('follower_id', user!.id),
-    (supabase as any).from('friendships').select('requester_id, addressee_id').eq('status', 'accepted').or(`requester_id.eq.${user!.id},addressee_id.eq.${user!.id}`),
-  ])
+  // Feed público: sin sesión mostramos el feed global (clases/posts/eventos públicos)
+  // y omitimos todo lo que dependa de identidad (seguidos, amigos, 2x, invitaciones).
+  const [{ data: profile }, { data: follows }, { data: friendships }] = user
+    ? await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('follows').select('following_id').eq('follower_id', user.id),
+        (supabase as any).from('friendships').select('requester_id, addressee_id').eq('status', 'accepted').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
+      ])
+    : [{ data: null }, { data: [] }, { data: [] }]
 
   const today = new Date().toISOString().split('T')[0]
   const classesQuery = supabase
@@ -85,7 +88,7 @@ export default async function FeedPage() {
   // Attach my_invite to each rehearsal (for action buttons)
   const rehearsals = (rawRehearsals ?? []).map((r: any) => ({
     ...r,
-    my_invite: (r.invites ?? []).find((i: any) => i.user_id === user.id) ?? null,
+    my_invite: (r.invites ?? []).find((i: any) => i.user_id === user?.id) ?? null,
   }))
 
   // Client-side: filter custom-recurrence classes where all dates have passed
@@ -117,7 +120,7 @@ export default async function FeedPage() {
       initialPosts={(posts as any[]) ?? []}
       initialRehearsals={rehearsals}
       initialEvents={(rawEvents as any[]) ?? []}
-      currentUser={user!}
+      currentUser={user ?? null}
       currentProfile={profile}
       followingIds={followingIds}
       friendsTwoxRequests={friendsTwox}

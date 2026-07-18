@@ -28,7 +28,16 @@ export default function TopBar({ profile, unreadCount }: TopBarProps) {
         </a>
 
         <div className="flex items-center gap-2">
-          <NotificationBell initialCount={unreadCount} userId={profile?.id} />
+          {profile ? (
+            <NotificationBell initialCount={unreadCount} userId={profile.id} />
+          ) : (
+            <Link
+              href="/auth/login"
+              className="rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+            >
+              Entrar
+            </Link>
+          )}
         </div>
       </div>
     </header>

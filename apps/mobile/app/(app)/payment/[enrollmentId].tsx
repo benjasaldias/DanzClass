@@ -7,10 +7,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Clipboard from 'expo-clipboard'
-import { Users, AlertTriangle, CheckCircle2, Check, Paperclip } from 'lucide-react-native'
+import * as WebBrowser from 'expo-web-browser'
+import { Users, AlertTriangle, CheckCircle2, Check, Paperclip, CreditCard, Lock } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
-import { formatCLP } from '@danceclass/shared'
+import { formatCLP, paymentBreakdown, canPayByTransfer, type SubscriptionTier } from '@danceclass/shared'
 
 const WEB_URL = 'https://dc-project-web.vercel.app'
 
@@ -33,6 +34,8 @@ export default function PaymentScreen() {
   const [uploading, setUploading] = useState(false)
   const [transferring, setTransferring] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [tier, setTier] = useState<SubscriptionTier>('none')
+  const [mpLoading, setMpLoading] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -41,6 +44,14 @@ export default function PaymentScreen() {
       if (!user) return
       setCurrentUserId(user.id)
       setAccessToken(session?.access_token ?? null)
+
+      const { data: subRow } = await supabase
+        .from('subscriptions')
+        .select('tier')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle()
+      setTier(((subRow as any)?.tier as SubscriptionTier) ?? 'none')
 
       const { data: enrollData } = await (supabase as any)
         .from('enrollments')
@@ -104,25 +115,77 @@ export default function PaymentScreen() {
     const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
 
     const existingPayment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
+    let paymentId: string | undefined = existingPayment?.id
     if (existingPayment?.id) {
-      await supabase.from('payments').update({
+      // Resubmission after a rejection — a new image means any previous AI
+      // scan is stale, reset it so /api/payment/scan analyzes the new one.
+      await (supabase as any).from('payments').update({
         receipt_url: receiptPath,
         status: 'pending',
+        payment_method: 'transfer',
+        commission_amount: 0,
+        mp_payment_id: null,
+        mp_status: null,
+        scan_status: 'pending',
+        scan_result: null,
+        ai_verdict: 'none',
+        confirmed_by: null,
+        confirmed_at: null,
+        operation_number: null,
       }).eq('id', existingPayment.id)
     } else {
-      await supabase.from('payments').insert({
+      const { data: inserted } = await (supabase as any).from('payments').insert({
         enrollment_id: enrollmentId,
         amount,
         receipt_url: receiptPath,
         status: 'pending',
-      })
+        payment_method: 'transfer',
+      }).select('id').single()
+      paymentId = inserted?.id
     }
 
     await supabase.from('enrollments').update({ status: 'payment_submitted' }).eq('id', enrollmentId)
 
+    // Best-effort: trigger the AI scan (only runs if the teacher opted in). Never
+    // blocks the success screen — the teacher's manual review is the fallback.
+    if (paymentId && accessToken) {
+      fetch(`${WEB_URL}/api/payment/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ paymentId }),
+      }).catch(() => {})
+    }
+
     setSuccess(true)
     setUploading(false)
     setTimeout(() => router.back(), 2000)
+  }
+
+  async function handleMpPay() {
+    if (!accessToken) return
+    setMpLoading(true)
+    try {
+      const res = await fetch(`${WEB_URL}/api/mercadopago/create-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ enrollmentId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.init_point) {
+        const msg = json.error === 'teacher_not_connected'
+          ? 'Este profesor aún no tiene habilitado el pago in-app. Usa transferencia o inténtalo más tarde.'
+          : 'No pudimos iniciar el pago con Mercado Pago. Intenta de nuevo.'
+        Alert.alert('Error', msg)
+        setMpLoading(false)
+        return
+      }
+      await WebBrowser.openBrowserAsync(json.init_point)
+      // Al volver del checkout, la confirmación llega por webhook (Fase 4).
+      router.back()
+    } catch {
+      Alert.alert('Error', 'No pudimos iniciar el pago con Mercado Pago. Intenta de nuevo.')
+      setMpLoading(false)
+    }
   }
 
   async function handleTransfer() {
@@ -171,6 +234,12 @@ export default function PaymentScreen() {
   const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
   const isMyTurnToPay = !is2x || !twoxRequest || twoxRequest.payment_assignee === currentUserId
   const alreadySubmitted = enrollment.status === 'payment_submitted'
+
+  // Método de pago (marketplace): MP in-app con split, o transferencia (solo con plan).
+  const teacherMpConnected = !!cls.teacher?.mp_connected
+  const allowTransfer = canPayByTransfer(tier)
+  const breakdown = paymentBreakdown(amount, tier)
+  const showMp = teacherMpConnected && !is2x
 
   if (success) {
     return (
@@ -233,14 +302,81 @@ export default function PaymentScreen() {
           {/* Amount — only when it's this user's turn */}
           {isMyTurnToPay && (
             <View className="bg-brand-50 dark:bg-brand-950/30 rounded-2xl p-5 border border-brand-100 dark:border-brand-900/50">
-              <Text className="text-brand-700 dark:text-brand-300 font-medium text-sm mb-1">Monto a transferir</Text>
-              <Text className="text-4xl font-bold text-brand-900 dark:text-brand-200">{formatCLP(amount)}</Text>
+              <Text className="text-brand-700 dark:text-brand-300 font-medium text-sm mb-1">
+                {breakdown.commission > 0 ? 'Total a pagar' : 'Monto a transferir'}
+              </Text>
+              <Text className="text-4xl font-bold text-brand-900 dark:text-brand-200">
+                {formatCLP(breakdown.commission > 0 ? breakdown.total : amount)}
+              </Text>
+              {breakdown.commission > 0 && (
+                <View className="mt-2 gap-0.5">
+                  <View className="flex-row justify-between">
+                    <Text className="text-xs text-brand-700 dark:text-brand-300">Clase</Text>
+                    <Text className="text-xs text-brand-700 dark:text-brand-300">{formatCLP(breakdown.base)}</Text>
+                  </View>
+                  <View className="flex-row justify-between">
+                    <Text className="text-xs text-brand-700 dark:text-brand-300">Comisión DanzClass (sin plan)</Text>
+                    <Text className="text-xs text-brand-700 dark:text-brand-300">{formatCLP(breakdown.commission)}</Text>
+                  </View>
+                  <Text className="text-[11px] text-brand-600/70 dark:text-brand-400/70 pt-1">Con un plan no pagas comisión.</Text>
+                </View>
+              )}
               {is2x && <Text className="text-xs text-brand-600 dark:text-brand-400 mt-1">Precio 2x — cubre a ambos</Text>}
             </View>
           )}
 
-          {/* Bank details — only when it's this user's turn */}
-          {isMyTurnToPay && paymentInfo && (
+          {/* Opción Mercado Pago (in-app con split) */}
+          {isMyTurnToPay && showMp && (
+            <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border gap-3">
+              <View className="flex-row items-center gap-2">
+                <CreditCard size={18} stroke="#009EE3" />
+                <Text className="font-bold text-gray-900 dark:text-dark-text">Pagar con Mercado Pago</Text>
+              </View>
+              <Text className="text-xs text-gray-500 dark:text-dark-text2">
+                Paga al instante con tarjeta, débito o saldo. Tu inscripción se confirma automáticamente al aprobarse el pago.
+              </Text>
+              <TouchableOpacity
+                onPress={handleMpPay}
+                disabled={mpLoading}
+                className={`rounded-2xl py-4 items-center ${mpLoading ? 'bg-gray-300' : ''}`}
+                style={mpLoading ? undefined : { backgroundColor: '#009EE3' }}
+              >
+                <Text className="text-white font-bold text-base">
+                  {mpLoading ? 'Redirigiendo...' : `Pagar ${formatCLP(breakdown.total)} con Mercado Pago`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Sin plan: transferencia bloqueada */}
+          {isMyTurnToPay && !allowTransfer && (
+            <View className="bg-gray-50 dark:bg-dark-surface2/60 rounded-2xl p-4 border border-dashed border-gray-300 dark:border-dark-border gap-1">
+              <View className="flex-row items-center gap-2">
+                <Lock size={16} stroke="#9ca3af" />
+                <Text className="font-semibold text-sm text-gray-500 dark:text-dark-text2">Transferencia directa al profesor</Text>
+              </View>
+              <Text className="text-xs text-gray-500 dark:text-dark-text2">
+                {showMp
+                  ? 'Disponible con un plan. Sin plan, paga in-app con Mercado Pago (arriba).'
+                  : 'Este profesor aún no acepta pagos in-app y la transferencia requiere un plan. Obtén un plan para inscribirte.'}
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/(app)/plans' as any)} className="mt-2 self-start rounded-xl bg-brand-600 px-4 py-2">
+                <Text className="text-white text-sm font-semibold">Ver planes</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Divisor si hay MP arriba */}
+          {isMyTurnToPay && allowTransfer && showMp && (
+            <View className="flex-row items-center gap-2">
+              <View className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+              <Text className="text-xs text-gray-400 dark:text-dark-text2">o transfiere directo</Text>
+              <View className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+            </View>
+          )}
+
+          {/* Bank details — solo con plan (allowTransfer) */}
+          {isMyTurnToPay && allowTransfer && paymentInfo && (
             <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border gap-3">
               <Text className="font-bold text-gray-900 dark:text-dark-text">Datos de transferencia</Text>
               <Text className="text-xs text-gray-400 dark:text-dark-text2/60">Toca un campo para copiar</Text>
@@ -265,14 +401,14 @@ export default function PaymentScreen() {
             </View>
           )}
 
-          {isMyTurnToPay && !paymentInfo && (
+          {isMyTurnToPay && allowTransfer && !paymentInfo && (
             <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border items-center">
               <Text className="text-sm text-gray-500 dark:text-dark-text2">El profesor aún no configuró sus datos bancarios.</Text>
             </View>
           )}
 
-          {/* Receipt upload — only when it's this user's turn */}
-          {isMyTurnToPay && (
+          {/* Receipt upload — solo transferencia (con plan) */}
+          {isMyTurnToPay && allowTransfer && (
             <View className="bg-white dark:bg-dark-surface rounded-2xl p-4 border border-gray-100 dark:border-dark-border gap-3">
               <Text className="font-bold text-gray-900 dark:text-dark-text">
                 {alreadySubmitted ? 'Comprobante enviado' : 'Comprobante de pago'}
@@ -304,7 +440,7 @@ export default function PaymentScreen() {
           )}
 
           {/* Submit button */}
-          {isMyTurnToPay && !alreadySubmitted && (
+          {isMyTurnToPay && allowTransfer && !alreadySubmitted && (
             <TouchableOpacity
               onPress={submitPayment}
               disabled={!receipt || uploading}

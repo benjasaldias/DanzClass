@@ -732,11 +732,9 @@ export default function ClassDetailClient({
               <Link href="/auth/login" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
                 Inicia sesión para reservar
               </Link>
-            ) : !canUserEnroll ? (
-              <Link href="/plans" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
-                Obtener plan
-              </Link>
             ) : (
+              // Inscripción abierta a todos (marketplace): sin plan también reserva
+              // y luego paga in-app por Mercado Pago con comisión en la pantalla de pago.
               <button
                 onClick={handleEnroll}
                 disabled={enrolling}

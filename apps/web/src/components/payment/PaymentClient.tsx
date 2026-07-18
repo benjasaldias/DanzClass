@@ -2,16 +2,20 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
-import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft, Users, AlertTriangle } from 'lucide-react'
+import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft, Users, AlertTriangle, CreditCard, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCLP } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { canPayByTransfer, paymentBreakdown, type SubscriptionTier } from '@danceclass/shared'
 
 interface PaymentClientProps {
   enrollment: any
   currentUserId: string
   twoxRequest?: any
+  tier: SubscriptionTier
+  teacherMpConnected: boolean
 }
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -21,7 +25,14 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   cuenta_ahorro: 'Cuenta Ahorro',
 }
 
-export default function PaymentClient({ enrollment, currentUserId, twoxRequest }: PaymentClientProps) {
+const MP_ERRORS: Record<string, string> = {
+  teacher_not_connected: 'Este profesor aún no tiene habilitado el pago in-app. Usa transferencia o inténtalo más tarde.',
+  twox_not_supported: 'El pago in-app aún no está disponible para clases 2x. Usa transferencia.',
+  invalid_amount: 'No pudimos calcular el monto. Contacta al profesor.',
+  mp_error: 'No pudimos iniciar el pago con Mercado Pago. Intenta de nuevo.',
+}
+
+export default function PaymentClient({ enrollment, currentUserId, twoxRequest, tier, teacherMpConnected }: PaymentClientProps) {
   const router = useRouter()
   const cls = enrollment.class
   const teacher = cls.teacher
@@ -32,14 +43,38 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
   const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
   const isMyTurnToPay = !is2x || !twoxRequest || twoxRequest.payment_assignee === currentUserId
 
+  // Comisión / método de pago (marketplace). Para 2x mantenemos solo transferencia.
+  const allowTransfer = canPayByTransfer(tier)
+  const breakdown = paymentBreakdown(amount, tier)
+  const showMp = teacherMpConnected && !is2x
+
   const [receipt, setReceipt] = useState<File | null>(null)
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [transferring, setTransferring] = useState(false)
+  const [mpLoading, setMpLoading] = useState(false)
+  const [mpError, setMpError] = useState<string | null>(null)
 
   const alreadySubmitted = enrollment.status === 'payment_submitted'
+
+  async function handleMpPay() {
+    setMpLoading(true)
+    setMpError(null)
+    const res = await fetch('/api/mercadopago/create-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enrollmentId: enrollment.id }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (res.ok && json.init_point) {
+      window.location.href = json.init_point
+      return
+    }
+    setMpError(MP_ERRORS[json.error] ?? MP_ERRORS.mp_error)
+    setMpLoading(false)
+  }
 
   async function handleTransfer() {
     if (!twoxRequest) return
@@ -125,24 +160,50 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
     const receiptPath = uploadData.path
 
     const existingPayment = enrollment.payment?.[0] ?? enrollment.payment
+    let paymentId: string | undefined = existingPayment?.id
     if (existingPayment?.id) {
+      // Resubmission after a rejection — a new image means any previous AI
+      // scan is stale, reset it so /api/payment/scan analyzes the new one.
+      // También reseteamos los campos MP: esto es un pago por transferencia.
       await supabase.from('payments').update({
         receipt_url: receiptPath,
         status: 'pending',
-      }).eq('id', existingPayment.id)
+        payment_method: 'transfer',
+        commission_amount: 0,
+        mp_payment_id: null,
+        mp_status: null,
+        scan_status: 'pending',
+        scan_result: null,
+        ai_verdict: 'none',
+        confirmed_by: null,
+        confirmed_at: null,
+        operation_number: null,
+      } as any).eq('id', existingPayment.id)
     } else {
-      await supabase.from('payments').insert({
+      const { data: inserted } = await supabase.from('payments').insert({
         enrollment_id: enrollment.id,
         amount,
         receipt_url: receiptPath,
         status: 'pending',
-      })
+        payment_method: 'transfer',
+      } as any).select('id').single()
+      paymentId = inserted?.id
     }
 
     // Update enrollment status
     await supabase.from('enrollments').update({
       status: 'payment_submitted',
     }).eq('id', enrollment.id)
+
+    // Best-effort: trigger the AI scan (only runs if the teacher opted in). Never
+    // blocks the success screen — the teacher's manual review is the fallback.
+    if (paymentId) {
+      fetch('/api/payment/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId }),
+      }).catch(() => {})
+    }
 
     setSuccess(true)
     setUploading(false)
@@ -210,8 +271,19 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
       {/* Amount — shown only when it's this user's turn */}
       {isMyTurnToPay && (
         <div className="card p-5 bg-brand-50 dark:bg-brand-950/30 border-brand-100 dark:border-brand-900/50">
-          <p className="text-sm text-brand-700 dark:text-brand-300 font-medium mb-1">Monto a transferir</p>
-          <p className="text-4xl font-bold text-brand-900 dark:text-brand-200">{formatCLP(amount)}</p>
+          <p className="text-sm text-brand-700 dark:text-brand-300 font-medium mb-1">
+            {breakdown.commission > 0 ? 'Total a pagar' : 'Monto a transferir'}
+          </p>
+          <p className="text-4xl font-bold text-brand-900 dark:text-brand-200">{formatCLP(breakdown.commission > 0 ? breakdown.total : amount)}</p>
+          {breakdown.commission > 0 && (
+            <div className="mt-2 space-y-0.5 text-xs text-brand-700 dark:text-brand-300">
+              <div className="flex justify-between"><span>Clase</span><span>{formatCLP(breakdown.base)}</span></div>
+              <div className="flex justify-between"><span>Comisión DanzClass (sin plan)</span><span>{formatCLP(breakdown.commission)}</span></div>
+              <p className="text-[11px] text-brand-600/70 dark:text-brand-400/70 pt-1">
+                Con un plan no pagas comisión. <Link href="/plans" className="underline font-medium">Ver planes</Link>
+              </p>
+            </div>
+          )}
           {is2x && <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">Precio 2x — cubre a ambos</p>}
           <p className="text-xs text-brand-600/70 dark:text-brand-400/70 mt-1">
             El monto mostrado es el precio vigente al momento de pagar. Puede diferir del precio al inscribirse si el profesor aplicó un descuento posterior.
@@ -219,47 +291,94 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
         </div>
       )}
 
-      {/* Bank details + form — only when this user pays */}
-      {isMyTurnToPay && paymentInfo ? (
+      {/* ── Opción Mercado Pago (in-app, con split) ─────────── */}
+      {isMyTurnToPay && showMp && (
         <div className="card p-4 space-y-3">
-          <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text">Datos de transferencia</h3>
-
-          {[
-            { label: 'Banco', value: paymentInfo.bank_name },
-            { label: 'Tipo de cuenta', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] ?? paymentInfo.account_type },
-            { label: 'Número de cuenta', value: paymentInfo.account_number, copyable: true },
-            { label: 'RUT', value: paymentInfo.rut, copyable: true },
-            { label: 'Titular', value: paymentInfo.account_holder_name },
-            { label: 'Email', value: paymentInfo.email, copyable: true },
-          ].map(({ label, value, copyable }) => (
-            <div key={label} className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-dark-text2">{label}</p>
-                <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{value}</p>
-              </div>
-              {copyable && (
-                <button
-                  onClick={() => copyToClipboard(value, label)}
-                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface2 text-gray-500 dark:text-dark-text2 flex-shrink-0"
-                >
-                  {copiedField === label
-                    ? <Check className="h-4 w-4 text-green-600" />
-                    : <Copy className="h-4 w-4" />
-                  }
-                </button>
-              )}
-            </div>
-          ))}
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-[#009EE3]" />
+            <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text">Pagar con Mercado Pago</h3>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-dark-text2">
+            Paga al instante con tarjeta, débito o saldo. Tu inscripción se confirma automáticamente al aprobarse el pago.
+          </p>
+          {mpError && <p className="text-xs text-red-600 dark:text-red-400">{mpError}</p>}
+          <button
+            onClick={handleMpPay}
+            disabled={mpLoading}
+            className="btn-primary w-full py-3 text-base justify-center disabled:opacity-60"
+            style={{ backgroundColor: '#009EE3' }}
+          >
+            {mpLoading ? (
+              <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo…</span>
+            ) : (
+              <>Pagar {formatCLP(breakdown.total)} con Mercado Pago</>
+            )}
+          </button>
         </div>
-      ) : isMyTurnToPay ? (
-        <div className="card p-4 text-center text-sm text-gray-500 dark:text-dark-text2">
-          El profesor aún no ha configurado sus datos bancarios. Contáctalo directamente.
-        </div>
-      ) : null}
+      )}
 
-      {/* Receipt upload + submit — only when this user pays */}
-      {isMyTurnToPay && (
+      {/* ── Opción Transferencia directa ────────────────────── */}
+      {isMyTurnToPay && !allowTransfer ? (
+        // Alumno sin plan: la transferencia directa queda bloqueada.
+        <div className="card p-4 bg-gray-50 dark:bg-dark-surface2/60 border-dashed">
+          <div className="flex items-center gap-2 mb-1">
+            <Lock className="h-4 w-4 text-gray-400 dark:text-dark-text2" />
+            <h3 className="font-semibold text-sm text-gray-500 dark:text-dark-text2">Transferencia directa al profesor</h3>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-dark-text2">
+            Disponible con un plan DanzClass. {showMp ? 'Sin plan, puedes pagar in-app con Mercado Pago (arriba).' : 'Obtén un plan para pagar por transferencia sin comisión.'}
+          </p>
+          <Link href="/plans" className="mt-3 inline-flex btn-secondary text-sm">Ver planes</Link>
+        </div>
+      ) : isMyTurnToPay && (
+        // Alumno con plan (o flujo 2x): transferencia directa con comprobante.
         <>
+          {showMp && (
+            <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-dark-text2">
+              <span className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+              o transfiere directo
+              <span className="h-px flex-1 bg-gray-200 dark:bg-dark-border" />
+            </div>
+          )}
+
+          {paymentInfo ? (
+            <div className="card p-4 space-y-3">
+              <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text">Datos de transferencia</h3>
+
+              {[
+                { label: 'Banco', value: paymentInfo.bank_name },
+                { label: 'Tipo de cuenta', value: ACCOUNT_TYPE_LABELS[paymentInfo.account_type] ?? paymentInfo.account_type },
+                { label: 'Número de cuenta', value: paymentInfo.account_number, copyable: true },
+                { label: 'RUT', value: paymentInfo.rut, copyable: true },
+                { label: 'Titular', value: paymentInfo.account_holder_name },
+                { label: 'Email', value: paymentInfo.email, copyable: true },
+              ].map(({ label, value, copyable }) => (
+                <div key={label} className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-dark-text2">{label}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-dark-text">{value}</p>
+                  </div>
+                  {copyable && (
+                    <button
+                      onClick={() => copyToClipboard(value, label)}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-surface2 text-gray-500 dark:text-dark-text2 flex-shrink-0"
+                    >
+                      {copiedField === label
+                        ? <Check className="h-4 w-4 text-green-600" />
+                        : <Copy className="h-4 w-4" />
+                      }
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card p-4 text-center text-sm text-gray-500 dark:text-dark-text2">
+              El profesor aún no ha configurado sus datos bancarios. Contáctalo directamente.
+            </div>
+          )}
+
+          {/* Receipt upload + submit */}
           <div>
             <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text mb-2">
               {alreadySubmitted ? 'Comprobante enviado' : 'Sube el comprobante de pago'}
@@ -321,19 +440,29 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest }
               ) : 'Enviar comprobante'}
             </button>
           )}
+
+          {/* Transfer payment to partner (2x) */}
+          {is2x && !alreadySubmitted && twoxRequest && (
+            <button
+              onClick={handleTransfer}
+              disabled={transferring}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-dark-border py-3 text-sm font-medium text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"
+            >
+              {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+              Que pague mi compañer@
+            </button>
+          )}
         </>
       )}
 
-      {/* Transfer payment to partner */}
-      {is2x && isMyTurnToPay && !alreadySubmitted && twoxRequest && (
-        <button
-          onClick={handleTransfer}
-          disabled={transferring}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-dark-border py-3 text-sm font-medium text-gray-600 dark:text-dark-text2 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors disabled:opacity-50"
-        >
-          {transferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
-          Que pague mi compañer@
-        </button>
+      {/* Sin plan y profesor sin MP conectado: no hay vía de pago disponible. */}
+      {isMyTurnToPay && !allowTransfer && !showMp && (
+        <div className="card p-4 bg-coral-fuego/10 border border-coral-fuego/30">
+          <p className="text-sm text-gray-700 dark:text-dark-text">
+            Este profesor aún no acepta pagos in-app y la transferencia directa requiere un plan.
+            Obtén un plan para inscribirte, o vuelve más tarde.
+          </p>
+        </div>
       )}
     </div>
   )

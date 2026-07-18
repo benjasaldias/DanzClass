@@ -700,17 +700,8 @@ export default function ClassDetailScreen() {
   // ─── Enrollment handlers ──────────────────────────────────────────────────
   async function handleEnroll() {
     if (!userId || !token || isFull) return
-    if (!canEnroll(tier)) {
-      Alert.alert(
-        'Plan requerido',
-        'Necesitas un plan activo para inscribirte en clases.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ver planes', onPress: () => router.push('/(app)/plans' as any) },
-        ]
-      )
-      return
-    }
+    // Inscripción abierta a todos (marketplace): sin plan también reserva y luego
+    // paga in-app por Mercado Pago con comisión en la pantalla de pago.
     setEnrolling(true)
     const res = await fetch(`${WEB_URL}/api/class/enroll`, {
       method: 'POST',
@@ -1271,13 +1262,11 @@ export default function ClassDetailScreen() {
               ) : (
                 <TouchableOpacity
                   onPress={handleEnroll}
-                  disabled={enrolling || !canEnroll(tier)}
-                  className={`rounded-xl py-3 items-center mt-1 ${!canEnroll(tier) ? 'bg-gray-200' : 'bg-brand-600'}`}
+                  disabled={enrolling}
+                  className="rounded-xl py-3 items-center mt-1 bg-brand-600"
                 >
-                  <Text className={`font-semibold ${!canEnroll(tier) ? 'text-gray-500' : 'text-white'}`}>
-                    {enrolling ? 'Inscribiendo...' :
-                     !canEnroll(tier) ? 'Necesitas un plan' :
-                     'Reservar lugar'}
+                  <Text className="font-semibold text-white">
+                    {enrolling ? 'Inscribiendo...' : 'Reservar lugar'}
                   </Text>
                 </TouchableOpacity>
               )

@@ -292,7 +292,16 @@ export interface Payment {
   confirmed_at: string | null
   operation_number: string | null
   recipient_teacher_id: string | null
+  // Marketplace / split de Mercado Pago (migración 053)
+  payment_method: PaymentMethod
+  commission_amount: number // comisión retenida por DanzClass (CLP); 0 en transferencia
+  mp_payment_id: string | null
+  mp_status: string | null
 }
+
+// Cómo pagó el alumno: transferencia directa al profesor (solo con plan) o
+// in-app por Mercado Pago con split (sin plan, o quien elija pagar in-app).
+export type PaymentMethod = 'transfer' | 'mp'
 
 export interface Rehearsal {
   id: string

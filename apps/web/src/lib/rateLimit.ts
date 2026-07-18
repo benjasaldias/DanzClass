@@ -42,6 +42,8 @@ const limiters = {
   // Geocoding proxy (address autocomplete): 30/min per user — protects the
   // upstream Nominatim instance from our own clients.
   geocode: makeRatelimiter(30, '1 m'),
+  // Payment receipt scanning (calls the Anthropic API, has real per-call cost): 10/min per user.
+  scan: makeRatelimiter(10, '1 m'),
 }
 
 type LimiterKey = keyof typeof limiters

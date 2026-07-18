@@ -93,7 +93,7 @@ function PrivacyES() {
           <ul>
             <li><strong>Datos de cuenta:</strong> nombre, apellido, nombre de usuario, dirección de correo electrónico, contraseña (almacenada de forma encriptada), ciudad y foto de perfil.</li>
             <li><strong>Datos de actividad:</strong> clases publicadas o en las que te inscribes, publicaciones de video, seguimientos, amistades y valoraciones.</li>
-            <li><strong>Datos de pago:</strong> comprobantes de transferencia bancaria que subes como imagen, y los datos de tu cuenta bancaria si eres profesor. DanzClass no almacena datos de tarjetas de crédito; los pagos de suscripción son procesados por Mercado Pago.</li>
+            <li><strong>Datos de pago:</strong> comprobantes de transferencia bancaria que subes como imagen, y los datos de tu cuenta bancaria si eres profesor. Si pagas una clase in-app o suscribes un plan, el pago es procesado por <strong>Mercado Pago</strong>; DanzClass no almacena datos de tarjetas de crédito. Si eres profesor y conectas tu cuenta de Mercado Pago para recibir pagos in-app, guardamos los <strong>tokens de acceso</strong> de esa conexión (no tus credenciales de Mercado Pago) para poder generar los cobros con split a tu favor, e identificadores de los pagos y montos de comisión para efectos de registro y tributarios.</li>
             <li><strong>Contenido multimedia:</strong> fotos y videos de clases que publicas, videos de postulación a entrenamientos y el video de tu perfil público.</li>
             <li><strong>Datos técnicos:</strong> registros de acceso, dirección IP y datos del dispositivo, recopilados automáticamente por los servicios de infraestructura que usamos.</li>
             <li><strong>Token de notificación:</strong> si autorizas notificaciones push en la app móvil, almacenamos el token de dispositivo de Expo para enviarte notificaciones. Puedes revocar este permiso en cualquier momento desde la configuración de tu dispositivo.</li>
@@ -106,7 +106,7 @@ function PrivacyES() {
             <li>Mostrar tu perfil, clases y publicaciones a otros usuarios según tu configuración de privacidad.</li>
             <li>Procesar inscripciones a clases y llevar el registro de pagos entre usuarios.</li>
             <li>Enviarte notificaciones dentro de la app y, si lo autorizas, notificaciones push a tu dispositivo.</li>
-            <li>Gestionar suscripciones de pago a través de Mercado Pago.</li>
+            <li>Procesar pagos de clases in-app y suscripciones a través de Mercado Pago, y calcular y registrar la comisión de servicio correspondiente.</li>
             <li>Proteger la seguridad de la Plataforma y detectar usos abusivos.</li>
             <li>Cumplir con obligaciones legales aplicables.</li>
           </ul>
@@ -116,7 +116,7 @@ function PrivacyES() {
           <ul>
             <li><strong>Supabase</strong> — base de datos, autenticación y almacenamiento de archivos. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">supabase.com/privacy</a>.</li>
             <li><strong>Cloudinary</strong> — compresión y entrega de videos publicados en el feed. <a href="https://cloudinary.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">cloudinary.com/privacy</a>.</li>
-            <li><strong>Mercado Pago</strong> — procesamiento de pagos de suscripciones. <a href="https://www.mercadopago.cl/privacidad" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">mercadopago.cl/privacidad</a>.</li>
+            <li><strong>Mercado Pago</strong> — procesamiento de pagos de suscripciones y de clases in-app (modelo marketplace con split: el profesor recibe su parte directamente en su cuenta de Mercado Pago y DanzClass su comisión). <a href="https://www.mercadopago.cl/privacidad" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">mercadopago.cl/privacidad</a>.</li>
             <li><strong>Vercel</strong> — alojamiento de la aplicación web. <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">vercel.com/legal/privacy-policy</a>.</li>
             <li><strong>Expo (Notifications)</strong> — servicio de notificaciones push para la app móvil. Los tokens de dispositivo se envían a los servidores de Expo para enrutar las notificaciones. <a href="https://expo.dev/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">expo.dev/privacy</a>.</li>
           </ul>
@@ -223,7 +223,7 @@ function PrivacyEN() {
           <ul>
             <li><strong>Account data:</strong> first name, last name, username, email address, password (stored encrypted), city, and profile photo.</li>
             <li><strong>Activity data:</strong> classes you publish or enroll in, video posts, follows, friendships, and ratings.</li>
-            <li><strong>Payment data:</strong> bank transfer receipts you upload as images, and your bank account details if you are a teacher. DanzClass does not store credit card data; subscription payments are processed by Mercado Pago.</li>
+            <li><strong>Payment data:</strong> bank transfer receipts you upload as images, and your bank account details if you are a teacher. If you pay for a class in-app or subscribe to a plan, the payment is processed by <strong>Mercado Pago</strong>; DanzClass does not store credit card data. If you are a teacher and connect your Mercado Pago account to receive in-app payments, we store the <strong>access tokens</strong> of that connection (not your Mercado Pago credentials) in order to create split charges in your favor, along with payment identifiers and commission amounts for record-keeping and tax purposes.</li>
             <li><strong>Multimedia content:</strong> photos and videos of classes you publish, audition videos for training programs, and your public profile video.</li>
             <li><strong>Technical data:</strong> access logs, IP address, and device data, automatically collected by the infrastructure services we use.</li>
             <li><strong>Push notification token:</strong> if you grant push notification permission in the mobile app, we store your Expo device token to send you notifications. You can revoke this permission at any time from your device settings.</li>
@@ -236,7 +236,7 @@ function PrivacyEN() {
             <li>Display your profile, classes, and posts to other users according to your privacy settings.</li>
             <li>Process class enrollments and maintain payment records between users.</li>
             <li>Send you in-app notifications and, if authorized, push notifications to your device.</li>
-            <li>Manage subscription payments through Mercado Pago.</li>
+            <li>Process in-app class payments and subscriptions through Mercado Pago, and calculate and record the corresponding service commission.</li>
             <li>Protect the security of the Platform and detect abuse.</li>
             <li>Comply with applicable legal obligations.</li>
           </ul>
@@ -246,7 +246,7 @@ function PrivacyEN() {
           <ul>
             <li><strong>Supabase</strong> — database, authentication, and file storage. <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">supabase.com/privacy</a>.</li>
             <li><strong>Cloudinary</strong> — video compression and delivery for feed posts. <a href="https://cloudinary.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">cloudinary.com/privacy</a>.</li>
-            <li><strong>Mercado Pago</strong> — subscription payment processing. <a href="https://www.mercadopago.cl/privacidad" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">mercadopago.cl/privacidad</a>.</li>
+            <li><strong>Mercado Pago</strong> — payment processing for subscriptions and in-app class payments (marketplace model with split: the teacher receives their share directly in their Mercado Pago account and DanzClass its commission). <a href="https://www.mercadopago.cl/privacidad" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">mercadopago.cl/privacidad</a>.</li>
             <li><strong>Vercel</strong> — web application hosting. <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">vercel.com/legal/privacy-policy</a>.</li>
             <li><strong>Expo (Notifications)</strong> — push notification service for the mobile app. Device tokens are sent to Expo servers to route notifications. <a href="https://expo.dev/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:text-brand-700">expo.dev/privacy</a>.</li>
           </ul>

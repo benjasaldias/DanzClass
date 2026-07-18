@@ -10,6 +10,7 @@ import {
 import * as Clipboard from 'expo-clipboard'
 import StyleChip from '../../../components/ui/StyleChip'
 import ProfilePostsGrid from '../../../components/profile/ProfilePostsGrid'
+import AiScanPreferenceCard from '../../../components/profile/AiScanPreferenceCard'
 import { supabase } from '../../../lib/supabase'
 import { canTeach } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
@@ -281,6 +282,13 @@ export default function ProfileScreen() {
           />
           <SettingRow icon={LogOut} title="Cerrar sesión" isDark={isDark} danger isLast onPress={handleLogout} />
         </SectionCard>
+
+        {/* ── Escaneo de comprobantes (solo profesores) ─────── */}
+        {isTeacher && userId && (
+          <SectionCard title="Escaneo de comprobantes" isDark={isDark}>
+            <AiScanPreferenceCard userId={userId} initialPreference={profile?.ai_scan_preference ?? null} isDark={isDark} />
+          </SectionCard>
+        )}
 
         {/* ── Referral ─────────────────────────────────────── */}
         {profile?.referral_code && (

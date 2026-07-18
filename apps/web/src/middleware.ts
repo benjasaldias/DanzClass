@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/auth/login', '/auth/register', '/terms', '/privacy']
+const PUBLIC_ROUTES = ['/', '/feed', '/auth/login', '/auth/register', '/terms', '/privacy']
 
 // Solo el detalle público de una clase o evento (:id) es accesible sin sesión.
 // Subrutas como /edit exigen login y guards de ownership server-side.

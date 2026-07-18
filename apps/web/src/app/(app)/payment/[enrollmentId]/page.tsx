@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getActiveTier } from '@/lib/subscription'
 import PaymentClient from '@/components/payment/PaymentClient'
 import type { EnrollmentWithDetails } from '@danceclass/shared'
 
@@ -49,5 +50,16 @@ export default async function PaymentPage({ params }: Props) {
         .maybeSingle()
     : { data: null }
 
-  return <PaymentClient enrollment={enrollment} currentUserId={user.id} twoxRequest={twoxRequest} />
+  const tier = await getActiveTier(user.id, supabase)
+  const teacherMpConnected = !!(enrollment as any).class?.teacher?.mp_connected
+
+  return (
+    <PaymentClient
+      enrollment={enrollment}
+      currentUserId={user.id}
+      twoxRequest={twoxRequest}
+      tier={tier}
+      teacherMpConnected={teacherMpConnected}
+    />
+  )
 }

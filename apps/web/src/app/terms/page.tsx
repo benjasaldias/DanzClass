@@ -124,17 +124,54 @@ function TermsES() {
             dentro de la Plataforma y con el fin de prestar el servicio.
           </p>
         </Section>
-        <Section title="6. Pagos, transacciones y reembolsos">
+        <Section title="6. Pagos, comisiones y reembolsos">
           <p>
-            Los pagos entre estudiantes y profesores se realizan directamente mediante transferencia bancaria.
-            DanzClass actúa solo como intermediario de comunicación. Las suscripciones a los planes de la
+            El pago de una clase puede realizarse por <strong>dos vías</strong>:
+          </p>
+          <ul>
+            <li>
+              <strong>(a) Pago in-app con Mercado Pago.</strong> El estudiante paga el monto a través de
+              Mercado Pago y el pago se divide <strong>en el origen</strong> (modelo de marketplace o
+              &ldquo;split&rdquo;): el profesor recibe el precio de su clase directamente en su propia cuenta de
+              Mercado Pago —que él mismo conecta a la Plataforma— y DanzClass retiene únicamente una comisión de
+              servicio. <strong>DanzClass no custodia, retiene ni administra los fondos del profesor:</strong> es
+              Mercado Pago quien liquida a cada parte de forma directa. El procesamiento del pago lo realiza
+              Mercado Pago como proveedor de servicios de pago; DanzClass no es una institución financiera ni un
+              medio de pago.
+            </li>
+            <li>
+              <strong>(b) Transferencia bancaria directa al profesor.</strong> Disponible solo para estudiantes
+              con un plan activo. En este caso DanzClass actúa solo como intermediario de comunicación y los
+              fondos van directamente del estudiante al profesor a través de sus bancos.
+            </li>
+          </ul>
+          <p>
+            <strong>Comisión de la Plataforma.</strong> Los estudiantes <strong>sin un plan activo</strong> que
+            pagan una clase in-app por Mercado Pago pagan una comisión de servicio de DanzClass equivalente al{' '}
+            <strong>2% del precio de la clase, con un tope de $700 CLP por pago</strong>. Esta comisión se suma al
+            precio de la clase (el profesor recibe el precio completo) y se muestra de forma clara y desglosada
+            antes de pagar. Los estudiantes <strong>con un plan activo</strong> no pagan esta comisión. La
+            comisión es la remuneración de DanzClass por el servicio de la Plataforma.
+          </p>
+          <p>
+            <strong>Impuestos.</strong> Dado que el pago in-app se divide en el origen, el profesor recibe y es el
+            único responsable de declarar y tributar por los ingresos de sus clases; los ingresos de DanzClass se
+            limitan a la comisión de servicio. Cada usuario es responsable del cumplimiento de sus propias
+            obligaciones tributarias ante el Servicio de Impuestos Internos.
+          </p>
+          <p>
+            <strong>Responsabilidad del profesor.</strong> El profesor que recibe pagos in-app es responsable de
+            conectar una cuenta de Mercado Pago válida y a su nombre, y de la veracidad de sus datos. DanzClass no
+            responde por conflictos entre el profesor y Mercado Pago. Las suscripciones a los planes de la
             Plataforma se procesan a través de Mercado Pago.
           </p>
           <p>
-            <strong>Política de reembolsos:</strong> si un profesor cancela una clase en la que estás inscrito
-            y con pago confirmado, tienes derecho a solicitar el reembolso directamente al profesor. DanzClass
-            no intermedia ni garantiza dichos reembolsos. Para suscripciones canceladas, no se realizan
-            reembolsos proporcionales; el acceso se mantiene hasta el fin del período pagado.
+            <strong>Política de reembolsos:</strong> si un profesor cancela una clase con pago confirmado, tienes
+            derecho a solicitar el reembolso. En pagos in-app, el reembolso se gestiona a través de los mecanismos
+            de Mercado Pago y del profesor; en transferencias directas, directamente con el profesor. DanzClass no
+            intermedia ni garantiza dichos reembolsos y actualmente su gestión es manual. Para suscripciones
+            canceladas no se realizan reembolsos proporcionales; el acceso se mantiene hasta el fin del período
+            pagado.
           </p>
         </Section>
         <Section title="7. Escaneo automatizado de comprobantes de pago (IA)">
@@ -300,17 +337,42 @@ function TermsEN() {
             within the Platform and for the purpose of providing the service.
           </p>
         </Section>
-        <Section title="6. Payments, transactions, and refunds">
+        <Section title="6. Payments, commissions, and refunds">
+          <p>A class payment can be made through <strong>two channels</strong>:</p>
+          <ul>
+            <li>
+              <strong>(a) In-app payment with Mercado Pago.</strong> The student pays through Mercado Pago and
+              the payment is split <strong>at the source</strong> (marketplace / &ldquo;split&rdquo; model): the
+              teacher receives the class price directly into their own Mercado Pago account —which they connect to
+              the Platform themselves— and DanzClass retains only a service commission. <strong>DanzClass does not
+              hold, custody, or manage the teacher&rsquo;s funds:</strong> Mercado Pago settles each party
+              directly. Payment processing is performed by Mercado Pago as a payment service provider; DanzClass
+              is not a financial institution nor a payment method.
+            </li>
+            <li>
+              <strong>(b) Direct bank transfer to the teacher.</strong> Available only to students with an active
+              plan. Here DanzClass acts only as a communication intermediary and funds go directly from the
+              student to the teacher through their banks.
+            </li>
+          </ul>
           <p>
-            Payments between students and teachers are made directly via bank transfer. DanzClass acts only
-            as a communication intermediary and does not process nor guarantee payments. Subscription plans
-            are processed through Mercado Pago, subject to their own terms.
+            <strong>Platform commission.</strong> Students <strong>without an active plan</strong> who pay a class
+            in-app via Mercado Pago pay a DanzClass service commission of <strong>2% of the class price, capped at
+            CLP $700 per payment</strong>. This commission is added on top of the class price (the teacher
+            receives the full price) and is shown clearly and itemized before paying. Students{' '}
+            <strong>with an active plan</strong> do not pay this commission.
           </p>
           <p>
-            <strong>Refund policy:</strong> if a teacher cancels a class in which you are enrolled with a
-            confirmed payment, you may request a refund directly from the teacher through their profile.
-            DanzClass does not mediate or guarantee such refunds. Cancelled subscriptions are not
-            proportionally refunded; access is maintained until the end of the paid period.
+            <strong>Taxes.</strong> Because the in-app payment is split at the source, the teacher receives and is
+            solely responsible for declaring and paying taxes on their class income; DanzClass&rsquo;s income is
+            limited to the service commission. Each user is responsible for their own tax obligations.
+          </p>
+          <p>
+            <strong>Refund policy:</strong> if a teacher cancels a class with a confirmed payment, you may request
+            a refund. For in-app payments, refunds are handled through Mercado Pago&rsquo;s mechanisms and the
+            teacher; for direct transfers, directly with the teacher. DanzClass does not mediate or guarantee such
+            refunds and currently handles them manually. Cancelled subscriptions are not proportionally refunded;
+            access is maintained until the end of the paid period.
           </p>
         </Section>
         <Section title="7. Automated AI receipt scanning">
