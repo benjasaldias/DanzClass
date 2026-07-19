@@ -11,7 +11,7 @@ import * as WebBrowser from 'expo-web-browser'
 import { Users, AlertTriangle, CheckCircle2, Check, Paperclip, CreditCard, Lock } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
-import { formatCLP, paymentBreakdown, canPayByTransfer, type SubscriptionTier } from '@danceclass/shared'
+import { formatCLP, paymentBreakdown, canPayByTransfer, effectiveClassPrice, type SubscriptionTier } from '@danceclass/shared'
 
 const WEB_URL = 'https://dc-project-web.vercel.app'
 
@@ -112,7 +112,7 @@ export default function PaymentScreen() {
     // Bucket privado: guardamos el path, no la URL pública.
     const receiptPath = uploadData.path
 
-    const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
+    const amount = is2x && cls.price_2x ? cls.price_2x : effectiveClassPrice(cls)
 
     const existingPayment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
     let paymentId: string | undefined = existingPayment?.id
@@ -231,7 +231,7 @@ export default function PaymentScreen() {
 
   const is2x = !!enrollment.is_2x
   const missing2xPrice = is2x && !cls.price_2x
-  const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
+  const amount = is2x && cls.price_2x ? cls.price_2x : effectiveClassPrice(cls)
   const isMyTurnToPay = !is2x || !twoxRequest || twoxRequest.payment_assignee === currentUserId
   const alreadySubmitted = enrollment.status === 'payment_submitted'
 

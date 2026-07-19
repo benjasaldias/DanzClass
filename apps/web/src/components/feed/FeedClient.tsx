@@ -134,7 +134,7 @@ export default function FeedClient({
 
   return (
     <div className="flex flex-col">
-      <OnboardingTour />
+      <OnboardingTour currentUserId={currentUser?.id ?? null} accountCreatedAt={currentProfile?.created_at ?? null} />
       {showCreateRehearsal && (
         <CreateRehearsalModal
           onClose={() => setShowCreateRehearsal(false)}

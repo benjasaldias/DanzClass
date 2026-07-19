@@ -3,7 +3,7 @@ import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { requireUser } from '@/lib/supabase/require-user'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveTier } from '@/lib/subscription'
-import { paymentBreakdown } from '@danceclass/shared'
+import { paymentBreakdown, effectiveClassPrice } from '@danceclass/shared'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   // Enrollment + clase + profesor. Verifica pertenencia y estado.
   const { data: enrollment } = await (admin as any)
     .from('enrollments')
-    .select('id, student_id, status, is_2x, class:classes(id, title, price, teacher_id, status)')
+    .select('id, student_id, status, is_2x, class:classes(id, title, price, discount_price, discount_price_monthly, type, teacher_id, status)')
     .eq('id', enrollmentId)
     .maybeSingle()
 
@@ -62,8 +62,10 @@ export async function POST(request: Request) {
   }
 
   // El monto es autoritativo server-side (nunca se confía en el cliente).
+  // effectiveClassPrice aplica el descuento espontáneo activo del profesor,
+  // si lo hay — mismo cálculo que ClassDetailClient usa para mostrar el precio.
   const tier = await getActiveTier(userId, admin as any)
-  const { base, commission, total } = paymentBreakdown(cls.price, tier)
+  const { base, commission, total } = paymentBreakdown(effectiveClassPrice(cls), tier)
   if (base <= 0) return NextResponse.json({ error: 'invalid_amount' }, { status: 400 })
 
   const appUrl =

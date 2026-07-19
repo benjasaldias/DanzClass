@@ -3,7 +3,15 @@
 import { useState, useEffect } from 'react'
 import { Users, MapPin, Clock, Sparkles, ChevronRight, X } from 'lucide-react'
 
-const STORAGE_KEY = 'danzclass_onboarding_v1_seen'
+const STORAGE_PREFIX = 'danzclass_onboarding_v1_seen'
+// El feed es público (visible sin sesión) desde la sesión 2026-07-18; el tour
+// solo debe dispararse al primer login de una cuenta recién creada, nunca para
+// visitantes anónimos ni para cuentas antiguas que inician sesión en un browser
+// nuevo. Usamos profiles.created_at como proxy de "cuenta nueva": el registro
+// exige confirmar el correo (hasta 24h antes del cron de limpieza) antes del
+// primer login real, así que 24h cubre ese primer login sin disparar para
+// cuentas ya establecidas.
+const NEW_ACCOUNT_WINDOW_MS = 24 * 60 * 60 * 1000
 
 const STEPS = [
   {
@@ -36,18 +44,34 @@ const STEPS = [
   },
 ]
 
-export default function OnboardingTour() {
+interface OnboardingTourProps {
+  /** null = sin sesión (visitante anónimo del feed público) — nunca se muestra. */
+  currentUserId: string | null
+  /** `profiles.created_at` del usuario logueado; usado para detectar cuenta nueva. */
+  accountCreatedAt: string | null
+}
+
+export default function OnboardingTour({ currentUserId, accountCreatedAt }: OnboardingTourProps) {
   const [visible, setVisible] = useState(false)
   const [step, setStep] = useState(0)
 
+  // Flag por cuenta (no global): dos usuarios distintos en el mismo browser no
+  // heredan el "ya visto" del otro.
+  const storageKey = currentUserId ? `${STORAGE_PREFIX}:${currentUserId}` : null
+
   useEffect(() => {
+    if (!currentUserId || !storageKey) return
+    const isNewAccount = !!accountCreatedAt && (Date.now() - new Date(accountCreatedAt).getTime()) < NEW_ACCOUNT_WINDOW_MS
+    if (!isNewAccount) return
     try {
-      if (!localStorage.getItem(STORAGE_KEY)) setVisible(true)
+      if (!localStorage.getItem(storageKey)) setVisible(true)
     } catch {}
-  }, [])
+  }, [currentUserId, storageKey, accountCreatedAt])
 
   function dismiss() {
-    try { localStorage.setItem(STORAGE_KEY, '1') } catch {}
+    if (storageKey) {
+      try { localStorage.setItem(storageKey, '1') } catch {}
+    }
     setVisible(false)
   }
 
