@@ -5,6 +5,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { sendPushToUsers } from '@/lib/push'
 import { logger } from '@/lib/logger'
 import { autoConfirmPayment } from '@/lib/payments'
+import { revokeAttendanceToken } from '@/lib/qrAttendance'
 
 type Action = 'confirm' | 'reject' | 'revert'
 
@@ -75,6 +76,9 @@ export async function POST(request: NextRequest) {
 
     await admin.from('enrollments').update({ status: 'pending_payment' } as any).eq('id', enrollment.id)
 
+    // Enrollment ya no está confirmado → revoca el token QR (defensa en profundidad).
+    await revokeAttendanceToken(admin, enrollment.id)
+
     await admin.from('notifications').insert({
       user_id: enrollment.student_id,
       type: 'payment_rejected',
@@ -103,6 +107,9 @@ export async function POST(request: NextRequest) {
   } as any).eq('id', paymentId)
 
   await admin.from('enrollments').update({ status: 'payment_submitted' } as any).eq('id', enrollment.id)
+
+  // Enrollment ya no está confirmado → revoca el token QR (defensa en profundidad).
+  await revokeAttendanceToken(admin, enrollment.id)
 
   logger.warn('payment_ai_confirmation_reverted', { paymentId, teacherId: userId, enrollmentId: enrollment.id })
 

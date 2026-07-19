@@ -1,5 +1,6 @@
 import { createAdminClient } from './supabase/admin'
 import { sendPushToUsers } from './push'
+import { issueAttendanceToken } from './qrAttendance'
 
 // Shared by /api/payment/confirm (teacher clicks "Confirmar"),
 // /api/payment/scan (AI auto-confirms a 'clean' receipt when
@@ -32,6 +33,13 @@ export async function autoConfirmPayment(params: {
   }).eq('id', params.paymentId)
 
   await admin.from('enrollments').update({ status: 'confirmed' } as any).eq('id', params.enrollmentId)
+
+  // Emite/rota el token QR de asistencia (best-effort, no rompe la confirmación).
+  await issueAttendanceToken(admin, {
+    enrollmentId: params.enrollmentId,
+    studentId: params.studentId,
+    classId: params.classId,
+  })
 
   await admin.from('notifications').insert({
     user_id: params.studentId,
