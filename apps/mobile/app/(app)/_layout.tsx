@@ -42,12 +42,14 @@ export default function AppLayout() {
       <Stack.Screen name="class/[id]/index" options={{ presentation: 'card' }} />
       <Stack.Screen name="class/[id]/edit" options={{ presentation: 'card' }} />
       <Stack.Screen name="class/[id]/auditions" options={{ presentation: 'card' }} />
+      <Stack.Screen name="class/[id]/scan-attendance" options={{ presentation: 'card', headerShown: false }} />
       <Stack.Screen name="class/create" options={{ presentation: 'card' }} />
       <Stack.Screen name="class/create-post" options={{ presentation: 'card' }} />
       <Stack.Screen name="profile/edit" options={{ presentation: 'card' }} />
       <Stack.Screen name="profile/payment-info" options={{ presentation: 'card' }} />
       <Stack.Screen name="teacher/[username]" options={{ presentation: 'card' }} />
       <Stack.Screen name="payment/[enrollmentId]" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="payment/review/[paymentId]" options={{ presentation: 'card' }} />
       <Stack.Screen name="plans/index" options={{ presentation: 'card' }} />
       <Stack.Screen name="plans/success" options={{ presentation: 'card' }} />
       <Stack.Screen name="plans/failure" options={{ presentation: 'card' }} />

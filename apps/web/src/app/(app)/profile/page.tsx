@@ -9,6 +9,7 @@ import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StyleChip from '@/components/ui/StyleChip'
 import AppearanceRow from '@/components/profile/AppearanceRow'
+import AiScanPreferenceCard from '@/components/profile/AiScanPreferenceCard'
 import ProfilePostsGrid from '@/components/profile/ProfilePostsGrid'
 import EmbedWidgetButton from '@/components/profile/EmbedWidgetButton'
 import ReferralCopyButton from '@/components/profile/ReferralCopyButton'
@@ -250,6 +251,13 @@ export default async function ProfilePage() {
           <LogoutButton asRow />
         </div>
       </SectionCard>
+
+      {/* ── Escaneo de comprobantes (solo profesores) ──────── */}
+      {isTeacher && (
+        <SectionCard title="Escaneo de comprobantes">
+          <AiScanPreferenceCard userId={user.id} initialPreference={profile?.ai_scan_preference ?? null} />
+        </SectionCard>
+      )}
 
       {/* Referral section */}
       {profile?.referral_code && (

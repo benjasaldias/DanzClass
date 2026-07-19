@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { autoConfirmPayment } from '@/lib/payments'
 import { logger } from '@/lib/logger'
 import type { SubscriptionTier } from '@danceclass/shared'
 
@@ -77,6 +78,71 @@ async function activateSubscription(
   }
 }
 
+// Confirma (o actualiza el estado de) un pago de clase in-app por Mercado Pago.
+// external_reference = 'enrollment:<enrollmentId>'. Idempotente ante reenvíos.
+async function confirmClassPayment(
+  supabase: ReturnType<typeof createAdminClient>,
+  payment: any,
+  ref: string
+): Promise<void> {
+  const enrollmentId = ref.split(':')[1]
+  if (!enrollmentId) return
+
+  const mpPaymentId = String(payment.id)
+  const mpStatus = String(payment.status)
+
+  // El pago se registró como 'pending' en create-payment (UNIQUE por enrollment).
+  const { data: payRow } = await (supabase as any)
+    .from('payments')
+    .select('id, status, mp_payment_id')
+    .eq('enrollment_id', enrollmentId)
+    .maybeSingle()
+
+  if (!payRow) {
+    logger.warn('webhook:class_payment_no_row', { enrollment_id: enrollmentId })
+    return
+  }
+
+  // Aún no aprobado (pending/in_process/rejected/…): solo persistir el estado MP.
+  if (payment.status !== 'approved') {
+    await (supabase as any).from('payments').update({ mp_status: mpStatus }).eq('id', payRow.id)
+    logger.info('webhook:class_payment_not_approved', { enrollment_id: enrollmentId, mp_status: mpStatus })
+    return
+  }
+
+  // Idempotencia: ya confirmado con este mismo pago → no re-notificar.
+  if (payRow.status === 'verified' && payRow.mp_payment_id === mpPaymentId) {
+    logger.info('webhook:class_payment_already_confirmed', { enrollment_id: enrollmentId })
+    return
+  }
+
+  // Datos del alumno/clase para la notificación.
+  const { data: enr } = await (supabase as any)
+    .from('enrollments')
+    .select('student_id, class_id, class:classes(title)')
+    .eq('id', enrollmentId)
+    .maybeSingle()
+
+  if (!enr) {
+    logger.warn('webhook:class_payment_no_enrollment', { enrollment_id: enrollmentId })
+    return
+  }
+
+  // Escritura + notificación compartida (mismo camino que confirm/scan), con
+  // confirmed_by=null (es pago MP) + mp_payment_id/mp_status.
+  await autoConfirmPayment({
+    paymentId: payRow.id,
+    enrollmentId,
+    studentId: enr.student_id,
+    classId: enr.class_id,
+    classTitle: enr.class?.title ?? 'tu clase',
+    confirmedBy: null,
+    mp: { paymentId: mpPaymentId, status: mpStatus },
+  })
+
+  logger.info('webhook:class_payment_confirmed', { enrollment_id: enrollmentId, mp_payment_id: mpPaymentId })
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
   const url = new URL(request.url)
@@ -107,23 +173,59 @@ export async function POST(request: Request) {
   const mp = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN! })
   const supabase = createAdminClient()
 
-  // ── Pago único (mensual legacy o anual) ─────────────────────────────────────
+  // ── Pago único ──────────────────────────────────────────────────────────────
+  // Cubre dos casos según de qué cuenta MP proviene el pago:
+  //   * Pago de CLASE (marketplace/split): vive en la cuenta MP del PROFESOR.
+  //     create-payment fija notification_url=...?seller=<teacherId>, así leemos
+  //     el pago con el access_token del profesor. external_reference='enrollment:<id>'.
+  //   * Pago de SUSCRIPCIÓN (mensual legacy o anual): cuenta de la plataforma.
   if (eventType === 'payment') {
-    const paymentClient = new Payment(mp)
-    const payment = await paymentClient.get({ id: eventDataId })
+    const sellerId = url.searchParams.get('seller')
 
-    logger.info('webhook:payment', { status: payment.status, ref: payment.external_reference })
+    // Elegir el token correcto para leer el pago.
+    let paymentMp = mp
+    if (sellerId) {
+      const { data: conn } = await (supabase as any)
+        .from('teacher_mp_connections')
+        .select('access_token')
+        .eq('teacher_id', sellerId)
+        .maybeSingle()
+      if (conn?.access_token) {
+        paymentMp = new MercadoPagoConfig({ accessToken: conn.access_token })
+      } else {
+        logger.warn('webhook:seller_not_connected', { seller: sellerId })
+      }
+    }
 
+    let payment: any
+    try {
+      payment = await new Payment(paymentMp).get({ id: eventDataId })
+    } catch (err) {
+      // No responder 500: MP reintentaría en loop. Logueamos y devolvemos 200.
+      logger.error('webhook:payment_fetch_failed', err, { data_id: eventDataId, seller: sellerId })
+      return NextResponse.json({ ok: true })
+    }
+
+    const ref: string = payment.external_reference ?? ''
+    logger.info('webhook:payment', { status: payment.status, ref, seller: sellerId })
+
+    // ── Pago de clase (marketplace) ──
+    if (ref.startsWith('enrollment:')) {
+      await confirmClassPayment(supabase, payment, ref)
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── Pago de suscripción ──
     if (payment.status !== 'approved') return NextResponse.json({ ok: true })
 
-    const parts = (payment.external_reference ?? '').split(':')
+    const parts = ref.split(':')
     const userId = parts[0]
     const tier = parts[1]
     const period = parts[2] // 'annual' o undefined
     const months = period === 'annual' ? 12 : 1
 
     if (!userId || !['basic', 'teacher', 'pro'].includes(tier)) {
-      logger.warn('webhook:invalid_external_reference', { ref: payment.external_reference })
+      logger.warn('webhook:invalid_external_reference', { ref })
       return NextResponse.json({ ok: true })
     }
 

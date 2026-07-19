@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import AdminReportsClient from '@/components/admin/AdminReportsClient'
 import AdminStatsClient from '@/components/admin/AdminStatsClient'
-import { Flag, BarChart2 } from 'lucide-react'
+import AdminSettingsClient from '@/components/admin/AdminSettingsClient'
+import AdminReconciliationClient, { type ReconciliationData } from '@/components/admin/AdminReconciliationClient'
+import { Flag, BarChart2, Settings, Wallet } from 'lucide-react'
 
 export default async function AdminPage({
   searchParams,
@@ -18,7 +20,10 @@ export default async function AdminPage({
   }
 
   const admin = createAdminClient()
-  const tab = searchParams.tab === 'stats' ? 'stats' : 'reports'
+  const tab = searchParams.tab === 'stats' ? 'stats'
+    : searchParams.tab === 'settings' ? 'settings'
+    : searchParams.tab === 'reconciliation' ? 'reconciliation'
+    : 'reports'
 
   // ── Reports tab data ───────────────────────────────────────────────────────
   const { data: rawReports } = await (admin as any)
@@ -84,6 +89,67 @@ export default async function AdminPage({
     topReported,
   }
 
+  // ── Settings tab data ──────────────────────────────────────────────────────
+  const { data: autoConfirmSetting } = await (admin as any)
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'auto_confirm_enabled')
+    .maybeSingle()
+  const autoConfirmEnabled = autoConfirmSetting?.value === true
+
+  // ── Reconciliation tab data (pagos in-app MP con split confirmados) ──────────
+  const { data: mpPayments } = await (admin as any)
+    .from('payments')
+    .select('amount, commission_amount, confirmed_at, verified_at, recipient_teacher_id')
+    .eq('payment_method', 'mp')
+    .eq('status', 'verified')
+
+  const mpRows = (mpPayments ?? []) as any[]
+  let totalCommission = 0
+  let totalBase = 0
+  const monthMap = new Map<string, { commission: number; base: number; count: number }>()
+  const teacherMap = new Map<string, { base: number; commission: number; count: number }>()
+
+  for (const p of mpRows) {
+    const commission = p.commission_amount ?? 0
+    const base = p.amount ?? 0
+    totalCommission += commission
+    totalBase += base
+
+    const when: string | null = p.confirmed_at ?? p.verified_at
+    const monthKey = when ? String(when).slice(0, 7) : 'sin fecha'
+    const mm = monthMap.get(monthKey) ?? { commission: 0, base: 0, count: 0 }
+    mm.commission += commission; mm.base += base; mm.count++
+    monthMap.set(monthKey, mm)
+
+    if (p.recipient_teacher_id) {
+      const tt = teacherMap.get(p.recipient_teacher_id) ?? { base: 0, commission: 0, count: 0 }
+      tt.base += base; tt.commission += commission; tt.count++
+      teacherMap.set(p.recipient_teacher_id, tt)
+    }
+  }
+
+  const teacherIds = [...teacherMap.keys()]
+  const { data: teacherProfiles } = teacherIds.length > 0
+    ? await admin.from('profiles').select('id, username, full_name').in('id', teacherIds)
+    : { data: [] }
+  const teacherNameMap = Object.fromEntries(
+    ((teacherProfiles as any[]) ?? []).map((p: any) => [p.id, p.full_name || p.username || p.id])
+  )
+
+  const reconciliation: ReconciliationData = {
+    totalCommission,
+    totalBase,
+    totalGross: totalCommission + totalBase,
+    count: mpRows.length,
+    byMonth: [...monthMap.entries()]
+      .map(([month, v]) => ({ month, ...v }))
+      .sort((a, b) => (a.month < b.month ? 1 : -1)),
+    byTeacher: [...teacherMap.entries()]
+      .map(([teacherId, v]) => ({ teacherId, name: teacherNameMap[teacherId] ?? teacherId, ...v }))
+      .sort((a, b) => b.commission - a.commission),
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Tabs */}
@@ -113,10 +179,34 @@ export default async function AdminPage({
           <BarChart2 className="h-4 w-4" />
           Estadísticas
         </a>
+        <a
+          href="/admin?tab=settings"
+          className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold border-b-2 transition-colors ${
+            tab === 'settings'
+              ? 'border-brand-600 text-brand-600 dark:text-brand-300 dark:border-brand-300'
+              : 'border-transparent text-gray-500 dark:text-dark-text2 hover:text-gray-700'
+          }`}
+        >
+          <Settings className="h-4 w-4" />
+          Ajustes
+        </a>
+        <a
+          href="/admin?tab=reconciliation"
+          className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold border-b-2 transition-colors ${
+            tab === 'reconciliation'
+              ? 'border-brand-600 text-brand-600 dark:text-brand-300 dark:border-brand-300'
+              : 'border-transparent text-gray-500 dark:text-dark-text2 hover:text-gray-700'
+          }`}
+        >
+          <Wallet className="h-4 w-4" />
+          Conciliación
+        </a>
       </div>
 
       {tab === 'reports' && <AdminReportsClient reports={reports} />}
       {tab === 'stats' && <AdminStatsClient stats={stats} />}
+      {tab === 'settings' && <AdminSettingsClient initialAutoConfirmEnabled={autoConfirmEnabled} />}
+      {tab === 'reconciliation' && <AdminReconciliationClient data={reconciliation} />}
     </div>
   )
 }

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   BookOpen, ChevronRight, CheckCircle2, Clock, AlertCircle,
-  Users, ChevronDown, ChevronUp, ExternalLink, XCircle, Trash2,
+  Users, ChevronDown, ChevronUp, XCircle, Trash2,
   AlertTriangle, ShieldAlert, ClipboardList, History, Receipt, Share2, Bell,
   CalendarDays, MessageCircle, Download, Package, Plus,
 } from 'lucide-react'
@@ -173,7 +173,6 @@ function TeachingTab({
   dismissedStudentIds: string[]
 }) {
   const [expandedClass, setExpandedClass] = useState<string | null>(initialClasses[0]?.id ?? null)
-  const [loadingEnrollment, setLoadingEnrollment] = useState<string | null>(null)
   const [classData, setClassData] = useState(initialClasses)
   const [removeConfirm, setRemoveConfirm] = useState<{ enrollmentId: string; name: string } | null>(null)
   const [removing, setRemoving] = useState(false)
@@ -219,47 +218,6 @@ function TeachingTab({
     navigator.clipboard.writeText(`${window.location.origin}/class/${classId}`)
     setCopiedClassId(classId)
     setTimeout(() => setCopiedClassId(null), 2000)
-  }
-
-  async function handlePaymentAction(enrollmentId: string, paymentId: string, action: 'verified' | 'rejected') {
-    setLoadingEnrollment(enrollmentId)
-    const supabase = createClient()
-
-    await supabase.from('payments').update({
-      status: action,
-      verified_at: action === 'verified' ? new Date().toISOString() : null,
-    }).eq('id', paymentId)
-
-    const newEnrollmentStatus = action === 'verified' ? 'confirmed' : 'pending_payment'
-    await supabase.from('enrollments').update({ status: newEnrollmentStatus }).eq('id', enrollmentId)
-
-    const notifType = action === 'verified' ? 'payment_confirmed' : 'payment_rejected'
-    const enrollment = classData.flatMap((c: any) => c.enrollments).find((e: any) => e.id === enrollmentId)
-    const classId = classData.find((c: any) => c.enrollments.some((e: any) => e.id === enrollmentId))?.id
-    if (enrollment && classId) {
-      await sendNotifications({
-        user_id: enrollment.student?.id ?? enrollment.student_id,
-        type: notifType,
-        data: { class_id: classId },
-      })
-    }
-
-    setClassData((prev) =>
-      prev.map((cls) => ({
-        ...cls,
-        enrollments: cls.enrollments.map((e: any) => {
-          if (e.id !== enrollmentId) return e
-          return {
-            ...e,
-            status: newEnrollmentStatus,
-            payment: Array.isArray(e.payment)
-              ? e.payment.map((p: any) => p.id === paymentId ? { ...p, status: action } : p)
-              : e.payment,
-          }
-        }),
-      }))
-    )
-    setLoadingEnrollment(null)
   }
 
   async function handleRemoveStudent() {
@@ -584,7 +542,6 @@ function TeachingTab({
                           const student = enrollment.student
                           const payment = enrollment.payment?.[0] ?? enrollment.payment
                           const config = PAYMENT_STATUS[enrollment.status as keyof typeof PAYMENT_STATUS]
-                          const isLoading = loadingEnrollment === enrollment.id
 
                           return (
                             <div key={enrollment.id} className="p-4 flex items-start gap-3">
@@ -608,49 +565,18 @@ function TeachingTab({
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-dark-text2">@{student?.username}</p>
 
-                                {enrollment.status === 'payment_submitted' && payment && (
-                                  <div className="mt-2 space-y-2">
-                                    {payment.receipt_url && (
-                                      <button
-                                        type="button"
-                                        onClick={async () => {
-                                          const res = await fetch(`/api/payment/receipt-url?paymentId=${payment.id}`)
-                                          if (res.ok) {
-                                            const { url } = await res.json()
-                                            window.open(url, '_blank', 'noopener,noreferrer')
-                                          }
-                                        }}
-                                        className="inline-flex items-center gap-1.5 text-xs text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200 font-medium"
-                                      >
-                                        Ver comprobante
-                                        <ExternalLink className="h-3 w-3" />
-                                      </button>
-                                    )}
+                                {(enrollment.status === 'payment_submitted' || payment?.confirmed_by === 'ai') && payment && (
+                                  <div className="mt-2 space-y-1.5">
                                     <p className="text-xs text-gray-500 dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</p>
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={() => handlePaymentAction(enrollment.id, payment.id, 'verified')}
-                                        disabled={isLoading}
-                                        className={cn(
-                                          'flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors',
-                                          isLoading && 'opacity-50'
-                                        )}
-                                      >
-                                        <CheckCircle2 className="h-3.5 w-3.5" />
-                                        Confirmar
-                                      </button>
-                                      <button
-                                        onClick={() => handlePaymentAction(enrollment.id, payment.id, 'rejected')}
-                                        disabled={isLoading}
-                                        className={cn(
-                                          'flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors',
-                                          isLoading && 'opacity-50'
-                                        )}
-                                      >
-                                        <XCircle className="h-3.5 w-3.5" />
-                                        Rechazar
-                                      </button>
-                                    </div>
+                                    {payment.confirmed_by === 'ai' && (
+                                      <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Confirmado por IA — revisar</p>
+                                    )}
+                                    <Link
+                                      href={`/payment/review/${payment.id}`}
+                                      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 transition-colors"
+                                    >
+                                      Revisar pago
+                                    </Link>
                                   </div>
                                 )}
                               </div>

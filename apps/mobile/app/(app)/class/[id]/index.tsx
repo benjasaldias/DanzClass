@@ -13,8 +13,9 @@ import * as Linking from 'expo-linking'
 import {
   ChevronLeft, MapPin, Clock, Users, Calendar, ChevronDown,
   ChevronRight, CheckCircle2, Tag, Music2, AlertCircle,
-  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell, CalendarPlus, MessageCircle,
+  UserPlus, X, Loader2, ArrowRight, Send, Video, Share2, Bell, CalendarPlus, MessageCircle, Lock, ScanQrCode,
 } from 'lucide-react-native'
+import QRCode from 'react-native-qrcode-svg'
 import { Icon } from '../../../../components/ui/Icon'
 import StyleChip from '../../../../components/ui/StyleChip'
 import LeafletMap from '../../../../components/ui/LeafletMap'
@@ -476,6 +477,7 @@ export default function ClassDetailScreen() {
   const [token, setToken] = useState<string | null>(null)
   const [tier, setTier] = useState<SubscriptionTier>('none')
   const [enrollment, setEnrollment] = useState<any>(null)
+  const [qrToken, setQrToken] = useState<{ token: string; status: 'active' | 'revoked' } | null>(null)
   const [spots, setSpots] = useState<any>(null)
   const [mediaIndex, setMediaIndex] = useState(0)
   const [showDates, setShowDates] = useState(false)
@@ -547,6 +549,18 @@ export default function ClassDetailScreen() {
         .neq('status', 'cancelled')
         .maybeSingle()
       setEnrollment(existing)
+
+      // QR de asistencia — RLS (qr_tokens_select_own) solo deja ver el propio.
+      // Se busca aunque el enrollment no esté confirmado todavía por si quedó
+      // una fila 'revoked' de un ciclo de pago anterior sobre el mismo enrollment.
+      if (existing) {
+        const { data: qr } = await (supabase as any)
+          .from('qr_tokens')
+          .select('token, status')
+          .eq('enrollment_id', existing.id)
+          .maybeSingle()
+        setQrToken(qr ?? null)
+      }
 
       // 2x request check
       const { data: twox } = await (supabase as any)
@@ -700,17 +714,8 @@ export default function ClassDetailScreen() {
   // ─── Enrollment handlers ──────────────────────────────────────────────────
   async function handleEnroll() {
     if (!userId || !token || isFull) return
-    if (!canEnroll(tier)) {
-      Alert.alert(
-        'Plan requerido',
-        'Necesitas un plan activo para inscribirte en clases.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ver planes', onPress: () => router.push('/(app)/plans' as any) },
-        ]
-      )
-      return
-    }
+    // Inscripción abierta a todos (marketplace): sin plan también reserva y luego
+    // paga in-app por Mercado Pago con comisión en la pantalla de pago.
     setEnrolling(true)
     const res = await fetch(`${WEB_URL}/api/class/enroll`, {
       method: 'POST',
@@ -747,9 +752,13 @@ export default function ClassDetailScreen() {
 
   async function handleLeave() {
     if (!userId || !enrollment || !token) return
+    // Solo hay un QR de asistencia vivo si el pago está confirmado (ver renderQrSection).
+    const hasLiveQr = enrollment.status === 'confirmed' && qrToken?.status === 'active'
     Alert.alert(
       'Salir de la clase',
-      '¿Estás seguro? Perderás tu lugar y deberás reinscribirte.',
+      hasLiveQr
+        ? 'Perderás tu acceso QR a esta clase. ¿Continuar?'
+        : '¿Estás seguro? Perderás tu lugar y deberás reinscribirte.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -762,6 +771,7 @@ export default function ClassDetailScreen() {
               body: JSON.stringify({ enrollmentId: enrollment.id }),
             })
             setEnrollment(null)
+            setQrToken(null)
             setSpots((prev: any) => prev ? { ...prev, spots_available: prev.spots_available + 1 } : prev)
             setLeaving(false)
           },
@@ -826,6 +836,66 @@ export default function ClassDetailScreen() {
     : (discountData.discount_price ?? cls.price)
   const hasDiscount = activePrice < cls.price
 
+  // QR de asistencia — usado tanto en la rama de entrenamiento con audición
+  // como en la de inscripción regular (ambas muestran "confirmado" abajo).
+  function renderQrSection() {
+    if (!enrollment) return null
+
+    if (enrollment.status !== 'confirmed') {
+      return (
+        <View className="flex-row items-center gap-2">
+          <Lock size={12} stroke={isDark ? '#A39BBF' : '#6B6880'} />
+          <Text className="text-xs text-gray-500 dark:text-dark-text2 flex-1">
+            Tu código QR de asistencia se generará cuando se confirme tu pago
+          </Text>
+        </View>
+      )
+    }
+
+    if (!qrToken) {
+      return (
+        <View className="flex-row items-center justify-center gap-2 py-2">
+          <ActivityIndicator size="small" color={isDark ? '#A39BBF' : '#6B6880'} />
+          <Text className="text-xs text-gray-500 dark:text-dark-text2">Generando tu código QR…</Text>
+        </View>
+      )
+    }
+
+    if (qrToken.status === 'revoked') {
+      return (
+        <View className="flex-row items-center gap-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl px-3 py-2">
+          <AlertCircle size={14} stroke="#D85A30" />
+          <Text className="text-xs text-orange-700 dark:text-orange-400 font-medium flex-1">
+            Tu código QR fue revocado. Contacta al profesor si crees que es un error.
+          </Text>
+        </View>
+      )
+    }
+
+    const dateLabel = cls.type === 'suelta'
+      ? `Válido el ${formatDate(cls.date)}`
+      : isCustom
+        ? 'Válido en las fechas programadas'
+        : 'Válido en cada sesión de esta clase'
+
+    return (
+      <View className="items-center bg-brand-50 dark:bg-dark-surface2 rounded-2xl p-4 gap-2 border border-brand-100 dark:border-dark-border">
+        <View className="bg-white rounded-xl p-3">
+          <QRCode value={qrToken.token} size={160} backgroundColor="#ffffff" color="#1A1035" />
+        </View>
+        <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text text-center mt-1">
+          {cls.title}
+        </Text>
+        <Text className="text-xs text-gray-500 dark:text-dark-text2 text-center">{dateLabel}</Text>
+        {isCustom && (
+          <TouchableOpacity onPress={() => setShowDates(true)}>
+            <Text className="text-xs text-brand-700 dark:text-brand-300 font-medium underline">Ver fechas</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    )
+  }
+
   const has2xPrice = !!(cls.price_2x || cls.price_suelta_2x)
   const price2x = cls.price_2x ?? cls.price_suelta_2x
   const price2xLabel = cls.price_2x
@@ -856,6 +926,14 @@ export default function ClassDetailScreen() {
         <TouchableOpacity onPress={handleShare} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Share2 size={20} stroke="#6B6880" />
         </TouchableOpacity>
+        {isTeacher && (
+          <TouchableOpacity
+            onPress={() => router.push(`/(app)/class/${cls.id}/scan-attendance?title=${encodeURIComponent(cls.title)}` as any)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ScanQrCode size={20} stroke={isDark ? '#EEEDFE' : '#374151'} />
+          </TouchableOpacity>
+        )}
         {isTeacher && (
           <View className="flex-row items-center gap-2">
             <TouchableOpacity
@@ -1165,6 +1243,7 @@ export default function ClassDetailScreen() {
                   <Text className="text-xs text-green-700 dark:text-green-400 font-medium">Agregar a calendario</Text>
                 </TouchableOpacity>
               )}
+              {renderQrSection()}
               <TouchableOpacity onPress={handleLeave} disabled={leaving} className="py-2 items-center">
                 <Text className="text-xs text-red-500 dark:text-red-400">{leaving ? 'Saliendo...' : 'Salir del entrenamiento'}</Text>
               </TouchableOpacity>
@@ -1217,6 +1296,7 @@ export default function ClassDetailScreen() {
                       <Text className="text-xs text-green-700 dark:text-green-400 font-medium">Agregar a calendario</Text>
                     </TouchableOpacity>
                   )}
+                  {renderQrSection()}
                   {/* Chat con el profesor */}
                   <TouchableOpacity
                     onPress={async () => {
@@ -1271,13 +1351,11 @@ export default function ClassDetailScreen() {
               ) : (
                 <TouchableOpacity
                   onPress={handleEnroll}
-                  disabled={enrolling || !canEnroll(tier)}
-                  className={`rounded-xl py-3 items-center mt-1 ${!canEnroll(tier) ? 'bg-gray-200' : 'bg-brand-600'}`}
+                  disabled={enrolling}
+                  className="rounded-xl py-3 items-center mt-1 bg-brand-600"
                 >
-                  <Text className={`font-semibold ${!canEnroll(tier) ? 'text-gray-500' : 'text-white'}`}>
-                    {enrolling ? 'Inscribiendo...' :
-                     !canEnroll(tier) ? 'Necesitas un plan' :
-                     'Reservar lugar'}
+                  <Text className="font-semibold text-white">
+                    {enrolling ? 'Inscribiendo...' : 'Reservar lugar'}
                   </Text>
                 </TouchableOpacity>
               )

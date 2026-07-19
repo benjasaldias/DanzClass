@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BottomNav from '@/components/ui/BottomNav'
 import PublishFab from '@/components/ui/PublishFab'
@@ -10,7 +9,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) redirect('/auth/login')
+  // Rutas públicas dentro de este grupo (solo /feed) pueden renderizar sin sesión.
+  // El resto de las rutas del grupo están protegidas por el middleware, que ya
+  // redirige a login antes de llegar aquí, así que `user` solo es null en /feed.
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-blanco-violeta dark:bg-dark-bg flex flex-col">
+        <TopBar profile={null} unreadCount={0} />
+        <main className="flex-1 pb-app-nav pt-app-header max-w-lg mx-auto w-full">
+          {children}
+        </main>
+        <BottomNav />
+      </div>
+    )
+  }
 
   const [{ data: profile }, { data: subscription }, { count: unreadCount }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),

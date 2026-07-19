@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   MapPin, Clock, Users, Calendar, ChevronLeft, ChevronRight, UserPlus, UserMinus,
   AlertCircle, CheckCircle2, Pencil, Trash2, Flag, Tag, ClipboardList,
-  ChevronDown, ChevronUp, Share2, Bell, CalendarPlus, MessageCircle,
+  ChevronDown, ChevronUp, Share2, Bell, CalendarPlus, MessageCircle, ScanLine,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 import { downloadICS } from '@/lib/ics'
@@ -18,6 +18,7 @@ import Avatar from '@/components/ui/Avatar'
 import StyleChip from '@/components/ui/StyleChip'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import CustomDatesCalendar from '@/components/class/CustomDatesCalendar'
+import AttendanceQr from '@/components/class/AttendanceQr'
 import ReportModal from '@/components/ui/ReportModal'
 import DiscountModal from '@/components/class/DiscountModal'
 import TwoxRequestButton from '@/components/class/TwoxRequestButton'
@@ -281,9 +282,11 @@ export default function ClassDetailClient({
   }
 
   const alreadyPaid = enrollment?.status === 'confirmed' || enrollment?.status === 'payment_submitted'
-  const leaveMessage = alreadyPaid
-    ? `IMPORTANTE: ya pagaste esta clase. ¿Seguro que quieres salirte?`
-    : `¿Seguro que quieres salirte de "${classData.title}"? Tu cupo quedará libre.`
+  const leaveMessage = enrollment?.status === 'confirmed'
+    ? `Perderás tu acceso QR a esta clase y tu cupo quedará libre. ¿Continuar?`
+    : alreadyPaid
+      ? `IMPORTANTE: ya pagaste esta clase. ¿Seguro que quieres salirte?`
+      : `¿Seguro que quieres salirte de "${classData.title}"? Tu cupo quedará libre.`
 
   // Training with audition: enrollment is auto-created on accept — never show "Reservar cupo"
   const canEnrollDirectly = !isEntrenamiento || !classData.requires_audition
@@ -344,6 +347,13 @@ export default function ClassDetailClient({
               <Share2 className="h-3.5 w-3.5" />
               {copied ? '¡Enlace copiado!' : 'Compartir'}
             </button>
+            <Link
+              href={`/class/${classData.id}/scan-attendance`}
+              className="flex items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-900/50 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/40 transition-colors"
+            >
+              <ScanLine className="h-3.5 w-3.5" />
+              Escanear
+            </Link>
             {isEntrenamiento && !classData.audition_closed && (
               <Link
                 href={`/class/${classData.id}/auditions`}
@@ -732,11 +742,9 @@ export default function ClassDetailClient({
               <Link href="/auth/login" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
                 Inicia sesión para reservar
               </Link>
-            ) : !canUserEnroll ? (
-              <Link href="/plans" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
-                Obtener plan
-              </Link>
             ) : (
+              // Inscripción abierta a todos (marketplace): sin plan también reserva
+              // y luego paga in-app por Mercado Pago con comisión en la pantalla de pago.
               <button
                 onClick={handleEnroll}
                 disabled={enrolling}
@@ -828,6 +836,9 @@ function EnrollmentBanner({ enrollment, classId, classData, onLeave }: { enrollm
             {openingChat ? 'Abriendo chat...' : 'Chat con el profesor'}
           </button>
           <button onClick={onLeave} className="mt-2 text-xs text-red-500 hover:text-red-700 font-medium underline">Salir de la clase</button>
+          {enrollment.status === 'confirmed' && (
+            <AttendanceQr enrollmentId={enrollment.id} classData={classData} />
+          )}
         </div>
       </div>
     </div>

@@ -22,5 +22,8 @@ CREATE POLICY "notifications_insert_any" ON notifications
 
 -- Allow teachers to delete classes (needed for class cancellation flow)
 -- The existing select policy already allows teacher to see their cancelled classes
+-- DROP IF EXISTS: this policy is already created in 001_initial_schema.sql; guard added
+-- so replaying the full migration history from scratch (e.g. local dev) doesn't fail.
+DROP POLICY IF EXISTS "classes_delete_teacher" ON classes;
 CREATE POLICY "classes_delete_teacher" ON classes
   FOR DELETE USING (auth.uid() = teacher_id);

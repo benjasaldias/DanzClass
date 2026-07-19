@@ -1,14 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, ActivityIndicator,
-  ScrollView, Alert, Linking, RefreshControl,
+  ScrollView, Alert, RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { CheckCircle2, XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap, History, Receipt, Bell } from 'lucide-react-native'
+import { XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap, History, Receipt, Bell } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
-import { sendNotifications } from '../../../lib/notifications'
 import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
 import { useTheme } from '../../../context/ThemeContext'
 
@@ -129,10 +128,10 @@ function TeachingTab({
   currentUserId: string
   dismissedIds: string[]
 }) {
+  const router = useRouter()
   const [classData, setClassData] = useState(initialClasses)
   const [dismissedIds, setDismissedIds] = useState<string[]>(initialDismissed)
   const [expandedClass, setExpandedClass] = useState<string | null>(initialClasses[0]?.id ?? null)
-  const [loadingEnrollment, setLoadingEnrollment] = useState<string | null>(null)
 
   // Only show non-archived classes in the teaching view (archived → historial only)
   const activeClasses = classData.filter((cls: any) => !isDeleted(cls.deletion_date ?? null))
@@ -153,44 +152,6 @@ function TeachingTab({
         studentId: e.student?.id ?? e.student_id,
       }))
   )
-
-  async function handlePaymentAction(enrollmentId: string, paymentId: string, action: 'verified' | 'rejected') {
-    setLoadingEnrollment(enrollmentId)
-    const newStatus = action === 'verified' ? 'confirmed' : 'pending_payment'
-    const notifType = action === 'verified' ? 'payment_confirmed' : 'payment_rejected'
-
-    await supabase.from('payments').update({
-      status: action,
-      verified_at: action === 'verified' ? new Date().toISOString() : null,
-    }).eq('id', paymentId)
-
-    await supabase.from('enrollments').update({ status: newStatus }).eq('id', enrollmentId)
-
-    const enrollment = classData.flatMap((c: any) => c.enrollments).find((e: any) => e.id === enrollmentId)
-    const classId = classData.find((c: any) => c.enrollments.some((e: any) => e.id === enrollmentId))?.id
-    if (enrollment && classId) {
-      await sendNotifications({
-        user_id: enrollment.student?.id ?? enrollment.student_id,
-        type: notifType,
-        data: { class_id: classId },
-      })
-    }
-
-    setClassData((prev) =>
-      prev.map((cls) => ({
-        ...cls,
-        enrollments: cls.enrollments.map((e: any) => {
-          if (e.id !== enrollmentId) return e
-          return {
-            ...e,
-            status: newStatus,
-            payment: e.payment?.map((p: any) => p.id === paymentId ? { ...p, status: action } : p),
-          }
-        }),
-      }))
-    )
-    setLoadingEnrollment(null)
-  }
 
   async function handleRemoveStudent(enrollmentId: string, studentName: string) {
     Alert.alert(
@@ -358,7 +319,6 @@ function TeachingTab({
                       const payment = Array.isArray(enrollment.payment)
                         ? enrollment.payment[0]
                         : enrollment.payment
-                      const isLoading = loadingEnrollment === enrollment.id
 
                       return (
                         <View key={enrollment.id} className="p-4 border-t border-gray-50 dark:border-dark-border/40">
@@ -387,43 +347,18 @@ function TeachingTab({
                           </View>
 
                           {/* Payment verification */}
-                          {enrollment.status === 'payment_submitted' && payment && (
+                          {(enrollment.status === 'payment_submitted' || payment?.confirmed_by === 'ai') && payment && (
                             <View className="mt-3 ml-11 gap-2">
-                              {payment.receipt_url && (
-                                <TouchableOpacity onPress={async () => {
-                                  const { data: { session } } = await supabase.auth.getSession()
-                                  const token = session?.access_token
-                                  if (!token) return
-                                  const res = await fetch(`https://dc-project-web.vercel.app/api/payment/receipt-url?paymentId=${payment.id}`, {
-                                    headers: { Authorization: `Bearer ${token}` },
-                                  })
-                                  if (res.ok) {
-                                    const { url } = await res.json()
-                                    Linking.openURL(url)
-                                  }
-                                }}>
-                                  <Text className="text-xs text-brand-600 font-medium">Ver comprobante ↗</Text>
-                                </TouchableOpacity>
-                              )}
                               <Text className="text-xs text-gris-humo dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</Text>
-                              <View className="flex-row gap-2">
-                                <TouchableOpacity
-                                  onPress={() => handlePaymentAction(enrollment.id, payment.id, 'verified')}
-                                  disabled={!!isLoading}
-                                  className={`flex-row items-center gap-1.5 bg-green-600 rounded-lg px-3 py-2 ${isLoading ? 'opacity-50' : ''}`}
-                                >
-                                  <CheckCircle2 size={13} stroke="white" />
-                                  <Text className="text-white text-xs font-semibold">Confirmar</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  onPress={() => handlePaymentAction(enrollment.id, payment.id, 'rejected')}
-                                  disabled={!!isLoading}
-                                  className={`flex-row items-center gap-1.5 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 ${isLoading ? 'opacity-50' : ''}`}
-                                >
-                                  <XCircle size={13} stroke="#ef4444" />
-                                  <Text className="text-red-600 dark:text-red-400 text-xs font-semibold">Rechazar</Text>
-                                </TouchableOpacity>
-                              </View>
+                              {payment.confirmed_by === 'ai' && (
+                                <Text className="text-xs text-blue-600 dark:text-blue-400 font-medium">Confirmado por IA — revisar</Text>
+                              )}
+                              <TouchableOpacity
+                                onPress={() => router.push(`/(app)/payment/review/${payment.id}` as any)}
+                                className="self-start flex-row items-center gap-1.5 bg-brand-600 rounded-lg px-3 py-2"
+                              >
+                                <Text className="text-white text-xs font-semibold">Revisar pago</Text>
+                              </TouchableOpacity>
                             </View>
                           )}
                         </View>

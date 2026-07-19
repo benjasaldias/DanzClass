@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/auth/login', '/auth/register', '/terms', '/privacy']
+const PUBLIC_ROUTES = ['/', '/feed', '/auth/login', '/auth/register', '/terms', '/privacy']
 
 // Solo el detalle público de una clase o evento (:id) es accesible sin sesión.
 // Subrutas como /edit exigen login y guards de ownership server-side.
@@ -56,5 +56,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Excluir /api: las rutas API hacen su propia auth (requireUser soporta
+  // Bearer para mobile + cookie para web). Sin esta exclusión el middleware
+  // —que solo lee cookies— redirige a /auth/login toda llamada API con Bearer,
+  // rompiendo el path mobile (escáner QR, enroll, chat, etc.).
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

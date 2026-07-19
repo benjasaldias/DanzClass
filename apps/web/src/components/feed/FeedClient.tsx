@@ -25,7 +25,7 @@ interface FeedClientProps {
   initialPosts: any[]
   initialRehearsals?: any[]
   initialEvents?: any[]
-  currentUser: User
+  currentUser: User | null
   currentProfile: Profile | null
   followingIds: string[]
   friendsTwoxRequests?: any[]
@@ -99,10 +99,10 @@ export default function FeedClient({
     if (data) {
       setRehearsals(data.map((r: any) => ({
         ...r,
-        my_invite: (r.invites ?? []).find((i: any) => i.user_id === currentUser.id) ?? null,
+        my_invite: (r.invites ?? []).find((i: any) => i.user_id === currentUser?.id) ?? null,
       })))
     }
-  }, [currentUser.id])
+  }, [currentUser?.id])
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -198,12 +198,12 @@ export default function FeedClient({
       {activeFilter === 'following' && friendsTwoxRequests.length > 0 && (
         <FriendsTwoxList
           requests={friendsTwoxRequests}
-          currentUserId={currentUser.id}
+          currentUserId={currentUser?.id ?? ''}
         />
       )}
 
       {/* Create rehearsal banner */}
-      {contentType === 'rehearsals' && (
+      {contentType === 'rehearsals' && currentUser && (
         <div className="mx-4 mt-3 mb-1 rounded-xl border border-[#7F77DD]/30 bg-[#EEEDFE]/50 dark:bg-dark-surface2/60 p-3 flex items-center gap-3">
           <Music2 className="h-4 w-4 text-[#7F77DD] flex-shrink-0" />
           <p className="text-sm text-gray-700 dark:text-dark-text flex-1">
@@ -266,7 +266,7 @@ export default function FeedClient({
               ? <ClassCard
                   key={`class-${item.data.id}`}
                   classData={item.data}
-                  currentUserId={currentUser.id}
+                  currentUserId={currentUser?.id ?? ''}
                   currentUserRole={currentProfile?.role ?? 'user'}
                   teacherRating={teacherRatings[item.data.teacher_id]}
                   distanceM={activeFilter === 'nearby' ? item.data._distance_m ?? null : null}
@@ -275,15 +275,15 @@ export default function FeedClient({
                 ? <RehearsalCard
                     key={`rehearsal-${item.data.id}`}
                     rehearsal={item.data}
-                    currentUserId={currentUser.id}
+                    currentUserId={currentUser?.id ?? ''}
                     onEdited={reloadRehearsals}
                     onCancelled={(id) => setRehearsals((prev) => prev.filter((r: any) => r.id !== id))}
                   />
                 : item.type === 'event'
                   ? <div key={`event-${item.data.id}`} className="mx-4 mb-4">
-                      <EventCard event={item.data} currentUserId={currentUser.id} />
+                      <EventCard event={item.data} currentUserId={currentUser?.id ?? ''} />
                     </div>
-                  : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser.id} />
+                  : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser?.id ?? ''} />
           )
         )}
       </div>

@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
-import { getActiveTier } from '@/lib/subscription'
-import { canEnroll } from '@danceclass/shared'
 import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
@@ -13,7 +11,6 @@ export async function POST(request: Request) {
 
   // Auth: Bearer token (mobile) or cookie (web)
   let userId: string
-  let supabaseForTier: any
 
   const authHeader = request.headers.get('authorization')
   if (authHeader?.startsWith('Bearer ')) {
@@ -26,24 +23,21 @@ export async function POST(request: Request) {
     const { data: { user } } = await anonClient.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userId = user.id
-    supabaseForTier = anonClient
   } else {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userId = user.id
-    supabaseForTier = supabase
   }
 
   // Rate limit: max 10 enroll attempts per minute per user
   const enrollLimit = await checkRateLimit(`enroll:${userId}`, 'enroll')
   if (enrollLimit) return enrollLimit
 
-  // Check subscription tier (includes grace period via getActiveTier)
-  const tier = await getActiveTier(userId, supabaseForTier)
-  if (!canEnroll(tier)) {
-    return NextResponse.json({ error: 'subscription_required' }, { status: 403 })
-  }
+  // Inscripción abierta a cualquier usuario autenticado (marketplace, 2026-07-17):
+  // los alumnos SIN plan también pueden inscribirse y pagan in-app por Mercado
+  // Pago con comisión. El tier solo decide el método/comisión, ya en la pantalla
+  // de pago — no bloquea la inscripción.
 
   const admin = createAdminClient()
 

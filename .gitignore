@@ -18,3 +18,4 @@ build/
 .DS_Store
 .turbo/
 design-preview/
+graphify-out/

@@ -21,15 +21,23 @@ const nextConfig = {
     ]
   },
   async headers() {
+    // Local Supabase (via `npm run db:start`) serves the API over plain HTTP/WS on
+    // 127.0.0.1:54321 — the production CSP only allows *.supabase.co, so `next dev`
+    // needs this exception or every fetch/storage request to the local stack is
+    // blocked by the browser. Dev-only: never added to a production build.
+    const isDev = process.env.NODE_ENV === 'development'
+    const localSupabase = isDev ? ' http://127.0.0.1:54321' : ''
+    const localSupabaseWs = isDev ? ' ws://127.0.0.1:54321' : ''
+
     const csp = [
       "default-src 'self'",
       // Next.js App Router requires inline scripts for hydration; unsafe-eval for some edge configs
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       // OSM tile servers power the Leaflet maps (class/event location).
-      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.tile.openstreetmap.org https://tile.openstreetmap.org",
-      "media-src 'self' blob: https://res.cloudinary.com https://*.supabase.co",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://api.cloudinary.com https://exp.host",
+      `img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co${localSupabase} https://*.tile.openstreetmap.org https://tile.openstreetmap.org`,
+      `media-src 'self' blob: https://res.cloudinary.com https://*.supabase.co${localSupabase}`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://api.cloudinary.com https://exp.host${localSupabase}${localSupabaseWs}`,
       "font-src 'self' data:",
       "frame-src https://www.mercadopago.com.ar https://www.mercadopago.cl",
       "frame-ancestors 'none'",
@@ -44,7 +52,7 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
           { key: 'Content-Security-Policy', value: csp },
         ],
       },
