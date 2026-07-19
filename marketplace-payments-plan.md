@@ -74,7 +74,7 @@ Cada profesor conecta su cuenta MP vía **OAuth (Mercado Pago Connect)**. El pag
 - **`/api/mercadopago/create-payment`** (POST `{ enrollmentId }`) — el core del split:
   - Auth (Bearer+cookie). Verifica pertenencia del enrollment + estado ≠ confirmed. Rechaza 2x (`twox_not_supported`).
   - Busca `teacher_mp_connections.access_token` del profe → si no hay, `teacher_not_connected` (400).
-  - Monto **autoritativo server-side**: `paymentBreakdown(cls.price, getActiveTier(userId))`.
+  - Monto **autoritativo server-side**: `paymentBreakdown(effectiveClassPrice(cls), getActiveTier(userId))` — `effectiveClassPrice` (bugfix sesión 2026-07-19, ver §9) aplica el descuento espontáneo activo del profesor; antes usaba `cls.price` crudo e ignoraba descuentos.
   - Crea preferencia Checkout Pro con `new MercadoPagoConfig({ accessToken: <token del profe> })` + `marketplace_fee: commission` (SDK `mercadopago@2.12.0` soporta `marketplace_fee?: number`).
   - `external_reference = 'enrollment:<enrollmentId>'`. `notification_url = ${appUrl}/api/mercadopago/webhook?seller=<teacherId>` (el `seller` es para que la Fase 4 lea el pago con el token correcto).
   - `back_urls`: success/pending → `/class/[id]?mp=ok|pending`, failure → `/payment/[id]?mp=failed`. `auto_return: 'approved'`.
@@ -178,3 +178,24 @@ apps/web/src/app/(app)/admin/page.tsx                        (F5: tab Conciliaci
 1. Probar F1–F4 con **cuentas sandbox de Mercado Pago** (§5) — comprador de prueba + vendedor de prueba conectado por OAuth; verificar split, confirmación por webhook y firma.
 2. **Revisión legal chilena** del ToS/tributario (§6) — el texto es borrador razonable, no asesoría verificada.
 3. (Ya hecho por el usuario) Redirect URI + scopes en el panel de MP; `APP_URL=https://danzclass.com`.
+
+---
+
+## 9. Bugfix (sesión 2026-07-19) — descuento espontáneo no se aplicaba al cobrar
+
+**Preexistente, no introducido por el marketplace** (verificado con `git show` de la versión anterior a la Fase 3a): tanto `PaymentClient.tsx` (web) como la pantalla de pago mobile calculaban `amount = cls.price` (o `cls.price_2x` para 2x), **ignorando `discount_price`/`discount_price_monthly`**. El detalle de clase (`ClassDetailClient`/mobile) sí mostraba el precio con descuento correctamente — la desconexión estaba solo en el momento de cobrar. Mi ruta nueva `create-payment` (Fase 3a) heredó el mismo bug al copiar el patrón.
+
+**Fix:** nuevo helper `packages/shared/src/lib/pricing.ts` — `effectiveClassPrice(cls)` (single source of truth: `discount_price_monthly ?? price` para periódica/entrenamiento, `discount_price ?? price` para suelta; el detalle de clase ya usaba esta misma fórmula inline). Aplicado en:
+- `apps/web/src/components/payment/PaymentClient.tsx` — `amount` (no-2x).
+- `apps/mobile/app/(app)/payment/[enrollmentId].tsx` — `amount` (dos apariciones: `submitPayment` + scope de render).
+- `apps/web/src/app/api/mercadopago/create-payment/route.ts` — el monto autoritativo del split ahora agrega `discount_price, discount_price_monthly, type` al `select` y usa `effectiveClassPrice(cls)` en vez de `cls.price` crudo.
+
+2x **no** aplica descuento (no existe `discount_price_2x`, comportamiento sin cambios — consistente con el schema). Tests: `tests/unit/pricing.test.ts` (8, pasan). Verificado también con datos sintéticos que `effectiveClassPrice` reproduce exactamente los mismos 5 casos que `ClassDetailClient`.
+
+## 10. Bugfix (sesión 2026-07-19) — onboarding tour disparándose para visitantes anónimos
+
+Causado por la Corrección 2 de la sesión 2026-07-18 (feed público): `OnboardingTour` (web) se montaba sin ningún chequeo de sesión, solo un flag **global** en `localStorage` (`danzclass_onboarding_v1_seen`). Al volverse `/feed` público, cualquier visitante sin sesión (browser nuevo / storage limpio) disparaba el tour. Bug relacionado (no reportado pero corregido de paso): el flag era global, no por cuenta — dos usuarios distintos compartiendo browser solo veían el tour una vez entre ambos.
+
+**Fix** en `apps/web/src/components/feed/OnboardingTour.tsx`: ahora recibe `currentUserId: string | null` + `accountCreatedAt: string | null` (de `profiles.created_at`). Nunca se muestra sin `currentUserId`. Cuando hay sesión, solo se muestra si la cuenta es **nueva** (`created_at` dentro de las últimas 24h — ventana elegida porque el registro exige confirmar el correo antes del primer login real, hasta 24h antes del cron de limpieza de cuentas no confirmadas). El flag de "ya visto" en localStorage ahora es **por cuenta** (`${STORAGE_PREFIX}:${userId}`), no global. Mount actualizado en `FeedClient.tsx`: `<OnboardingTour currentUserId={currentUser?.id ?? null} accountCreatedAt={currentProfile?.created_at ?? null} />`.
+
+**Solo web** — mobile no tiene el problema (siempre requiere login antes de llegar al feed) y no se tocó; su `OnboardingTour` mobile conserva el flag global de `AsyncStorage`, lo cual es una deuda menor preexistente (no reportada) si algún día un dispositivo comparte sesiones de distintas cuentas.

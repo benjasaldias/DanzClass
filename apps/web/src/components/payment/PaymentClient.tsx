@@ -8,7 +8,7 @@ import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft, Use
 import { createClient } from '@/lib/supabase/client'
 import { formatCLP } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import { canPayByTransfer, paymentBreakdown, type SubscriptionTier } from '@danceclass/shared'
+import { canPayByTransfer, paymentBreakdown, effectiveClassPrice, type SubscriptionTier } from '@danceclass/shared'
 
 interface PaymentClientProps {
   enrollment: any
@@ -40,7 +40,9 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
 
   const is2x = !!enrollment.is_2x
   const missing2xPrice = is2x && !cls.price_2x
-  const amount = is2x && cls.price_2x ? cls.price_2x : cls.price
+  // 2x usa su propio precio (sin descuento espontáneo); la clase individual sí
+  // aplica el descuento activo del profesor (mismo cálculo que ClassDetailClient).
+  const amount = is2x && cls.price_2x ? cls.price_2x : effectiveClassPrice(cls)
   const isMyTurnToPay = !is2x || !twoxRequest || twoxRequest.payment_assignee === currentUserId
 
   // Comisión / método de pago (marketplace). Para 2x mantenemos solo transferencia.
