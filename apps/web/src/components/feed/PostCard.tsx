@@ -80,8 +80,12 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
 
   async function handleDelete() {
     setDeleting(true)
-    const supabase = createClient()
-    await (supabase as any).from('posts').delete().eq('id', post.id)
+    // Vía API server-side para borrar también el video en Cloudinary (item 10).
+    await fetch('/api/post/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId: post.id }),
+    }).catch(() => {})
     setDeleting(false)
     setShowDeleteConfirm(false)
     router.refresh()

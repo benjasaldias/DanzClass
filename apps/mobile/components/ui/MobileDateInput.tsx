@@ -17,15 +17,22 @@ function isoToDisplay(iso: string): string {
 
 function displayToIso(display: string): string {
   const parts = display.split('/')
-  if (parts.length !== 3 || parts[2].length !== 4) return ''
+  if (parts.length !== 3) return ''
   const [d, m, y] = parts
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  // Año de 2 dígitos (AA → 20AA) o de 4 (AAAA). El valor interno queda YYYY-MM-DD.
+  if (y.length !== 2 && y.length !== 4) return ''
+  const yyyy = y.length === 2 ? `20${y}` : y
+  return `${yyyy}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
 }
 
 export default function MobileDateInput({ value, onChange, label, placeholder = 'DD/MM/AAAA', error }: Props) {
   const [display, setDisplay] = useState(isoToDisplay(value))
 
   useEffect(() => {
+    // Solo re-sincroniza ante cambios EXTERNOS del value: si el value ya
+    // corresponde a lo tecleado, no clobbear (evita romper el tipeo de un año
+    // de 4 dígitos al commitear uno de 2, AA→20AA).
+    if (displayToIso(display) === value) return
     const fromValue = isoToDisplay(value)
     if (fromValue !== display) setDisplay(fromValue)
   }, [value])
@@ -41,9 +48,10 @@ export default function MobileDateInput({ value, onChange, label, placeholder = 
 
     setDisplay(formatted)
 
-    if (digits.length === 8) {
-      const iso = displayToIso(formatted)
-      onChange(iso)
+    // 6 dígitos (DD/MM/AA) o 8 (DD/MM/AAAA) → ISO. Si sigue escribiendo hasta 8,
+    // el valor de 4 dígitos sobreescribe el de 2.
+    if (digits.length === 8 || digits.length === 6) {
+      onChange(displayToIso(formatted))
     } else {
       onChange('')
     }

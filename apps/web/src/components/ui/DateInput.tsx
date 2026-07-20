@@ -16,11 +16,29 @@ function isoToDisplay(iso: string): string {
   return `${d}/${m}/${y}`
 }
 
+// YYYY-MM-DD a partir de lo tecleado (DD/MM/AA o DD/MM/AAAA). '' si incompleto.
+// Año de 2 dígitos → 20AA. El valor interno SIEMPRE queda en el formato de
+// backend de siempre (YYYY-MM-DD).
+function isoFromDigits(digits: string): string {
+  const d = digits.slice(0, 2)
+  const m = digits.slice(2, 4)
+  if (digits.length === 8) return `${digits.slice(4, 8)}-${m}-${d}`
+  if (digits.length === 6) return `20${digits.slice(4, 6)}-${m}-${d}`
+  return ''
+}
+
 export default function DateInput({ value, onChange, className }: DateInputProps) {
   const [display, setDisplay] = useState(() => isoToDisplay(value))
 
   useEffect(() => {
+    // Solo re-sincroniza cuando el `value` externo representa una fecha distinta
+    // a la que el usuario está tecleando. Sin esto, al commitear un año de 2
+    // dígitos (AA→20AA) el efecto reemplazaría "01/01/26" por "01/01/2026" y
+    // rompería seguir escribiendo un año de 4 dígitos.
+    const currentIso = isoFromDigits(display.replace(/\D/g, ''))
+    if (currentIso === value) return
     setDisplay(isoToDisplay(value))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -33,15 +51,7 @@ export default function DateInput({ value, onChange, className }: DateInputProps
     if (digits.length > 4) formatted = formatted.slice(0, 5) + '/' + formatted.slice(5)
 
     setDisplay(formatted)
-
-    if (digits.length === 8) {
-      const d = digits.slice(0, 2)
-      const m = digits.slice(2, 4)
-      const y = digits.slice(4, 8)
-      onChange(`${y}-${m}-${d}`)
-    } else {
-      onChange('')
-    }
+    onChange(isoFromDigits(digits))
   }
 
   return (

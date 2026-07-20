@@ -184,7 +184,18 @@ export default function EditClassScreen() {
   }
 
   async function removeExistingMedia(media: ExistingMedia) {
-    await supabase.from('class_media').delete().eq('id', media.id)
+    // Vía API para borrar también el asset físico (video en Cloudinary / imagen
+    // en el bucket), no solo la fila (item 10).
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      await fetch('https://dc-project-web.vercel.app/api/class/media-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ mediaId: media.id }),
+      }).catch(() => {})
+    } else {
+      await supabase.from('class_media').delete().eq('id', media.id)
+    }
     setExistingMedia((prev) => prev.filter((m) => m.id !== media.id))
   }
 

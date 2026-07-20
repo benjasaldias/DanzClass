@@ -638,9 +638,12 @@ function exportTeacherCSV(teacherRows: any[]) {
       STATUS_LABELS[statusKey],
     ]
   })
-  const csv = [headers, ...rows]
-    .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n')
+  // Excel en locales con coma decimal (es-CL) usa `;` como separador de listas,
+  // no `,`: con coma metía toda la fila en una sola celda. Usamos `;` + la línea
+  // directiva `sep=;` (Excel la respeta sin importar el locale) + BOM + CRLF.
+  const escape = (cell: unknown) => `"${String(cell).replace(/"/g, '""')}"`
+  const body = [headers, ...rows].map((r) => r.map(escape).join(';')).join('\r\n')
+  const csv = 'sep=;\r\n' + body
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
