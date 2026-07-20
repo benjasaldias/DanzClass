@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import LogoIcon from '@/components/ui/LogoIcon'
+import ResendConfirmationButton from '@/components/auth/ResendConfirmationButton'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -28,13 +30,24 @@ export default function LoginPage() {
 
   async function onSubmit(data: FormData) {
     setError(null)
+    setUnconfirmedEmail(null)
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     })
     if (error) {
-      setError('Email o contraseña incorrectos')
+      // Confirmación de email obligatoria: si el correo no está confirmado,
+      // bloqueamos el login y ofrecemos reenviar el correo de verificación.
+      const notConfirmed =
+        (error as any).code === 'email_not_confirmed' ||
+        /not confirmed|no confirmad/i.test(error.message)
+      if (notConfirmed) {
+        setUnconfirmedEmail(data.email)
+        setError('Debes confirmar tu correo antes de iniciar sesión.')
+      } else {
+        setError('Email o contraseña incorrectos')
+      }
       return
     }
     router.push('/feed')
@@ -60,7 +73,10 @@ export default function LoginPage() {
 
           {error && (
             <div className="mb-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-              {error}
+              <p>{error}</p>
+              {unconfirmedEmail && (
+                <ResendConfirmationButton email={unconfirmedEmail} className="mt-2" />
+              )}
             </div>
           )}
 

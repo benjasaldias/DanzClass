@@ -32,7 +32,9 @@ export async function autoConfirmPayment(params: {
     ...(params.mp ? { mp_payment_id: params.mp.paymentId, mp_status: params.mp.status } : {}),
   }).eq('id', params.paymentId)
 
-  await admin.from('enrollments').update({ status: 'confirmed' } as any).eq('id', params.enrollmentId)
+  // status='confirmed' + limpiar cualquier hold temporal (item 3): un pago
+  // confirmado nunca debe quedar sujeto a expiración de reserva.
+  await admin.from('enrollments').update({ status: 'confirmed', hold_expires_at: null } as any).eq('id', params.enrollmentId)
 
   // Emite/rota el token QR de asistencia (best-effort, no rompe la confirmación).
   await issueAttendanceToken(admin, {

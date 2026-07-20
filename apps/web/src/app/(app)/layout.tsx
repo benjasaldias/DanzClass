@@ -9,9 +9,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Rutas públicas dentro de este grupo (solo /feed) pueden renderizar sin sesión.
-  // El resto de las rutas del grupo están protegidas por el middleware, que ya
-  // redirige a login antes de llegar aquí, así que `user` solo es null en /feed.
+  // Rutas públicas dentro de este grupo (/feed y /explore) pueden renderizar sin
+  // sesión. El resto de las rutas del grupo están protegidas por el middleware,
+  // que ya redirige a login antes de llegar aquí, así que `user` solo es null en
+  // /feed y /explore.
   if (!user) {
     return (
       <div className="min-h-screen bg-blanco-violeta dark:bg-dark-bg flex flex-col">

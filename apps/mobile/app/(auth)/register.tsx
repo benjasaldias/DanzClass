@@ -70,7 +70,7 @@ export default function RegisterScreen() {
           </View>
           <View className="bg-amber-500/20 border border-amber-400/40 rounded-2xl px-4 py-3 w-full">
             <Text className="text-amber-300 text-sm text-center leading-relaxed">
-              ⚠️ Tienes 1 día para confirmar tu correo. Si no lo haces, tu cuenta será eliminada automáticamente.
+              ⚠️ Debes confirmar tu correo para poder iniciar sesión. Tienes 7 días para hacerlo; si no, tu cuenta será eliminada automáticamente.
             </Text>
           </View>
           <TouchableOpacity

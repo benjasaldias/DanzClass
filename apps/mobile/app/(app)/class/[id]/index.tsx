@@ -813,10 +813,16 @@ export default function ClassDetailScreen() {
     )
   }
 
-  if (!cls) {
+  // Clases archivadas (item 1) ya no tienen página: solo persisten en el
+  // Historial. 'completed' es el estado legacy equivalente (media ya eliminada).
+  if (!cls || cls.status === 'archived' || cls.status === 'completed') {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
-        <Text className="text-gray-500">Clase no encontrada</Text>
+      <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg px-8">
+        <Text className="text-gray-500 dark:text-dark-text2 text-center">
+          {cls && (cls.status === 'archived' || cls.status === 'completed')
+            ? 'Esta clase ya finalizó y solo está disponible en tu Historial.'
+            : 'Clase no encontrada'}
+        </Text>
       </SafeAreaView>
     )
   }
@@ -1349,15 +1355,22 @@ export default function ClassDetailScreen() {
                   )}
                 </View>
               ) : (
-                <TouchableOpacity
-                  onPress={handleEnroll}
-                  disabled={enrolling}
-                  className="rounded-xl py-3 items-center mt-1 bg-brand-600"
-                >
-                  <Text className="font-semibold text-white">
-                    {enrolling ? 'Inscribiendo...' : 'Reservar lugar'}
-                  </Text>
-                </TouchableOpacity>
+                <View>
+                  <TouchableOpacity
+                    onPress={handleEnroll}
+                    disabled={enrolling}
+                    className="rounded-xl py-3 items-center mt-1 bg-brand-600"
+                  >
+                    <Text className="font-semibold text-white">
+                      {enrolling ? 'Inscribiendo...' : 'Reservar lugar'}
+                    </Text>
+                  </TouchableOpacity>
+                  {cls.allow_late_payment === false && (
+                    <Text className="text-xs text-coral-fuego font-medium mt-2">
+                      ⏱️ Esta clase no permite pagos atrasados: al reservar tienes 10 minutos para completar el pago o el cupo se libera.
+                    </Text>
+                  )}
+                </View>
               )
             )}
 

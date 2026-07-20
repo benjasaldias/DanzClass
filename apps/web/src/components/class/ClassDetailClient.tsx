@@ -764,6 +764,14 @@ export default function ClassDetailClient({
             <p className="mb-2 text-xs text-red-600 dark:text-red-400 font-medium">{enrollError}</p>
           )}
 
+          {/* Aviso de reserva con lock (item 3) */}
+          {!isTeacher && (!enrollment || enrollment.status === 'cancelled') && canEnrollDirectly && !isFull &&
+            (classData as any).allow_late_payment === false && (
+            <p className="mb-2 text-xs text-coral-fuego font-medium">
+              ⏱️ Esta clase no permite pagos atrasados: al reservar tienes 10 minutos para completar el pago o el cupo se libera.
+            </p>
+          )}
+
           {/* 2x button — solo para usuarios con plan cuando hay cupos */}
           {currentUser && canUserEnroll && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
             <TwoxRequestButton

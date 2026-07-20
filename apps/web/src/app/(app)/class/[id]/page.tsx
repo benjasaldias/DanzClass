@@ -26,6 +26,13 @@ export default async function ClassDetailPage({ params }: Props) {
 
   if (!rawClass) notFound()
 
+  // Clases archivadas (item 1) ya no tienen página: solo persisten como tarjeta
+  // en el Historial. 'completed' es el estado legacy equivalente (media ya
+  // eliminada por el cron viejo). Ambas → 404.
+  if ((rawClass as any).status === 'archived' || (rawClass as any).status === 'completed') {
+    notFound()
+  }
+
   const classData = rawClass as unknown as ClassWithTeacher
 
   // Fetch spots (always public)
