@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { Eye, EyeOff, Loader2, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import LogoIcon from '@/components/ui/LogoIcon'
+import ResendConfirmationButton from '@/components/auth/ResendConfirmationButton'
 
 const schema = z.object({
   full_name: z.string().min(2, 'Ingresa tu nombre completo'),
@@ -33,6 +34,7 @@ function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emailSent, setEmailSent] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,6 +66,7 @@ function RegisterForm() {
       return
     }
 
+    setRegisteredEmail(data.email)
     setEmailSent(true)
   }
 
@@ -82,8 +85,11 @@ function RegisterForm() {
               Te enviamos un enlace de confirmación. Haz clic en él para activar tu cuenta y luego inicia sesión.
             </p>
             <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2">
-              ⚠️ Tienes 1 día para confirmar tu correo. Si no lo haces, tu cuenta será eliminada automáticamente.
+              ⚠️ Debes confirmar tu correo para poder iniciar sesión. Tienes 7 días para hacerlo; si no, tu cuenta será eliminada automáticamente.
             </p>
+            {registeredEmail && (
+              <ResendConfirmationButton email={registeredEmail} className="flex justify-center" />
+            )}
             <Link
               href="/auth/login"
               className="btn-primary w-full py-3 block text-center"

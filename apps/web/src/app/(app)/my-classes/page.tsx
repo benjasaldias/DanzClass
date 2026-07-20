@@ -5,21 +5,28 @@ import MyClassesClient from '@/components/class/MyClassesClient'
 import { getActiveTier } from '@/lib/subscription'
 import { canTeach } from '@danceclass/shared'
 
+// Fecha en que se archivan los archivos pesados de la clase: 24 h después de su
+// última sesión (item 1). Null para clases indefinidas o sin fecha determinable.
 function getClassDeletionDate(cls: any): Date | null {
-  const now = new Date()
-  if (cls.type === 'suelta' && cls.date) {
-    const classDate = new Date(cls.date)
-    const deletionDate = new Date(classDate)
-    deletionDate.setDate(deletionDate.getDate() + 7)
-    return deletionDate
+  const durMs = (cls.duration_minutes ?? 60) * 60 * 1000
+  const at = (ymd: string, hm: string | null | undefined): Date => {
+    const [y, mo, d] = ymd.split('-').map(Number)
+    const [h = 0, m = 0] = (hm ?? '00:00').split(':').map(Number)
+    const dt = new Date(y, mo - 1, d, h, m)
+    dt.setTime(dt.getTime() + durMs)
+    return dt
   }
-  if (cls.type === 'periodica') {
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0) // last day of current month
-    const deletionDate = new Date(endOfMonth)
-    deletionDate.setDate(deletionDate.getDate() + 7)
-    return deletionDate
+  let lastSession: Date | null = null
+  if (cls.type === 'suelta') {
+    lastSession = cls.date ? at(cls.date, cls.time) : null
+  } else if (cls.recurrence === 'custom' || (cls.custom_dates?.length ?? 0) > 0) {
+    const dates: string[] = cls.custom_dates ?? []
+    if (dates.length) lastSession = at([...dates].sort().at(-1)!, cls.recurring_time ?? cls.time)
+  } else if (!cls.ends_indefinitely && cls.ends_at) {
+    lastSession = at(cls.ends_at, cls.recurring_time)
   }
-  return null
+  if (!lastSession) return null
+  return new Date(lastSession.getTime() + 24 * 60 * 60 * 1000)
 }
 
 export default async function MyClassesPage() {
@@ -58,7 +65,7 @@ export default async function MyClassesPage() {
         waitlist(count)
       `)
       .eq('teacher_id', user.id)
-      .in('status', ['active', 'completed'])
+      .in('status', ['active', 'completed', 'archived'])
       .order('created_at', { ascending: false }),
 
     getActiveTier(user.id, supabase),
@@ -108,6 +115,22 @@ export default async function MyClassesPage() {
     deletion_date: getClassDeletionDate(cls)?.toISOString() ?? null,
   }))
 
+  // Asistencia registrada por QR (item 2). RLS devuelve solo las filas que el
+  // usuario puede ver: su propia asistencia (alumno) + la de sus clases (profe).
+  // Se agrupa por `${class_id}:${student_id}` → fechas de sesión asistidas, para
+  // marcar "asistencia confirmada" en el historial.
+  const { data: attendanceRows } = await (supabase as any)
+    .from('attendance')
+    .select('class_id, student_id, session_date')
+
+  const attendanceMap: Record<string, string[]> = {}
+  for (const a of (attendanceRows as any[] ?? [])) {
+    if (!a.class_id || !a.student_id) continue
+    const key = `${a.class_id}:${a.student_id}`
+    ;(attendanceMap[key] ??= []).push(a.session_date)
+  }
+  for (const k in attendanceMap) attendanceMap[k].sort()
+
   return (
     <MyClassesClient
       enrollments={(enrollments as any[]) ?? []}
@@ -117,6 +140,7 @@ export default async function MyClassesPage() {
       dismissedStudentIds={dismissedStudentIds}
       ownRehearsals={(ownRehearsals as any[]) ?? []}
       rehearsalInvites={(rehearsalInvites as any[]) ?? []}
+      attendance={attendanceMap}
     />
   )
 }

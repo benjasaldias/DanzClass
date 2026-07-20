@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
@@ -6,6 +7,9 @@ import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
 import { Icon } from '../../components/ui/Icon'
 import LogoIcon from '../../components/ui/LogoIcon'
+
+const WEB_URL = 'https://dc-project-web.vercel.app'
+const RESEND_COOLDOWN = 60
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -16,6 +20,9 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginScreen() {
   const router = useRouter()
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null)
+  const [cooldown, setCooldown] = useState(0)
+  const [resending, setResending] = useState(false)
   const {
     control,
     handleSubmit,
@@ -26,12 +33,44 @@ export default function LoginScreen() {
     defaultValues: { email: '', password: '' },
   })
 
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
+
   async function onSubmit(data: FormData) {
+    setUnconfirmedEmail(null)
     const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
     if (error) {
-      setError('root', { message: 'Email o contraseña incorrectos' })
+      const notConfirmed =
+        (error as any).code === 'email_not_confirmed' ||
+        /not confirmed|no confirmad/i.test(error.message)
+      if (notConfirmed) {
+        setUnconfirmedEmail(data.email)
+        setError('root', { message: 'Debes confirmar tu correo antes de iniciar sesión.' })
+      } else {
+        setError('root', { message: 'Email o contraseña incorrectos' })
+      }
     } else {
       router.replace('/(app)/(tabs)/feed')
+    }
+  }
+
+  async function handleResend() {
+    if (resending || cooldown > 0 || !unconfirmedEmail) return
+    setResending(true)
+    try {
+      await fetch(`${WEB_URL}/api/auth/resend-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: unconfirmedEmail }),
+      })
+    } catch {
+      // silencioso
+    } finally {
+      setResending(false)
+      setCooldown(RESEND_COOLDOWN)
     }
   }
 
@@ -60,6 +99,21 @@ export default function LoginScreen() {
             {errors.root && (
               <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                 <Text className="text-red-700 text-sm">{errors.root.message}</Text>
+                {unconfirmedEmail && (
+                  <TouchableOpacity
+                    onPress={handleResend}
+                    disabled={resending || cooldown > 0}
+                    className="mt-2"
+                  >
+                    <Text className={`text-sm font-semibold ${resending || cooldown > 0 ? 'text-gray-400' : 'text-brand-600'}`}>
+                      {cooldown > 0
+                        ? `Reenviar en ${cooldown}s`
+                        : resending
+                        ? 'Enviando...'
+                        : 'Reenviar correo de verificación'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 

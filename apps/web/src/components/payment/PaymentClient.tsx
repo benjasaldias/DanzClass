@@ -192,10 +192,12 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
       paymentId = inserted?.id
     }
 
-    // Update enrollment status
+    // Update enrollment status + limpiar el hold temporal (item 3): al subir un
+    // comprobante válido la reserva se concreta y deja de expirar.
     await supabase.from('enrollments').update({
       status: 'payment_submitted',
-    }).eq('id', enrollment.id)
+      hold_expires_at: null,
+    } as any).eq('id', enrollment.id)
 
     // Best-effort: trigger the AI scan (only runs if the teacher opted in). Never
     // blocks the success screen — the teacher's manual review is the fallback.

@@ -144,7 +144,8 @@ export default function PaymentScreen() {
       paymentId = inserted?.id
     }
 
-    await supabase.from('enrollments').update({ status: 'payment_submitted' }).eq('id', enrollmentId)
+    // status='payment_submitted' + limpiar el hold temporal (item 3).
+    await supabase.from('enrollments').update({ status: 'payment_submitted', hold_expires_at: null } as any).eq('id', enrollmentId)
 
     // Best-effort: trigger the AI scan (only runs if the teacher opted in). Never
     // blocks the success screen — the teacher's manual review is the fallback.

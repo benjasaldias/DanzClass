@@ -72,6 +72,7 @@ export default function CreateClassScreen() {
   const [endsIndefinitely, setEndsIndefinitely] = useState(false)
   const [requiresAudition, setRequiresAudition] = useState(false)
   const [billingDay, setBillingDay] = useState('1')
+  const [allowLatePayment, setAllowLatePayment] = useState(true)
   const [locationName, setLocationName] = useState('')
   const [locationAddress, setLocationAddress] = useState('')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -245,6 +246,7 @@ export default function CreateClassScreen() {
         ends_indefinitely: isEntrenamiento ? endsIndefinitely : false,
         requires_audition: isEntrenamiento ? requiresAudition : false,
         billing_day: isEntrenamiento ? (Number(billingDay) || 1) : null,
+        allow_late_payment: allowLatePayment,
         audition_closed: false,
         status: 'active',
       } as any)
@@ -604,6 +606,24 @@ export default function CreateClassScreen() {
             )}
           </View>
         )}
+
+        {/* Política de pago (item 3) */}
+        <View className="rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-surface2/40 p-3 gap-2">
+          <TouchableOpacity
+            onPress={() => setAllowLatePayment(!allowLatePayment)}
+            className="flex-row items-center gap-2"
+          >
+            <View className={`w-5 h-5 rounded border-2 items-center justify-center ${allowLatePayment ? 'bg-brand-600 border-brand-600' : 'border-gray-300 bg-white'}`}>
+              {allowLatePayment && <Text className="text-white text-xs font-bold">✓</Text>}
+            </View>
+            <Text className="text-sm font-medium text-gray-800 dark:text-dark-text">Permitir pagos atrasados</Text>
+          </TouchableOpacity>
+          <Text className="text-xs text-gray-500 dark:text-dark-text2">
+            {allowLatePayment
+              ? 'El alumno reserva el cupo y puede pagar después (queda como deudor hasta confirmar el pago o pagar por Mercado Pago).'
+              : 'El cupo se reserva solo por 10 minutos mientras el alumno paga. Si no concreta el pago a tiempo, el cupo se libera.'}
+          </Text>
+        </View>
 
         {/* Location */}
         <View className="gap-3">

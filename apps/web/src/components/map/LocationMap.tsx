@@ -86,7 +86,7 @@ export default function LocationMap({ lat, lng, address, name }: LocationMapProp
       </div>
 
       <div
-        className={`relative w-full overflow-hidden rounded-xl border border-gray-200 dark:border-dark-border transition-[height] duration-300 ${
+        className={`relative isolate z-0 w-full overflow-hidden rounded-xl border border-gray-200 dark:border-dark-border transition-[height] duration-300 ${
           expanded ? 'h-[60vh]' : 'h-48'
         }`}
       >

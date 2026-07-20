@@ -47,6 +47,7 @@ const schema = z.object({
   ends_at: z.string().optional(),
   ends_indefinitely: z.boolean().optional(),
   billing_day: z.coerce.number().int().min(1).max(27).optional(),
+  allow_late_payment: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   if (data.type === 'suelta') {
     if (!data.date) ctx.addIssue({ code: 'custom', path: ['date'], message: 'Requerido' })
@@ -135,12 +136,14 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       ends_at: classData.ends_at ?? undefined,
       ends_indefinitely: classData.ends_indefinitely ?? false,
       billing_day: classData.billing_day ?? 1,
+      allow_late_payment: (classData as any).allow_late_payment ?? true,
     },
   })
 
   const classType = watch('type')
   const recurrence = watch('recurrence')
   const endsIndefinitely = watch('ends_indefinitely')
+  const allowLatePayment = watch('allow_late_payment')
 
   const MAX_VIDEO_BYTES = 200 * 1024 * 1024
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -271,6 +274,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       ends_at: isPeriodic && !data.ends_indefinitely ? (data.ends_at || null) : null,
       ends_indefinitely: isEntrenamiento ? (data.ends_indefinitely ?? false) : false,
       billing_day: isEntrenamiento ? (data.billing_day ?? 1) : null,
+      allow_late_payment: data.allow_late_payment ?? true,
     } as any).eq('id', classData.id)
 
     if (updateError) { setError('Error al guardar los cambios.'); setSubmitting(false); return }
@@ -544,6 +548,23 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
             )}
           </div>
         )}
+
+        {/* Política de pago (item 3) */}
+        <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50/60 dark:bg-dark-surface2/40 p-3 space-y-2">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              {...register('allow_late_payment')}
+              className="h-4 w-4 mt-0.5 rounded border-gray-300 text-brand-600"
+            />
+            <span className="text-sm font-medium text-gray-800 dark:text-dark-text">Permitir pagos atrasados</span>
+          </label>
+          <p className="text-xs text-gray-500 dark:text-dark-text2">
+            {allowLatePayment
+              ? 'El alumno reserva el cupo y puede pagar después (queda como deudor hasta que confirmes el pago o pague por Mercado Pago).'
+              : 'El cupo se reserva solo por 10 minutos mientras el alumno paga. Si no concreta el pago (comprobante o Mercado Pago) a tiempo, el cupo se libera.'}
+          </p>
+        </div>
 
         {/* Location */}
         <div className="space-y-3">

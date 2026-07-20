@@ -63,7 +63,7 @@ export const LEVEL_LABELS: Record<ClassLevel, string> = {
   avanzado: 'Avanzado',
   todos: 'Todos los niveles',
 }
-export type ClassStatus = 'active' | 'cancelled' | 'completed'
+export type ClassStatus = 'active' | 'cancelled' | 'completed' | 'archived'
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly' | 'custom'
 export type SessionStatus = 'scheduled' | 'cancelled' | 'completed'
 export type EnrollmentStatus = 'pending_payment' | 'payment_submitted' | 'confirmed' | 'cancelled'
@@ -215,6 +215,9 @@ export interface Class {
   ends_at: string | null
   ends_indefinitely: boolean
   custom_dates: string[]
+  // Item 3: si es false, el cupo se reserva con lock de 10 min mientras el
+  // alumno paga; si es true (default) se permite pago atrasado (cupo guardado).
+  allow_late_payment: boolean
   status: ClassStatus
   created_at: string
   updated_at: string
@@ -261,6 +264,9 @@ export interface Enrollment {
   status: EnrollmentStatus
   is_2x: boolean
   partner_enrollment_id: string | null
+  // Item 3: reserva temporal de cupo. Si está seteado y ya pasó, el hold venció
+  // (el cupo se libera) mientras la inscripción siga en pending_payment.
+  hold_expires_at: string | null
   created_at: string
 }
 

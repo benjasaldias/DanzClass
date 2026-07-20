@@ -44,6 +44,11 @@ const limiters = {
   geocode: makeRatelimiter(30, '1 m'),
   // Payment receipt scanning (calls the Anthropic API, has real per-call cost): 10/min per user.
   scan: makeRatelimiter(10, '1 m'),
+  // Reenvío de correo de confirmación: 3/hora por email — protege el SMTP de abuso.
+  emailResend: makeRatelimiter(3, '1 h'),
+  // Reserva de cupo con lock temporal (item 3): 10/día por (usuario, clase) para
+  // impedir que alguien mantenga un cupo bloqueado indefinidamente re-reservando.
+  reserve: makeRatelimiter(10, '1 d'),
 }
 
 type LimiterKey = keyof typeof limiters

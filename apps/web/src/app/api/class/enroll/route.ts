@@ -44,12 +44,27 @@ export async function POST(request: Request) {
   // Verify class exists and is active
   const { data: classData } = await (admin as any)
     .from('classes')
-    .select('id, teacher_id, title, status, price, type, date, ends_at, ends_indefinitely, requires_audition, audition_closed')
+    .select('id, teacher_id, title, status, price, type, date, ends_at, ends_indefinitely, requires_audition, audition_closed, allow_late_payment')
     .eq('id', classId)
     .eq('status', 'active')
     .maybeSingle()
 
   if (!classData) return NextResponse.json({ error: 'Clase no encontrada o no disponible' }, { status: 404 })
+
+  // Item 3 — reserva con lock temporal. Si la clase NO permite pagos atrasados,
+  // el cupo se reserva por 10 minutos (hold_expires_at); si el alumno no concreta
+  // el pago (comprobante o MP) antes de que expire, el cupo se libera solo (la
+  // vista class_spots deja de contar holds vencidos) y el cron limpia la fila.
+  const requiresHold = classData.allow_late_payment === false
+  const HOLD_MS = 10 * 60 * 1000
+  const holdExpiresAt = requiresHold ? new Date(Date.now() + HOLD_MS).toISOString() : null
+
+  // Rate limit de reservas: 10/día por (usuario, clase). Solo para clases con
+  // lock — evita que alguien mantenga un cupo bloqueado re-reservando en loop.
+  if (requiresHold) {
+    const reserveLimit = await checkRateLimit(`reserve:${userId}:${classId}`, 'reserve')
+    if (reserveLimit) return reserveLimit
+  }
 
   // Validate class is not expired
   const today = new Date().toISOString().split('T')[0]
@@ -87,23 +102,35 @@ export async function POST(request: Request) {
     .maybeSingle()
   const spotsAvailable = spotsData?.spots_available ?? 0
 
-  // Check for existing enrollment (including cancelled)
-  const { data: existingRows } = await admin
+  // Check for existing enrollment (including cancelled). `hold_expires_at` es
+  // columna de la migración 055 aún no reflejada en database.ts → cast a any.
+  const { data: existingRows } = await (admin as any)
     .from('enrollments')
-    .select('id, status')
+    .select('id, status, hold_expires_at')
     .eq('student_id', userId)
     .eq('class_id', classId)
     .is('session_id', null)
 
-  const existing = (existingRows ?? [])[0] ?? null
+  const existing = ((existingRows ?? []) as any[])[0] ?? null
+
+  // Un hold vencido (pending_payment con hold_expires_at ya pasado) ya no ocupa
+  // cupo: se trata como una inscripción libre para re-reservar (sujeta al rate
+  // limit de reservas ya aplicado arriba).
+  const isExpiredHold =
+    !!existing &&
+    existing.status === 'pending_payment' &&
+    !!existing.hold_expires_at &&
+    new Date(existing.hold_expires_at) < new Date()
+
+  const isReactivatable = !!existing && (existing.status === 'cancelled' || isExpiredHold)
 
   let enrollment: any
 
-  if (existing && existing.status !== 'cancelled') {
-    // Already has an active enrollment (pending, submitted, confirmed)
+  if (existing && !isReactivatable) {
+    // Already has an active enrollment (pending vigente, submitted, confirmed)
     return NextResponse.json({ error: 'already_enrolled' }, { status: 409 })
-  } else if (existing && existing.status === 'cancelled') {
-    // Re-enroll after cancellation: update cancelled row back to pending_payment
+  } else if (isReactivatable) {
+    // Re-enroll after cancellation OR expired hold: back to pending_payment
     if (spotsAvailable <= 0) {
       return NextResponse.json({ error: 'no_spots' }, { status: 409 })
     }
@@ -116,7 +143,7 @@ export async function POST(request: Request) {
 
     const { data: updated, error: updateErr } = await admin
       .from('enrollments')
-      .update({ status: 'pending_payment' } as any)
+      .update({ status: 'pending_payment', hold_expires_at: holdExpiresAt } as any)
       .eq('id', existing.id)
       .select('*, payment:payments(*)')
       .single()
@@ -131,7 +158,7 @@ export async function POST(request: Request) {
     }
     const { data: inserted, error: insertErr } = await admin
       .from('enrollments')
-      .insert({ student_id: userId, class_id: classId, session_id: null, status: 'pending_payment' } as any)
+      .insert({ student_id: userId, class_id: classId, session_id: null, status: 'pending_payment', hold_expires_at: holdExpiresAt } as any)
       .select('*, payment:payments(*)')
       .single()
     if (insertErr || !inserted) {
@@ -162,5 +189,9 @@ export async function POST(request: Request) {
     } as any)
   }
 
-  return NextResponse.json({ enrollment })
+  return NextResponse.json({
+    enrollment,
+    hold_expires_at: holdExpiresAt,
+    allow_late_payment: classData.allow_late_payment !== false,
+  })
 }

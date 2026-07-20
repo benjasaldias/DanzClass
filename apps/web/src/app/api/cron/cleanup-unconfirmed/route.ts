@@ -3,9 +3,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
 
 // Vercel Cron runs this daily at 04:00 UTC.
-// Deletes auth users whose email is still unconfirmed after 36 horas.
-// Margen extra (vs. 24 h) para evitar borrar a usuarios que confirman justo
-// en la ventana de ejecución del cron.
+// Deletes auth users whose email is still unconfirmed after 7 días (item 4:
+// la cuenta se borra a los 7 días si el correo no fue confirmado). Antes eran
+// 36 h; se amplió porque ahora la confirmación es obligatoria para hacer login,
+// así que conviene darle al usuario una ventana amplia para confirmar.
 
 export const runtime = 'nodejs'
 
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient()
-  const cutoff = new Date(Date.now() - 36 * 60 * 60 * 1000)
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
   let page = 1
   let deleted = 0

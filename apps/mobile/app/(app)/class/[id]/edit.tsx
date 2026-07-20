@@ -63,6 +63,7 @@ export default function EditClassScreen() {
   const [endsAt, setEndsAt] = useState('')
   const [endsIndefinitely, setEndsIndefinitely] = useState(false)
   const [billingDay, setBillingDay] = useState('1')
+  const [allowLatePayment, setAllowLatePayment] = useState(true)
   const [locationName, setLocationName] = useState('')
   const [locationAddress, setLocationAddress] = useState('')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
@@ -107,6 +108,7 @@ export default function EditClassScreen() {
       setEndsAt(data.ends_at ?? '')
       setEndsIndefinitely(data.ends_indefinitely ?? false)
       setBillingDay(data.billing_day ? String(data.billing_day) : '1')
+      setAllowLatePayment(data.allow_late_payment ?? true)
       setLocationName(data.location_name ?? '')
       setLocationAddress(data.location_address ?? '')
       setCoords(data.latitude != null && data.longitude != null ? { lat: data.latitude, lng: data.longitude } : null)
@@ -257,6 +259,7 @@ export default function EditClassScreen() {
         ends_at: (isPeriodic && !endsIndefinitely) ? (endsAt || null) : null,
         ends_indefinitely: isEntrenamiento ? endsIndefinitely : false,
         billing_day: isEntrenamiento ? (Number(billingDay) || 1) : null,
+        allow_late_payment: allowLatePayment,
       } as any)
       .eq('id', id)
 
@@ -532,6 +535,21 @@ export default function EditClassScreen() {
             )}
           </View>
         )}
+
+        {/* Política de pago (item 3) */}
+        <View className="rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-surface2/40 p-3 gap-2">
+          <TouchableOpacity onPress={() => setAllowLatePayment(!allowLatePayment)} className="flex-row items-center gap-2">
+            <View className={`w-5 h-5 rounded border-2 items-center justify-center ${allowLatePayment ? 'bg-brand-600 border-brand-600' : 'border-gray-300 bg-white'}`}>
+              {allowLatePayment && <Text className="text-white text-xs font-bold">✓</Text>}
+            </View>
+            <Text className="text-sm font-medium text-gray-800 dark:text-dark-text">Permitir pagos atrasados</Text>
+          </TouchableOpacity>
+          <Text className="text-xs text-gray-500 dark:text-dark-text2">
+            {allowLatePayment
+              ? 'El alumno reserva el cupo y puede pagar después (queda como deudor hasta confirmar el pago o pagar por Mercado Pago).'
+              : 'El cupo se reserva solo por 10 minutos mientras el alumno paga. Si no concreta el pago a tiempo, el cupo se libera.'}
+          </Text>
+        </View>
 
         {/* Location */}
         <View className="gap-3">

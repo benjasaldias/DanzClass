@@ -50,46 +50,28 @@ export async function GET(request: Request) {
   let deleted = 0
   let errors: string[] = []
 
-  // ── Suelta classes: delete if date + 7 days < today ──────────────────────
-  const suelataThreshold = new Date(now)
-  suelataThreshold.setDate(suelataThreshold.getDate() - 7)
-  const sueltaMax = suelataThreshold.toISOString().split('T')[0]
-
-  const { data: sueltas } = await supabase
+  // ── Archivado a Historial: 24 h después de la última sesión (item 1) ─────────
+  // Una clase cuya última sesión terminó hace más de 24 h pasa a estado
+  // 'archived': se le quita el contenido pesado (class_media en Storage) y su
+  // página /class deja de existir (404). Solo persiste como tarjeta en el
+  // Historial (enrollments/payments se conservan). Las clases indefinidas
+  // (ends_indefinitely) nunca se archivan porque no tienen "última sesión".
+  const ARCHIVE_GRACE_MS = 24 * 60 * 60 * 1000
+  const { data: activeClasses } = await (supabase as any)
     .from('classes')
-    .select('id, class_media(*)')
-    .eq('type', 'suelta')
-    .lt('date', sueltaMax)
-    .neq('status', 'archived')
+    .select('id, type, date, time, recurrence, custom_dates, recurring_time, duration_minutes, ends_at, ends_indefinitely, class_media(*)')
+    .in('status', ['active', 'completed'])
 
-  for (const cls of sueltas ?? []) {
-    const { error } = await cleanClassMedia(supabase, cls)
+  for (const cls of activeClasses ?? []) {
+    const end = lastSessionEnd(cls)
+    if (!end) continue
+    if (now.getTime() <= end.getTime() + ARCHIVE_GRACE_MS) continue
+    const { error } = await archiveClass(supabase, cls)
     if (error) errors.push(`class ${cls.id}: ${error}`)
     else deleted++
   }
 
-  // ── Periodica classes: delete if end_of_prev_month + 7 days < today ──────
-  // "end of prev month + 7" means we're now in the 8th day or later of next month
-  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0) // last day of prev month
-  const periodicaThreshold = new Date(prevMonthEnd)
-  periodicaThreshold.setDate(periodicaThreshold.getDate() + 7)
-
-  if (now > periodicaThreshold) {
-    const { data: periodicas } = await supabase
-      .from('classes')
-      .select('id, class_media(*)')
-      .eq('type', 'periodica')
-      .lt('updated_at', new Date(now.getFullYear(), now.getMonth(), 1).toISOString())
-      .neq('status', 'archived')
-
-    for (const cls of periodicas ?? []) {
-      const { error } = await cleanClassMedia(supabase, cls)
-      if (error) errors.push(`class ${cls.id}: ${error}`)
-      else deleted++
-    }
-  }
-
-  logger.info('cleanup-classes:media', { deleted, errors: errors.length })
+  logger.info('cleanup-classes:archived', { archived: deleted, errors: errors.length })
 
   // ── Recordatorios 24h antes ─────────────────────────────────────────────────
   // D-6: "mañana" siempre en hora Chile, no UTC. Evita perder/duplicar recordatorios cerca de medianoche.
@@ -278,6 +260,29 @@ export async function GET(request: Request) {
 
   if (cancelled2x > 0) logger.info('cleanup-classes:2x', { cancelled2x })
 
+  // ── Holds de cupo vencidos (item 3): clases sin pagos atrasados ──────────────
+  // El cupo ya se liberó a nivel de la vista class_spots al expirar el hold; acá
+  // solo hacemos la limpieza: cancelar la inscripción reservada nunca pagada y
+  // anular su pago pendiente. Solo toca pending_payment con hold vencido.
+  let releasedHolds = 0
+  const { data: expiredHolds } = await (supabase as any)
+    .from('enrollments')
+    .select('id')
+    .eq('status', 'pending_payment')
+    .not('hold_expires_at', 'is', null)
+    .lt('hold_expires_at', now.toISOString())
+
+  for (const e of expiredHolds ?? []) {
+    await supabase.from('enrollments').update({ status: 'cancelled' } as any).eq('id', e.id)
+    await (supabase as any)
+      .from('payments')
+      .update({ status: 'void' })
+      .eq('enrollment_id', e.id)
+      .not('status', 'in', '("verified","void")')
+    releasedHolds++
+  }
+  if (releasedHolds > 0) logger.info('cleanup-classes:holds', { releasedHolds })
+
   // ── F-21: Recordatorio de pago al alumno (24h sin subir comprobante) ─────────
   // Busca enrollments en pending_payment desde hace más de 24h, sin reminder previo.
   const twentyFourHoursAgo = new Date(now)
@@ -377,10 +382,36 @@ export async function GET(request: Request) {
 
   await pingHealthcheck(process.env.HEALTHCHECK_CLEANUP_CLASSES_UUID)
 
-  return NextResponse.json({ deleted, errors, reminders, cancelled2x, paymentReminders, deletedChats })
+  return NextResponse.json({ archived: deleted, errors, reminders, cancelled2x, releasedHolds, paymentReminders, deletedChats })
 }
 
-async function cleanClassMedia(supabase: ReturnType<typeof createAdminClient>, cls: any) {
+// Fin (incl. duración) de la última sesión de una clase, o null si no aplica
+// (clase indefinida, o sin fecha determinable). Todo en hora local.
+function lastSessionEnd(cls: any): Date | null {
+  const durMs = (cls.duration_minutes ?? 60) * 60 * 1000
+  const at = (ymd: string, hm: string | null | undefined): Date => {
+    const [y, mo, d] = ymd.split('-').map(Number)
+    const [h = 0, m = 0] = (hm ?? '00:00').split(':').map(Number)
+    const dt = new Date(y, mo - 1, d, h, m)
+    dt.setTime(dt.getTime() + durMs)
+    return dt
+  }
+  if (cls.type === 'suelta') {
+    return cls.date ? at(cls.date, cls.time) : null
+  }
+  if (cls.recurrence === 'custom' || (cls.custom_dates?.length ?? 0) > 0) {
+    const dates: string[] = cls.custom_dates ?? []
+    if (!dates.length) return null
+    const last = [...dates].sort().at(-1)!
+    return at(last, cls.recurring_time ?? cls.time)
+  }
+  // periódica / entrenamiento
+  if (cls.ends_indefinitely) return null
+  if (!cls.ends_at) return null
+  return at(cls.ends_at, cls.recurring_time)
+}
+
+async function archiveClass(supabase: ReturnType<typeof createAdminClient>, cls: any) {
   const media: any[] = cls.class_media ?? []
 
   // Remove storage objects
@@ -419,8 +450,8 @@ async function cleanClassMedia(supabase: ReturnType<typeof createAdminClient>, c
     }
   }
 
-  // Mark class as archived so we don't process it again
-  await supabase.from('classes').update({ status: 'completed' } as any).eq('id', cls.id)
+  // Mark class as archived → history-only (404 en /class, fuera de feed/explore)
+  await supabase.from('classes').update({ status: 'archived' } as any).eq('id', cls.id)
 
   return { error: null }
 }

@@ -18,6 +18,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
       if (stored === 'dark' || stored === 'light') {
         setColorScheme(stored)
+      } else {
+        // Light mode es el predeterminado (no seguir el tema del sistema).
+        setColorScheme('light')
       }
     })
   }, [])

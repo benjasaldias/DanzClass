@@ -51,6 +51,8 @@ const schema = z.object({
   // Entrenamiento
   requires_audition: z.boolean().optional(),
   billing_day: z.coerce.number().int().min(1).max(27).optional(),
+  // Pagos atrasados (item 3)
+  allow_late_payment: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   const today = new Date().toISOString().split('T')[0]
   if (data.type === 'suelta') {
@@ -124,6 +126,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
       ends_indefinitely: false,
       requires_audition: false,
       billing_day: 1,
+      allow_late_payment: true,
     },
   })
 
@@ -131,6 +134,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
   const recurrence = watch('recurrence')
   const endsIndefinitely = watch('ends_indefinitely')
   const requiresAudition = watch('requires_audition')
+  const allowLatePayment = watch('allow_late_payment')
 
   const isEntrenamiento = classType === 'entrenamiento'
   const isPeriodic = classType === 'periodica' || isEntrenamiento
@@ -281,6 +285,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         ends_indefinitely: isEntrenamiento ? (data.ends_indefinitely ?? false) : false,
         requires_audition: isEntrenamiento ? (data.requires_audition ?? false) : false,
         billing_day: isEntrenamiento ? (data.billing_day ?? 1) : null,
+        allow_late_payment: data.allow_late_payment ?? true,
         audition_closed: false,
         status: 'active',
       } as any)
@@ -665,6 +670,23 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
             )}
           </div>
         )}
+
+        {/* Política de pago (item 3) */}
+        <div className="rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50/60 dark:bg-dark-surface2/40 p-3 space-y-2">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              {...register('allow_late_payment')}
+              className="h-4 w-4 mt-0.5 rounded border-gray-300 text-brand-600"
+            />
+            <span className="text-sm font-medium text-gray-800 dark:text-dark-text">Permitir pagos atrasados</span>
+          </label>
+          <p className="text-xs text-gray-500 dark:text-dark-text2">
+            {allowLatePayment
+              ? 'El alumno reserva el cupo y puede pagar después (queda como deudor hasta que confirmes el pago o pague por Mercado Pago).'
+              : 'El cupo se reserva solo por 10 minutos mientras el alumno paga. Si no concreta el pago (comprobante o Mercado Pago) a tiempo, el cupo se libera.'}
+          </p>
+        </div>
 
         {/* Location */}
         <div className="space-y-3">

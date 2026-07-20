@@ -399,7 +399,17 @@ const PAYMENT_KEY_LABEL: Record<string, string> = {
   no_payment: 'Sin pago',
 }
 
-function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teachingClasses: any[] }) {
+function AttendanceBadgeMobile({ dates }: { dates: string[] | undefined }) {
+  if (!dates || dates.length === 0) return null
+  const label = dates.length > 1 ? `Asistió ×${dates.length}` : 'Asistió'
+  return (
+    <View className="rounded-full px-2 py-0.5 border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20">
+      <Text className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">{label}</Text>
+    </View>
+  )
+}
+
+function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollments: any[]; teachingClasses: any[]; attendance?: Record<string, string[]> }) {
   const teacherRows = teachingClasses.flatMap((cls: any) =>
     (cls.enrollments ?? [])
       .filter((e: any) => e.status !== 'cancelled')
@@ -475,8 +485,11 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
                         {new Date(e.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </Text>
                     </View>
-                    <View className={`rounded-full px-2.5 py-1 border ${pill.container}`}>
-                      <Text className={`text-xs font-medium ${pill.text}`}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
+                    <View className="items-end gap-1">
+                      <View className={`rounded-full px-2.5 py-1 border ${pill.container}`}>
+                        <Text className={`text-xs font-medium ${pill.text}`}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
+                      </View>
+                      <AttendanceBadgeMobile dates={attendance[`${cls?.id}:${e.student_id}`]} />
                     </View>
                   </View>
                 </View>
@@ -519,6 +532,7 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
                     <View className={`rounded-full px-2.5 py-1 border ${pill.container}`}>
                       <Text className={`text-xs font-medium ${pill.text}`}>{PAYMENT_KEY_LABEL[statusKey]}</Text>
                     </View>
+                    <AttendanceBadgeMobile dates={attendance[`${row.classId}:${row.student?.id}`]} />
                     <Text className="text-xs text-gray-400 dark:text-dark-text2">
                       {new Date(row.createdAt).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}
                     </Text>
@@ -567,6 +581,7 @@ export default function MyClassesScreen() {
   const [teachingClasses, setTeachingClasses] = useState<any[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [dismissedIds, setDismissedIds] = useState<string[]>([])
+  const [attendance, setAttendance] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -575,7 +590,7 @@ export default function MyClassesScreen() {
     if (!user) return
     setUserId(user.id)
 
-    const [enrollRes, teachRes, dismissedRes] = await Promise.all([
+    const [enrollRes, teachRes, dismissedRes, attendanceRes] = await Promise.all([
       supabase
         .from('enrollments')
         .select('*, class:classes(*, teacher:profiles!teacher_id(*)), payment:payments(*)')
@@ -586,22 +601,40 @@ export default function MyClassesScreen() {
         .from('classes')
         .select('*, enrollments(*, student:profiles!student_id(id, full_name, username, avatar_url), payment:payments(*)), waitlist(count)')
         .eq('teacher_id', user.id)
-        .eq('status', 'active')
+        .in('status', ['active', 'archived', 'completed'])
         .order('created_at', { ascending: false }),
       (supabase as any)
         .from('dismissed_debts')
         .select('student_id')
         .eq('teacher_id', user.id),
+      // Asistencia por QR (item 2). RLS devuelve solo lo visible por el usuario.
+      (supabase as any)
+        .from('attendance')
+        .select('class_id, student_id, session_date'),
     ])
 
     setEnrollments(enrollRes.data ?? [])
     setTeachingClasses(teachRes.data ?? [])
     setDismissedIds((dismissedRes.data ?? []).map((d: any) => d.student_id))
+
+    const attMap: Record<string, string[]> = {}
+    for (const a of (attendanceRes.data ?? []) as any[]) {
+      if (!a.class_id || !a.student_id) continue
+      const key = `${a.class_id}:${a.student_id}`
+      ;(attMap[key] ??= []).push(a.session_date)
+    }
+    setAttendance(attMap)
+
     setLoading(false)
     setRefreshing(false)
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Clases archivadas (item 1) solo viven en el Historial.
+  const isHistoryOnly = (status?: string) => status === 'archived' || status === 'completed'
+  const teachingActive = teachingClasses.filter((c: any) => !isHistoryOnly(c?.status))
+  const enrolledActive = enrollments.filter((e: any) => !isHistoryOnly(e?.class?.status))
 
   if (loading) return (
     <SafeAreaView className="flex-1 items-center justify-center bg-blanco-violeta dark:bg-dark-bg">
@@ -623,7 +656,7 @@ export default function MyClassesScreen() {
             className={`flex-1 rounded-lg py-2 items-center ${tab === 'enrolled' ? 'bg-white dark:bg-dark-surface shadow-sm' : ''}`}
           >
             <Text className={`text-xs font-semibold ${tab === 'enrolled' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
-              Que tomo{enrollments.length > 0 ? ` (${enrollments.length})` : ''}
+              Que tomo{enrolledActive.length > 0 ? ` (${enrolledActive.length})` : ''}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -631,7 +664,7 @@ export default function MyClassesScreen() {
             className={`flex-1 rounded-lg py-2 items-center ${tab === 'teaching' ? 'bg-white dark:bg-dark-surface shadow-sm' : ''}`}
           >
             <Text className={`text-xs font-semibold ${tab === 'teaching' ? 'text-gray-900 dark:text-dark-text' : 'text-gray-500 dark:text-dark-text2'}`}>
-              Que dicto{teachingClasses.length > 0 ? ` (${teachingClasses.length})` : ''}
+              Que dicto{teachingActive.length > 0 ? ` (${teachingActive.length})` : ''}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -658,17 +691,17 @@ export default function MyClassesScreen() {
       >
         {tab === 'enrolled' && (
           <EnrolledTab
-            enrollments={enrollments}
+            enrollments={enrolledActive}
             onPressClass={(id) => router.push(`/(app)/class/${id}` as any)}
             onPressPayment={(id) => router.push(`/(app)/payment/${id}` as any)}
             onGoToHistory={() => setTab('history')}
           />
         )}
         {tab === 'teaching' && userId && (
-          <TeachingTab classes={teachingClasses} currentUserId={userId} dismissedIds={dismissedIds} />
+          <TeachingTab classes={teachingActive} currentUserId={userId} dismissedIds={dismissedIds} />
         )}
         {tab === 'history' && (
-          <HistoryTab enrollments={enrollments} teachingClasses={teachingClasses} />
+          <HistoryTab enrollments={enrollments} teachingClasses={teachingClasses} attendance={attendance} />
         )}
       </ScrollView>
     </SafeAreaView>

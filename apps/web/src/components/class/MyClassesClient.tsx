@@ -470,11 +470,11 @@ function TeachingTab({
                     ) : null
                   })()}
 
-                  {/* Deletion warning */}
+                  {/* Deletion warning: 24 h después de la última clase pasa al Historial */}
                   {deletionDate && !deleted && (
                     <p className="mt-1.5 text-xs text-coral-fuego flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
-                      Archivos serán eliminados el {formatDeletionDate(deletionDate)}
+                      Pasará al Historial el {formatDeletionDate(deletionDate)} (se eliminarán fotos y videos)
                     </p>
                   )}
                   {deleted && (
@@ -668,7 +668,24 @@ const STATUS_LABEL: Record<keyof typeof PAYMENT_PILL, string> = {
   confirmed: 'Confirmado', rejected: 'Rechazado', pending: 'Pendiente', no_payment: 'Sin pago',
 }
 
-function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teachingClasses: any[] }) {
+// Badge "Asistencia confirmada" (item 2): visible cuando el alumno tiene al
+// menos un check-in por QR registrado en `attendance` para esa clase.
+function AttendanceBadge({ dates }: { dates: string[] | undefined }) {
+  if (!dates || dates.length === 0) return null
+  const label = dates.length > 1 ? `Asistió ×${dates.length}` : 'Asistió'
+  const title = `Asistencia confirmada por QR: ${dates.map((d) => formatDate(d)).join(', ')}`
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400"
+    >
+      <CheckCircle2 className="h-3 w-3" />
+      {label}
+    </span>
+  )
+}
+
+function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollments: any[]; teachingClasses: any[]; attendance?: Record<string, string[]> }) {
   const [closedMonths, setClosedMonths] = useState<Set<string>>(new Set())
   const [closedClasses, setClosedClasses] = useState<Set<string>>(new Set())
   const [confirmEnroll, setConfirmEnroll] = useState<{ id: string; name: string; studentId: string; classId: string } | null>(null)
@@ -815,6 +832,7 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
                                 {payment?.amount ? formatCLP(payment.amount) : 'Sin pago registrado'}
                               </p>
                             </div>
+                            <AttendanceBadge dates={attendance[`${cls?.id}:${e.student_id}`]} />
                             <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium flex-shrink-0', PAYMENT_PILL[pillKey])}>
                               {label}
                             </span>
@@ -895,6 +913,7 @@ function HistoryTab({ enrollments, teachingClasses }: { enrollments: any[]; teac
                                         </p>
                                       </div>
                                       <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        <AttendanceBadge dates={attendance[`${row.classId}:${row.student?.id}`]} />
                                         <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', PAYMENT_PILL[sk])}>
                                           {STATUS_LABEL[sk]}
                                         </span>
@@ -1099,6 +1118,7 @@ interface MyClassesClientProps {
   dismissedStudentIds: string[]
   ownRehearsals?: any[]
   rehearsalInvites?: any[]
+  attendance?: Record<string, string[]>
 }
 
 export default function MyClassesClient({
@@ -1109,10 +1129,17 @@ export default function MyClassesClient({
   dismissedStudentIds,
   ownRehearsals = [],
   rehearsalInvites = [],
+  attendance = {},
 }: MyClassesClientProps) {
   const [tab, setTab] = useState<'enrolled' | 'teaching' | 'history' | 'rehearsals'>(defaultTab)
 
   const rehearsalCount = ownRehearsals.length + rehearsalInvites.length
+
+  // Clases archivadas (item 1) solo viven en el Historial: se excluyen de
+  // "Clases que dicto" / "Clases que tomo". HistoryTab sí recibe todo.
+  const isHistoryOnly = (status?: string) => status === 'archived' || status === 'completed'
+  const teachingActive = teachingClasses.filter((c) => !isHistoryOnly(c?.status))
+  const enrolledActive = enrollments.filter((e) => !isHistoryOnly(e?.class?.status))
 
   return (
     <div className="px-4 py-4">
@@ -1129,11 +1156,11 @@ export default function MyClassesClient({
             )}
           >
             Clases que tomo
-            {enrollments.length > 0 && (
+            {enrolledActive.length > 0 && (
               <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
                 tab === 'enrolled' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
               )}>
-                {enrollments.length}
+                {enrolledActive.length}
               </span>
             )}
           </button>
@@ -1146,7 +1173,7 @@ export default function MyClassesClient({
           >
             Clases que dicto
             {(() => {
-              const n = teachingClasses.filter((cls) => !isDeleted(cls.deletion_date ?? null)).length
+              const n = teachingActive.filter((cls) => !isDeleted(cls.deletion_date ?? null)).length
               return n > 0 ? (
                 <span className={cn('ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
                   tab === 'teaching' ? 'bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300' : 'bg-gray-300 dark:bg-dark-surface2 text-gray-600 dark:text-dark-text2'
@@ -1186,10 +1213,10 @@ export default function MyClassesClient({
         </div>
       </div>
 
-      {tab === 'enrolled' && <EnrolledTab enrollments={enrollments} onGoToHistory={() => setTab('history')} />}
+      {tab === 'enrolled' && <EnrolledTab enrollments={enrolledActive} onGoToHistory={() => setTab('history')} />}
       {tab === 'teaching' && (
         <TeachingTab
-          initialClasses={teachingClasses}
+          initialClasses={teachingActive}
           currentUserId={currentUserId}
           dismissedStudentIds={dismissedStudentIds}
         />
@@ -1198,7 +1225,7 @@ export default function MyClassesClient({
         <RehearsalsTab ownRehearsals={ownRehearsals} rehearsalInvites={rehearsalInvites} />
       )}
       {tab === 'history' && (
-        <HistoryTab enrollments={enrollments} teachingClasses={teachingClasses} />
+        <HistoryTab enrollments={enrollments} teachingClasses={teachingClasses} attendance={attendance} />
       )}
     </div>
   )
