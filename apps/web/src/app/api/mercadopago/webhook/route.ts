@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { autoConfirmPayment } from '@/lib/payments'
+import { rewardReferralIfNeeded } from '@/lib/referral'
 import { logger } from '@/lib/logger'
 import type { SubscriptionTier } from '@danceclass/shared'
 
@@ -230,6 +231,11 @@ export async function POST(request: Request) {
     }
 
     await activateSubscription(supabase, userId, tier, String(payment.id), months)
+    // Premio de referido (idempotente): no depende de que el referido cargue
+    // /plans/success. Ver lib/referral.ts.
+    await rewardReferralIfNeeded(supabase, userId).catch((e) =>
+      logger.error('webhook:referral_reward_failed', e, { user_id: userId })
+    )
     return NextResponse.json({ ok: true })
   }
 
@@ -252,6 +258,9 @@ export async function POST(request: Request) {
       }
 
       await activateSubscription(supabase, userId, tier, sub.id)
+      await rewardReferralIfNeeded(supabase, userId).catch((e) =>
+        logger.error('webhook:referral_reward_failed', e, { user_id: userId })
+      )
 
     } else if (sub.status === 'cancelled') {
       // Cancelada desde MP (usuario canceló directo, o demasiados fallos de cobro)

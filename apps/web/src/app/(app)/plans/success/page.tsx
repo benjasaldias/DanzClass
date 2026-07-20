@@ -5,66 +5,11 @@ import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveTier } from '@/lib/subscription'
+import { rewardReferralIfNeeded } from '@/lib/referral'
 import { SubscriptionPolling } from '@/components/plans/SubscriptionPolling'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 const VALID_TIERS = ['basic', 'teacher', 'pro']
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
-
-async function rewardReferralIfNeeded(admin: ReturnType<typeof createAdminClient>, referredUserId: string) {
-  const { data: profile } = await (admin as any)
-    .from('profiles')
-    .select('referred_by, referral_rewarded')
-    .eq('id', referredUserId)
-    .maybeSingle()
-
-  if (!profile?.referred_by || profile.referral_rewarded) return
-
-  const referrerId = profile.referred_by as string
-
-  // Extend referrer subscription +30 days (or create free Pro month)
-  const { data: referrerSub } = await admin
-    .from('subscriptions')
-    .select('id, expires_at, tier')
-    .eq('user_id', referrerId)
-    .in('status', ['active', 'grace'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (referrerSub) {
-    const newExpiry = new Date(new Date(referrerSub.expires_at).getTime() + THIRTY_DAYS_MS)
-    await admin.from('subscriptions').update({ expires_at: newExpiry.toISOString() }).eq('id', referrerSub.id)
-  } else {
-    const now = new Date()
-    await admin.from('subscriptions').insert({
-      user_id: referrerId,
-      tier: 'pro',
-      status: 'active',
-      started_at: now.toISOString(),
-      expires_at: new Date(now.getTime() + THIRTY_DAYS_MS).toISOString(),
-      mp_subscription_id: `referral_${referredUserId.slice(0, 8)}_${Date.now()}`,
-    })
-  }
-
-  // Extend referred user's new subscription +30 days too
-  const { data: referredSub } = await admin
-    .from('subscriptions')
-    .select('id, expires_at')
-    .eq('user_id', referredUserId)
-    .in('status', ['active', 'grace'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (referredSub) {
-    const newExpiry = new Date(new Date(referredSub.expires_at).getTime() + THIRTY_DAYS_MS)
-    await admin.from('subscriptions').update({ expires_at: newExpiry.toISOString() }).eq('id', referredSub.id)
-  }
-
-  await (admin as any).from('profiles').update({ referral_rewarded: true }).eq('id', referredUserId)
-  console.log('[referral] rewarded — referred:', referredUserId, 'referrer:', referrerId)
-}
 
 async function activateIfNew(
   admin: ReturnType<typeof createAdminClient>,

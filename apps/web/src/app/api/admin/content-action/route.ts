@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { deleteCloudinaryAssets } from '@/lib/cloudinary-admin'
 
 export async function POST(req: NextRequest) {
   // M-6: fail fast if admin not configured — prevents silent 403 masking bad config
@@ -21,9 +22,25 @@ export async function POST(req: NextRequest) {
 
   if (action === 'delete_content') {
     if (contentType === 'post') {
+      // Borra el video/thumbnail en Cloudinary antes de eliminar la fila (item 10).
+      const { data: post } = await (admin as any)
+        .from('posts')
+        .select('video_url, thumbnail_url')
+        .eq('id', contentId)
+        .maybeSingle()
+      if (post) await deleteCloudinaryAssets([post.video_url, post.thumbnail_url])
       await (admin as any).from('posts').delete().eq('id', contentId)
     } else if (contentType === 'class') {
       await (admin as any).from('classes').update({ status: 'cancelled' }).eq('id', contentId)
+      // Borra media de la clase: videos en Cloudinary + imágenes en el bucket (item 10).
+      const { data: media } = await (admin as any).from('class_media').select('url').eq('class_id', contentId)
+      const urls: string[] = (media ?? []).map((m: any) => m.url).filter(Boolean)
+      if (urls.length > 0) {
+        await deleteCloudinaryAssets(urls)
+        const paths = urls.map((u) => u.split('/class-media/')[1] ?? '').filter(Boolean)
+        if (paths.length > 0) await admin.storage.from('class-media').remove(paths)
+        await (admin as any).from('class_media').delete().eq('class_id', contentId)
+      }
       // M-4: clean up chats so cancelled class data doesn't linger
       await (admin as any).from('chats').delete().eq('class_id', contentId)
     } else {

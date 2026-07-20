@@ -172,7 +172,13 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   })
 
   async function removeExistingMedia(media: ExistingMedia) {
-    await supabase.from('class_media').delete().eq('id', media.id)
+    // Vía API para borrar también el asset físico (video en Cloudinary / imagen
+    // en el bucket), no solo la fila (item 10).
+    await fetch('/api/class/media-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mediaId: media.id }),
+    }).catch(() => {})
     setExistingMedia((prev) => prev.filter((m) => m.id !== media.id))
   }
 
@@ -318,7 +324,12 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         }))
       )
     }
-    await supabase.from('classes' as any).update({ status: 'cancelled' } as any).eq('id', classData.id)
+    // Vía API: soft-delete + limpieza de chats y media (Cloudinary + bucket) server-side (item 10).
+    await fetch('/api/class/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ class_id: classData.id }),
+    })
     setDeleting(false)
     router.push('/my-classes')
   }

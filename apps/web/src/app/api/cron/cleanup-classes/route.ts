@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
+import { deleteCloudinaryAssets } from '@/lib/cloudinary-admin'
 
 // Vercel Cron runs this daily at 03:00 UTC.
 // Deletes class-media storage files + class_media rows + payment-receipt files
@@ -414,7 +415,7 @@ function lastSessionEnd(cls: any): Date | null {
 async function archiveClass(supabase: ReturnType<typeof createAdminClient>, cls: any) {
   const media: any[] = cls.class_media ?? []
 
-  // Remove storage objects
+  // Remove storage objects (imágenes viven en el bucket Supabase class-media).
   const storagePaths = media.map((m: any) => {
     const url: string = m.url
     const parts = url.split('/class-media/')
@@ -425,6 +426,10 @@ async function archiveClass(supabase: ReturnType<typeof createAdminClient>, cls:
     const { error: storageErr } = await supabase.storage.from('class-media').remove(storagePaths)
     if (storageErr) return { error: `storage: ${storageErr.message}` }
   }
+
+  // Los VIDEOS de clase viven en Cloudinary (no en el bucket) → borrarlos ahí
+  // (item 10). deleteCloudinaryAssets ignora las URLs que no son de Cloudinary.
+  await deleteCloudinaryAssets(media.map((m: any) => m.url))
 
   // Remove class_media rows
   await supabase.from('class_media').delete().eq('class_id', cls.id)

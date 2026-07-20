@@ -227,28 +227,14 @@ export default function ClassDetailClient({
         }))
       )
     }
-    // Soft-delete the class record and clean up chats (via API to allow admin client)
+    // Soft-delete + limpieza de chats y media (Cloudinary videos + bucket
+    // imágenes + filas) se hace server-side en /api/class/cancel (item 10): el
+    // cliente no puede borrar en Cloudinary (requiere el API secret).
     await fetch('/api/class/cancel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ class_id: classData.id }),
     })
-    // Immediately purge Storage media (cron keeps this as fallback)
-    const { data: mediaRows } = await supabase.from('class_media' as any).select('url').eq('class_id', classData.id)
-    if (mediaRows && mediaRows.length > 0) {
-      const paths = (mediaRows as any[]).map((m: any) => {
-        try {
-          const url = new URL(m.url)
-          // path after /object/public/class-media/
-          const match = url.pathname.match(/\/object\/public\/class-media\/(.+)$/)
-          return match?.[1] ?? null
-        } catch { return null }
-      }).filter(Boolean) as string[]
-      if (paths.length > 0) {
-        await supabase.storage.from('class-media').remove(paths)
-      }
-      await supabase.from('class_media' as any).delete().eq('class_id', classData.id)
-    }
     setDeleting(false)
     router.push('/my-classes')
   }
