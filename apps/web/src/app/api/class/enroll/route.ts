@@ -127,8 +127,10 @@ export async function POST(request: Request) {
   let enrollment: any
 
   if (existing && !isReactivatable) {
-    // Already has an active enrollment (pending vigente, submitted, confirmed)
-    return NextResponse.json({ error: 'already_enrolled' }, { status: 409 })
+    // Already has an active enrollment (pending vigente, submitted, confirmed).
+    // Devolvemos el id + estado para que el cliente lleve al pago si corresponde
+    // (P1-4) en vez de quedarse sin feedback.
+    return NextResponse.json({ error: 'already_enrolled', enrollmentId: existing.id, status: existing.status }, { status: 409 })
   } else if (isReactivatable) {
     // Re-enroll after cancellation OR expired hold: back to pending_payment
     if (spotsAvailable <= 0) {
@@ -148,6 +150,10 @@ export async function POST(request: Request) {
       .select('*, payment:payments(*)')
       .single()
     if (updateErr || !updated) {
+      // El trigger de capacidad (056) rechaza si la clase se llenó en la carrera.
+      if ((updateErr as any)?.message?.includes('class_full')) {
+        return NextResponse.json({ error: 'no_spots' }, { status: 409 })
+      }
       return NextResponse.json({ error: 'Error al reinscribir' }, { status: 500 })
     }
     enrollment = updated
@@ -162,6 +168,22 @@ export async function POST(request: Request) {
       .select('*, payment:payments(*)')
       .single()
     if (insertErr || !inserted) {
+      // Índice único parcial (056): otra request ganó la carrera e insertó primero.
+      if ((insertErr as any)?.code === '23505') {
+        const { data: race } = await (admin as any)
+          .from('enrollments')
+          .select('id, status')
+          .eq('student_id', userId)
+          .eq('class_id', classId)
+          .is('session_id', null)
+          .neq('status', 'cancelled')
+          .maybeSingle()
+        return NextResponse.json({ error: 'already_enrolled', enrollmentId: race?.id, status: race?.status }, { status: 409 })
+      }
+      // El trigger de capacidad (056) rechaza si la clase se llenó en la carrera.
+      if ((insertErr as any)?.message?.includes('class_full')) {
+        return NextResponse.json({ error: 'no_spots' }, { status: 409 })
+      }
       return NextResponse.json({ error: 'Error al inscribir' }, { status: 500 })
     }
     enrollment = inserted

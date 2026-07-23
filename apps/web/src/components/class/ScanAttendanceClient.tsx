@@ -13,7 +13,7 @@ const RESULT_DISPLAY_MS = 2000
 type ScanOutcome =
   | { kind: 'confirmed'; studentName: string; avatarUrl: string | null }
   | { kind: 'already_registered'; studentName: string; avatarUrl: string | null }
-  | { kind: 'rejected'; message: string }
+  | { kind: 'rejected'; message: string; reason?: string }
   | { kind: 'network_error' }
 
 type CamState = 'starting' | 'scanning' | 'denied' | 'error'
@@ -29,8 +29,17 @@ export default function ScanAttendanceClient({ classId, classTitle }: { classId:
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [checking, setChecking] = useState(false)
 
+  // Cierra el resultado y re-habilita el escaneo.
+  const dismissOutcome = useCallback(() => {
+    setOutcome(null)
+    scanLockRef.current = false
+  }, [])
+
   const validate = useCallback(async (token: string) => {
     setChecking(true)
+    // Un rechazo ACCIONABLE (pago pendiente) no se auto-cierra: el profesor
+    // necesita tiempo para decidir. El resto sigue con el flash de 2s (P3-4).
+    let holdOpen = false
     try {
       const res = await fetch('/api/attendance/scan', {
         method: 'POST',
@@ -45,7 +54,9 @@ export default function ScanAttendanceClient({ classId, classTitle }: { classId:
       } else if (json.status === 'already_registered') {
         setOutcome({ kind: 'already_registered', studentName: json.student?.full_name ?? 'Alumno', avatarUrl: json.student?.avatar_url ?? null })
       } else {
-        setOutcome({ kind: 'rejected', message: json.message ?? 'QR rechazado.' })
+        const reason = json.reason as string | undefined
+        holdOpen = reason === 'payment_not_confirmed'
+        setOutcome({ kind: 'rejected', message: json.message ?? 'QR rechazado.', reason })
       }
     } catch {
       setOutcome({ kind: 'network_error' })
@@ -53,10 +64,12 @@ export default function ScanAttendanceClient({ classId, classTitle }: { classId:
       setChecking(false)
       // navigator.vibrate no está en Safari iOS; es best-effort.
       try { navigator.vibrate?.(100) } catch {}
-      setTimeout(() => {
-        setOutcome(null)
-        scanLockRef.current = false
-      }, RESULT_DISPLAY_MS)
+      if (!holdOpen) {
+        setTimeout(() => {
+          setOutcome(null)
+          scanLockRef.current = false
+        }, RESULT_DISPLAY_MS)
+      }
     }
   }, [])
 
@@ -140,13 +153,27 @@ export default function ScanAttendanceClient({ classId, classTitle }: { classId:
           </div>
         )}
 
-        {outcome && <ResultOverlay outcome={outcome} />}
+        {outcome && (
+          <ResultOverlay
+            outcome={outcome}
+            onDismiss={dismissOutcome}
+            onReviewPayments={() => router.push('/my-classes')}
+          />
+        )}
       </div>
     </div>
   )
 }
 
-function ResultOverlay({ outcome }: { outcome: ScanOutcome }) {
+function ResultOverlay({
+  outcome,
+  onDismiss,
+  onReviewPayments,
+}: {
+  outcome: ScanOutcome
+  onDismiss: () => void
+  onReviewPayments: () => void
+}) {
   const bg = {
     confirmed: 'bg-green-600',
     already_registered: 'bg-amber-500',
@@ -155,6 +182,7 @@ function ResultOverlay({ outcome }: { outcome: ScanOutcome }) {
   }[outcome.kind]
 
   const avatarUrl = 'avatarUrl' in outcome ? outcome.avatarUrl : null
+  const pendingPayment = outcome.kind === 'rejected' && outcome.reason === 'payment_not_confirmed'
 
   return (
     <div className={`absolute inset-0 flex flex-col items-center justify-center px-6 ${bg}`}>
@@ -171,6 +199,31 @@ function ResultOverlay({ outcome }: { outcome: ScanOutcome }) {
         {outcome.kind === 'rejected' && outcome.message}
         {outcome.kind === 'network_error' && 'No se pudo validar. Intenta de nuevo.'}
       </p>
+
+      {/* P3-4: el pago pendiente es el único rechazo que el profesor puede
+          resolver ahí mismo. En vez de un flash rojo de 2s, damos salida:
+          confirmar el pago, o seguir la fila y resolverlo después. */}
+      {pendingPayment && (
+        <>
+          <p className="mt-2 max-w-xs text-center text-sm text-white/90">
+            Confirma su pago para habilitar el QR, o déjalo pasar y resuélvelo después.
+          </p>
+          <div className="mt-5 flex flex-col items-stretch gap-2">
+            <button
+              onClick={onReviewPayments}
+              className="rounded-xl bg-white px-6 py-2.5 text-sm font-bold text-red-700"
+            >
+              Revisar pagos
+            </button>
+            <button
+              onClick={onDismiss}
+              className="rounded-xl border border-white/60 px-6 py-2.5 text-sm font-semibold text-white"
+            >
+              Seguir escaneando
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

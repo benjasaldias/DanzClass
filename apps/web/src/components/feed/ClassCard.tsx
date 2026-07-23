@@ -79,8 +79,11 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
   const hasMedia = sortedMedia.length > 0
   const currentMedia = sortedMedia[currentMediaIndex]
 
-  const takenCount = (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
-  const spotsAvailable = Math.max(0, (classData.max_spots ?? 0) - takenCount)
+  // Preferir la vista class_spots (spots_available adjuntado por el feed, P2-1);
+  // fallback a contar enrollments si no viene (compat con otros llamadores).
+  const spotsAvailable = typeof classData.spots_available === 'number'
+    ? Math.max(0, classData.spots_available)
+    : Math.max(0, (classData.max_spots ?? 0) - (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length)
 
   const recurrenceLabel: Record<string, string> = { weekly: 'Semanal', biweekly: 'Quincenal', monthly: 'Mensual' }
 

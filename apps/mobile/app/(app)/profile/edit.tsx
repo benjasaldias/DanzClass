@@ -126,6 +126,14 @@ export default function EditProfileScreen() {
         }
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
         avatarUrl = urlData.publicUrl
+
+        // P3-6: subir el mismo formato sobrescribe (upsert), pero cambiar de
+        // formato (jpg → png) deja huérfano el archivo anterior. Lo borramos.
+        const { data: siblings } = await supabase.storage.from('avatars').list(profile.id)
+        const stale = (siblings ?? [])
+          .filter((f: any) => f.name.startsWith('avatar.') && f.name !== `avatar.${ext}`)
+          .map((f: any) => `${profile.id}/${f.name}`)
+        if (stale.length > 0) await supabase.storage.from('avatars').remove(stale)
       } catch {
         setError('Error al subir la foto de perfil')
         setSaving(false)

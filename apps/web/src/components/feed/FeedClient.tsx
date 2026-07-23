@@ -62,7 +62,11 @@ export default function FeedClient({
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [rehearsals, setRehearsals] = useState(initialRehearsals)
   const [showCreateRehearsal, setShowCreateRehearsal] = useState(false)
+  const [pageSize, setPageSize] = useState(20) // P2-4: "Cargar más" lo incrementa
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Reiniciar la paginación al cambiar de pestaña o de tipo de contenido.
+  useEffect(() => { setPageSize(20) }, [activeFilter, contentType])
 
   // Device location for the "Cerca" tab — requested only when that tab is active.
   const { location, status: locStatus, request: requestLocation } = useUserLocation()
@@ -75,6 +79,7 @@ export default function FeedClient({
     followingIds,
     currentProfile,
     userCoords: activeFilter === 'nearby' ? location : null,
+    limit: pageSize,
     initialData: {
       classes: initialClasses,
       posts: initialPosts,
@@ -285,6 +290,20 @@ export default function FeedClient({
                     </div>
                   : <PostCard key={`post-${item.data.id}`} post={item.data} currentUserId={currentUser?.id ?? ''} />
           )
+        )}
+
+        {/* P2-4: Cargar más — sube el tamaño de página y refetchea. No aplica al
+            modo "cerca con ubicación" (ya trae hasta 60 por distancia). */}
+        {!isLoading && feedItems.length > 0 && feedData?.hasMore && (
+          <div className="flex justify-center py-5">
+            <button
+              onClick={() => setPageSize((p) => p + 20)}
+              disabled={isFetching}
+              className="btn-secondary text-sm px-6 disabled:opacity-60"
+            >
+              {isFetching ? 'Cargando…' : 'Cargar más'}
+            </button>
+          </div>
         )}
       </div>
     </div>

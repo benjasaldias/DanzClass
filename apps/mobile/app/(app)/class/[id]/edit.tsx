@@ -218,7 +218,9 @@ export default function EditClassScreen() {
       if (isEntrenamiento && !endsAt && !endsIndefinitely) errs.endsAt = 'Indica fecha de término o Indefinido'
     }
     if (!price) errs.price = 'Requerido'
+    // Mismo rango que valida el form web (zod .min(1).max(100)) — P3-1.
     if (!maxSpots || Number(maxSpots) < 1) errs.maxSpots = 'Mínimo 1 cupo'
+    else if (Number(maxSpots) > 100) errs.maxSpots = 'Máximo 100 cupos'
     setErrors(errs)
     return Object.keys(errs).length === 0
   }

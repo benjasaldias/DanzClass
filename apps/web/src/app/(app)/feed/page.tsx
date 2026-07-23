@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import FeedClient from '@/components/feed/FeedClient'
+import { attachClassSpots } from '@/lib/feedSpots'
 
 export default async function FeedPage() {
   const supabase = createClient()
@@ -18,7 +19,7 @@ export default async function FeedPage() {
   const today = new Date().toISOString().split('T')[0]
   const classesQuery = supabase
     .from('classes')
-    .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)' as any)
+    .select('*, teacher:profiles!teacher_id(*), media:class_media(*)' as any)
     .eq('status', 'active')
     // Exclude expired sueltas (date passed)
     .or(`type.neq.suelta,date.gte.${today}`)
@@ -92,12 +93,16 @@ export default async function FeedPage() {
   }))
 
   // Client-side: filter custom-recurrence classes where all dates have passed
-  const classes = (rawClasses ?? []).filter((c: any) => {
+  const filteredClasses = (rawClasses ?? []).filter((c: any) => {
     if (c.recurrence === 'custom') {
       return (c.custom_dates ?? []).some((d: string) => d >= today)
     }
     return true
   })
+
+  // P2-1: cupos vía la vista class_spots (un query batch) en vez de embeber
+  // todas las enrollments por clase.
+  const classes = await attachClassSpots(supabase as any, filteredClasses)
 
   // Batch-fetch ratings for teachers of initial classes
   const teacherIds = [...new Set(classes.map((c: any) => c.teacher_id as string))]

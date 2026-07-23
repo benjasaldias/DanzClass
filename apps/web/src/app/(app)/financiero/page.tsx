@@ -12,36 +12,33 @@ export default async function FinancieroDashboardPage() {
   const tier = await getActiveTier(user.id, supabase)
   if (!canTeach(tier)) redirect('/plans')
 
-  // Fetch all confirmed payments for this teacher's classes
-  const { data: payments } = await (supabase as any)
+  // P2-2: agregados calculados en SQL (RPC) — evita traer todos los pagos a JS.
+  const { data: summary } = await (supabase as any).rpc('teacher_financial_summary')
+
+  // Detalle acotado a los últimos 6 meses (para la lista + filtro por mes que la
+  // UI ofrece). Antes se traían TODOS los pagos verified sin límite.
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  const { data: recentPayments } = await (supabase as any)
     .from('payments')
     .select(`
-      id, amount, status, created_at,
+      id, amount, verified_at, submitted_at,
       enrollment:enrollments!inner(
-        id, student_id, class_id, status,
+        student_id,
         student:profiles!student_id(id, full_name, username, avatar_url),
-        class:classes!inner(id, title, dance_style, type, teacher_id)
+        class:classes!inner(id, title, teacher_id)
       )
     `)
     .eq('enrollment.class.teacher_id', user.id)
     .eq('status', 'verified')
-    .order('created_at', { ascending: false })
-
-  // Fetch all active classes for this teacher
-  const { data: classes } = await (supabase as any)
-    .from('classes')
-    .select(`
-      id, title, dance_style, type, price, price_monthly, max_spots,
-      enrollments(id, status, student_id)
-    `)
-    .eq('teacher_id', user.id)
-    .in('status', ['active', 'completed'])
-    .order('created_at', { ascending: false })
+    .gte('verified_at', sixMonthsAgo.toISOString())
+    .order('verified_at', { ascending: false })
+    .limit(300)
 
   return (
     <FinancialDashboardClient
-      payments={payments ?? []}
-      classes={classes ?? []}
+      summary={summary ?? {}}
+      recentPayments={recentPayments ?? []}
     />
   )
 }

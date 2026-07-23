@@ -2,7 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshCon
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { ChevronLeft, TrendingUp, Users, BookOpen, DollarSign } from 'lucide-react-native'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
 import { canTeach } from '@danceclass/shared'
@@ -39,37 +39,38 @@ export default function FinancieroScreen() {
   const { isDark } = useTheme()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [payments, setPayments] = useState<any[]>([])
-  const [classes, setClasses] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>({})
+  const [recentPaymentsData, setRecentPaymentsData] = useState<any[]>([])
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [paymentsRes, classesRes] = await Promise.all([
+    // P2-2: agregados vía RPC + detalle acotado a 6 meses (antes traía TODOS los
+    // pagos y ordenaba por payments.created_at, columna inexistente → rompía).
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    const [summaryRes, recentRes] = await Promise.all([
+      (supabase as any).rpc('teacher_financial_summary'),
       (supabase as any)
         .from('payments')
         .select(`
-          id, amount, status, created_at,
+          id, amount, verified_at, submitted_at,
           enrollment:enrollments!inner(
-            id, student_id, class_id, status,
+            student_id,
             student:profiles!student_id(id, full_name, username, avatar_url),
-            class:classes!inner(id, title, dance_style, type, teacher_id)
+            class:classes!inner(id, title, teacher_id)
           )
         `)
         .eq('enrollment.class.teacher_id', user.id)
         .eq('status', 'verified')
-        .order('created_at', { ascending: false }),
-
-      (supabase as any)
-        .from('classes')
-        .select(`id, title, dance_style, enrollments(id, status, student_id)`)
-        .eq('teacher_id', user.id)
-        .in('status', ['active', 'completed']),
+        .gte('verified_at', sixMonthsAgo.toISOString())
+        .order('verified_at', { ascending: false })
+        .limit(300),
     ])
 
-    setPayments(paymentsRes.data ?? [])
-    setClasses(classesRes.data ?? [])
+    setSummary(summaryRes.data ?? {})
+    setRecentPaymentsData(recentRes.data ?? [])
   }, [])
 
   useEffect(() => {
@@ -85,32 +86,24 @@ export default function FinancieroScreen() {
   const last6 = getLast6MonthKeys()
   const currentKey = last6[5]
 
-  const totalIncome = payments.reduce((acc, p) => acc + (p.amount ?? 0), 0)
-  const uniqueStudents = new Set(payments.map((p) => p.enrollment?.student_id)).size
-  const activeCount = classes.length
-  const totalEnrolled = classes.reduce((acc, c) => acc + (c.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length, 0)
-  const totalConfirmed = classes.reduce((acc, c) => acc + (c.enrollments ?? []).filter((e: any) => e.status === 'confirmed').length, 0)
+  // Todos los agregados vienen del RPC (P2-2).
+  const totalIncome = summary.total_income ?? 0
+  const uniqueStudents = summary.unique_students ?? 0
+  const activeCount = summary.active_count ?? 0
+  const totalEnrolled = summary.total_enrolled ?? 0
+  const totalConfirmed = summary.total_confirmed ?? 0
   const conversionRate = totalEnrolled > 0 ? Math.round((totalConfirmed / totalEnrolled) * 100) : 0
 
-  const monthlyTrend = last6.map((key) => {
-    const total = payments.filter((p) => getMonthKey(p.created_at) === key).reduce((acc, p) => acc + (p.amount ?? 0), 0)
-    return { key, label: getMonthLabel(key), total }
-  })
+  const monthlyTrend = ((summary.monthly_trend ?? []) as { key: string; total: number }[]).map((m) => ({
+    key: m.key, label: getMonthLabel(m.key), total: m.total,
+  }))
   const maxMonthly = Math.max(...monthlyTrend.map((m) => m.total), 1)
 
-  const topClasses = useMemo(() => {
-    const map: Record<string, { title: string; income: number; count: number }> = {}
-    for (const p of payments) {
-      const cls = p.enrollment?.class
-      if (!cls) continue
-      if (!map[cls.id]) map[cls.id] = { title: cls.title, income: 0, count: 0 }
-      map[cls.id].income += p.amount ?? 0
-      map[cls.id].count++
-    }
-    return Object.entries(map).sort((a, b) => b[1].income - a[1].income).slice(0, 5)
-  }, [payments])
+  const topClasses = ((summary.top_classes ?? []) as any[]).map((t) => ({
+    id: t.id, title: t.title, income: t.income, count: t.confirmed,
+  }))
 
-  const recentPayments = payments.slice(0, 10)
+  const recentPayments = recentPaymentsData.slice(0, 10)
 
   const cardBg = isDark ? 'bg-dark-surface' : 'bg-white'
   const borderColor = isDark ? 'border-dark-border' : 'border-gray-100'
@@ -212,7 +205,7 @@ export default function FinancieroScreen() {
               {recentPayments.map((p) => {
                 const student = p.enrollment?.student
                 const cls = p.enrollment?.class
-                const date = new Date(p.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+                const date = new Date(p.verified_at ?? p.submitted_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
                 return (
                   <View key={p.id} className={`${cardBg} border ${borderColor} rounded-xl p-3 flex-row items-center gap-3`}>
                     <Avatar src={student?.avatar_url} name={student?.full_name ?? '?'} size="sm" />
@@ -236,8 +229,8 @@ export default function FinancieroScreen() {
           <View className={`${cardBg} border ${borderColor} rounded-2xl p-4`}>
             <Text className={`text-sm font-semibold ${textPrimary} mb-3`}>Top clases por ingreso</Text>
             <View className="gap-3">
-              {topClasses.map(([id, data], i) => (
-                <View key={id} className="flex-row items-center gap-3">
+              {topClasses.map((data, i) => (
+                <View key={data.id} className="flex-row items-center gap-3">
                   <View style={{
                     width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
                     backgroundColor: i === 0 ? '#fef3c7' : i === 1 ? isDark ? '#3D2870' : '#f3f4f6' : '#fff7ed',
@@ -257,7 +250,7 @@ export default function FinancieroScreen() {
           </View>
         )}
 
-        {payments.length === 0 && (
+        {totalIncome === 0 && recentPayments.length === 0 && (
           <View className="items-center py-16">
             <TrendingUp stroke={isDark ? '#A39BBF' : '#d1d5db'} size={40} />
             <Text className={`text-sm ${textSecondary} mt-3`}>Sin pagos confirmados aún</Text>

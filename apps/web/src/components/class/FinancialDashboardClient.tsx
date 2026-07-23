@@ -43,58 +43,52 @@ function StatCard({ icon, label, value, sub, color }: { icon: React.ReactNode; l
   )
 }
 
-export default function FinancialDashboardClient({ payments, classes }: { payments: any[]; classes: any[] }) {
+// El resumen agregado viene del RPC teacher_financial_summary (P2-2).
+interface FinancialSummary {
+  total_income?: number
+  unique_students?: number
+  monthly_trend?: { key: string; total: number }[]
+  top_classes?: { id: string; title: string; style: string | null; income: number; confirmed: number }[]
+  active_count?: number
+  total_enrolled?: number
+  total_confirmed?: number
+}
+
+// Fecha real de un pago (payments no tiene created_at).
+const payDate = (p: any): string => p.verified_at ?? p.submitted_at ?? new Date().toISOString()
+
+export default function FinancialDashboardClient({ summary, recentPayments: allRecent }: { summary: FinancialSummary; recentPayments: any[] }) {
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const last6 = getLast6MonthKeys()
   const currentMonthKey = last6[5]
 
+  // Detalle acotado (últimos 6 meses) para la lista + filtro por mes.
   const filteredPayments = useMemo(() => {
-    if (selectedMonth === 'all') return payments
-    return payments.filter((p) => getMonthKey(p.created_at) === selectedMonth)
-  }, [payments, selectedMonth])
+    if (selectedMonth === 'all') return allRecent
+    return allRecent.filter((p) => getMonthKey(payDate(p)) === selectedMonth)
+  }, [allRecent, selectedMonth])
 
-  // Global stats (all time)
-  const totalIncome = payments.reduce((acc, p) => acc + (p.amount ?? 0), 0)
-  const uniqueStudentsAllTime = new Set(payments.map((p) => p.enrollment?.student_id)).size
+  // Global stats (all time) — desde el RPC, no de las filas traídas.
+  const totalIncome = summary.total_income ?? 0
+  const uniqueStudentsAllTime = summary.unique_students ?? 0
 
-  // Monthly stats for selected filter
+  // Monthly stats for selected filter (sobre el detalle de 6 meses)
   const filteredIncome = filteredPayments.reduce((acc, p) => acc + (p.amount ?? 0), 0)
   const filteredUniqueStudents = new Set(filteredPayments.map((p) => p.enrollment?.student_id)).size
 
-  // Last 6 months income trend
-  const monthlyTrend = last6.map((key) => {
-    const total = payments
-      .filter((p) => getMonthKey(p.created_at) === key)
-      .reduce((acc, p) => acc + (p.amount ?? 0), 0)
-    return { key, label: getMonthLabel(key), total }
-  })
+  // Last 6 months income trend — desde el RPC.
+  const monthlyTrend = (summary.monthly_trend ?? []).map((m) => ({
+    key: m.key, label: getMonthLabel(m.key), total: m.total,
+  }))
   const maxMonthly = Math.max(...monthlyTrend.map((m) => m.total), 1)
 
-  // Top classes by income (all time)
-  const classIncomeMap: Record<string, { title: string; style: string; income: number; confirmed: number }> = {}
-  for (const p of payments) {
-    const cls = p.enrollment?.class
-    if (!cls) continue
-    if (!classIncomeMap[cls.id]) {
-      classIncomeMap[cls.id] = { title: cls.title, style: cls.dance_style ?? '', income: 0, confirmed: 0 }
-    }
-    classIncomeMap[cls.id].income += p.amount ?? 0
-    classIncomeMap[cls.id].confirmed++
-  }
-  const topClasses = Object.entries(classIncomeMap)
-    .sort((a, b) => b[1].income - a[1].income)
-    .slice(0, 5)
+  // Top classes by income (all time) — desde el RPC.
+  const topClasses = summary.top_classes ?? []
 
-  // Active classes stats
-  const activeCount = classes.filter((c) => c.status === 'active' || !c.status).length
-  const totalEnrolled = classes.reduce((acc, c) => {
-    const active = (c.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
-    return acc + active
-  }, 0)
-  const totalConfirmed = classes.reduce((acc, c) => {
-    const confirmed = (c.enrollments ?? []).filter((e: any) => e.status === 'confirmed').length
-    return acc + confirmed
-  }, 0)
+  // Active classes stats — desde el RPC.
+  const activeCount = summary.active_count ?? 0
+  const totalEnrolled = summary.total_enrolled ?? 0
+  const totalConfirmed = summary.total_confirmed ?? 0
   const conversionRate = totalEnrolled > 0 ? Math.round((totalConfirmed / totalEnrolled) * 100) : 0
 
   // Recent payments in filtered view
@@ -221,7 +215,7 @@ export default function FinancialDashboardClient({ payments, classes }: { paymen
           {recentPayments.map((p) => {
             const student = p.enrollment?.student
             const cls = p.enrollment?.class
-            const date = new Date(p.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+            const date = new Date(payDate(p)).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
             return (
               <div key={p.id} className="card p-3 flex items-center gap-3">
                 <Avatar src={student?.avatar_url} name={student?.full_name ?? '?'} size="sm" />
@@ -248,8 +242,8 @@ export default function FinancialDashboardClient({ payments, classes }: { paymen
         <div className="card p-4">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-dark-text mb-3">Top clases por ingreso</h2>
           <div className="space-y-3">
-            {topClasses.map(([id, data], i) => (
-              <div key={id} className="flex items-center gap-3">
+            {topClasses.map((data, i) => (
+              <div key={data.id} className="flex items-center gap-3">
                 <span className={cn(
                   'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold',
                   i === 0 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'

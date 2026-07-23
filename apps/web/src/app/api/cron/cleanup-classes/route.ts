@@ -265,7 +265,6 @@ export async function GET(request: Request) {
   // El cupo ya se liberó a nivel de la vista class_spots al expirar el hold; acá
   // solo hacemos la limpieza: cancelar la inscripción reservada nunca pagada y
   // anular su pago pendiente. Solo toca pending_payment con hold vencido.
-  let releasedHolds = 0
   const { data: expiredHolds } = await (supabase as any)
     .from('enrollments')
     .select('id')
@@ -273,16 +272,59 @@ export async function GET(request: Request) {
     .not('hold_expires_at', 'is', null)
     .lt('hold_expires_at', now.toISOString())
 
-  for (const e of expiredHolds ?? []) {
-    await supabase.from('enrollments').update({ status: 'cancelled' } as any).eq('id', e.id)
+  // P2-3: batch en vez de un round-trip por fila.
+  const expiredHoldIds = (expiredHolds ?? []).map((e: any) => e.id)
+  const releasedHolds = expiredHoldIds.length
+  if (expiredHoldIds.length > 0) {
+    await supabase.from('enrollments').update({ status: 'cancelled' } as any).in('id', expiredHoldIds)
     await (supabase as any)
       .from('payments')
       .update({ status: 'void' })
-      .eq('enrollment_id', e.id)
+      .in('enrollment_id', expiredHoldIds)
       .not('status', 'in', '("verified","void")')
-    releasedHolds++
+    logger.info('cleanup-classes:holds', { releasedHolds })
   }
-  if (releasedHolds > 0) logger.info('cleanup-classes:holds', { releasedHolds })
+
+  // ── P1-1: auto-cancelar reservas impagas sin hold tras 72h ───────────────────
+  // Una inscripción pending_payment (reservada, comprobante nunca subido) que no
+  // es 2x ni tiene hold temporal ocupa el cupo indefinidamente, dejando clases
+  // "llenas" de gente que nunca pagó. El payment_reminder de 24h ya avisó; a las
+  // 72h liberamos el cupo. Al subir un comprobante el estado pasa a
+  // 'payment_submitted', así que esto solo alcanza reservas nunca concretadas.
+  // (Los holds de allow_late_payment=false se limpian arriba; las de 2x tienen
+  // su propio timeout de 7 días.)
+  const STALE_PENDING_MS = 72 * 60 * 60 * 1000
+  const stalePendingCutoff = new Date(now.getTime() - STALE_PENDING_MS)
+  const { data: stalePending } = await (supabase as any)
+    .from('enrollments')
+    .select('id, student_id, class_id, is_2x, class:classes(title, status)')
+    .eq('status', 'pending_payment')
+    .is('hold_expires_at', null)
+    .lt('created_at', stalePendingCutoff.toISOString())
+
+  // Solo pending sin hold, no 2x (tiene su timeout de 7 días), en clases activas.
+  const staleEligible = (stalePending ?? []).filter(
+    (e: any) => !e.is_2x && e.class && e.class.status === 'active'
+  )
+  const staleIds = staleEligible.map((e: any) => e.id)
+  const cancelledStale = staleIds.length
+  if (staleIds.length > 0) {
+    // P2-3: batch (update + void + notificaciones) en vez de por fila.
+    await supabase.from('enrollments').update({ status: 'cancelled' } as any).in('id', staleIds)
+    await (supabase as any)
+      .from('payments')
+      .update({ status: 'void' })
+      .in('enrollment_id', staleIds)
+      .not('status', 'in', '("verified","void")')
+    await supabase.from('notifications').insert(
+      staleEligible.map((e: any) => ({
+        user_id: e.student_id,
+        type: 'class_cancelled',
+        data: { class_id: e.class_id, class_title: e.class.title, reason: 'payment_timeout' },
+      })) as any
+    )
+    logger.info('cleanup-classes:stale-pending', { cancelledStale })
+  }
 
   // ── F-21: Recordatorio de pago al alumno (24h sin subir comprobante) ─────────
   // Busca enrollments en pending_payment desde hace más de 24h, sin reminder previo.
@@ -336,45 +378,84 @@ export async function GET(request: Request) {
 
   if (paymentReminders > 0) logger.info('cleanup-classes:payment-reminders', { paymentReminders })
 
-  // ── Delete stale chats (class chats 48h after class ended, rehearsal chats 48h after last date) ──
-  let deletedChats = 0
-  const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+  // ── P3-6: purga de comprobantes de pagos anulados/rechazados ────────────────
+  // Un comprobante de un pago que quedó 'void' (inscripción cancelada) o
+  // 'rejected' (el profesor lo rechazó) no vuelve a usarse, pero seguía viviendo
+  // en el bucket privado `payment-receipts` para siempre. Se purga a los 90 días
+  // (el alumno ya tuvo tiempo de resubir uno nuevo). Los pagos 'verified' NO se
+  // tocan: son el respaldo del pago. Nota: `payments` no tiene created_at — la
+  // referencia de antigüedad es submitted_at (cuándo se subió el comprobante).
+  const RECEIPT_RETENTION_DAYS = 90
+  const receiptCutoff = new Date(now.getTime() - RECEIPT_RETENTION_DAYS * 24 * 60 * 60 * 1000)
+  let purgedReceipts = 0
   try {
-    // Class chats: delete if the class is soft-deleted or past its last date by 48h
+    const { data: staleReceipts } = await (supabase as any)
+      .from('payments')
+      .select('id, receipt_url')
+      .in('status', ['void', 'rejected'])
+      .not('receipt_url', 'is', null)
+      .lt('submitted_at', receiptCutoff.toISOString())
+
+    if (staleReceipts && staleReceipts.length > 0) {
+      // receipt_url puede ser un path puro (formato nuevo) o una URL legacy.
+      const paths = staleReceipts
+        .map((p: any) => {
+          const v: string = p.receipt_url
+          return v.includes('/payment-receipts/') ? v.split('/payment-receipts/')[1] : v
+        })
+        .filter(Boolean)
+      if (paths.length > 0) await supabase.storage.from('payment-receipts').remove(paths)
+      await (supabase as any)
+        .from('payments')
+        .update({ receipt_url: null })
+        .in('id', staleReceipts.map((p: any) => p.id))
+      purgedReceipts = staleReceipts.length
+      logger.info('cleanup-classes:receipts', { purgedReceipts })
+    }
+  } catch (e) {
+    logger.error('cleanup-classes:receipts', e)
+  }
+
+  // ── Delete stale chats (class chats 48h after class ended, rehearsal chats 48h after last date) ──
+  // P2-3: recolectar ids en un Set y borrar en un solo batch (además corrige el
+  // doble-conteo P3-2: cada chat se contaba/borraba hasta dos veces con los `if`
+  // sin `continue`).
+  let deletedChats = 0
+  const chatIdsToDelete = new Set<string>()
+  const CHAT_GRACE_MS = 48 * 3600 * 1000
+  try {
     const { data: staleClassChats } = await (supabase as any)
       .from('chats')
       .select('id, class_id, class:classes(status, date, ends_at, ends_indefinitely, type)')
       .eq('type', 'class')
     for (const chat of (staleClassChats ?? []) as any[]) {
       const cls = chat.class
-      if (!cls) { await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++; continue }
-      if (cls.status === 'cancelled') { await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++; continue }
-      // Suelta class — delete if date + 48h has passed
-      if (cls.type === 'suelta' && cls.date && new Date(cls.date).getTime() + 48 * 3600 * 1000 < Date.now()) {
-        await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++
+      if (!cls || cls.status === 'cancelled') { chatIdsToDelete.add(chat.id); continue }
+      if (cls.type === 'suelta' && cls.date && new Date(cls.date).getTime() + CHAT_GRACE_MS < Date.now()) {
+        chatIdsToDelete.add(chat.id); continue
       }
-      // Periodica/entrenamiento with ends_at — delete if ends_at + 48h has passed
-      if (cls.ends_at && !cls.ends_indefinitely && new Date(cls.ends_at).getTime() + 48 * 3600 * 1000 < Date.now()) {
-        await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++
+      if (cls.ends_at && !cls.ends_indefinitely && new Date(cls.ends_at).getTime() + CHAT_GRACE_MS < Date.now()) {
+        chatIdsToDelete.add(chat.id)
       }
     }
-    // Rehearsal chats: delete if the rehearsal's last date + 48h has passed
     const { data: staleRehearsalChats } = await (supabase as any)
       .from('chats')
       .select('id, rehearsal_id, rehearsal:rehearsals(rehearsal_date, custom_dates, date_mode, status)')
       .eq('type', 'rehearsal')
     for (const chat of (staleRehearsalChats ?? []) as any[]) {
       const r = chat.rehearsal
-      if (!r || r.status === 'cancelled') { await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++; continue }
+      if (!r || r.status === 'cancelled') { chatIdsToDelete.add(chat.id); continue }
       let lastDate: Date | null = null
       if (r.date_mode === 'single' && r.rehearsal_date) lastDate = new Date(r.rehearsal_date)
       if (r.date_mode === 'custom' && r.custom_dates?.length) {
         const sorted = [...r.custom_dates].sort()
         lastDate = new Date(sorted[sorted.length - 1])
       }
-      if (lastDate && lastDate.getTime() + 48 * 3600 * 1000 < Date.now()) {
-        await (supabase as any).from('chats').delete().eq('id', chat.id); deletedChats++
-      }
+      if (lastDate && lastDate.getTime() + CHAT_GRACE_MS < Date.now()) chatIdsToDelete.add(chat.id)
+    }
+    if (chatIdsToDelete.size > 0) {
+      await (supabase as any).from('chats').delete().in('id', [...chatIdsToDelete])
+      deletedChats = chatIdsToDelete.size
     }
   } catch (e) {
     logger.error('cleanup-classes:chats', { error: String(e) })
@@ -383,7 +464,7 @@ export async function GET(request: Request) {
 
   await pingHealthcheck(process.env.HEALTHCHECK_CLEANUP_CLASSES_UUID)
 
-  return NextResponse.json({ archived: deleted, errors, reminders, cancelled2x, releasedHolds, paymentReminders, deletedChats })
+  return NextResponse.json({ archived: deleted, errors, reminders, cancelled2x, releasedHolds, cancelledStale, paymentReminders, purgedReceipts, deletedChats })
 }
 
 // Fin (incl. duración) de la última sesión de una clase, o null si no aplica

@@ -602,7 +602,7 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Cupos *</label>
-            <input {...register('max_spots')} type="number" min={1} max={1000} step="1" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
+            <input {...register('max_spots')} type="number" min={1} max={100} step="1" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Duración (min)</label>

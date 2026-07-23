@@ -95,7 +95,7 @@ async function confirmClassPayment(
   // El pago se registró como 'pending' en create-payment (UNIQUE por enrollment).
   const { data: payRow } = await (supabase as any)
     .from('payments')
-    .select('id, status, mp_payment_id')
+    .select('id, status, mp_payment_id, amount, commission_amount')
     .eq('enrollment_id', enrollmentId)
     .maybeSingle()
 
@@ -114,6 +114,24 @@ async function confirmClassPayment(
   // Idempotencia: ya confirmado con este mismo pago → no re-notificar.
   if (payRow.status === 'verified' && payRow.mp_payment_id === mpPaymentId) {
     logger.info('webhook:class_payment_already_confirmed', { enrollment_id: enrollmentId })
+    return
+  }
+
+  // P1-3: defensa en profundidad — verificar que el monto aprobado por MP
+  // coincida con lo esperado (base + comisión). El monto lo fija create-payment
+  // server-side, así que un desajuste indica manipulación o inconsistencia:
+  // no auto-confirmamos, dejamos la fila para revisión manual del profesor.
+  const expectedTotal = Math.round((payRow.amount ?? 0) + (payRow.commission_amount ?? 0))
+  const paidAmount = Math.round(Number(payment.transaction_amount ?? 0))
+  if (expectedTotal > 0 && paidAmount !== expectedTotal) {
+    logger.error('webhook:class_payment_amount_mismatch', `paid ${paidAmount} != expected ${expectedTotal}`, {
+      enrollment_id: enrollmentId,
+      mp_payment_id: mpPaymentId,
+    })
+    await (supabase as any)
+      .from('payments')
+      .update({ mp_status: mpStatus, mp_payment_id: mpPaymentId })
+      .eq('id', payRow.id)
     return
   }
 

@@ -741,7 +741,12 @@ export default function ClassDetailScreen() {
           ]
         )
       } else if (json.error === 'already_enrolled') {
-        Alert.alert('Ya inscrito', 'Ya tienes una inscripción activa en esta clase.')
+        // Ya hay inscripción activa: si falta pagar, llevar al pago (P1-4).
+        if (json.enrollmentId && json.status !== 'confirmed') {
+          router.push(`/(app)/payment/${json.enrollmentId}` as any)
+        } else {
+          Alert.alert('Ya inscrito', 'Ya tienes una inscripción activa en esta clase.')
+        }
       } else if (json.error === 'no_spots') {
         Alert.alert('Sin cupos', 'No hay cupos disponibles.')
       } else {

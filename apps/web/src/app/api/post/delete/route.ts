@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/supabase/require-user'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { deleteCloudinaryAssets } from '@/lib/cloudinary-admin'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { logger } from '@/lib/logger'
 
 // Borra una publicación (video) + su asset en Cloudinary (item 10). Antes el
 // cliente hacía `posts.delete()` directo y el video quedaba huérfano en
@@ -34,6 +35,19 @@ export async function POST(request: NextRequest) {
 
   // Borra el video + thumbnail en Cloudinary (ignora URLs que no sean de Cloudinary).
   await deleteCloudinaryAssets([post.video_url, post.thumbnail_url])
+
+  // P3-6: cuando Cloudinary no está configurado, el video cae al bucket
+  // `posts-media` con path `{userId}/{timestamp}.{ext}`. Borrar solo la fila
+  // dejaba el archivo huérfano en Storage para siempre.
+  const storagePaths = [post.video_url, post.thumbnail_url]
+    .filter((u: unknown): u is string => typeof u === 'string' && u.includes('/posts-media/'))
+    .map((u: string) => u.split('/posts-media/')[1]?.split('?')[0] ?? '')
+    .filter(Boolean)
+  if (storagePaths.length > 0) {
+    const { error: storageErr } = await admin.storage.from('posts-media').remove(storagePaths)
+    // Best-effort: si falla el borrado del archivo no bloqueamos el del post.
+    if (storageErr) logger.warn('post_delete_storage_failed', { postId, reason: storageErr.message })
+  }
 
   const { error } = await (admin as any).from('posts').delete().eq('id', postId)
   if (error) return NextResponse.json({ error: 'No se pudo eliminar' }, { status: 500 })

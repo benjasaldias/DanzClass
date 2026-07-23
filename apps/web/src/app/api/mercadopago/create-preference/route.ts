@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { logger } from '@/lib/logger'
 
 const PLAN_CONFIG: Record<string, { name: string; price: number }> = {
   basic: { name: 'DanzClass Básico', price: 1500 },
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
   const isTest = process.env.MERCADOPAGO_ACCESS_TOKEN?.startsWith('TEST-') ?? false
   const checkoutUrl = isTest ? result.sandbox_init_point : result.init_point
 
-  console.log('[create-preference] plan:', plan, '| period:', period, '| price:', unitPrice)
+  logger.info('create_preference', { plan, period, price: unitPrice })
 
   return NextResponse.json({ init_point: checkoutUrl })
 }

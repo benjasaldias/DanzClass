@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { MercadoPagoConfig, PreApproval } from 'mercadopago'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logger } from '@/lib/logger'
 
 export async function POST() {
   const supabase = createClient()
@@ -29,10 +30,13 @@ export async function POST() {
         id: String(activeSub.mp_subscription_id),
         body: { status: 'cancelled' },
       })
-      console.log('[cancel subscription] MP preapproval cancelled:', activeSub.mp_subscription_id)
+      logger.info('subscription_cancel_mp', { mp_subscription_id: activeSub.mp_subscription_id })
     } catch (e) {
       // If MP cancellation fails (e.g., one-time payment ID, not a preapproval), just log
-      console.warn('[cancel subscription] MP cancellation skipped:', e)
+      logger.warn('subscription_cancel_mp_skipped', {
+        mp_subscription_id: activeSub.mp_subscription_id,
+        reason: (e as any)?.message ?? String(e),
+      })
     }
   }
 
@@ -44,7 +48,7 @@ export async function POST() {
     .in('status', ['active', 'grace'])
 
   if (error) {
-    console.error('[cancel subscription]', error)
+    logger.error('subscription_cancel_db_failed', error, { user_id: user.id })
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 

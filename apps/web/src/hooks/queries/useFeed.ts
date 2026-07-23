@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { attachClassSpots } from '@/lib/feedSpots'
 import type { FeedFilter, Profile } from '@danceclass/shared'
 
 type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
@@ -12,6 +13,8 @@ export interface FeedData {
   posts: any[]
   events: any[]
   teacherRatings: TeacherRatings
+  /** True si alguna fuente devolvió el máximo pedido → puede haber más (P2-4). */
+  hasMore?: boolean
 }
 
 interface FeedOptions {
@@ -20,6 +23,8 @@ interface FeedOptions {
   currentProfile: Profile | null
   /** When set on the 'nearby' filter, sort by real distance via PostGIS RPC. */
   userCoords?: { lat: number; lng: number } | null
+  /** Tamaño de página del feed (P2-4). "Cargar más" lo incrementa. */
+  limit?: number
 }
 
 async function fetchTeacherRatings(supabase: ReturnType<typeof createClient>, teacherIds: string[]): Promise<TeacherRatings> {
@@ -62,13 +67,15 @@ async function fetchNearbyData(coords: { lat: number; lng: number }): Promise<Fe
   if (classIds.length) {
     const { data } = await (supabase as any)
       .from('classes')
-      .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+      .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
       .eq('status', 'active')
       .in('id', classIds)
       .or(`type.neq.suelta,date.gte.${today}`)
       .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${today}`)
-    classes = (data ?? [])
+    const filtered = (data ?? [])
       .filter((c: any) => (c.recurrence === 'custom' ? (c.custom_dates ?? []).some((d: string) => d >= today) : true))
+    const withSpots = await attachClassSpots(supabase as any, filtered) // P2-1
+    classes = withSpots
       .map((c: any) => ({ ...c, _distance_m: classDist.get(c.id) ?? null }))
       .sort((a: any, b: any) => (a._distance_m ?? Infinity) - (b._distance_m ?? Infinity))
   }
@@ -89,10 +96,11 @@ async function fetchNearbyData(coords: { lat: number; lng: number }): Promise<Fe
   const teacherIds = [...new Set(classes.map((c: any) => c.teacher_id as string))]
   const teacherRatings = await fetchTeacherRatings(supabase, teacherIds)
 
-  return { classes, posts: [], events, teacherRatings }
+  // El modo "cerca con ubicación" ya trae hasta 60 por RPC; sin paginación extra.
+  return { classes, posts: [], events, teacherRatings, hasMore: false }
 }
 
-export async function fetchFeedData({ filter, followingIds, currentProfile, userCoords }: FeedOptions): Promise<FeedData> {
+export async function fetchFeedData({ filter, followingIds, currentProfile, userCoords, limit }: FeedOptions): Promise<FeedData> {
   // Location-based nearby: defer to the PostGIS distance query.
   if (filter === 'nearby' && userCoords) {
     return fetchNearbyData(userCoords)
@@ -100,26 +108,27 @@ export async function fetchFeedData({ filter, followingIds, currentProfile, user
 
   const supabase = createClient()
   const today = new Date().toISOString().split('T')[0]
+  const lim = limit ?? 20
 
   // Early return if following filter with no one followed
   if (filter === 'following' && followingIds.length === 0) {
-    return { classes: [], posts: [], events: [], teacherRatings: {} }
+    return { classes: [], posts: [], events: [], teacherRatings: {}, hasMore: false }
   }
 
   let classQuery = supabase
     .from('classes')
-    .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+    .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
     .eq('status', 'active')
     .or(`type.neq.suelta,date.gte.${today}`)
     .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${today}`)
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(lim)
 
   let postQuery = supabase
     .from('posts' as any)
     .select('id, title, description, video_url, thumbnail_url, visibility, is_public, class_id, created_at, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(lim)
 
   let eventQuery = (supabase as any)
     .from('events')
@@ -127,7 +136,7 @@ export async function fetchFeedData({ filter, followingIds, currentProfile, user
     .eq('status', 'active')
     .gte('event_date', today)
     .order('event_date', { ascending: true })
-    .limit(20)
+    .limit(lim)
 
   if (filter === 'following') {
     classQuery = classQuery.in('teacher_id', followingIds)
@@ -152,12 +161,13 @@ export async function fetchFeedData({ filter, followingIds, currentProfile, user
   ])
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const newClasses = (classData ?? []).filter((c: any) => {
+  const filteredClasses = (classData ?? []).filter((c: any) => {
     if (c.recurrence === 'custom') {
       return (c.custom_dates ?? []).some((d: string) => d >= todayStr)
     }
     return true
   })
+  const newClasses = await attachClassSpots(supabase as any, filteredClasses) // P2-1
 
   let newEvents = (eventData ?? [])
   if (filter === 'following') {
@@ -170,11 +180,18 @@ export async function fetchFeedData({ filter, followingIds, currentProfile, user
   const teacherIds = [...new Set(newClasses.map((c: any) => c.teacher_id as string))]
   const teacherRatings = await fetchTeacherRatings(supabase, teacherIds)
 
+  // Puede haber más si alguna fuente devolvió la página completa (P2-4).
+  const hasMore =
+    (classData ?? []).length >= lim ||
+    (postData ?? []).length >= lim ||
+    (eventData ?? []).length >= lim
+
   return {
     classes: newClasses,
     posts: (postData as any[]) ?? [],
     events: newEvents,
     teacherRatings,
+    hasMore,
   }
 }
 
@@ -183,6 +200,7 @@ export function useFeed({
   followingIds,
   currentProfile,
   userCoords,
+  limit,
   initialData,
 }: FeedOptions & { initialData: FeedData }) {
   const queryClient = useQueryClient()
@@ -199,8 +217,8 @@ export function useFeed({
     : ''
 
   return useQuery<FeedData>({
-    queryKey: ['feed', filter, followingIds.join(','), currentProfile?.city ?? '', coordKey],
-    queryFn: () => fetchFeedData({ filter, followingIds, currentProfile, userCoords }),
+    queryKey: ['feed', filter, followingIds.join(','), currentProfile?.city ?? '', coordKey, limit ?? 20],
+    queryFn: () => fetchFeedData({ filter, followingIds, currentProfile, userCoords, limit }),
     staleTime: 2 * 60 * 1000,
     placeholderData: keepPreviousData,
   })

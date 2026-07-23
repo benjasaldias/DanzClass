@@ -20,6 +20,22 @@ import type { FeedFilter, SubscriptionTier } from '@danceclass/shared'
 
 type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
 
+// P2-1: adjunta spots_taken/spots_available desde la vista class_spots en vez de
+// embeber todas las enrollments por clase. class_spots ya excluye holds vencidos.
+async function attachClassSpots(items: any[]): Promise<any[]> {
+  if (!items.length) return items
+  const ids = items.map((c) => c.id)
+  const { data } = await (supabase as any)
+    .from('class_spots')
+    .select('class_id, spots_taken, spots_available')
+    .in('class_id', ids)
+  const map = new Map<string, any>((data ?? []).map((r: any) => [r.class_id, r]))
+  return items.map((c) => {
+    const s = map.get(c.id)
+    return s ? { ...c, spots_taken: s.spots_taken, spots_available: s.spots_available } : c
+  })
+}
+
 const FEED_FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'following', label: 'Siguiendo' },
   { key: 'global', label: 'Global' },
@@ -44,6 +60,9 @@ export default function FeedScreen() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [pageSize, setPageSize] = useState(20)      // P2-4: "Cargar más" lo sube
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [userCity, setUserCity] = useState<string | null>(null)
@@ -107,14 +126,14 @@ export default function FeedScreen() {
       const todayStr = new Date().toISOString().split('T')[0]
       let q = (supabase as any)
         .from('classes')
-        .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+        .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
         .eq('status', 'active')
         // Exclude expired sueltas
         .or(`type.neq.suelta,date.gte.${todayStr}`)
         // Exclude expired periodica/entrenamiento
         .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${todayStr}`)
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(pageSize)
 
       const filterCustom = (items: any[]) =>
         items.filter((c: any) => {
@@ -127,7 +146,8 @@ export default function FeedScreen() {
           // No follows → skip query, show nothing
         } else {
           const { data } = await q.in('teacher_id', followingIds)
-          filterCustom(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
+          const withSpots = await attachClassSpots(filterCustom(data ?? []))
+          withSpots.forEach((c: any) => allItems.push({ _type: 'class', ...c }))
         }
       } else if (nearbyCoords) {
         // Distance-ranked via PostGIS, then hydrate the rows.
@@ -139,19 +159,21 @@ export default function FeedScreen() {
         if (ids.length > 0) {
           const { data } = await (supabase as any)
             .from('classes')
-            .select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id, status)')
+            .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
             .eq('status', 'active')
             .in('id', ids)
             .or(`type.neq.suelta,date.gte.${todayStr}`)
             .or(`type.eq.suelta,ends_at.is.null,ends_indefinitely.is.true,ends_at.gte.${todayStr}`)
-          filterCustom(data ?? []).forEach((c: any) =>
+          const withSpots = await attachClassSpots(filterCustom(data ?? []))
+          withSpots.forEach((c: any) =>
             allItems.push({ _type: 'class', _distance_m: distById.get(c.id) ?? null, ...c })
           )
         }
       } else {
         if (ff === 'nearby' && userCity) q = q.eq('city', userCity)
         const { data } = await q
-        filterCustom(data ?? []).forEach((c: any) => allItems.push({ _type: 'class', ...c }))
+        const withSpots = await attachClassSpots(filterCustom(data ?? []))
+        withSpots.forEach((c: any) => allItems.push({ _type: 'class', ...c }))
       }
     }
 
@@ -161,7 +183,7 @@ export default function FeedScreen() {
         .from('posts')
         .select('*, author:profiles!user_id(id, username, full_name, avatar_url), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(pageSize)
 
       if (ff === 'following') {
         if (followingIds.length === 0) {
@@ -202,7 +224,7 @@ export default function FeedScreen() {
         .eq('status', 'active')
         .gte('event_date', todayStr)
         .order('event_date', { ascending: true })
-        .limit(20)
+        .limit(pageSize)
 
       if (ff === 'following') {
         if (followingIds.length > 0) {
@@ -243,6 +265,10 @@ export default function FeedScreen() {
     } else {
       allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
+    // P2-4: puede haber más si clases o posts llenaron la página.
+    const classCount = allItems.filter((i) => i._type === 'class').length
+    const postCount = allItems.filter((i) => i._type === 'post').length
+    setHasMore(classCount >= pageSize || postCount >= pageSize)
     setItems(allItems)
 
     // Batch-fetch ratings for visible teachers
@@ -268,12 +294,16 @@ export default function FeedScreen() {
   } finally {
     setLoading(false)
     setRefreshing(false)
+    setLoadingMore(false)
   }
-  }, [followingIds, userCity, userId, userLocation])
+  }, [followingIds, userCity, userId, userLocation, pageSize])
 
   useEffect(() => {
     if (userId !== null) loadFeed(feedFilter, contentFilter)
   }, [feedFilter, contentFilter, loadFeed, userId])
+
+  // P2-4: reiniciar la paginación al cambiar de pestaña o tipo de contenido.
+  useEffect(() => { setPageSize(20) }, [feedFilter, contentFilter])
 
   const currentLabel = CONTENT_FILTERS.find((f) => f.key === contentFilter)?.label ?? 'Todos'
 
@@ -387,6 +417,24 @@ export default function FeedScreen() {
               </View>
               <Text className="text-gray-500 dark:text-dark-text2 text-sm">No hay contenido disponible</Text>
             </View>
+          }
+          ListFooterComponent={
+            hasMore && items.length > 0 ? (
+              <View className="items-center py-5">
+                <TouchableOpacity
+                  onPress={() => { setLoadingMore(true); setPageSize((p) => p + 20) }}
+                  disabled={loadingMore}
+                  className="rounded-full border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface px-6 py-2.5"
+                  style={{ opacity: loadingMore ? 0.6 : 1 }}
+                >
+                  {loadingMore ? (
+                    <ActivityIndicator size="small" color="#7F77DD" />
+                  ) : (
+                    <Text className="text-sm font-medium text-gray-700 dark:text-dark-text">Cargar más</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : null
           }
         />
       )}

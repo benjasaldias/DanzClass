@@ -243,8 +243,11 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
           <View className="flex-row items-center gap-2">
             <Users size={14} stroke="#9ca3af" />
             {(() => {
-              const taken = (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
-              const available = Math.max(0, (classData.max_spots ?? 0) - taken)
+              // Preferir class_spots (spots_available adjuntado por el feed, P2-1);
+              // fallback a contar enrollments si no viene.
+              const available = typeof classData.spots_available === 'number'
+                ? Math.max(0, classData.spots_available)
+                : Math.max(0, (classData.max_spots ?? 0) - (classData.enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length)
               return (
                 <Text className={`text-sm ${available <= 0 ? 'text-red-500 dark:text-red-400 font-medium' : 'text-gris-humo dark:text-dark-text2'}`}>
                   {available <= 0 ? 'Sin cupos disponibles' : `${available}/${classData.max_spots} cupos`}

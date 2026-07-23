@@ -16,7 +16,7 @@ const RESULT_DISPLAY_MS = 2000
 type ScanOutcome =
   | { kind: 'confirmed'; studentName: string; avatarUrl: string | null }
   | { kind: 'already_registered'; studentName: string; avatarUrl: string | null }
-  | { kind: 'rejected'; message: string }
+  | { kind: 'rejected'; message: string; reason?: string }
   | { kind: 'network_error' }
 
 export default function ScanAttendanceScreen() {
@@ -38,6 +38,9 @@ export default function ScanAttendanceScreen() {
     if (scanLockRef.current) return
     scanLockRef.current = true
     setChecking(true)
+    // Un rechazo ACCIONABLE (pago pendiente) no se auto-cierra: el profesor
+    // necesita tiempo para decidir. El resto sigue con el flash de 2s (P3-4).
+    let holdOpen = false
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -60,7 +63,9 @@ export default function ScanAttendanceScreen() {
         setOutcome({ kind: 'already_registered', studentName: json.student?.full_name ?? 'Alumno', avatarUrl: json.student?.avatar_url ?? null })
         Vibration.vibrate(100)
       } else {
-        setOutcome({ kind: 'rejected', message: json.message ?? 'QR rechazado.' })
+        const reason = json.reason as string | undefined
+        holdOpen = reason === 'payment_not_confirmed'
+        setOutcome({ kind: 'rejected', message: json.message ?? 'QR rechazado.', reason })
         Vibration.vibrate(300)
       }
     } catch {
@@ -68,11 +73,19 @@ export default function ScanAttendanceScreen() {
       Vibration.vibrate(300)
     } finally {
       setChecking(false)
-      setTimeout(() => {
-        setOutcome(null)
-        scanLockRef.current = false
-      }, RESULT_DISPLAY_MS)
+      if (!holdOpen) {
+        setTimeout(() => {
+          setOutcome(null)
+          scanLockRef.current = false
+        }, RESULT_DISPLAY_MS)
+      }
     }
+  }, [])
+
+  // Cierra el resultado y re-habilita el escaneo.
+  const dismissOutcome = useCallback(() => {
+    setOutcome(null)
+    scanLockRef.current = false
   }, [])
 
   const scanningPaused = checking || outcome !== null
@@ -139,7 +152,14 @@ export default function ScanAttendanceScreen() {
               </View>
             )}
 
-            {outcome && <ResultOverlay outcome={outcome} isDark={isDark} />}
+            {outcome && (
+              <ResultOverlay
+                outcome={outcome}
+                isDark={isDark}
+                onDismiss={dismissOutcome}
+                onReviewPayments={() => router.push('/(app)/(tabs)/my-classes' as any)}
+              />
+            )}
           </>
         )}
       </View>
@@ -147,13 +167,25 @@ export default function ScanAttendanceScreen() {
   )
 }
 
-function ResultOverlay({ outcome, isDark }: { outcome: ScanOutcome; isDark: boolean }) {
+function ResultOverlay({
+  outcome,
+  isDark,
+  onDismiss,
+  onReviewPayments,
+}: {
+  outcome: ScanOutcome
+  isDark: boolean
+  onDismiss: () => void
+  onReviewPayments: () => void
+}) {
   const config = {
     confirmed: { bg: 'bg-green-600', icon: <CheckCircle2 size={48} stroke="white" /> },
     already_registered: { bg: 'bg-amber-500', icon: <AlertCircle size={48} stroke="white" /> },
     rejected: { bg: 'bg-red-600', icon: <AlertCircle size={48} stroke="white" /> },
     network_error: { bg: 'bg-red-600', icon: <AlertCircle size={48} stroke="white" /> },
   }[outcome.kind]
+
+  const pendingPayment = outcome.kind === 'rejected' && outcome.reason === 'payment_not_confirmed'
 
   return (
     <View className={`absolute inset-0 items-center justify-center ${config.bg}`}>
@@ -168,6 +200,24 @@ function ResultOverlay({ outcome, isDark }: { outcome: ScanOutcome; isDark: bool
         {outcome.kind === 'rejected' && outcome.message}
         {outcome.kind === 'network_error' && 'No se pudo validar. Intenta de nuevo.'}
       </Text>
+
+      {/* P3-4: el pago pendiente es el único rechazo que el profesor puede
+          resolver ahí mismo. Damos salida en vez de un flash rojo de 2s. */}
+      {pendingPayment && (
+        <>
+          <Text className="text-white/90 text-sm text-center px-8 mt-2">
+            Confirma su pago para habilitar el QR, o déjalo pasar y resuélvelo después.
+          </Text>
+          <View className="mt-5 gap-2 px-8 self-stretch">
+            <TouchableOpacity onPress={onReviewPayments} className="rounded-xl bg-white px-6 py-3 items-center">
+              <Text className="text-red-700 font-bold text-sm">Revisar pagos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onDismiss} className="rounded-xl border border-white/60 px-6 py-3 items-center">
+              <Text className="text-white font-semibold text-sm">Seguir escaneando</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </View>
   )
 }

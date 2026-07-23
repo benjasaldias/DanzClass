@@ -66,6 +66,15 @@ export default function EditProfileForm({ profile }: EditProfileFormProps) {
 
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
       avatarUrl = urlData.publicUrl
+
+      // P3-6: el path es {id}/avatar.{ext} con upsert, así que subir el mismo
+      // formato sobrescribe. Pero al cambiar de formato (jpg → png) el archivo
+      // anterior queda huérfano: borramos los hermanos avatar.* de otra ext.
+      const { data: siblings } = await supabase.storage.from('avatars').list(profile.id)
+      const stale = (siblings ?? [])
+        .filter((f) => f.name.startsWith('avatar.') && f.name !== `avatar.${ext}`)
+        .map((f) => `${profile.id}/${f.name}`)
+      if (stale.length > 0) await supabase.storage.from('avatars').remove(stale)
     }
 
     const { error: updateError } = await supabase

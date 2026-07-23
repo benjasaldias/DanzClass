@@ -713,7 +713,7 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Cupos *</label>
-            <input {...register('max_spots')} type="number" min={1} max={1000} step="1" placeholder="15" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
+            <input {...register('max_spots')} type="number" min={1} max={100} step="1" placeholder="15" className="input" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
             {errors.max_spots && <p className="mt-1 text-xs text-red-600">{errors.max_spots.message}</p>}
           </div>
           <div>

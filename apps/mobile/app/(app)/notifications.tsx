@@ -54,8 +54,11 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
   },
   class_cancelled: {
     icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
-    label: (data) => `La clase "${data.class_title ?? ''}" fue cancelada`,
-    route: () => '/(app)/(tabs)/feed',
+    label: (data) =>
+      data.reason === 'payment_timeout' || data.reason === '2x_payment_timeout'
+        ? `Tu reserva en "${data.class_title ?? 'una clase'}" se canceló por falta de pago`
+        : `La clase "${data.class_title ?? ''}" fue cancelada`,
+    route: (data) => (data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed'),
   },
   payment_confirmed: {
     icon: CheckCircle2, bgColor: '#f0fdf4', iconColor: '#16a34a',

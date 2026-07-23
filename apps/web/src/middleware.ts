@@ -11,6 +11,11 @@ const PUBLIC_ROUTES = ['/', '/feed', '/explore', '/auth/login', '/auth/register'
 const PUBLIC_CLASS_DETAIL = /^\/class\/[^/]+\/?$/
 const PUBLIC_EVENT_DETAIL = /^\/event\/[^/]+\/?$/
 
+// Perfil público del profesor (:username): visible sin sesión para no cortar el
+// flujo de exploración del feed público (P1-5). La página ya tolera user=null
+// (oculta acciones de seguir/amistad/valorar) y hace notFound() si deleted_at.
+const PUBLIC_TEACHER_PROFILE = /^\/teacher\/[^/]+\/?$/
+
 // Embeddable widget — completamente público (se embebe en iframes externos)
 const PUBLIC_EMBED = /^\/embed\//
 
@@ -49,6 +54,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/auth') ||
     PUBLIC_CLASS_DETAIL.test(pathname) ||
     PUBLIC_EVENT_DETAIL.test(pathname) ||
+    PUBLIC_TEACHER_PROFILE.test(pathname) ||
     PUBLIC_EMBED.test(pathname)
 
   if (!user && !isPublic) {

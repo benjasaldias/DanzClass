@@ -152,7 +152,15 @@ export default function ClassDetailClient({
       } else if (json.error === 'no_spots') {
         setEnrollError('Esta clase se acaba de llenar. Intenta en otra fecha.')
         setSpots((prev: any) => prev ? { ...prev, spots_available: 0 } : prev)
-      } else if (json.error !== 'already_enrolled') {
+      } else if (json.error === 'already_enrolled') {
+        // Ya tienes una inscripción activa: si falta pagar, ve al pago; si ya
+        // estaba confirmada, refresca el estado (P1-4 — antes no pasaba nada).
+        if (json.enrollmentId && json.status !== 'confirmed') {
+          router.push(`/payment/${json.enrollmentId}`)
+        } else {
+          router.refresh()
+        }
+      } else {
         setEnrollError('No se pudo completar la inscripción. Intenta de nuevo.')
       }
     }
