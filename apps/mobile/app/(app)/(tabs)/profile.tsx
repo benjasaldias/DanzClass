@@ -86,6 +86,7 @@ export default function ProfileScreen() {
   const [posts, setPosts] = useState<any[]>([])
   const [showAllClasses, setShowAllClasses] = useState(false)
   const [classesTaken, setClassesTaken] = useState(0)
+  const [tab, setTab] = useState<'perfil' | 'gestion' | 'ajustes'>('perfil')
 
   const load = useCallback(async () => {
     try {
@@ -249,49 +250,80 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Gestión ──────────────────────────────────────── */}
-        <SectionCard title="Gestión" isDark={isDark}>
-          {isTeacher && (
-            <SettingRow icon={TrendingUp} title="Panel Financiero" sub="Ingresos y estadísticas" isDark={isDark}
-              tintBg={isDark ? '#10331F' : '#DDF2E5'} tintStroke={isDark ? '#45D389' : '#1E9D57'}
-              onPress={() => router.push('/(app)/financiero' as any)} />
-          )}
-          {isTeacher && (
-            <SettingRow icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" isDark={isDark}
-              onPress={() => router.push('/(app)/profile/payment-info' as any)} />
-          )}
-          <SettingRow icon={MessageCircle} title="Mis chats" isDark={isDark}
-            onPress={() => router.push('/(app)/chats' as any)} />
-          <SettingRow icon={CalendarDays} title="Mi agenda" isDark={isDark} isLast
-            onPress={() => router.push('/(app)/(tabs)/agenda' as any)} />
-        </SectionCard>
+        {/* ── Control segmentado (Plan B) ──────────────────── */}
+        <View
+          className="flex-row bg-white dark:bg-dark-surface"
+          style={{ borderBottomWidth: 1, borderBottomColor: border }}
+        >
+          {([['perfil', 'Perfil'], ['gestion', 'Gestión'], ['ajustes', 'Ajustes']] as const).map(([key, label]) => {
+            const isActive = tab === key
+            return (
+              <TouchableOpacity
+                key={key}
+                onPress={() => setTab(key)}
+                activeOpacity={0.7}
+                className="flex-1 items-center py-3"
+                style={{ borderBottomWidth: 2, borderBottomColor: isActive ? (isDark ? '#B3A6F8' : '#2D1B69') : 'transparent' }}
+              >
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: isActive ? (isDark ? '#B3A6F8' : '#2D1B69') : (isDark ? '#A39BBF' : '#9ca3af') }}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
 
-        {/* ── Preferencias ─────────────────────────────────── */}
-        <SectionCard title="Preferencias" isDark={isDark}>
-          <SettingRow
-            icon={isDark ? Moon : Sun}
-            title="Apariencia"
-            sub={isDark ? 'Modo oscuro' : 'Modo claro'}
-            isDark={isDark}
-            onPress={toggleTheme}
-            right={
-              <View style={{ width: 44, height: 26, borderRadius: 999, backgroundColor: isDark ? '#7059E6' : '#cbd5e1', justifyContent: 'center' }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', marginLeft: isDark ? 21 : 3 }} />
-              </View>
-            }
-          />
-          <SettingRow icon={LogOut} title="Cerrar sesión" isDark={isDark} danger isLast onPress={handleLogout} />
-        </SectionCard>
+        {/* ══ PESTAÑA: GESTIÓN ═════════════════════════════════ */}
+        {tab === 'gestion' && (
+          <SectionCard title="Actividad y herramientas" isDark={isDark}>
+            <SettingRow icon={MessageCircle} title="Mis chats" sub="Conversaciones con profes y ensayos" isDark={isDark}
+              onPress={() => router.push('/(app)/chats' as any)} />
+            <SettingRow icon={CalendarDays} title="Mi agenda" sub="Tus clases y ensayos en calendario" isDark={isDark}
+              isLast={!isTeacher}
+              onPress={() => router.push('/(app)/(tabs)/agenda' as any)} />
+            {isTeacher && (
+              <SettingRow icon={TrendingUp} title="Panel Financiero" sub="Ingresos y estadísticas" isDark={isDark}
+                tintBg={isDark ? '#10331F' : '#DDF2E5'} tintStroke={isDark ? '#45D389' : '#1E9D57'}
+                onPress={() => router.push('/(app)/financiero' as any)} />
+            )}
+            {isTeacher && (
+              <SettingRow icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" isDark={isDark} isLast
+                onPress={() => router.push('/(app)/profile/payment-info' as any)} />
+            )}
+          </SectionCard>
+        )}
 
-        {/* ── Escaneo de comprobantes (solo profesores) ─────── */}
-        {isTeacher && userId && (
+        {/* Escaneo de comprobantes (solo profesores) */}
+        {tab === 'gestion' && isTeacher && userId && (
           <SectionCard title="Escaneo de comprobantes" isDark={isDark}>
             <AiScanPreferenceCard userId={userId} initialPreference={profile?.ai_scan_preference ?? null} isDark={isDark} />
           </SectionCard>
         )}
 
-        {/* ── Referral ─────────────────────────────────────── */}
-        {profile?.referral_code && (
+        {/* ══ PESTAÑA: AJUSTES ═════════════════════════════════ */}
+        {tab === 'ajustes' && (
+          <SectionCard title="Preferencias" isDark={isDark}>
+            <SettingRow
+              icon={isDark ? Moon : Sun}
+              title="Apariencia"
+              sub={isDark ? 'Modo oscuro' : 'Modo claro'}
+              isDark={isDark}
+              onPress={toggleTheme}
+              right={
+                <View style={{ width: 44, height: 26, borderRadius: 999, backgroundColor: isDark ? '#7059E6' : '#cbd5e1', justifyContent: 'center' }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', marginLeft: isDark ? 21 : 3 }} />
+                </View>
+              }
+            />
+            <SettingRow icon={LogOut} title="Cerrar sesión" isDark={isDark} danger isLast onPress={handleLogout} />
+          </SectionCard>
+        )}
+
+        {/* ── Referral (Ajustes) ───────────────────────────── */}
+        {tab === 'ajustes' && profile?.referral_code && (
           <View className="mx-4 mb-2.5 rounded-2xl border border-violet-200 dark:border-dark-border bg-violet-50/80 dark:bg-dark-surface p-4">
             <View className="flex-row items-center gap-2 mb-1">
               <Gift size={16} stroke={isDark ? '#a78bfa' : '#7c3aed'} />
@@ -319,8 +351,9 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {/* ══ PESTAÑA: PERFIL ══════════════════════════════════ */}
         {/* ── Estilos de baile ─────────────────────────────── */}
-        {(profile.styles_teaching?.length > 0 || profile.styles_dancing?.length > 0) && (
+        {tab === 'perfil' && (profile.styles_teaching?.length > 0 || profile.styles_dancing?.length > 0) && (
           <SectionCard title="Estilos de baile" isDark={isDark}>
             <View className="px-4 pb-4 gap-3">
               {profile.styles_dancing?.length > 0 && (
@@ -344,7 +377,7 @@ export default function ProfileScreen() {
         )}
 
         {/* ── Mis clases activas ───────────────────────────── */}
-        {classes.length > 0 && (
+        {tab === 'perfil' && classes.length > 0 && (
           <SectionCard title={`Mis clases activas (${classes.length})`} isDark={isDark}>
             <View className="pb-2">
               {(showAllClasses ? classes : classes.slice(0, 5)).map((c: any) => (
@@ -363,7 +396,7 @@ export default function ProfileScreen() {
         )}
 
         {/* ── Mis publicaciones (grilla Instagram) ─────────── */}
-        {posts.length > 0 && (
+        {tab === 'perfil' && posts.length > 0 && (
           <SectionCard title={`Mis publicaciones (${posts.length})`} isDark={isDark}>
             <View className="pb-1">
               <ProfilePostsGrid posts={posts} currentUserId={userId ?? ''} />
@@ -371,15 +404,25 @@ export default function ProfileScreen() {
           </SectionCard>
         )}
 
-        {/* ── Zona peligrosa + reporte ─────────────────────── */}
-        <View className="items-center py-5 gap-3">
-          <TouchableOpacity onPress={() => router.push('/(app)/profile/delete-account' as any)}>
-            <Text className="text-xs text-red-400">Eliminar cuenta</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => Linking.openURL('mailto:contacto@danzclass.com?subject=Bug%20DanzClass')}>
-            <Text className="text-xs text-violet-500">¿Encontraste algo raro? Reportar</Text>
-          </TouchableOpacity>
-        </View>
+        {/* ── Perfil vacío ─────────────────────────────────── */}
+        {tab === 'perfil' && classes.length === 0 && posts.length === 0 &&
+          !(profile.styles_teaching?.length > 0 || profile.styles_dancing?.length > 0) && (
+          <View className="items-center py-14">
+            <Text className="text-sm text-gray-400 dark:text-dark-text2">Sin actividad pública aún</Text>
+          </View>
+        )}
+
+        {/* ── Zona peligrosa + reporte (Ajustes) ───────────── */}
+        {tab === 'ajustes' && (
+          <View className="items-center py-5 gap-3">
+            <TouchableOpacity onPress={() => Linking.openURL('mailto:contacto@danzclass.com?subject=Error%20o%20sugerencia%20DanzClass')}>
+              <Text className="text-xs text-violet-500">Reportar error o sugerencia</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(app)/profile/delete-account' as any)}>
+              <Text className="text-xs text-red-400">Eliminar cuenta</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={{ height: 24 }} />
       </ScrollView>

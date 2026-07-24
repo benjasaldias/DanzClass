@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, Instagram, Music2, Video, Trash2, AlertCircle, Gift, TrendingUp, MessageCircle, CalendarDays, ChevronRight, Eye } from 'lucide-react'
+import { Crown, Settings, CreditCard, Instagram, Music2, Video, Trash2, AlertCircle, Gift, TrendingUp, MessageCircle, CalendarDays, ChevronRight, Eye, FileText, ShieldCheck, MessageSquareWarning } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StyleChip from '@/components/ui/StyleChip'
@@ -13,6 +13,7 @@ import AiScanPreferenceCard from '@/components/profile/AiScanPreferenceCard'
 import ProfilePostsGrid from '@/components/profile/ProfilePostsGrid'
 import EmbedWidgetButton from '@/components/profile/EmbedWidgetButton'
 import ReferralCopyButton from '@/components/profile/ReferralCopyButton'
+import ProfileTabs, { type ProfileTab } from '@/components/profile/ProfileTabs'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
 
 const TIER_LABELS: Record<string, string> = {
@@ -22,7 +23,11 @@ const TIER_LABELS: Record<string, string> = {
   pro: 'Plan Pro',
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: { tab?: string }
+}) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
@@ -217,139 +222,184 @@ export default async function ProfilePage() {
         )}
       </div>
 
-      {/* ── Gestión ────────────────────────────────────────── */}
-      <SectionCard title="Gestión" bleed>
-        <div className="divide-y divide-gray-100 dark:divide-dark-border">
-          {isTeacher && (
-            <SettingRow
-              href="/financiero"
-              icon={TrendingUp}
-              title="Panel Financiero"
-              sub="Ingresos y estadísticas"
-              tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-            />
-          )}
-          {isTeacher && (
-            <SettingRow href="/profile/payment-info" icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" />
-          )}
-          <SettingRow href="/chats" icon={MessageCircle} title="Mis chats" />
-          <SettingRow href="/agenda" icon={CalendarDays} title="Mi agenda" />
-          {isTeacher && profile?.username && (
-            <EmbedWidgetButton
-              username={profile.username}
-              appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
-              asRow
-            />
-          )}
-        </div>
-      </SectionCard>
-
-      {/* ── Preferencias ───────────────────────────────────── */}
-      <SectionCard title="Preferencias" bleed>
-        <div className="divide-y divide-gray-100 dark:divide-dark-border">
-          <AppearanceRow />
-          <LogoutButton asRow />
-        </div>
-      </SectionCard>
-
-      {/* ── Escaneo de comprobantes (solo profesores) ──────── */}
-      {isTeacher && (
-        <SectionCard title="Escaneo de comprobantes">
-          <AiScanPreferenceCard userId={user.id} initialPreference={profile?.ai_scan_preference ?? null} />
-        </SectionCard>
-      )}
-
-      {/* Referral section */}
-      {profile?.referral_code && (
-        <div className="mx-4 mb-3 rounded-2xl border border-violet-100 dark:border-dark-border bg-violet-50/60 dark:bg-dark-surface px-4 py-3.5">
-          <div className="flex items-center gap-2 mb-1.5">
-            <Gift className="h-4 w-4 text-morado-flow" />
-            <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">Invita un amigo</p>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-dark-text2 mb-2.5 leading-relaxed">
-            Comparte tu enlace. Cuando tu amigo se suscriba por primera vez, ¡ambos reciben 1 mes Pro gratis!
-          </p>
-          <ReferralCopyButton
-            code={profile.referral_code}
-            appUrl="https://danzclass.com"
-          />
-        </div>
-      )}
-
-      {/* ── Estilos de baile ───────────────────────────────── */}
-      {((profile?.styles_dancing?.length ?? 0) > 0 || (profile?.styles_teaching?.length ?? 0) > 0) && (
-        <SectionCard title="Estilos de baile">
-          <div className="space-y-3">
-            {(profile?.styles_dancing?.length ?? 0) > 0 && (
-              <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-dark-text2">Baila</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {profile.styles_dancing.map((s: string) => <StyleChip key={s} style={s} />)}
-                </div>
-              </div>
-            )}
-            {(profile?.styles_teaching?.length ?? 0) > 0 && (
-              <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-dark-text2">Enseña</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {profile.styles_teaching.map((s: string) => <StyleChip key={s} style={s} />)}
-                </div>
-              </div>
-            )}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* ── Mis clases ─────────────────────────────────────── */}
-      {(classes ?? []).length > 0 && (
-        <SectionCard title="Mis clases activas">
-          <div className="space-y-3">
-            {(classes ?? []).map((cls: any) => <ClassMiniCard key={cls.id} cls={cls} />)}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* ── Mis inscripciones ──────────────────────────────── */}
-      {enrolledClasses.length > 0 && (
-        <SectionCard title="Mis inscripciones">
-          <div className="space-y-3">
-            {enrolledClasses.map((e: any) => e.class && <ClassMiniCard key={e.id} cls={e.class} />)}
-          </div>
-        </SectionCard>
-      )}
-
-      {/* ── Mis publicaciones (grilla estilo Instagram) ────── */}
-      {ownPosts.length > 0 && (
-        <SectionCard
-          title="Mis publicaciones"
-          bleed
-          action={<span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-dark-text2"><Video className="h-3.5 w-3.5" /> {ownPosts.length}</span>}
-        >
-          <div className="px-0.5 pb-0.5">
-            <ProfilePostsGrid posts={ownPosts} currentUserId={user.id} />
-          </div>
-        </SectionCard>
-      )}
-
-      {(classes ?? []).length === 0 && enrolledClasses.length === 0 && ownPosts.length === 0 && (
-        <div className="flex flex-col items-center py-10 text-center text-gray-500 dark:text-dark-text2 border-t border-gray-100 dark:border-dark-border">
-          <Music2 className="h-10 w-10 text-gray-300 dark:text-dark-border mb-3" />
-          <p className="text-sm">Sin actividad pública aún</p>
-        </div>
-      )}
-
-      {/* Danger zone */}
-      <div className="flex justify-center py-5">
-        <Link
-          href="/profile/delete-account"
-          className="flex items-center gap-1.5 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Eliminar cuenta
-        </Link>
-      </div>
+      {/* ── Pestañas (Plan B) ──────────────────────────────── */}
+      <ProfileTabs initialTab={searchParams?.tab} tabs={buildTabs()} />
     </div>
   )
+
+  /* ── Contenido de cada pestaña ──────────────────────────── */
+
+  function buildTabs(): ProfileTab[] {
+    const hasStyles = (profile?.styles_dancing?.length ?? 0) > 0 || (profile?.styles_teaching?.length ?? 0) > 0
+    const isEmptyProfile =
+      (classes ?? []).length === 0 && enrolledClasses.length === 0 && ownPosts.length === 0 && !hasStyles
+
+    const perfil = (
+      <div className="pt-3">
+        {/* Estilos de baile */}
+        {hasStyles && (
+          <SectionCard title="Estilos de baile">
+            <div className="space-y-3">
+              {(profile?.styles_dancing?.length ?? 0) > 0 && (
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-dark-text2">Baila</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.styles_dancing.map((s: string) => <StyleChip key={s} style={s} />)}
+                  </div>
+                </div>
+              )}
+              {(profile?.styles_teaching?.length ?? 0) > 0 && (
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-dark-text2">Enseña</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.styles_teaching.map((s: string) => <StyleChip key={s} style={s} />)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Mis clases activas */}
+        {(classes ?? []).length > 0 && (
+          <SectionCard title="Mis clases activas">
+            <div className="space-y-3">
+              {(classes ?? []).map((cls: any) => <ClassMiniCard key={cls.id} cls={cls} />)}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Mis inscripciones */}
+        {enrolledClasses.length > 0 && (
+          <SectionCard title="Mis inscripciones">
+            <div className="space-y-3">
+              {enrolledClasses.map((e: any) => e.class && <ClassMiniCard key={e.id} cls={e.class} />)}
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Mis publicaciones (grilla estilo Instagram) */}
+        {ownPosts.length > 0 && (
+          <SectionCard
+            title="Mis publicaciones"
+            bleed
+            action={<span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-dark-text2"><Video className="h-3.5 w-3.5" /> {ownPosts.length}</span>}
+          >
+            <div className="px-0.5 pb-0.5">
+              <ProfilePostsGrid posts={ownPosts} currentUserId={user!.id} />
+            </div>
+          </SectionCard>
+        )}
+
+        {isEmptyProfile && (
+          <div className="flex flex-col items-center py-14 text-center text-gray-500 dark:text-dark-text2">
+            <Music2 className="h-10 w-10 text-gray-300 dark:text-dark-border mb-3" />
+            <p className="text-sm">Sin actividad pública aún</p>
+          </div>
+        )}
+      </div>
+    )
+
+    const gestion = (
+      <div className="pt-3">
+        <SectionCard title="Actividad y herramientas" bleed>
+          <div className="divide-y divide-gray-100 dark:divide-dark-border">
+            <SettingRow href="/chats" icon={MessageCircle} title="Mis chats" sub="Conversaciones con profes y ensayos" />
+            <SettingRow href="/agenda" icon={CalendarDays} title="Mi agenda" sub="Tus clases y ensayos en calendario" />
+            {isTeacher && (
+              <SettingRow
+                href="/financiero"
+                icon={TrendingUp}
+                title="Panel Financiero"
+                sub="Ingresos y estadísticas"
+                tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+              />
+            )}
+            {isTeacher && (
+              <SettingRow href="/profile/payment-info" icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" />
+            )}
+            {isTeacher && profile?.username && (
+              <EmbedWidgetButton
+                username={profile.username}
+                appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
+                asRow
+              />
+            )}
+          </div>
+        </SectionCard>
+
+        {/* Escaneo de comprobantes (solo profesores) */}
+        {isTeacher && (
+          <SectionCard title="Escaneo de comprobantes">
+            <AiScanPreferenceCard userId={user!.id} initialPreference={profile?.ai_scan_preference ?? null} />
+          </SectionCard>
+        )}
+      </div>
+    )
+
+    const ajustes = (
+      <div className="pt-3">
+        {/* Preferencias */}
+        <SectionCard title="Preferencias" bleed>
+          <div className="divide-y divide-gray-100 dark:divide-dark-border">
+            <AppearanceRow />
+            <LogoutButton asRow />
+          </div>
+        </SectionCard>
+
+        {/* Referral */}
+        {profile?.referral_code && (
+          <div className="mx-4 mb-3 rounded-2xl border border-violet-100 dark:border-dark-border bg-violet-50/60 dark:bg-dark-surface px-4 py-3.5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <Gift className="h-4 w-4 text-morado-flow" />
+              <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">Invita un amigo</p>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-dark-text2 mb-2.5 leading-relaxed">
+              Comparte tu enlace. Cuando tu amigo se suscriba por primera vez, ¡ambos reciben 1 mes Pro gratis!
+            </p>
+            <ReferralCopyButton code={profile.referral_code} appUrl="https://danzclass.com" />
+          </div>
+        )}
+
+        {/* Legal y soporte */}
+        <SectionCard title="Legal y soporte" bleed>
+          <div className="divide-y divide-gray-100 dark:divide-dark-border">
+            <SettingRow href="/terms" icon={FileText} title="Términos de uso" />
+            <SettingRow href="/privacy" icon={ShieldCheck} title="Política de privacidad" />
+            <a
+              href="mailto:contacto@danzclass.com?subject=Error%20o%20sugerencia%20DanzClass"
+              className="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-dark-surface2"
+            >
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-lavanda-suave text-violeta-oscuro dark:bg-dark-surface2 dark:text-brand-200">
+                <MessageSquareWarning className="h-[18px] w-[18px]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 dark:text-dark-text">Reportar error o sugerencia</p>
+              </div>
+              <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-dark-text2" />
+            </a>
+          </div>
+        </SectionCard>
+
+        {/* Danger zone */}
+        <div className="flex justify-center py-5">
+          <Link
+            href="/profile/delete-account"
+            className="flex items-center gap-1.5 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Eliminar cuenta
+          </Link>
+        </div>
+      </div>
+    )
+
+    return [
+      { key: 'perfil', label: 'Perfil', content: perfil },
+      { key: 'gestion', label: 'Gestión', content: gestion },
+      { key: 'ajustes', label: 'Ajustes', content: ajustes },
+    ]
+  }
 }
 
 /* ── Helpers ──────────────────────────────────────────────── */
