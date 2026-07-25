@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Bell } from 'lucide-react-native'
+import { Bell, MessageCircle } from 'lucide-react-native'
 import LogoIcon from './LogoIcon'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
@@ -40,6 +40,15 @@ export default function TopBar({ title }: TopBarProps) {
 
       {/* Actions */}
       <View className="flex-row items-center gap-3">
+        {/* Chats */}
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/chats' as any)}
+          accessibilityLabel="Mis chats"
+          accessibilityRole="button"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MessageCircle size={22} stroke={isDark ? '#A39BBF' : '#6b7280'} />
+        </TouchableOpacity>
         {/* Notification bell */}
         <TouchableOpacity
           onPress={() => router.push('/(app)/notifications' as any)}

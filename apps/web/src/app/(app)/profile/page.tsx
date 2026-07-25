@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
 import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, Instagram, Music2, Video, Trash2, AlertCircle, Gift, TrendingUp, MessageCircle, CalendarDays, ChevronRight, Eye, FileText, ShieldCheck, MessageSquareWarning } from 'lucide-react'
+import { Crown, Settings, CreditCard, Instagram, Music2, Video, Trash2, AlertCircle, Gift, TrendingUp, ChevronRight, Eye, FileText, ShieldCheck, MessageSquareWarning } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StyleChip from '@/components/ui/StyleChip'
@@ -302,23 +302,17 @@ export default async function ProfilePage({
 
     const gestion = (
       <div className="pt-3">
-        <SectionCard title="Actividad y herramientas" bleed>
+        <SectionCard title="Herramientas de profesor" bleed>
           <div className="divide-y divide-gray-100 dark:divide-dark-border">
-            <SettingRow href="/chats" icon={MessageCircle} title="Mis chats" sub="Conversaciones con profes y ensayos" />
-            <SettingRow href="/agenda" icon={CalendarDays} title="Mi agenda" sub="Tus clases y ensayos en calendario" />
-            {isTeacher && (
-              <SettingRow
-                href="/financiero"
-                icon={TrendingUp}
-                title="Panel Financiero"
-                sub="Ingresos y estadísticas"
-                tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-              />
-            )}
-            {isTeacher && (
-              <SettingRow href="/profile/payment-info" icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" />
-            )}
-            {isTeacher && profile?.username && (
+            <SettingRow
+              href="/financiero"
+              icon={TrendingUp}
+              title="Panel Financiero"
+              sub="Ingresos y estadísticas"
+              tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+            />
+            <SettingRow href="/profile/payment-info" icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" />
+            {profile?.username && (
               <EmbedWidgetButton
                 username={profile.username}
                 appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
@@ -328,12 +322,10 @@ export default async function ProfilePage({
           </div>
         </SectionCard>
 
-        {/* Escaneo de comprobantes (solo profesores) */}
-        {isTeacher && (
-          <SectionCard title="Escaneo de comprobantes">
-            <AiScanPreferenceCard userId={user!.id} initialPreference={profile?.ai_scan_preference ?? null} />
-          </SectionCard>
-        )}
+        {/* Escaneo de comprobantes */}
+        <SectionCard title="Escaneo de comprobantes">
+          <AiScanPreferenceCard userId={user!.id} initialPreference={profile?.ai_scan_preference ?? null} />
+        </SectionCard>
       </div>
     )
 
@@ -396,7 +388,8 @@ export default async function ProfilePage({
 
     return [
       { key: 'perfil', label: 'Perfil', content: perfil },
-      { key: 'gestion', label: 'Gestión', content: gestion },
+      // Gestión es exclusiva del profesor (herramientas de enseñanza).
+      ...(isTeacher ? [{ key: 'gestion', label: 'Gestión', content: gestion }] : []),
       { key: 'ajustes', label: 'Ajustes', content: ajustes },
     ]
   }

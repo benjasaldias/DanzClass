@@ -4,8 +4,8 @@ import { View, Text, TouchableOpacity, ScrollView, Alert, Image, Linking } from 
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import {
-  AtSign, Gift, Copy, TrendingUp, CreditCard, MessageCircle,
-  CalendarDays, ChevronRight, LogOut, Crown, Eye, Settings, Sun, Moon,
+  AtSign, Gift, Copy, TrendingUp, CreditCard,
+  ChevronRight, LogOut, Crown, Eye, Settings, Sun, Moon,
 } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import StyleChip from '../../../components/ui/StyleChip'
@@ -152,6 +152,13 @@ export default function ProfileScreen() {
   const subActive = tier !== 'none'
   const border = isDark ? '#3D2870' : '#f3f4f6'
 
+  // Gestión es exclusiva del profesor (herramientas de enseñanza).
+  const tabDefs: { key: 'perfil' | 'gestion' | 'ajustes'; label: string }[] = [
+    { key: 'perfil', label: 'Perfil' },
+    ...(isTeacher ? [{ key: 'gestion' as const, label: 'Gestión' }] : []),
+    { key: 'ajustes', label: 'Ajustes' },
+  ]
+
   // Stats: profesores 4, alumnos 2.
   const stats: { value: React.ReactNode; label: string }[] = isTeacher
     ? [
@@ -255,7 +262,7 @@ export default function ProfileScreen() {
           className="flex-row bg-white dark:bg-dark-surface"
           style={{ borderBottomWidth: 1, borderBottomColor: border }}
         >
-          {([['perfil', 'Perfil'], ['gestion', 'Gestión'], ['ajustes', 'Ajustes']] as const).map(([key, label]) => {
+          {tabDefs.map(({ key, label }) => {
             const isActive = tab === key
             return (
               <TouchableOpacity
@@ -276,23 +283,14 @@ export default function ProfileScreen() {
           })}
         </View>
 
-        {/* ══ PESTAÑA: GESTIÓN ═════════════════════════════════ */}
-        {tab === 'gestion' && (
-          <SectionCard title="Actividad y herramientas" isDark={isDark}>
-            <SettingRow icon={MessageCircle} title="Mis chats" sub="Conversaciones con profes y ensayos" isDark={isDark}
-              onPress={() => router.push('/(app)/chats' as any)} />
-            <SettingRow icon={CalendarDays} title="Mi agenda" sub="Tus clases y ensayos en calendario" isDark={isDark}
-              isLast={!isTeacher}
-              onPress={() => router.push('/(app)/(tabs)/agenda' as any)} />
-            {isTeacher && (
-              <SettingRow icon={TrendingUp} title="Panel Financiero" sub="Ingresos y estadísticas" isDark={isDark}
-                tintBg={isDark ? '#10331F' : '#DDF2E5'} tintStroke={isDark ? '#45D389' : '#1E9D57'}
-                onPress={() => router.push('/(app)/financiero' as any)} />
-            )}
-            {isTeacher && (
-              <SettingRow icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" isDark={isDark} isLast
-                onPress={() => router.push('/(app)/profile/payment-info' as any)} />
-            )}
+        {/* ══ PESTAÑA: GESTIÓN (solo profesores) ═══════════════ */}
+        {tab === 'gestion' && isTeacher && (
+          <SectionCard title="Herramientas de profesor" isDark={isDark}>
+            <SettingRow icon={TrendingUp} title="Panel Financiero" sub="Ingresos y estadísticas" isDark={isDark}
+              tintBg={isDark ? '#10331F' : '#DDF2E5'} tintStroke={isDark ? '#45D389' : '#1E9D57'}
+              onPress={() => router.push('/(app)/financiero' as any)} />
+            <SettingRow icon={CreditCard} title="Datos de pago" sub="Para recibir transferencias" isDark={isDark} isLast
+              onPress={() => router.push('/(app)/profile/payment-info' as any)} />
           </SectionCard>
         )}
 

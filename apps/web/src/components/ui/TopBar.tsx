@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { MessageCircle } from 'lucide-react'
 import type { Profile } from '@danceclass/shared'
 import LogoIcon from './LogoIcon'
 import NotificationBell from './NotificationBell'
@@ -27,9 +28,18 @@ export default function TopBar({ profile, unreadCount }: TopBarProps) {
           <span className="text-[9px] leading-tight text-violet-500 dark:text-violet-400">Error o sugerencia</span>
         </a>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5">
           {profile ? (
-            <NotificationBell initialCount={unreadCount} userId={profile.id} />
+            <>
+              <Link
+                href="/chats"
+                aria-label="Mis chats"
+                className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
+              >
+                <MessageCircle className="h-5 w-5 text-gray-600 dark:text-dark-text2" />
+              </Link>
+              <NotificationBell initialCount={unreadCount} userId={profile.id} />
+            </>
           ) : (
             <Link
               href="/auth/login"
