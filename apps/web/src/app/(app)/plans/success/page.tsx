@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveTier } from '@/lib/subscription'
 import { rewardReferralIfNeeded } from '@/lib/referral'
+import { reconcilePlanContent } from '@/lib/planContent'
 import { SubscriptionPolling } from '@/components/plans/SubscriptionPolling'
 import type { SubscriptionTier } from '@danceclass/shared'
 
@@ -53,6 +54,8 @@ async function activateIfNew(
     console.error('[plans/success] insert error:', error)
   } else {
     console.log('[plans/success] subscription activated — user:', userId, 'tier:', tier, 'months:', months)
+    // Devuelve a la vista los videos guardados en privado por falta de plan.
+    await reconcilePlanContent(admin as any, userId)
   }
 }
 

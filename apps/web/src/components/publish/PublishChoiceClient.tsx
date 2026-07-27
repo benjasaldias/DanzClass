@@ -24,11 +24,13 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
 
   const canVideo = canPostVideo(tier)
   const isBasic = tier === 'basic'
+  // En el tope ya no se bloquea: publicar sustituye al más antiguo, que pasa a
+  // "Guardados en privado" (no se borra). Ver 060_post_plan_visibility.sql.
   const atLimit = isBasic && videoPostCount >= BASIC_VIDEO_POST_LIMIT
 
   function handleVideoClick() {
     if (!canVideo) return
-    if (atLimit) { setShowVideoLimit(true); return }
+    if (atLimit && !showVideoLimit) { setShowVideoLimit(true); return }
     setShowVideoModal(true)
   }
 
@@ -123,14 +125,21 @@ export default function PublishChoiceClient({ userId, userCity, tier, videoPostC
       {/* Limit reached message */}
       {showVideoLimit && (
         <div className="mt-5 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-2">
-          <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">Límite de videos alcanzado</p>
+          <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">Ya tienes {BASIC_VIDEO_POST_LIMIT} videos publicados</p>
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            El plan Básico permite hasta {BASIC_VIDEO_POST_LIMIT} videos publicados simultáneamente.
-            Elimina uno desde tu perfil para subir otro.
+            El plan Básico permite {BASIC_VIDEO_POST_LIMIT} videos visibles a la vez. Si publicas otro,
+            el más antiguo pasa a <strong>Guardados en privado</strong> en tu perfil: no se borra, solo
+            deja de verse, y puedes volver a mostrarlo cuando quieras.
           </p>
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              onClick={() => setShowVideoModal(true)}
+              className="btn-primary px-4 py-2 text-sm"
+            >
+              Publicar de todos modos
+            </button>
             <Link href="/profile" className="text-sm font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2">
-              Ir a mi perfil
+              Elegir cuál quitar
             </Link>
             <span className="text-amber-400 dark:text-amber-600">·</span>
             <Link href="/plans" className="text-sm font-semibold text-brand-600 dark:text-brand-400 underline underline-offset-2">

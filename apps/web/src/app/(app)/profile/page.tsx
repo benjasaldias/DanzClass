@@ -11,6 +11,7 @@ import StyleChip from '@/components/ui/StyleChip'
 import AppearanceRow from '@/components/profile/AppearanceRow'
 import AiScanPreferenceCard from '@/components/profile/AiScanPreferenceCard'
 import ProfilePostsGrid from '@/components/profile/ProfilePostsGrid'
+import PlanHiddenPosts from '@/components/profile/PlanHiddenPosts'
 import EmbedWidgetButton from '@/components/profile/EmbedWidgetButton'
 import ReferralCopyButton from '@/components/profile/ReferralCopyButton'
 import ProfileTabs, { type ProfileTab } from '@/components/profile/ProfileTabs'
@@ -84,13 +85,19 @@ export default async function ProfilePage({
       .select('*, user:profiles!user_id(id, full_name, username, avatar_url)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(20),
+      // Incluye los ocultos por plan (van a su propia sección), por eso el
+      // límite es más alto que los 20 que se muestran publicados.
+      .limit(50),
   ])
 
   const profile = profileData as any
   const planInfo = SUBSCRIPTION_PLANS.find((p) => p.tier === tier)
   const enrolledClasses = (enrolledData as any[]) ?? []
   const ownPosts = (ownPostsData as any[]) ?? []
+  // Videos ocultos por falta de plan: solo los ve su autor y viven en su propia
+  // sección (biblioteca), separados de los que sí están publicados.
+  const visiblePosts = ownPosts.filter((p: any) => !p.plan_hidden_at)
+  const hiddenPosts = ownPosts.filter((p: any) => !!p.plan_hidden_at)
   const ratingList = (ratingRows as any[]) ?? []
   const ratingCount = ratingList.length
   const avgRating = ratingCount > 0
@@ -279,14 +286,23 @@ export default async function ProfilePage({
         )}
 
         {/* Mis publicaciones (grilla estilo Instagram) */}
-        {ownPosts.length > 0 && (
+        {visiblePosts.length > 0 && (
           <SectionCard
             title="Mis publicaciones"
             bleed
-            action={<span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-dark-text2"><Video className="h-3.5 w-3.5" /> {ownPosts.length}</span>}
+            action={<span className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 dark:text-dark-text2"><Video className="h-3.5 w-3.5" /> {visiblePosts.length}</span>}
           >
             <div className="px-0.5 pb-0.5">
-              <ProfilePostsGrid posts={ownPosts} currentUserId={user!.id} />
+              <ProfilePostsGrid posts={visiblePosts} currentUserId={user!.id} />
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Videos guardados en privado por el plan (ver 060_post_plan_visibility.sql) */}
+        {hiddenPosts.length > 0 && (
+          <SectionCard title="Guardados en privado" bleed>
+            <div className="px-3 pb-0.5">
+              <PlanHiddenPosts hiddenPosts={hiddenPosts} visiblePosts={visiblePosts} tier={tier} />
             </div>
           </SectionCard>
         )}

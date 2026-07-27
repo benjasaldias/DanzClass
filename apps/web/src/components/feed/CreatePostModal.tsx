@@ -116,7 +116,13 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
       .single()
 
     if (insertErr || !post) {
-      setError('Error al publicar. Intenta de nuevo.')
+      // El trigger posts_plan_quota_guard rechaza publicar sin plan activo
+      // (defensa en profundidad: este insert viene directo del cliente).
+      setError(
+        insertErr?.message?.includes('plan_required_for_posts')
+          ? 'Publicar videos requiere un plan activo. Actívalo en /plans.'
+          : 'Error al publicar. Intenta de nuevo.'
+      )
       setLoading(false)
       return
     }

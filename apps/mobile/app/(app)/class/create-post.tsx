@@ -133,7 +133,13 @@ export default function CreatePostScreen() {
     setLoading(false)
 
     if (insertErr) {
-      setError('Error al publicar. Intenta de nuevo.')
+      // posts_plan_quota_guard rechaza publicar sin plan activo (el insert va
+      // directo del cliente a la DB, ver 060_post_plan_visibility.sql).
+      setError(
+        insertErr.message?.includes('plan_required_for_posts')
+          ? 'Publicar videos requiere un plan activo.'
+          : 'Error al publicar. Intenta de nuevo.'
+      )
       return
     }
 

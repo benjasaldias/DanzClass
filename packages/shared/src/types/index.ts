@@ -37,6 +37,7 @@ export type NotificationType =
   | 'event_invite'
   | 'event_invite_accepted'
   | 'event_invite_rejected'
+  | 'posts_expiring'
 
 export type EventType = 'batalla' | 'masterclass' | 'otro'
 export type EventStatus = 'active' | 'cancelled' | 'finished'

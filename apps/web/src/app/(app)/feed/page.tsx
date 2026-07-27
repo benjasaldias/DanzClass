@@ -32,6 +32,8 @@ export default async function FeedPage() {
     .from('posts')
     .select('id, title, description, video_url, thumbnail_url, visibility, is_public, class_id, created_at, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
     .eq('visibility', 'public')
+    // Videos ocultos por falta de plan (ver 060_post_plan_visibility.sql).
+    .is('plan_hidden_at', null)
     .order('created_at', { ascending: false })
     .limit(20)
 

@@ -177,6 +177,9 @@ export default async function UserProfilePage({ params }: Props) {
     .select('*, user:profiles!user_id(id, full_name, username, avatar_url)')
     .eq('user_id', profileUser.id)
     .in('visibility', visibilities)
+    // Ocultos por falta de plan: el perfil público muestra lo mismo a todos,
+    // incluido el propio dueño (que gestiona los ocultos desde /profile).
+    .is('plan_hidden_at', null)
     .order('created_at', { ascending: false })
     .limit(20)
 

@@ -10,6 +10,7 @@ import {
 import * as Clipboard from 'expo-clipboard'
 import StyleChip from '../../../components/ui/StyleChip'
 import ProfilePostsGrid from '../../../components/profile/ProfilePostsGrid'
+import PlanHiddenPosts from '../../../components/profile/PlanHiddenPosts'
 import AiScanPreferenceCard from '../../../components/profile/AiScanPreferenceCard'
 import { supabase } from '../../../lib/supabase'
 import { canTeach } from '@danceclass/shared'
@@ -87,6 +88,11 @@ export default function ProfileScreen() {
   const [showAllClasses, setShowAllClasses] = useState(false)
   const [classesTaken, setClassesTaken] = useState(0)
   const [tab, setTab] = useState<'perfil' | 'gestion' | 'ajustes'>('perfil')
+
+  // Videos ocultos por falta de plan: solo los ve su autor, en su propia
+  // sección (ver 060_post_plan_visibility.sql).
+  const visiblePosts = posts.filter((p: any) => !p.plan_hidden_at)
+  const hiddenPosts = posts.filter((p: any) => !!p.plan_hidden_at)
 
   const load = useCallback(async () => {
     try {
@@ -394,11 +400,23 @@ export default function ProfileScreen() {
         )}
 
         {/* ── Mis publicaciones (grilla Instagram) ─────────── */}
-        {tab === 'perfil' && posts.length > 0 && (
-          <SectionCard title={`Mis publicaciones (${posts.length})`} isDark={isDark}>
+        {tab === 'perfil' && visiblePosts.length > 0 && (
+          <SectionCard title={`Mis publicaciones (${visiblePosts.length})`} isDark={isDark}>
             <View className="pb-1">
-              <ProfilePostsGrid posts={posts} currentUserId={userId ?? ''} />
+              <ProfilePostsGrid posts={visiblePosts} currentUserId={userId ?? ''} />
             </View>
+          </SectionCard>
+        )}
+
+        {/* ── Videos guardados en privado por el plan ───────── */}
+        {tab === 'perfil' && hiddenPosts.length > 0 && (
+          <SectionCard title="Guardados en privado" isDark={isDark}>
+            <PlanHiddenPosts
+              hiddenPosts={hiddenPosts}
+              visiblePosts={visiblePosts}
+              tier={tier}
+              onChanged={load}
+            />
           </SectionCard>
         )}
 

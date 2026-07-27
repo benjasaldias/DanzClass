@@ -12,7 +12,7 @@ import { supabase } from '../../../lib/supabase'
 import { sendNotifications } from '../../../lib/notifications'
 import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../lib/cloudinary'
 import {
-  DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo,
+  DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, resolveClassStartDate,
 } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileSelect from '../../../components/ui/MobileSelect'
@@ -68,6 +68,7 @@ export default function CreateClassScreen() {
   const [dayOfWeek, setDayOfWeek] = useState('')
   const [recurringTime, setRecurringTime] = useState('')
   const [customDates, setCustomDates] = useState<string[]>([])
+  const [startDate, setStartDate] = useState('')
   const [endsAt, setEndsAt] = useState('')
   const [endsIndefinitely, setEndsIndefinitely] = useState(false)
   const [requiresAudition, setRequiresAudition] = useState(false)
@@ -185,6 +186,11 @@ export default function CreateClassScreen() {
       if (classType === 'periodica' && !endsAt) errs.endsAt = 'Las clases periódicas requieren fecha de término'
       if (isEntrenamiento && !endsAt && !endsIndefinitely) errs.endsAt = 'Indica fecha de término o marca Indefinido'
       if (endsAt && endsAt < today) errs.endsAt = 'La fecha de término no puede ser en el pasado'
+      // Fecha de inicio: obligatoria en entrenamiento (con 'custom' la definen
+      // las fechas del calendario). Paridad con el form web.
+      if (isEntrenamiento && recurrence !== 'custom' && !startDate) errs.startDate = 'Indica desde cuándo parte el entrenamiento'
+      if (startDate && startDate < today) errs.startDate = 'La fecha de inicio no puede ser en el pasado'
+      if (startDate && endsAt && endsAt < startDate) errs.endsAt = 'La fecha de término debe ser posterior a la de inicio'
     }
 
     if (!price) errs.price = 'Requerido'
@@ -232,6 +238,17 @@ export default function CreateClassScreen() {
         recurrence: isPeriodic ? recurrence : null,
         day_of_week: (isPeriodic && recurrence !== 'custom' && dayOfWeek !== '') ? Number(dayOfWeek) : null,
         recurring_time: isPeriodic ? recurringTime : null,
+        // Antes mobile no persistía start_date: las clases periódicas creadas
+        // desde la app caían al "ancla virtual" de getClassSessions (que puede
+        // errar la fase de las quincenales). Ahora se resuelve igual que en web.
+        start_date: isPeriodic
+          ? resolveClassStartDate({
+              recurrence,
+              dayOfWeek: dayOfWeek === '' ? null : Number(dayOfWeek),
+              startDate,
+              customDates,
+            })
+          : null,
         custom_dates: (isPeriodic && recurrence === 'custom') ? customDates : [],
         duration_minutes: Number(durationMinutes) || 60,
         location_name: locationName.trim() || null,
@@ -501,6 +518,21 @@ export default function CreateClassScreen() {
                   />
                   {errors.recurringTime && <Text className="text-xs text-red-600 mt-1">{errors.recurringTime}</Text>}
                 </View>
+              </View>
+            )}
+
+            {/* Start date — obligatoria en entrenamiento, opcional en periódica */}
+            {recurrence !== 'custom' && (
+              <View className="border border-gray-200 dark:border-dark-border rounded-xl p-3 gap-2 bg-white dark:bg-dark-surface">
+                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
+                  Fecha de inicio {isEntrenamiento ? '*' : '(opcional)'}
+                </Text>
+                <MobileDateInput value={startDate} onChange={setStartDate} error={errors.startDate} />
+                <Text className="text-xs text-gray-400 dark:text-dark-text2/60">
+                  {isEntrenamiento
+                    ? 'Desde cuándo parte el entrenamiento. Se ajusta al día de la semana elegido.'
+                    : 'Si la dejas vacía, parte en la próxima ocurrencia del día elegido.'}
+                </Text>
               </View>
             )}
 

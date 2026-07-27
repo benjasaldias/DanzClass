@@ -182,6 +182,9 @@ export default function FeedScreen() {
       let q = (supabase as any)
         .from('posts')
         .select('*, author:profiles!user_id(id, username, full_name, avatar_url), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
+        // Videos ocultos por falta de plan: la RLS ya los esconde a terceros,
+        // pero su autor sí los ve — sin esto aparecerían en su propio feed.
+        .is('plan_hidden_at', null)
         .order('created_at', { ascending: false })
         .limit(pageSize)
 

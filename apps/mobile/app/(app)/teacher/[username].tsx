@@ -110,7 +110,7 @@ export default function TeacherProfileScreen() {
             .or(`and(requester_id.eq.${uid},addressee_id.eq.${p.id}),and(requester_id.eq.${p.id},addressee_id.eq.${uid})`)
             .maybeSingle()
           : Promise.resolve({ data: null }),
-        (supabase as any).from('posts').select('*, author:profiles!user_id(id, username, full_name, avatar_url)').eq('user_id', p.id).order('created_at', { ascending: false }),
+        (supabase as any).from('posts').select('*, author:profiles!user_id(id, username, full_name, avatar_url)').eq('user_id', p.id).is('plan_hidden_at', null).order('created_at', { ascending: false }),
         uid && uid !== p.id
           ? (supabase as any).from('enrollments')
               .select('created_at, class:classes!inner(id, type, date, time, duration_minutes, recurrence, day_of_week, recurring_time, custom_dates)')

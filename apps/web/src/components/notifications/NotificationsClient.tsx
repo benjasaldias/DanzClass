@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import {
   UserPlus, UserCheck, Bell, Music2, AlertCircle,
-  CheckCircle2, XCircle, Users, Flag, ClipboardList, CalendarClock, UserCheck2,
+  CheckCircle2, XCircle, Users, Flag, ClipboardList, CalendarClock, UserCheck2, Lock,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -234,6 +234,19 @@ const NOTIF_CONFIG: Record<string, {
       return `${who} declinó tu invitación al evento`
     },
     href: (data) => data.event_id ? `/event/${data.event_id}` : '/feed',
+  },
+  posts_expiring: {
+    icon: Lock,
+    color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400',
+    label: (data) => {
+      const n = Number(data.count ?? 1)
+      const days = Number(data.days_left ?? 0)
+      const cuando = days === 1 ? 'mañana' : `en ${days} días`
+      return n === 1
+        ? `Tu video guardado en privado se elimina ${cuando}. Activa un plan para conservarlo.`
+        : `${n} videos guardados en privado se eliminan ${cuando}. Activa un plan para conservarlos.`
+    },
+    href: () => '/profile',
   },
 }
 

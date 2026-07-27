@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import { useForm } from 'react-hook-form'
@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { cn } from '@/lib/utils'
-import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, LEVEL_LABELS } from '@danceclass/shared'
+import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, LEVEL_LABELS, resolveClassStartDate } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
@@ -35,6 +35,7 @@ const schema = z.object({
   recurrence: z.enum(['weekly', 'biweekly', 'custom']).optional(),
   day_of_week: z.coerce.number().min(0).max(6).optional(),
   recurring_time: z.string().optional(),
+  start_date: z.string().optional(),
   // Common
   duration_minutes: z.coerce.number().min(30).max(240),
   location_name: z.string().optional(),
@@ -67,6 +68,16 @@ const schema = z.object({
         ctx.addIssue({ code: 'custom', path: ['day_of_week'], message: 'Requerido' })
       }
     }
+    // Fecha de inicio: obligatoria en entrenamiento (proceso largo: el alumno
+    // necesita saber desde cuándo corre y desde cuándo se cobra). En periódica
+    // es opcional y por defecto arranca en la próxima ocurrencia del día
+    // elegido. Con recurrence 'custom' la definen las fechas del calendario.
+    if (data.type === 'entrenamiento' && data.recurrence !== 'custom' && !data.start_date) {
+      ctx.addIssue({ code: 'custom', path: ['start_date'], message: 'Indica desde cuándo parte el entrenamiento' })
+    }
+    if (data.start_date && data.start_date < today) {
+      ctx.addIssue({ code: 'custom', path: ['start_date'], message: 'La fecha de inicio no puede ser en el pasado' })
+    }
     // ends_at required for periodica (not entrenamiento with indefinitely)
     if (data.type === 'periodica' && !data.ends_at) {
       ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'Las clases periódicas requieren fecha de término' })
@@ -76,6 +87,9 @@ const schema = z.object({
     }
     if (data.ends_at && data.ends_at < today) {
       ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'La fecha de término no puede ser en el pasado' })
+    }
+    if (data.ends_at && data.start_date && data.ends_at < data.start_date) {
+      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'La fecha de término debe ser posterior a la de inicio' })
     }
   }
 })
@@ -138,6 +152,38 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
 
   const isEntrenamiento = classType === 'entrenamiento'
   const isPeriodic = classType === 'periodica' || isEntrenamiento
+
+  // Al cambiar el tipo de clase hay que soltar los campos que solo existían para
+  // el tipo anterior. Sin esto quedaban valores fantasma: p. ej. marcar
+  // "Indefinido" en Entrenamiento y cambiar a Periódica dejaba ends_indefinitely
+  // en true, y como el input de fecha de término solo se muestra cuando está en
+  // false, la fecha se volvía imposible de ingresar sin recargar la página.
+  useEffect(() => {
+    if (classType === 'suelta') {
+      setValue('recurrence', undefined)
+      setValue('day_of_week', undefined)
+      setValue('recurring_time', undefined)
+      setValue('start_date', undefined)
+      setValue('ends_at', undefined)
+      setValue('ends_indefinitely', false)
+      setValue('requires_audition', false)
+      setCustomDates([])
+    } else {
+      setValue('date', undefined)
+      setValue('time', undefined)
+    }
+    if (classType !== 'entrenamiento') {
+      // "Indefinido" y las postulaciones son exclusivas de Entrenamiento.
+      setValue('ends_indefinitely', false)
+      setValue('requires_audition', false)
+    }
+    if (classType !== 'periodica') {
+      // El precio por clase suelta solo aplica dentro de una periódica.
+      setValue('price_suelta', undefined)
+      setValue('price_suelta_2x', undefined)
+    }
+    setError(null)
+  }, [classType, setValue])
 
   const MAX_VIDEO_BYTES = 200 * 1024 * 1024
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -239,19 +285,17 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
     setError(null)
     const supabase = createClient()
 
-    // Compute start_date = next occurrence of day_of_week from today
-    let start_date_value: string | null = null
-    if (isPeriodic && data.recurrence !== 'custom' && data.day_of_week != null) {
-      const today = new Date()
-      const targetDay = data.day_of_week as number
-      const diff = (targetDay - today.getDay() + 7) % 7
-      const sd = new Date(today)
-      sd.setDate(today.getDate() + diff)
-      const y = sd.getFullYear()
-      const m = String(sd.getMonth() + 1).padStart(2, '0')
-      const d = String(sd.getDate()).padStart(2, '0')
-      start_date_value = `${y}-${m}-${d}`
-    }
+    // start_date: la fecha elegida por el profe ajustada al día de la semana de
+    // la clase, o la próxima ocurrencia si no eligió ninguna. Con 'custom', la
+    // primera fecha marcada. Ver resolveClassStartDate en @danceclass/shared.
+    const start_date_value = isPeriodic
+      ? resolveClassStartDate({
+          recurrence: data.recurrence,
+          dayOfWeek: data.day_of_week,
+          startDate: data.start_date,
+          customDates,
+        })
+      : null
 
     const { data: classRecord, error: classError } = await supabase
       .from('classes')
@@ -567,6 +611,28 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, tier, suelt
                   <input {...register('recurring_time')} type="time" className="input" />
                   {errors.recurring_time && <p className="mt-1 text-xs text-red-600">{errors.recurring_time.message}</p>}
                 </div>
+              </div>
+            )}
+
+            {/* Start date — obligatoria en entrenamiento, opcional en periódica */}
+            {recurrence !== 'custom' && (
+              <div className="rounded-xl border border-gray-200 dark:border-dark-border p-3 space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                  Fecha de inicio {isEntrenamiento
+                    ? '*'
+                    : <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>}
+                </label>
+                <DateInput
+                  value={watch('start_date') ?? ''}
+                  onChange={(iso) => setValue('start_date', iso || undefined)}
+                  className="input"
+                />
+                {errors.start_date && <p className="mt-1 text-xs text-red-600">{errors.start_date.message}</p>}
+                <p className="text-xs text-gray-400 dark:text-dark-text2/60">
+                  {isEntrenamiento
+                    ? 'Desde cuándo parte el entrenamiento. Se ajusta al día de la semana que elegiste.'
+                    : 'Si la dejas vacía, la clase parte en la próxima ocurrencia del día elegido.'}
+                </p>
               </div>
             )}
 

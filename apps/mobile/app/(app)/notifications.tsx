@@ -1,7 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCircle2, XCircle, Flag, Tag, Bell, ClipboardList, CalendarClock, UserCheck2 } from 'lucide-react-native'
+import { ChevronLeft, Users, UserPlus, UserCheck, Music2, AlertCircle, CheckCircle2, XCircle, Flag, Tag, Bell, ClipboardList, CalendarClock, UserCheck2, Lock } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -163,6 +163,18 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
     icon: XCircle, bgColor: '#f9fafb', iconColor: '#6b7280',
     label: (data, pm) => pm[data.teacher_id] ? `@${pm[data.teacher_id].username} declinó tu invitación al evento` : 'Un profesor declinó tu invitación',
     route: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
+  },
+  posts_expiring: {
+    icon: Lock, bgColor: '#fffbeb', iconColor: '#d97706',
+    label: (data) => {
+      const n = Number(data.count ?? 1)
+      const days = Number(data.days_left ?? 0)
+      const cuando = days === 1 ? 'mañana' : `en ${days} días`
+      return n === 1
+        ? `Tu video guardado en privado se elimina ${cuando}. Activa un plan para conservarlo.`
+        : `${n} videos guardados en privado se eliminan ${cuando}. Activa un plan para conservarlos.`
+    },
+    route: () => '/(app)/(tabs)/profile',
   },
 }
 

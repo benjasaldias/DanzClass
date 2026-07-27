@@ -4,6 +4,7 @@ import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { autoConfirmPayment } from '@/lib/payments'
 import { rewardReferralIfNeeded } from '@/lib/referral'
+import { reconcilePlanContent } from '@/lib/planContent'
 import { logger } from '@/lib/logger'
 import type { SubscriptionTier } from '@danceclass/shared'
 
@@ -76,6 +77,9 @@ async function activateSubscription(
     logger.error('webhook:subscription_insert_failed', error, { user_id: userId, tier })
   } else {
     logger.info('webhook:subscription_activated', { user_id: userId, tier, months })
+    // Devuelve a la vista los videos que estaban guardados en privado por falta
+    // de plan, sin esperar al cron diario.
+    await reconcilePlanContent(supabase as any, userId)
   }
 }
 
@@ -336,7 +340,7 @@ export async function POST(request: Request) {
     // Extender expires_at en 1 mes
     const { data: existingSub } = await supabase
       .from('subscriptions')
-      .select('id, expires_at')
+      .select('id, expires_at, user_id')
       .eq('mp_subscription_id', String(preapprovalId))
       .in('status', ['active', 'grace'])
       .maybeSingle()
@@ -355,6 +359,12 @@ export async function POST(request: Request) {
         .insert({ subscription_id: (existingSub as any).id, mp_payment_id: String(eventDataId) })
 
       logger.info('webhook:subscription_renewed', { new_expiry: newExpiry.toISOString() })
+
+      // La renovación puede llegar después de que el plan caducó y el cron ya
+      // ocultó sus videos: reconciliar los devuelve a la vista.
+      if ((existingSub as any).user_id) {
+        await reconcilePlanContent(supabase as any, (existingSub as any).user_id)
+      }
     } else {
       logger.warn('webhook:no_subscription_for_renewal', { preapproval_id: preapprovalId })
     }

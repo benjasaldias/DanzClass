@@ -10,7 +10,7 @@ import { ChevronLeft, X, ImagePlus, Trash2 } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
 import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../../lib/cloudinary'
-import { DANCE_STYLES, DAYS_OF_WEEK } from '@danceclass/shared'
+import { DANCE_STYLES, DAYS_OF_WEEK, resolveClassStartDate } from '@danceclass/shared'
 import MobileSelect from '../../../../components/ui/MobileSelect'
 import MobileDateInput from '../../../../components/ui/MobileDateInput'
 import MobileCityPicker from '../../../../components/ui/MobileCityPicker'
@@ -60,6 +60,7 @@ export default function EditClassScreen() {
   const [dayOfWeek, setDayOfWeek] = useState('')
   const [recurringTime, setRecurringTime] = useState('')
   const [customDates, setCustomDates] = useState<string[]>([])
+  const [startDate, setStartDate] = useState('')
   const [endsAt, setEndsAt] = useState('')
   const [endsIndefinitely, setEndsIndefinitely] = useState(false)
   const [billingDay, setBillingDay] = useState('1')
@@ -105,6 +106,7 @@ export default function EditClassScreen() {
       setDayOfWeek(data.day_of_week !== null && data.day_of_week !== undefined ? String(data.day_of_week) : '')
       setRecurringTime(data.recurring_time ?? '')
       setCustomDates(data.custom_dates ?? [])
+      setStartDate(data.start_date ?? '')
       setEndsAt(data.ends_at ?? '')
       setEndsIndefinitely(data.ends_indefinitely ?? false)
       setBillingDay(data.billing_day ? String(data.billing_day) : '1')
@@ -216,6 +218,10 @@ export default function EditClassScreen() {
       }
       if (classType === 'periodica' && !endsAt) errs.endsAt = 'Requerido'
       if (isEntrenamiento && !endsAt && !endsIndefinitely) errs.endsAt = 'Indica fecha de término o Indefinido'
+      // A diferencia de crear, acá se permite fecha pasada: un entrenamiento en
+      // curso empezó antes de hoy.
+      if (isEntrenamiento && recurrence !== 'custom' && !startDate) errs.startDate = 'Indica desde cuándo parte el entrenamiento'
+      if (startDate && endsAt && endsAt < startDate) errs.endsAt = 'La fecha de término debe ser posterior a la de inicio'
     }
     if (!price) errs.price = 'Requerido'
     // Mismo rango que valida el form web (zod .min(1).max(100)) — P3-1.
@@ -257,6 +263,14 @@ export default function EditClassScreen() {
         recurrence: isPeriodic ? recurrence : null,
         day_of_week: (isPeriodic && recurrence !== 'custom' && dayOfWeek !== '') ? Number(dayOfWeek) : null,
         recurring_time: isPeriodic ? recurringTime : null,
+        start_date: isPeriodic
+          ? resolveClassStartDate({
+              recurrence,
+              dayOfWeek: dayOfWeek === '' ? null : Number(dayOfWeek),
+              startDate,
+              customDates,
+            })
+          : null,
         custom_dates: (isPeriodic && recurrence === 'custom') ? customDates : [],
         duration_minutes: Number(durationMinutes) || 60,
         location_name: locationName.trim() || null,
@@ -498,6 +512,19 @@ export default function EditClassScreen() {
                     className={`border rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-dark-text bg-white dark:bg-dark-surface2 ${errors.recurringTime ? 'border-red-300' : 'border-gray-200 dark:border-dark-border'}`}
                   />
                 </View>
+              </View>
+            )}
+
+            {/* Start date — obligatoria en entrenamiento, opcional en periódica */}
+            {recurrence !== 'custom' && (
+              <View className="border border-gray-200 dark:border-dark-border rounded-xl p-3 gap-2 bg-white dark:bg-dark-surface">
+                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
+                  Fecha de inicio {isEntrenamiento ? '*' : '(opcional)'}
+                </Text>
+                <MobileDateInput value={startDate} onChange={setStartDate} error={errors.startDate} />
+                <Text className="text-xs text-gray-400 dark:text-dark-text2/60">
+                  Cambiarla mueve todas las fechas de la clase.
+                </Text>
               </View>
             )}
 

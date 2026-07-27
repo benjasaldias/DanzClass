@@ -51,12 +51,12 @@ export function getInitials(name: string): string {
 }
 
 // Parse a YYYY-MM-DD string as local midnight (avoids UTC off-by-one).
-function parseLocalDate(dateStr: string): Date {
+export function parseLocalDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
-function toYMD(date: Date): string {
+export function toYMD(date: Date): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
