@@ -98,11 +98,17 @@ export default function ClassCard({ classData, currentUserId, currentUserRole, t
     return `${preview} ${suffix} · ${formatTime(time)}`
   }
 
+  // Ninguna de estas columnas es NOT NULL: una fila incompleta no puede dejar
+  // "undefined" en pantalla ni —peor— reventar el render de la tarjeta, que se
+  // lleva puesto el feed entero (ver la nota en `formatTime`).
   const scheduleText = classData.type === 'suelta'
-    ? `${formatDate(classData.date)} · ${formatTime(classData.time)}`
+    ? [formatDate(classData.date), formatTime(classData.time)].filter(Boolean).join(' · ')
     : classData.recurrence === 'custom'
       ? customDatesPreview(classData.custom_dates, classData.recurring_time)
-      : `${recurrenceLabel[classData.recurrence] ?? ''} · ${DAYS_OF_WEEK[classData.day_of_week]} ${formatTime(classData.recurring_time)}`
+      : [
+          recurrenceLabel[classData.recurrence] ?? '',
+          [DAYS_OF_WEEK[classData.day_of_week] ?? '', formatTime(classData.recurring_time)].filter(Boolean).join(' '),
+        ].filter(Boolean).join(' · ')
 
   const styleBadge = classData.dance_style
     ? classData.class_type

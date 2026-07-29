@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/plan-content",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-charges",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/mp-connections",
+      "schedule": "0 7 * * *"
     }
   ]
 }

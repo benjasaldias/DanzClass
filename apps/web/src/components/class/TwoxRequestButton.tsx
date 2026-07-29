@@ -28,6 +28,7 @@ export default function TwoxRequestButton({
   const [request, setRequest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchRequest() {
@@ -65,16 +66,21 @@ export default function TwoxRequestButton({
 
   async function handleCreate() {
     setActing(true)
+    setError(null)
     const supabase = createClient()
-    const { data, error } = await (supabase as any)
+    const { data, error: insertError } = await (supabase as any)
       .from('class_2x_requests')
       .insert({ user_id: userId, class_id: classId, status: 'looking' })
       .select()
       .single()
 
-    if (!error && data) {
+    if (!insertError && data) {
       setRequest(data)
       setState('looking')
+    } else if (insertError?.code === '23505') {
+      setError('Ya tienes una búsqueda de 2x activa para esta clase.')
+    } else if (insertError) {
+      setError('No se pudo iniciar la búsqueda de 2x. Intenta de nuevo.')
     }
     setActing(false)
   }
@@ -151,6 +157,10 @@ export default function TwoxRequestButton({
           <span className="inline-block h-2 w-2 rounded-full bg-brand-400 animate-pulse" />
           Buscando compañer@... tus amigos verán que quieres ir en pareja
         </p>
+      )}
+
+      {error && (
+        <p className="text-xs text-coral-fuego dark:text-coral-fuego">{error}</p>
       )}
 
       {state === 'matched' && (

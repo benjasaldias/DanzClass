@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 interface RatingResult {
   ok: boolean
@@ -21,6 +22,9 @@ export async function submitRating(params: { rated_user_id: string; stars: numbe
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'No autenticado' }
   if (user.id === rated_user_id) return { ok: false, error: 'No puedes valorarte a ti mismo' }
+
+  const rlHit = await checkRateLimit(`ratings:${user.id}`, 'social')
+  if (rlHit) return { ok: false, error: 'Demasiadas solicitudes. Intenta de nuevo más tarde.' }
 
   const admin = createAdminClient()
 

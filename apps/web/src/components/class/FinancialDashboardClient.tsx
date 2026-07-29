@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { formatBillingPeriod } from '@danceclass/shared'
 import { TrendingUp, Users, BookOpen, DollarSign, ArrowLeft, ChevronDown } from 'lucide-react'
 import { cn, formatCLP } from '@/lib/utils'
 import Avatar from '@/components/ui/Avatar'
@@ -221,7 +222,15 @@ export default function FinancialDashboardClient({ summary, recentPayments: allR
                 <Avatar src={student?.avatar_url} name={student?.full_name ?? '?'} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 dark:text-dark-text truncate">{student?.full_name}</p>
-                  <p className="text-xs text-gray-500 dark:text-dark-text2 truncate">{cls?.title}</p>
+                  <p className="text-xs text-gray-500 dark:text-dark-text2 truncate">
+                    {cls?.title}
+                    {/* Mensualidad de entrenamiento: el mes cobrado importa más
+                        que la fecha del pago (puede pagarse atrasado). */}
+                    {p.billing_period ? ` · ${formatBillingPeriod(p.billing_period)}` : ''}
+                  </p>
+                  {p.offline_confirmed && (
+                    <p className="text-[10px] text-gray-400 dark:text-dark-text2">Sin comprobante</p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end flex-shrink-0">
                   <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{formatCLP(p.amount)}</p>

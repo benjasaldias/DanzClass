@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyUsers } from '@/lib/notifyUsers'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rlHit = await checkRateLimit(`reports:${user.id}`, 'social')
+  if (rlHit) return rlHit
 
   const body = await req.json().catch(() => ({}))
   const { contentType, contentId, reason, description } = body
@@ -56,7 +61,7 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    await (admin as any).from('notifications').insert({
+    await notifyUsers(admin, [{
       user_id: adminUserId,
       type: 'new_report',
       data: {
@@ -66,7 +71,7 @@ export async function POST(req: NextRequest) {
         content_id: contentId,
         reason,
       },
-    })
+    }])
   }
 
   return NextResponse.json({ ok: true })

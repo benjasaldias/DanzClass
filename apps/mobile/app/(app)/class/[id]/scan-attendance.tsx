@@ -6,17 +6,18 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { useTheme } from '../../../../context/ThemeContext'
 import { ChevronLeft, CheckCircle2, AlertCircle, Camera as CameraIcon } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { formatBillingPeriod, formatCLP, WEB_URL } from '@danceclass/shared'
 
 // El resultado del escaneo se muestra 2s antes de re-habilitar la cámara —
 // tiempo suficiente para leer el nombre sin frenar el ritmo de una fila.
 const RESULT_DISPLAY_MS = 2000
 
+type DebtInfo = { months: number; total: number; periods: string[] }
+
 type ScanOutcome =
   | { kind: 'confirmed'; studentName: string; avatarUrl: string | null }
   | { kind: 'already_registered'; studentName: string; avatarUrl: string | null }
-  | { kind: 'rejected'; message: string; reason?: string }
+  | { kind: 'rejected'; message: string; reason?: string; debt?: DebtInfo }
   | { kind: 'network_error' }
 
 export default function ScanAttendanceScreen() {
@@ -64,8 +65,8 @@ export default function ScanAttendanceScreen() {
         Vibration.vibrate(100)
       } else {
         const reason = json.reason as string | undefined
-        holdOpen = reason === 'payment_not_confirmed'
-        setOutcome({ kind: 'rejected', message: json.message ?? 'QR rechazado.', reason })
+        holdOpen = reason === 'payment_not_confirmed' || reason === 'debt_overdue'
+        setOutcome({ kind: 'rejected', message: json.message ?? 'QR rechazado.', reason, debt: json.debt })
         Vibration.vibrate(300)
       }
     } catch {
@@ -185,7 +186,13 @@ function ResultOverlay({
     network_error: { bg: 'bg-red-600', icon: <AlertCircle size={48} stroke="white" /> },
   }[outcome.kind]
 
-  const pendingPayment = outcome.kind === 'rejected' && outcome.reason === 'payment_not_confirmed'
+  // Los dos rechazos que el profesor puede resolver ahí mismo: el alumno que
+  // aún no confirma su pago único, y el de entrenamiento con mensualidades
+  // vencidas (que además puede registrarse en efectivo desde "Revisar pagos").
+  const actionable =
+    outcome.kind === 'rejected' &&
+    (outcome.reason === 'payment_not_confirmed' || outcome.reason === 'debt_overdue')
+  const debt = outcome.kind === 'rejected' ? outcome.debt : undefined
 
   return (
     <View className={`absolute inset-0 items-center justify-center ${config.bg}`}>
@@ -203,8 +210,18 @@ function ResultOverlay({
 
       {/* P3-4: el pago pendiente es el único rechazo que el profesor puede
           resolver ahí mismo. Damos salida en vez de un flash rojo de 2s. */}
-      {pendingPayment && (
+      {actionable && (
         <>
+          {debt && debt.months > 0 && (
+            <View className="mt-2 px-8">
+              <Text className="text-white text-sm font-bold text-center">
+                {debt.months === 1 ? '1 mes adeudado' : `${debt.months} meses adeudados`} · {formatCLP(debt.total)}
+              </Text>
+              <Text className="text-white/80 text-xs text-center mt-0.5">
+                {debt.periods.map(formatBillingPeriod).join(', ')}
+              </Text>
+            </View>
+          )}
           <Text className="text-white/90 text-sm text-center px-8 mt-2">
             Confirma su pago para habilitar el QR, o déjalo pasar y resuélvelo después.
           </Text>

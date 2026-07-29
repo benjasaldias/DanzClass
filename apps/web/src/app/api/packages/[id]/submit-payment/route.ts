@@ -17,6 +17,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (!package_enrollment_id || !receipt_path) {
     return NextResponse.json({ error: 'invalid_params' }, { status: 400 })
   }
+  // Mismo prefijo que exige la policy de INSERT del bucket `payment-receipts`
+  // (migración 007). Sin esta validación, el cliente podía registrar como
+  // comprobante propio el path de cualquier otro archivo del bucket.
+  if (!receipt_path.startsWith(`${auth.user.id}/`)) {
+    return NextResponse.json({ error: 'invalid_receipt_path' }, { status: 400 })
+  }
 
   // Verify enrollment belongs to this student
   const { data: enrollment } = await (admin as any)

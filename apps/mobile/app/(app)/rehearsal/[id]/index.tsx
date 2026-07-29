@@ -6,8 +6,7 @@ import { ArrowLeft, Calendar, MapPin, Clock, Users, Check, X, ChevronDown, Chevr
 import { supabase } from '../../../../lib/supabase'
 import { useTheme } from '../../../../context/ThemeContext'
 import Avatar from '../../../../components/ui/Avatar'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 
 const MONTHS_ES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

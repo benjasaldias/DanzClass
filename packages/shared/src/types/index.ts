@@ -38,6 +38,8 @@ export type NotificationType =
   | 'event_invite_accepted'
   | 'event_invite_rejected'
   | 'posts_expiring'
+  | 'mp_connection_expiring'
+  | 'payment_refunded'
 
 export type EventType = 'batalla' | 'masterclass' | 'otro'
 export type EventStatus = 'active' | 'cancelled' | 'finished'
@@ -68,7 +70,9 @@ export type ClassStatus = 'active' | 'cancelled' | 'completed' | 'archived'
 export type Recurrence = 'weekly' | 'biweekly' | 'monthly' | 'custom'
 export type SessionStatus = 'scheduled' | 'cancelled' | 'completed'
 export type EnrollmentStatus = 'pending_payment' | 'payment_submitted' | 'confirmed' | 'cancelled'
-export type PaymentStatus = 'pending' | 'verified' | 'rejected'
+// 'due'  = cargo mensual emitido que el alumno todavía no pagó (migración 068)
+// 'void' = pago anulado (inscripción cancelada, reinscripción) — migración 064
+export type PaymentStatus = 'due' | 'pending' | 'verified' | 'rejected' | 'void'
 export type AccountType = 'cuenta_corriente' | 'cuenta_vista' | 'cuenta_rut' | 'cuenta_ahorro'
 export type MediaType = 'image' | 'video'
 
@@ -219,6 +223,11 @@ export interface Class {
   // Item 3: si es false, el cupo se reserva con lock de 10 min mientras el
   // alumno paga; si es true (default) se permite pago atrasado (cupo guardado).
   allow_late_payment: boolean
+  // Métodos de pago que acepta esta clase (los decide el profesor; al menos uno
+  // debe estar activo — CHECK en DB). accepts_mp además requiere que el profesor
+  // tenga la cuenta MP conectada (profiles.mp_connected) para estar disponible.
+  accepts_mp: boolean
+  accepts_transfer: boolean
   status: ClassStatus
   created_at: string
   updated_at: string
@@ -268,6 +277,10 @@ export interface Enrollment {
   // Item 3: reserva temporal de cupo. Si está seteado y ya pasó, el hold venció
   // (el cupo se libera) mientras la inscripción siga en pending_payment.
   hold_expires_at: string | null
+  // P0-4: cuándo la fila entró al pending_payment más reciente (no cuándo se
+  // creó). Mantenida por el trigger `enrollments_write_guard` (migración 066);
+  // null si status !== 'pending_payment'.
+  pending_since: string | null
   created_at: string
 }
 
@@ -304,6 +317,11 @@ export interface Payment {
   commission_amount: number // comisión retenida por DanzClass (CLP); 0 en transferencia
   mp_payment_id: string | null
   mp_status: string | null
+  // Cargo mensual de entrenamiento (migración 068). 'YYYY-MM' = este pago es el
+  // cargo de ese mes; null = pago único (suelta, periódica, 2x, paquete).
+  billing_period: string | null
+  // El profesor registró un pago recibido fuera de la app (efectivo).
+  offline_confirmed: boolean
 }
 
 // Cómo pagó el alumno: transferencia directa al profesor (solo con plan) o
@@ -457,6 +475,7 @@ export const SUBSCRIPTION_PLANS = [
       'Hasta 3 videos de coreografías publicados',
       'Explora profesores',
       'Busca compañero 2x',
+      'Sin comisión de servicio al pagar clases con Mercado Pago',
     ],
   },
   {

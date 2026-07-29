@@ -1,9 +1,8 @@
 import * as Location from 'expo-location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from './supabase'
+import { WEB_URL } from '@danceclass/shared'
 import type { GeocodeResult } from '@danceclass/shared'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
 const CACHE_KEY = 'danzclass_user_location_v1'
 // Reuse a fix for 10 minutes to avoid re-prompting / draining GPS.
 const TTL_MS = 10 * 60 * 1000

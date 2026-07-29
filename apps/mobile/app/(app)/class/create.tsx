@@ -13,6 +13,7 @@ import { sendNotifications } from '../../../lib/notifications'
 import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../lib/cloudinary'
 import {
   DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, resolveClassStartDate,
+  validatePeriodicaDates, lastCustomDate, getActiveTier,
 } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileSelect from '../../../components/ui/MobileSelect'
@@ -20,6 +21,7 @@ import MobileDateInput from '../../../components/ui/MobileDateInput'
 import MobileCityPicker from '../../../components/ui/MobileCityPicker'
 import MobileMonthCalendar from '../../../components/ui/MobileMonthCalendar'
 import AddressPicker from '../../../components/ui/AddressPicker'
+import PaymentMethodsField from '../../../components/class/PaymentMethodsField'
 import { geocodeSearch } from '../../../lib/location'
 
 type MediaItem = { uri: string; type: 'image' | 'video'; mimeType: string; fileName: string }
@@ -64,7 +66,9 @@ export default function CreateClassScreen() {
   const [level, setLevel] = useState('todos')
   const [date, setDate] = useState('') // YYYY-MM-DD
   const [time, setTime] = useState('')
-  const [recurrence, setRecurrence] = useState('')
+  // La periódica define sus fechas solo por calendario (migración 067); el
+  // selector de periodicidad queda exclusivo del entrenamiento.
+  const [recurrence, setRecurrence] = useState(typeParam === 'periodica' ? 'custom' : '')
   const [dayOfWeek, setDayOfWeek] = useState('')
   const [recurringTime, setRecurringTime] = useState('')
   const [customDates, setCustomDates] = useState<string[]>([])
@@ -84,6 +88,9 @@ export default function CreateClassScreen() {
   const [priceSuelta, setPriceSuelta] = useState('')
   const [price2x, setPrice2x] = useState('')
   const [priceSuelta2x, setPriceSuelta2x] = useState('')
+  const [acceptsMp, setAcceptsMp] = useState(false)
+  const [acceptsTransfer, setAcceptsTransfer] = useState(true)
+  const [mpConnected, setMpConnected] = useState(false)
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
 
   const [submitting, setSubmitting] = useState(false)
@@ -99,12 +106,17 @@ export default function CreateClassScreen() {
       if (!user) return
       setTeacherId(user.id)
 
-      const [subRes, payRes] = await Promise.all([
-        supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').single(),
+      const [activeTier, payRes, profRes] = await Promise.all([
+        getActiveTier(user.id, supabase),
         supabase.from('teacher_payment_info').select('id').eq('teacher_id', user.id).maybeSingle(),
+        (supabase as any).from('profiles').select('mp_connected').eq('id', user.id).maybeSingle(),
       ])
-      setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
+      setTier(activeTier)
       setHasPaymentInfo(!!payRes.data)
+      // Por defecto se ofrecen todas las vías disponibles para el profesor.
+      const connected = !!profRes.data?.mp_connected
+      setMpConnected(connected)
+      setAcceptsMp(connected)
     }
     load()
   }, [])
@@ -175,15 +187,18 @@ export default function CreateClassScreen() {
       else if (date < today) errs.date = 'La fecha no puede ser en el pasado'
       if (!time) errs.time = 'Requerido'
     } else {
-      if (!recurrence) errs.recurrence = 'Requerido'
+      // La periódica no elige recurrencia: es siempre calendario.
+      if (classType !== 'periodica' && !recurrence) errs.recurrence = 'Requerido'
       if (!recurringTime) errs.recurringTime = 'Requerido'
       if (recurrence && recurrence !== 'custom' && !dayOfWeek) errs.dayOfWeek = 'Requerido'
-      if (recurrence === 'custom' && customDates.length === 0) errs.customDates = 'Selecciona al menos una fecha'
-      else if (recurrence === 'custom') {
-        const invalid = customDates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(new Date(d + 'T00:00:00').getTime()))
-        if (invalid) errs.customDates = `Fecha inválida: ${invalid}`
+      if (recurrence === 'custom') {
+        // Formato + regla de "un solo mes calendario" (audit.md §0). El
+        // entrenamiento es un programa continuo y queda fuera del tope.
+        const dateError = validatePeriodicaDates(customDates, { allowMultiMonth: isEntrenamiento })
+        if (dateError) errs.customDates = dateError
       }
-      if (classType === 'periodica' && !endsAt) errs.endsAt = 'Las clases periódicas requieren fecha de término'
+      // La periódica ya no pide fecha de término: la última fecha del
+      // calendario ES el término.
       if (isEntrenamiento && !endsAt && !endsIndefinitely) errs.endsAt = 'Indica fecha de término o marca Indefinido'
       if (endsAt && endsAt < today) errs.endsAt = 'La fecha de término no puede ser en el pasado'
       // Fecha de inicio: obligatoria en entrenamiento (con 'custom' la definen
@@ -194,6 +209,8 @@ export default function CreateClassScreen() {
     }
 
     if (!price) errs.price = 'Requerido'
+    // Espeja el CHECK `classes_payment_method_check` (migración 061).
+    if (!(mpConnected && acceptsMp) && !acceptsTransfer) errs.paymentMethods = 'Elige al menos una forma de pago'
     // Mismo rango que valida el form web (zod .min(1).max(100)) — P3-1.
     if (!maxSpots || Number(maxSpots) < 1) errs.maxSpots = 'Mínimo 1 cupo'
     else if (Number(maxSpots) > 100) errs.maxSpots = 'Máximo 100 cupos'
@@ -261,11 +278,19 @@ export default function CreateClassScreen() {
         price_suelta: (classType === 'periodica' && priceSuelta) ? Number(priceSuelta) : null,
         price_2x: price2x ? Number(price2x) : null,
         price_suelta_2x: (classType === 'periodica' && priceSuelta2x) ? Number(priceSuelta2x) : null,
-        ends_at: (isPeriodic && !endsIndefinitely) ? (endsAt || null) : null,
+        // La periódica deriva su término de la última fecha del calendario; el
+        // filtro del feed lo usa para descartar clases vencidas en el server.
+        ends_at: classType === 'periodica'
+          ? lastCustomDate(customDates)
+          : ((isPeriodic && !endsIndefinitely) ? (endsAt || null) : null),
         ends_indefinitely: isEntrenamiento ? endsIndefinitely : false,
         requires_audition: isEntrenamiento ? requiresAudition : false,
         billing_day: isEntrenamiento ? (Number(billingDay) || 1) : null,
         allow_late_payment: allowLatePayment,
+        // MP solo puede quedar activo con la cuenta conectada; si al descartarlo
+        // no quedara ninguna vía, se cae a transferencia (CHECK migración 061).
+        accepts_mp: mpConnected && acceptsMp,
+        accepts_transfer: (mpConnected && acceptsMp) ? acceptsTransfer : true,
         audition_closed: false,
         status: 'active',
       } as any)
@@ -463,15 +488,19 @@ export default function CreateClassScreen() {
         {/* Schedule for periodic/entrenamiento */}
         {isPeriodic && (
           <View className="gap-3">
-            <MobileSelect
-              label="Periodicidad *"
-              value={recurrence}
-              options={RECURRENCE_OPTIONS}
-              onSelect={setRecurrence}
-              error={errors.recurrence}
-            />
-            {recurrence === 'biweekly' && (
-              <Text className="-mt-2 text-xs text-gray-500 dark:text-dark-text2">Quincenal = cada 14 días desde la fecha de inicio.</Text>
+            {isEntrenamiento && (
+              <>
+                <MobileSelect
+                  label="Periodicidad *"
+                  value={recurrence}
+                  options={RECURRENCE_OPTIONS}
+                  onSelect={setRecurrence}
+                  error={errors.recurrence}
+                />
+                {recurrence === 'biweekly' && (
+                  <Text className="-mt-2 text-xs text-gray-500 dark:text-dark-text2">Quincenal = cada 14 días desde la fecha de inicio.</Text>
+                )}
+              </>
             )}
 
             {recurrence && recurrence !== 'custom' && (
@@ -503,6 +532,14 @@ export default function CreateClassScreen() {
 
             {recurrence === 'custom' && (
               <View className="gap-3">
+                <View>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2 mb-1">Fechas de la clase *</Text>
+                  <Text className="text-xs text-gray-500 dark:text-dark-text2">
+                    {isEntrenamiento
+                      ? 'Marca en el calendario los días en que se dicta.'
+                      : 'Marca los días en que se dicta. Una clase periódica no puede extenderse más de un mes.'}
+                  </Text>
+                </View>
                 <MobileMonthCalendar selected={customDates} onChange={setCustomDates} disablePast />
                 {errors.customDates && <Text className="text-xs text-red-600">{errors.customDates}</Text>}
                 <View>
@@ -521,22 +558,21 @@ export default function CreateClassScreen() {
               </View>
             )}
 
-            {/* Start date — obligatoria en entrenamiento, opcional en periódica */}
-            {recurrence !== 'custom' && (
+            {/* Start date — solo Entrenamiento con recurrencia semanal: la
+                periódica siempre es calendario y su inicio es la primera fecha. */}
+            {isEntrenamiento && recurrence !== 'custom' && (
               <View className="border border-gray-200 dark:border-dark-border rounded-xl p-3 gap-2 bg-white dark:bg-dark-surface">
-                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
-                  Fecha de inicio {isEntrenamiento ? '*' : '(opcional)'}
-                </Text>
+                <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha de inicio *</Text>
                 <MobileDateInput value={startDate} onChange={setStartDate} error={errors.startDate} />
                 <Text className="text-xs text-gray-400 dark:text-dark-text2/60">
-                  {isEntrenamiento
-                    ? 'Desde cuándo parte el entrenamiento. Se ajusta al día de la semana elegido.'
-                    : 'Si la dejas vacía, parte en la próxima ocurrencia del día elegido.'}
+                  Desde cuándo parte el entrenamiento. Se ajusta al día de la semana elegido.
                 </Text>
               </View>
             )}
 
-            {/* End date */}
+            {/* End date — solo Entrenamiento: en la periódica lo define la última
+                fecha marcada en el calendario. */}
+            {isEntrenamiento && (
             <View className="border border-gray-200 dark:border-dark-border rounded-xl p-3 gap-2 bg-white dark:bg-dark-surface">
               <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha de término *</Text>
               {!endsIndefinitely && (
@@ -563,14 +599,8 @@ export default function CreateClassScreen() {
                   )}
                 </TouchableOpacity>
               )}
-              {!isEntrenamiento && (
-                <View className="flex-row items-center gap-2 opacity-40">
-                  <View className="w-5 h-5 rounded border-2 border-gray-300 bg-white" />
-                  <Text className="text-sm text-gray-400 line-through">Indefinido</Text>
-                  <Text className="text-xs text-gray-400">(solo para Entrenamiento)</Text>
-                </View>
-              )}
             </View>
+            )}
 
             {/* Price suelta for periodica */}
             {classType === 'periodica' && (
@@ -629,7 +659,7 @@ export default function CreateClassScreen() {
                 </Text>
                 <TextInput
                   value={billingDay}
-                  onChangeText={(v) => setBillingDay(v.replace(/[^0-9]/g, ''))}
+                  onChangeText={(v: string) => setBillingDay(v.replace(/[^0-9]/g, ''))}
                   placeholder="1"
                   placeholderTextColor="#9CA3AF"
                   keyboardType="numeric"
@@ -640,6 +670,22 @@ export default function CreateClassScreen() {
             )}
           </View>
         )}
+
+        {/* Formas de pago aceptadas + preview del precio que verá el alumno */}
+        <PaymentMethodsField
+          acceptsMp={acceptsMp}
+          acceptsTransfer={acceptsTransfer}
+          onChangeMp={setAcceptsMp}
+          onChangeTransfer={setAcceptsTransfer}
+          mpConnected={mpConnected}
+          hasPaymentInfo={hasPaymentInfo}
+          price={Number(price)}
+          priceLabel={isPeriodic ? 'Precio mensual' : 'Precio de la clase'}
+          price2x={Number(price2x)}
+          priceSuelta={classType === 'periodica' ? Number(priceSuelta) : undefined}
+          priceSuelta2x={classType === 'periodica' ? Number(priceSuelta2x) : undefined}
+          error={errors.paymentMethods}
+        />
 
         {/* Política de pago (item 3) */}
         <View className="rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-surface2/40 p-3 gap-2">

@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import * as ImagePicker from 'expo-image-picker'
+import * as FileSystem from 'expo-file-system/legacy'
 import { supabase } from '../../../../lib/supabase'
 import { useTheme } from '../../../../context/ThemeContext'
-import { EVENT_TYPE_LABELS } from '@danceclass/shared'
+import {
+  EVENT_TYPE_LABELS, WEB_URL, detectReceiptType, RECEIPT_MAGIC_BYTES, parseLocalDate,
+} from '@danceclass/shared'
 import type { EventType } from '@danceclass/shared'
 import Avatar from '../../../../components/ui/Avatar'
 import LeafletMap from '../../../../components/ui/LeafletMap'
@@ -22,6 +26,9 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<any>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [myEnrollment, setMyEnrollment] = useState<any>(null)
+  const [myPayment, setMyPayment] = useState<any>(null)
+  const [creatorPaymentInfo, setCreatorPaymentInfo] = useState<any>(null)
+  const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [enrolling, setEnrolling] = useState(false)
 
@@ -47,10 +54,91 @@ export default function EventDetailScreen() {
 
       setEvent(ev)
       setMyEnrollment(enrollRes.data)
+
+      // Entradas pagadas: mobile no mostraba NI los datos de transferencia NI
+      // forma de subir el comprobante — el alumno se inscribía, leía "Estás
+      // inscrito" y no tenía cómo pagar. Paridad con la pantalla web.
+      if (ev?.has_entry && user) {
+        const [{ data: info }, { data: pay }] = await Promise.all([
+          (supabase as any)
+            .from('teacher_payment_info')
+            .select('bank, account_type, account_number, rut, account_holder')
+            .eq('user_id', ev.creator_id)
+            .maybeSingle(),
+          enrollRes.data
+            ? (supabase as any)
+                .from('event_payments')
+                .select('id, status, receipt_url, amount')
+                .eq('enrollment_id', enrollRes.data.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ])
+        setCreatorPaymentInfo(info)
+        setMyPayment(pay)
+      }
+
       setLoading(false)
     }
     if (id) load()
   }, [id])
+
+  async function handleUploadReceipt() {
+    if (!userId || !myEnrollment || !event) return
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    })
+    if (picked.canceled) return
+
+    setUploading(true)
+    try {
+      const base64 = await FileSystem.readAsStringAsync(picked.assets[0].uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      })
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+      const detected = detectReceiptType(bytes.slice(0, RECEIPT_MAGIC_BYTES))
+      if (!detected) {
+        Alert.alert('Formato no reconocido', 'Sube una imagen JPG, PNG o WEBP (una captura sirve).')
+        return
+      }
+
+      // Bucket privado `payment-receipts`, bajo la carpeta del propio usuario
+      // (lo exige la policy de INSERT, migración 007/041).
+      const path = `${userId}/event_${event.id}_${Date.now()}.${detected.ext}`
+      const { error: upErr } = await supabase.storage
+        .from('payment-receipts')
+        .upload(path, bytes, { contentType: detected.mime, upsert: true })
+      if (upErr) throw upErr
+
+      const { data: pay, error: payErr } = await (supabase as any)
+        .from('event_payments')
+        .insert({
+          enrollment_id: myEnrollment.id,
+          event_id: event.id,
+          user_id: userId,
+          amount: event.entry_price ?? 0,
+          receipt_url: path,
+          status: 'submitted',
+        })
+        .select('id, status, receipt_url, amount')
+        .single()
+      if (payErr) throw payErr
+
+      await (supabase as any)
+        .from('event_enrollments')
+        .update({ status: 'payment_submitted' })
+        .eq('id', myEnrollment.id)
+
+      setMyPayment(pay)
+      setMyEnrollment((prev: any) => ({ ...prev, status: 'payment_submitted' }))
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'No se pudo subir el comprobante')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function handleEnroll() {
     if (!userId) { Alert.alert('', 'Inicia sesión para inscribirte'); return }
@@ -74,7 +162,6 @@ export default function EventDetailScreen() {
   async function handleRespondInvite(status: 'accepted' | 'rejected') {
     if (!userId || !event) return
     try {
-      const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? ''
       const { data: { session } } = await supabase.auth.getSession()
       await fetch(`${WEB_URL}/api/event/respond-invite`, {
         method: 'POST',
@@ -117,8 +204,14 @@ export default function EventDetailScreen() {
   const acceptedInvites = (event.event_invites ?? []).filter((i: any) => i.status === 'accepted')
   const enrolledCount = (event.event_enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
   const isFull = event.has_spots && event.max_spots != null && enrolledCount >= event.max_spots
-  const isPast = new Date(event.event_date) < new Date(new Date().toDateString())
+  // Ver la nota en EventDetailClient (web): `new Date('YYYY-MM-DD')` es
+  // medianoche UTC y en Chile cae el día anterior → un evento de hoy se daba por
+  // pasado y no se podía reservar el mismo día.
+  const now = new Date()
+  const isPast = parseLocalDate(event.event_date) < new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const myInvite = userId ? (event.event_invites ?? []).find((i: any) => i.teacher?.id === userId || i.teacher_id === userId) : null
+  // Un comprobante rechazado queda 'void' y vuelve a habilitar la subida.
+  const activePayment = myPayment && myPayment.status !== 'void' ? myPayment : null
   const canEnroll = userId && !isCreator && !myEnrollment && !isFull && !isPast && event.status === 'active'
 
   return (
@@ -196,7 +289,7 @@ export default function EventDetailScreen() {
             onPress={() => router.push(`/(app)/teacher/${event.creator?.username}` as any)}
             className="flex-row items-center gap-3 bg-white dark:bg-dark-surface rounded-xl p-4 border border-gray-100 dark:border-dark-border"
           >
-            <Avatar url={event.creator?.avatar_url} name={event.creator?.full_name} size={40} />
+            <Avatar url={event.creator?.avatar_url} name={event.creator?.full_name} size="md" />
             <View className="flex-1">
               <Text className="text-xs text-gray-500 dark:text-dark-text2">Organizador</Text>
               <Text className="font-semibold text-gray-900 dark:text-dark-text">{event.creator?.full_name}</Text>
@@ -214,7 +307,7 @@ export default function EventDetailScreen() {
                   onPress={() => router.push(`/(app)/teacher/${invite.teacher?.username}` as any)}
                   className="flex-row items-center gap-3 bg-white dark:bg-dark-surface rounded-xl p-3 mb-2 border border-gray-100 dark:border-dark-border"
                 >
-                  <Avatar url={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size={36} />
+                  <Avatar url={invite.teacher?.avatar_url} name={invite.teacher?.full_name} size="sm" />
                   <View className="flex-1">
                     <Text className="text-sm font-medium text-gray-900 dark:text-dark-text">{invite.teacher?.full_name}</Text>
                     <Text className="text-xs text-gray-500 dark:text-dark-text2">@{invite.teacher?.username}</Text>
@@ -262,11 +355,53 @@ export default function EventDetailScreen() {
           )}
 
           {myEnrollment && myEnrollment.status !== 'cancelled' && (
-            <View className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
-              <Text className="text-emerald-700 dark:text-emerald-400 text-sm font-medium text-center">
-                {myEnrollment.status === 'confirmed' ? '✅ Tu inscripción está confirmada' : '✅ Estás inscrito. Te esperamos!'}
-              </Text>
-            </View>
+            event.has_entry && myEnrollment.status !== 'confirmed' ? (
+              // Con entrada pagada, "Estás inscrito. Te esperamos!" era falso:
+              // faltaba pagar y no había cómo hacerlo desde la app.
+              <View className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl p-4 gap-3">
+                <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text">Comprobante de pago</Text>
+                {activePayment ? (
+                  <Text className="text-sm text-amber-700 dark:text-amber-400">
+                    ⏳ Comprobante enviado. El organizador confirmará tu inscripción.
+                  </Text>
+                ) : (
+                  <>
+                    <Text className="text-sm text-gray-600 dark:text-dark-text2">
+                      Transfiere {formatCLP(event.entry_price ?? 0)} al organizador y adjunta el comprobante:
+                    </Text>
+                    {creatorPaymentInfo ? (
+                      <View className="bg-gray-50 dark:bg-dark-surface2 rounded-lg p-3 gap-0.5">
+                        <Text className="text-xs text-gray-700 dark:text-dark-text">Banco: {creatorPaymentInfo.bank}</Text>
+                        <Text className="text-xs text-gray-700 dark:text-dark-text">Tipo: {creatorPaymentInfo.account_type}</Text>
+                        <Text className="text-xs text-gray-700 dark:text-dark-text">N° cuenta: {creatorPaymentInfo.account_number}</Text>
+                        <Text className="text-xs text-gray-700 dark:text-dark-text">RUT: {creatorPaymentInfo.rut}</Text>
+                        <Text className="text-xs text-gray-700 dark:text-dark-text">Titular: {creatorPaymentInfo.account_holder}</Text>
+                      </View>
+                    ) : (
+                      <Text className="text-xs text-gray-500 dark:text-dark-text2">
+                        El organizador aún no cargó sus datos de transferencia.
+                      </Text>
+                    )}
+                    <TouchableOpacity
+                      onPress={handleUploadReceipt}
+                      disabled={uploading}
+                      className="rounded-xl border border-brand-300 dark:border-brand-700 py-2.5 items-center"
+                      style={{ opacity: uploading ? 0.5 : 1 }}
+                    >
+                      <Text className="text-sm font-semibold text-brand-700 dark:text-brand-300">
+                        {uploading ? 'Subiendo...' : 'Subir comprobante'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            ) : (
+              <View className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+                <Text className="text-emerald-700 dark:text-emerald-400 text-sm font-medium text-center">
+                  {myEnrollment.status === 'confirmed' ? '✅ Tu inscripción está confirmada' : '✅ Estás inscrito. Te esperamos!'}
+                </Text>
+              </View>
+            )
           )}
 
           <View className="h-8" />

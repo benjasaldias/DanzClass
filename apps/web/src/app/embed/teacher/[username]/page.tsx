@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { formatDate, formatTime, formatCLP } from '@/lib/utils'
-import { DAYS_OF_WEEK, LEVEL_LABELS } from '@danceclass/shared'
+import { DAYS_OF_WEEK, LEVEL_LABELS, WEB_URL } from '@danceclass/shared'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -44,7 +44,7 @@ export default async function EmbedTeacherPage({ params }: Props) {
     return true
   })
 
-  const appUrl = process.env.APP_URL ?? 'https://dc-project-web.vercel.app'
+  const appUrl = process.env.APP_URL ?? WEB_URL
 
   return (
     <div style={{ padding: '12px', maxWidth: '480px', margin: '0 auto' }}>

@@ -20,7 +20,13 @@ export function formatDate(date: string): string {
   return format(d, "d 'de' MMMM, yyyy", { locale: es })
 }
 
-export function formatTime(time: string): string {
+export function formatTime(time: string | null | undefined): string {
+  // Tolera la ausencia de hora en vez de lanzar: `recurring_time` es NULLABLE, y
+  // una sola fila sin hora hacía que `null.split(':')` tirara una excepción no
+  // capturada **durante el render de una tarjeta del feed**, o sea que tumbaba
+  // el feed entero —para todos— por culpa de una clase mal cargada. Lo destapó
+  // el smoke de S7 con datos sembrados por otras pruebas.
+  if (!time) return ''
   const [hours, minutes] = time.split(':')
   const h = parseInt(hours)
   const ampm = h >= 12 ? 'PM' : 'AM'
@@ -50,109 +56,13 @@ export function getInitials(name: string): string {
     .toUpperCase()
 }
 
-// Parse a YYYY-MM-DD string as local midnight (avoids UTC off-by-one).
-export function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
-
-export function toYMD(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-/**
- * Returns all session dates (YYYY-MM-DD) for a class within [fromDate, toDate].
- * Handles suelta, weekly, biweekly, monthly, and custom recurrences.
- */
-export function getClassSessions(classData: any, fromDate: Date, toDate: Date): string[] {
-  const results: string[] = []
-  const fromYMD = toYMD(fromDate)
-  const toYMD_ = toYMD(toDate)
-
-  if (classData.type === 'suelta') {
-    if (classData.date && classData.date >= fromYMD && classData.date <= toYMD_) {
-      results.push(classData.date)
-    }
-    return results
-  }
-
-  if (classData.recurrence === 'custom') {
-    for (const d of classData.custom_dates ?? []) {
-      if (d >= fromYMD && d <= toYMD_) results.push(d)
-    }
-    return results.sort()
-  }
-
-  // Periodic: weekly, biweekly, monthly
-  let start: Date
-  if (classData.start_date) {
-    start = parseLocalDate(classData.start_date)
-  } else if (classData.day_of_week != null) {
-    // Fallback "ancla virtual": deriva el inicio desde el día de la semana cuando start_date no existe.
-    // Para biweekly esto puede mostrar la semana equivocada (fase desconocida).
-    // Toda clase nueva debería persistir start_date (migración 024). Si vemos este path, hay registros legacy.
-    if (typeof console !== 'undefined' && classData.recurrence === 'biweekly') {
-      console.warn('[getClassSessions] virtual anchor fallback used for class', classData.id, 'recurrence=biweekly — biweekly phase may be wrong')
-    }
-    const targetDay = classData.day_of_week as number
-    start = new Date(fromDate)
-    const dayDiff = (start.getDay() - targetDay + 7) % 7
-    start.setDate(start.getDate() - dayDiff)
-  } else {
-    return results
-  }
-
-  // Determine effective end
-  let endDate: Date
-  if (classData.ends_indefinitely) {
-    // Cap at fromDate + 3 months for safety
-    const cap = new Date(fromDate)
-    cap.setMonth(cap.getMonth() + 3)
-    endDate = cap < toDate ? cap : toDate
-  } else if (classData.ends_at) {
-    endDate = parseLocalDate(classData.ends_at)
-    if (endDate > toDate) endDate = toDate
-  } else {
-    endDate = toDate
-  }
-
-  if (classData.recurrence === 'weekly' || classData.recurrence === 'biweekly') {
-    const step = classData.recurrence === 'biweekly' ? 14 : 7
-    const cur = new Date(start)
-    // Advance to fromDate if start is before window
-    while (cur < fromDate) cur.setDate(cur.getDate() + step)
-    while (cur <= endDate) {
-      const ymd = toYMD(cur)
-      if (ymd >= fromYMD) results.push(ymd)
-      cur.setDate(cur.getDate() + step)
-    }
-    return results
-  }
-
-  if (classData.recurrence === 'monthly') {
-    const dayOfMonth = start.getDate()
-    // Track year/month as integers to avoid setMonth overflow when day > 28
-    let year = start.getFullYear()
-    let month = start.getMonth()
-    // Advance to a month on or after fromDate
-    const fromYM = fromDate.getFullYear() * 12 + fromDate.getMonth()
-    while (year * 12 + month < fromYM) {
-      month++; if (month > 11) { month = 0; year++ }
-    }
-    let safety = 0
-    while (safety++ < 120) {
-      const lastDay = new Date(year, month + 1, 0).getDate()
-      const actualDay = Math.min(dayOfMonth, lastDay)
-      const session = new Date(year, month, actualDay)
-      if (session > endDate) break
-      if (session >= fromDate) results.push(toYMD(session))
-      month++; if (month > 11) { month = 0; year++ }
-    }
-    return results
-  }
-
-  return results
-}
+// El motor de fechas de una clase vive en `packages/shared` (D-5): antes existía
+// una copia acá y otra en `apps/mobile/lib/utils.ts`, y ya habían divergido.
+// Se re-exportan para no romper los imports existentes desde `@/lib/utils`.
+export {
+  parseLocalDate,
+  toYMD,
+  getClassSessions,
+  lastSessionEnd,
+  getClassDeletionDate,
+} from '@danceclass/shared'

@@ -197,12 +197,18 @@ test.describe.serial('QR de asistencia — seguridad y bordes', () => {
     // aquí sobre el constraint UNIQUE(qr_token_id, session_date) que la respalda:
     // se driva HOY por el endpoint y se agregan fechas pasadas con las MISMAS
     // columnas que escribe el endpoint.
-    const jsWeekday = new Date().getDay()
+    // Desde la migración 067 una periódica solo puede ser 'custom' (CHECK
+    // classes_periodica_custom_only): se siembra con hoy + una fecha futura
+    // para que la clase esté vigente al momento del escaneo.
+    const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const todayYMD = ymd(new Date())
+    const nextWeekYMD = ymd(new Date(Date.now() + 7 * 86400000))
     const classId = await seedClass(teacher.id, {
       title: '[TEST-QR] Periodica pack',
-      type: 'periodica', recurrence: 'weekly', day_of_week: jsWeekday,
+      type: 'periodica', recurrence: 'custom',
+      custom_dates: [todayYMD, nextWeekYMD], day_of_week: null,
       date: null, time: null, recurring_time: '19:00',
-      start_date: '2020-01-01', ends_indefinitely: true,
+      start_date: todayYMD, ends_at: nextWeekYMD, ends_indefinitely: false,
     })
     const { qr } = await emitConfirmedToken(request, classId, student.id)
 

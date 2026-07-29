@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/supabase/require-user'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 // POST /api/chat/get-or-create
 // Body for class chat: { type: 'class', class_id: string }
@@ -8,6 +9,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export async function POST(request: Request) {
   const auth = await requireUser(request)
   if ('error' in auth) return auth.error
+
+  const rlHit = await checkRateLimit(`chat:${auth.user.id}`, 'social')
+  if (rlHit) return rlHit
 
   const admin = createAdminClient()
   const body = await request.json()
@@ -45,6 +49,20 @@ export async function POST(request: Request) {
     if (isTeacher) {
       const { student_id } = body as { student_id?: string }
       if (!student_id) return NextResponse.json({ error: 'teacher_must_provide_student_id' }, { status: 400 })
+      // El `student_id` venía del cliente sin verificar: un profesor podía abrir
+      // un chat con CUALQUIER usuario de la plataforma (los ids son enumerables
+      // desde Explorar) y quedar como participante para escribirle. El chat de
+      // clase existe sólo entre el profesor y alguien inscrito en esa clase.
+      const { data: studentEnrollment } = await (admin as any)
+        .from('enrollments')
+        .select('id')
+        .eq('class_id', class_id)
+        .eq('student_id', student_id)
+        .neq('status', 'cancelled')
+        .maybeSingle()
+      if (!studentEnrollment) {
+        return NextResponse.json({ error: 'student_not_enrolled' }, { status: 403 })
+      }
       studentId = student_id
     }
 

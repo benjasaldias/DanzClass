@@ -6,6 +6,7 @@ import AdminStatsClient from '@/components/admin/AdminStatsClient'
 import AdminSettingsClient from '@/components/admin/AdminSettingsClient'
 import AdminReconciliationClient, { type ReconciliationData } from '@/components/admin/AdminReconciliationClient'
 import { Flag, BarChart2, Settings, Wallet } from 'lucide-react'
+import { grossUpForMp } from '@danceclass/shared'
 
 export default async function AdminPage({
   searchParams,
@@ -100,13 +101,20 @@ export default async function AdminPage({
   // ── Reconciliation tab data (pagos in-app MP con split confirmados) ──────────
   const { data: mpPayments } = await (admin as any)
     .from('payments')
-    .select('amount, commission_amount, confirmed_at, verified_at, recipient_teacher_id')
+    .select('amount, commission_amount, mp_fee_amount, confirmed_at, verified_at, recipient_teacher_id')
     .eq('payment_method', 'mp')
     .eq('status', 'verified')
 
   const mpRows = (mpPayments ?? []) as any[]
   let totalCommission = 0
   let totalBase = 0
+  // D-2: al alumno se le cobra el tramo MÁS CARO de Mercado Pago
+  // (disponibilidad inmediata) porque la API no expone el plazo de liberación
+  // de cada cuenta. Si el profesor libera a 10/30 días, MP cobra menos y la
+  // diferencia queda en DanzClass. Acá se hace visible: cobrado vs. real.
+  let totalFeeCharged = 0
+  let totalFeeReal = 0
+  let feeKnownCount = 0
   const monthMap = new Map<string, { commission: number; base: number; count: number }>()
   const teacherMap = new Map<string, { base: number; commission: number; count: number }>()
 
@@ -115,6 +123,14 @@ export default async function AdminPage({
     const base = p.amount ?? 0
     totalCommission += commission
     totalBase += base
+
+    // El total cobrado no se persiste (payments guarda el reparto), se
+    // reconstruye con la misma función que lo cobró — igual que hace el webhook.
+    if (p.mp_fee_amount != null) {
+      totalFeeCharged += grossUpForMp(base + commission) - base - commission
+      totalFeeReal += p.mp_fee_amount
+      feeKnownCount++
+    }
 
     const when: string | null = p.confirmed_at ?? p.verified_at
     const monthKey = when ? String(when).slice(0, 7) : 'sin fecha'
@@ -142,6 +158,9 @@ export default async function AdminPage({
     totalBase,
     totalGross: totalCommission + totalBase,
     count: mpRows.length,
+    totalFeeCharged,
+    totalFeeReal,
+    feeKnownCount,
     byMonth: [...monthMap.entries()]
       .map(([month, v]) => ({ month, ...v }))
       .sort((a, b) => (a.month < b.month ? 1 : -1)),

@@ -152,6 +152,8 @@ export default function ClassDetailClient({
       } else if (json.error === 'no_spots') {
         setEnrollError('Esta clase se acaba de llenar. Intenta en otra fecha.')
         setSpots((prev: any) => prev ? { ...prev, spots_available: 0 } : prev)
+      } else if (json.error === 'no_payment_method') {
+        setEnrollError('El profesor aún no habilitó una forma de pago para esta clase.')
       } else if (json.error === 'already_enrolled') {
         // Ya tienes una inscripción activa: si falta pagar, ve al pago; si ya
         // estaba confirmada, refresca el estado (P1-4 — antes no pasaba nada).
@@ -284,7 +286,18 @@ export default function ClassDetailClient({
 
   // Training with audition: enrollment is auto-created on accept — never show "Reservar cupo"
   const canEnrollDirectly = !isEntrenamiento || !classData.requires_audition
+  // `canEnroll` ya NO gatea la inscripción a la clase (abierta a todos desde el
+  // marketplace): solo paquetes y 2x, que siguen reservados a alumnos con plan.
   const canUserEnroll = canEnroll(userTier)
+
+  // Vías de pago habilitadas por el profesor para esta clase (marketplace v2).
+  // `!== false` cubre las clases anteriores a la migración 061.
+  const acceptsMp = (classData as any).accepts_mp !== false && !!(teacher as any)?.mp_connected
+  const acceptsTransfer = (classData as any).accepts_transfer !== false
+  // El CHECK de la migración 061 garantiza al menos una vía marcada, pero MP
+  // depende además de que el profesor tenga la cuenta conectada: en runtime sí
+  // puede quedar una clase sin ninguna forma de pago viable.
+  const noPaymentMethod = !acceptsMp && !acceptsTransfer
 
   const shareButtonClasses = "flex items-center gap-1.5 rounded-xl border border-gray-200 dark:border-dark-border px-3 py-1.5 text-xs font-medium transition-colors"
   const shareButtonActiveClasses = copied
@@ -694,6 +707,11 @@ export default function ClassDetailClient({
                   )}
                 </p>
               )}
+              {(acceptsMp || acceptsTransfer) && (
+                <p className="text-[11px] text-gray-400 dark:text-dark-text2/60 mt-0.5">
+                  Pago: {[acceptsMp && 'Mercado Pago', acceptsTransfer && 'transferencia'].filter(Boolean).join(' · ')}
+                </p>
+              )}
             </div>
 
             {/* Waitlist flow when class is full */}
@@ -736,6 +754,10 @@ export default function ClassDetailClient({
               <Link href="/auth/login" className="btn-primary px-5 py-3 text-sm font-semibold flex-shrink-0">
                 Inicia sesión para reservar
               </Link>
+            ) : noPaymentMethod ? (
+              <p className="max-w-[55%] text-right text-xs text-coral-fuego font-medium">
+                El profesor aún no habilitó una forma de pago para esta clase.
+              </p>
             ) : (
               // Inscripción abierta a todos (marketplace): sin plan también reserva
               // y luego paga in-app por Mercado Pago con comisión en la pantalla de pago.

@@ -3,6 +3,7 @@ import { MercadoPagoConfig, PreApproval } from 'mercadopago'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 const PLAN_CONFIG: Record<string, { name: string; price: number }> = {
   basic: { name: 'DanzClass Básico', price: 1500 },
@@ -29,6 +30,9 @@ export async function POST(request: Request) {
     user = data.user
   }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rlHit = await checkRateLimit(`enroll:${user.id}`, 'enroll')
+  if (rlHit) return rlHit
 
   const body = await request.json()
   const plan = body.plan as string

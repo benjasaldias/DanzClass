@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, Clock, ChevronDown, Moon, Chec
 import { supabase } from '../../../lib/supabase'
 import { getClassSessions, toYMD, formatTime } from '../../../lib/utils'
 import { useTheme } from '../../../context/ThemeContext'
-import { canTeach, isSleepHour } from '@danceclass/shared'
+import { canTeach, isSleepHour, getActiveTier } from '@danceclass/shared'
 import TopBar from '../../../components/ui/TopBar'
 
 const MONTHS_ES = [
@@ -81,8 +81,8 @@ export default function AgendaScreen() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [{ data: tier }, { data: enrollments }, { data: teaching }, { data: rehearsalData }] = await Promise.all([
-      (supabase as any).from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').maybeSingle(),
+    const [currentTier, { data: enrollments }, { data: teaching }, { data: rehearsalData }] = await Promise.all([
+      getActiveTier(user.id, supabase),
       (supabase as any)
         .from('enrollments')
         .select(`
@@ -110,7 +110,6 @@ export default function AgendaScreen() {
         .eq('status', 'active'),
     ])
 
-    const currentTier = tier?.tier ?? 'none'
     const enrolled = (enrollments ?? []).map((e: any) => e.class).filter(Boolean)
     const teach = canTeach(currentTier) ? (teaching ?? []) : []
     const teachIds = new Set(teach.map((c: any) => c.id))

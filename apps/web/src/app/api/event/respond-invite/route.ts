@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireUser } from '@/lib/supabase/require-user'
+import { notifyUsers } from '@/lib/notifyUsers'
 
 // POST /api/event/respond-invite
 // body: { event_id: string, status: 'accepted' | 'rejected' }
@@ -47,11 +48,11 @@ export async function POST(request: NextRequest) {
   if (event?.creator_id && event.creator_id !== authed.user.id) {
     const notifType = status === 'accepted' ? 'event_invite_accepted' : 'event_invite_rejected'
     try {
-      await admin.from('notifications').insert({
+      await notifyUsers(admin, [{
         user_id: event.creator_id,
         type: notifType,
         data: { event_id, teacher_id: authed.user.id },
-      } as any)
+      }])
     } catch { /* best-effort */ }
   }
 

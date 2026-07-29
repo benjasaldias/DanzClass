@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { autoConfirmPayment } from '@/lib/payments'
+import { autoConfirmPayment, reverseClassPayment } from '@/lib/payments'
+import { getTeacherMpToken } from '@/lib/mercadopago/token'
 import { rewardReferralIfNeeded } from '@/lib/referral'
 import { reconcilePlanContent } from '@/lib/planContent'
 import { logger } from '@/lib/logger'
-import type { SubscriptionTier } from '@danceclass/shared'
+import { grossUpForMp, type SubscriptionTier } from '@danceclass/shared'
 
 function verifySignature(request: Request): { ok: boolean; reason?: string } {
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET
@@ -83,28 +84,79 @@ async function activateSubscription(
   }
 }
 
+// Estados de MP que significan "el dinero volvió al alumno". `cancelled` no
+// entra: un pago cancelado nunca llegó a aprobarse, así que no hay nada que
+// revertir (queda cubierto por la rama de "no aprobado").
+const REVERSAL_STATUSES = new Set(['refunded', 'charged_back'])
+
+/**
+ * Costo REAL de procesamiento que Mercado Pago cobró por este pago (D-2).
+ *
+ * Al alumno se le cobra el tramo más caro de MP (disponibilidad inmediata),
+ * porque la API no expone el plazo de liberación de cada cuenta. Si el profesor
+ * tiene liberación a 10/30 días, MP cobra menos y la diferencia queda en
+ * DanzClass. Persistir el costo real es lo que convierte ese excedente en algo
+ * contabilizable en /admin en vez de un margen invisible.
+ *
+ * `application_fee` se excluye: ésa es la comisión de DanzClass (el
+ * `marketplace_fee` del split), no un costo de la pasarela.
+ */
+function mpProcessingFee(payment: any): number | null {
+  const details = payment?.fee_details
+  if (!Array.isArray(details)) return null
+  const total = details
+    .filter((f: any) => f?.type !== 'application_fee')
+    .reduce((acc: number, f: any) => acc + (Number(f?.amount) || 0), 0)
+  return Math.round(total)
+}
+
 // Confirma (o actualiza el estado de) un pago de clase in-app por Mercado Pago.
-// external_reference = 'enrollment:<enrollmentId>'. Idempotente ante reenvíos.
+// external_reference = 'payment:<paymentId>' | 'enrollment:<enrollmentId>'.
+// Idempotente ante reenvíos.
 async function confirmClassPayment(
   supabase: ReturnType<typeof createAdminClient>,
   payment: any,
   ref: string
 ): Promise<void> {
-  const enrollmentId = ref.split(':')[1]
-  if (!enrollmentId) return
+  // Dos formatos de referencia:
+  //   * `payment:<paymentId>`   — cargo mensual de entrenamiento (migración 068),
+  //     que apunta a la fila exacta porque una inscripción puede tener varios pagos.
+  //   * `enrollment:<enrollmentId>` — pago único. Se conserva el formato viejo
+  //     porque puede haber preferencias creadas antes del despliegue todavía en
+  //     vuelo; para esas, el pago buscado es el que NO tiene período.
+  const [kind, refId] = ref.split(':')
+  if (!refId) return
 
   const mpPaymentId = String(payment.id)
   const mpStatus = String(payment.status)
 
-  // El pago se registró como 'pending' en create-payment (UNIQUE por enrollment).
-  const { data: payRow } = await (supabase as any)
+  const payQuery = (supabase as any)
     .from('payments')
-    .select('id, status, mp_payment_id, amount, commission_amount')
-    .eq('enrollment_id', enrollmentId)
-    .maybeSingle()
+    .select('id, status, mp_payment_id, amount, commission_amount, payment_method, enrollment_id, billing_period')
+
+  const { data: payRow } =
+    kind === 'payment'
+      ? await payQuery.eq('id', refId).maybeSingle()
+      : await payQuery.eq('enrollment_id', refId).is('billing_period', null).maybeSingle()
 
   if (!payRow) {
-    logger.warn('webhook:class_payment_no_row', { enrollment_id: enrollmentId })
+    logger.warn('webhook:class_payment_no_row', { ref })
+    return
+  }
+
+  const enrollmentId: string = payRow.enrollment_id
+
+  // ── Reembolso / contracargo (P2-6) ─────────────────────────────────────────
+  if (REVERSAL_STATUSES.has(mpStatus)) {
+    if (payRow.status === 'refunded') {
+      logger.info('webhook:class_payment_already_reversed', { enrollment_id: enrollmentId })
+      return
+    }
+    await reverseClassPayment(supabase, payRow, {
+      paymentId: mpPaymentId,
+      status: mpStatus,
+      feeAmount: mpProcessingFee(payment),
+    })
     return
   }
 
@@ -122,10 +174,16 @@ async function confirmClassPayment(
   }
 
   // P1-3: defensa en profundidad — verificar que el monto aprobado por MP
-  // coincida con lo esperado (base + comisión). El monto lo fija create-payment
-  // server-side, así que un desajuste indica manipulación o inconsistencia:
-  // no auto-confirmamos, dejamos la fila para revisión manual del profesor.
-  const expectedTotal = Math.round((payRow.amount ?? 0) + (payRow.commission_amount ?? 0))
+  // coincida con lo esperado. El monto lo fija create-payment server-side, así
+  // que un desajuste indica manipulación o inconsistencia: no auto-confirmamos,
+  // dejamos la fila para revisión manual del profesor.
+  //
+  // `payments` guarda el reparto (amount = precio del profesor,
+  // commission_amount = comisión DanzClass), NO el total cobrado: el gross-up
+  // que cubre la comisión de MP no se persiste. Por eso hay que reconstruirlo
+  // con el mismo cálculo que usó create-payment (misma función, mismo redondeo).
+  const net = Math.round((payRow.amount ?? 0) + (payRow.commission_amount ?? 0))
+  const expectedTotal = grossUpForMp(net)
   const paidAmount = Math.round(Number(payment.transaction_amount ?? 0))
   if (expectedTotal > 0 && paidAmount !== expectedTotal) {
     logger.error('webhook:class_payment_amount_mismatch', `paid ${paidAmount} != expected ${expectedTotal}`, {
@@ -151,6 +209,18 @@ async function confirmClassPayment(
     return
   }
 
+  // Un reembolso PARCIAL deja el pago en 'approved' con
+  // `transaction_amount_refunded > 0`: no se revierte solo (no sabemos si el
+  // alumno conserva el derecho a la clase), pero tiene que quedar visible.
+  const refunded = Number(payment.transaction_amount_refunded ?? 0)
+  if (refunded > 0) {
+    logger.warn('webhook:class_payment_partially_refunded', {
+      enrollment_id: enrollmentId,
+      mp_payment_id: mpPaymentId,
+      refunded,
+    })
+  }
+
   // Escritura + notificación compartida (mismo camino que confirm/scan), con
   // confirmed_by=null (es pago MP) + mp_payment_id/mp_status.
   await autoConfirmPayment({
@@ -160,7 +230,7 @@ async function confirmClassPayment(
     classId: enr.class_id,
     classTitle: enr.class?.title ?? 'tu clase',
     confirmedBy: null,
-    mp: { paymentId: mpPaymentId, status: mpStatus },
+    mp: { paymentId: mpPaymentId, status: mpStatus, feeAmount: mpProcessingFee(payment) },
   })
 
   logger.info('webhook:class_payment_confirmed', { enrollment_id: enrollmentId, mp_payment_id: mpPaymentId })
@@ -205,16 +275,14 @@ export async function POST(request: Request) {
   if (eventType === 'payment') {
     const sellerId = url.searchParams.get('seller')
 
-    // Elegir el token correcto para leer el pago.
+    // Elegir el token correcto para leer el pago (refrescándolo si está por
+    // vencer — P1-1: sin esto, a los 180 días el webhook dejaba de poder leer
+    // los pagos de ese profesor y ninguna inscripción suya volvía a confirmarse).
     let paymentMp = mp
     if (sellerId) {
-      const { data: conn } = await (supabase as any)
-        .from('teacher_mp_connections')
-        .select('access_token')
-        .eq('teacher_id', sellerId)
-        .maybeSingle()
-      if (conn?.access_token) {
-        paymentMp = new MercadoPagoConfig({ accessToken: conn.access_token })
+      const sellerToken = await getTeacherMpToken(supabase, sellerId)
+      if (sellerToken) {
+        paymentMp = new MercadoPagoConfig({ accessToken: sellerToken })
       } else {
         logger.warn('webhook:seller_not_connected', { seller: sellerId })
       }
@@ -233,7 +301,9 @@ export async function POST(request: Request) {
     logger.info('webhook:payment', { status: payment.status, ref, seller: sellerId })
 
     // ── Pago de clase (marketplace) ──
-    if (ref.startsWith('enrollment:')) {
+    // 'payment:<id>' = cargo mensual de entrenamiento; 'enrollment:<id>' = pago
+    // único (y las preferencias viejas todavía en vuelo).
+    if (ref.startsWith('enrollment:') || ref.startsWith('payment:')) {
       await confirmClassPayment(supabase, payment, ref)
       return NextResponse.json({ ok: true })
     }

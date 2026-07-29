@@ -51,11 +51,27 @@ export function verifyAttendanceToken(params: {
 // Emite (o reactiva/rota) el token QR de una inscripción confirmada.
 // Idempotente por UNIQUE(enrollment_id): en re-inscripción rota nonce+token,
 // pone status='active' y limpia revoked_at. Best-effort: nunca lanza.
+//
+// Un token ACTIVO no se rota: desde el cobro mensual de entrenamientos
+// (migración 068) esta función se llama una vez por mes pagado, y rotar en cada
+// pago invalidaría el QR que el alumno ya tiene guardado como captura de
+// pantalla — cada mes tendría que volver a abrir la app antes de entrar a
+// clase. La rotación se conserva donde importa: si el token está revocado (el
+// alumno se salió y volvió), se emite uno nuevo y la captura vieja deja de
+// servir, que es exactamente la garantía que da la revocación.
 export async function issueAttendanceToken(
   admin: AdminClient,
   params: { enrollmentId: string; studentId: string; classId: string }
 ): Promise<void> {
   try {
+    const { data: current } = await (admin as any)
+      .from('qr_tokens')
+      .select('id, status')
+      .eq('enrollment_id', params.enrollmentId)
+      .maybeSingle()
+
+    if (current?.status === 'active') return
+
     const nonce = randomBytes(16).toString('hex')
     const token = computeToken(params.enrollmentId, params.studentId, nonce)
 

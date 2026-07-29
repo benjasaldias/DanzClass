@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { notifyUsers } from '@/lib/notifyUsers'
 
 export async function POST(req: NextRequest) {
   let user: any = null
@@ -83,13 +84,11 @@ export async function POST(req: NextRequest) {
       .eq('following_id', user.id)
 
     if (followers && followers.length > 0) {
-      await admin.from('notifications').insert(
-        followers.map((f: any) => ({
-          user_id: f.follower_id,
-          type: 'class_discount',
-          data: notifData,
-        }))
-      )
+      await notifyUsers(admin, followers.map((f: any) => ({
+        user_id: f.follower_id,
+        type: 'class_discount' as const,
+        data: notifData,
+      })))
     }
 
     // Optionally notify enrolled students with pending payment
@@ -105,13 +104,11 @@ export async function POST(req: NextRequest) {
         const followerIds = new Set((followers ?? []).map((f: any) => f.follower_id))
         const toNotify = pendingEnrollments.filter((e: any) => !followerIds.has(e.student_id))
         if (toNotify.length > 0) {
-          await admin.from('notifications').insert(
-            toNotify.map((e: any) => ({
-              user_id: e.student_id,
-              type: 'class_discount',
-              data: notifData,
-            }))
-          )
+          await notifyUsers(admin, toNotify.map((e: any) => ({
+            user_id: e.student_id,
+            type: 'class_discount' as const,
+            data: notifData,
+          })))
         }
       }
     }

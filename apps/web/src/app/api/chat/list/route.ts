@@ -9,6 +9,12 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient()
 
+  // `participants` y `last_read_at` NO son opcionales para el consumidor de esta
+  // ruta (la lista de chats de mobile): sin el primero, un chat 1:1 se pinta con
+  // un ícono genérico y el título de la clase en vez del nombre y la foto de la
+  // otra persona; sin el segundo, `hasUnread` cae al fallback `!!lastMsg` y el
+  // punto de "no leído" queda encendido para siempre. La página web equivalente
+  // (`/chats`) ya traía ambos: era una divergencia web↔mobile, no un diseño.
   const { data: participations } = await (admin as any)
     .from('chat_participants')
     .select(`
@@ -16,12 +22,15 @@ export async function GET(request: Request) {
       chat:chats(
         id, type, class_id, rehearsal_id, student_id, created_at,
         class:classes(id, title, teacher_id, teacher:profiles!teacher_id(full_name, username, avatar_url)),
-        rehearsal:rehearsals(id, title, creator_id)
+        rehearsal:rehearsals(id, title, creator_id),
+        participants:chat_participants(user_id, user:profiles!user_id(id, full_name, username, avatar_url))
       )
     `)
     .eq('user_id', auth.user.id)
 
-  const chats = ((participations ?? []) as any[]).map((p: any) => p.chat).filter(Boolean)
+  const chats = ((participations ?? []) as any[])
+    .filter((p: any) => p.chat)
+    .map((p: any) => ({ ...p.chat, last_read_at: p.last_read_at }))
 
   // Fetch last message for each chat
   const chatIds = chats.map((c: any) => c.id)

@@ -1,6 +1,5 @@
 import { supabase } from './supabase'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 
 type NotifPayload = { user_id: string; type: string; data: Record<string, any> }
 

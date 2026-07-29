@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireUser } from '@/lib/supabase/require-user'
-import { sendPushToUsers } from '@/lib/push'
+import { notifyUsers } from '@/lib/notifyUsers'
 import { checkRateLimit } from '@/lib/rateLimit'
 
 // Tipos que un usuario autenticado puede enviar a otros usuarios (acciones sociales).
@@ -24,25 +24,6 @@ const SENDER_INITIATED_TYPES = new Set([
 ])
 
 type NotifInput = { user_id: string; type: string; data: Record<string, any> }
-
-// Human-readable push notification labels per type
-const PUSH_LABELS: Record<string, { title: string; body: string | ((data: any) => string) }> = {
-  follow: { title: 'Nuevo seguidor', body: (d) => `@${d.from_username ?? 'Alguien'} empezó a seguirte` },
-  friend_request: { title: 'Solicitud de amistad', body: (d) => `@${d.from_username ?? 'Alguien'} quiere ser tu amigo/a` },
-  friend_accepted: { title: 'Solicitud aceptada', body: (d) => `@${d.from_username ?? 'Alguien'} aceptó tu solicitud de amistad` },
-  new_class: { title: 'Nueva clase', body: (d) => `${d.teacher_name ?? 'Un profe'} publicó una nueva clase` },
-  class_updated: { title: 'Clase actualizada', body: (d) => `La clase "${d.class_title ?? ''}" fue actualizada` },
-  class_cancelled: { title: 'Clase cancelada', body: (d) => `La clase "${d.class_title ?? ''}" fue cancelada` },
-  class_discount: { title: 'Descuento activo 🔥', body: (d) => `¡Descuento en la clase "${d.class_title ?? ''}"!` },
-  payment_confirmed: { title: 'Pago confirmado ✅', body: (d) => `Tu pago para "${d.class_title ?? 'una clase'}" fue confirmado` },
-  payment_rejected: { title: 'Pago rechazado', body: (d) => `Tu pago para "${d.class_title ?? 'una clase'}" fue rechazado` },
-  audition_accepted: { title: 'Audición aceptada ✅', body: (d) => `¡Fuiste aceptad@ en "${d.class_title ?? 'el entrenamiento'}"!` },
-  audition_rejected: { title: 'Audición rechazada', body: (d) => `Tu postulación a "${d.class_title ?? 'el entrenamiento'}" no fue seleccionada` },
-  new_audition: { title: 'Nueva postulación', body: (d) => `Alguien postuló a tu entrenamiento "${d.class_title ?? ''}"` },
-  event_invite: { title: 'Invitación a evento 🏆', body: (d) => `Te invitaron a participar en "${d.event_title ?? 'un evento'}"` },
-  event_invite_accepted: { title: 'Invitación aceptada', body: 'Un profe aceptó tu invitación al evento' },
-  event_invite_rejected: { title: 'Invitación declinada', body: 'Un profe declinó tu invitación al evento' },
-}
 
 export async function POST(request: NextRequest) {
   const authed = await requireUser(request)
@@ -151,20 +132,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const rows = rawNotifs.map((n) => ({ user_id: n.user_id, type: n.type, data: n.data ?? {} }))
-  const { error } = await admin.from('notifications').insert(rows as any)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // Fire push notifications (best-effort, non-blocking)
-  const userIds = rows.map((r) => r.user_id)
-  const pushLabel = PUSH_LABELS[type]
-  if (pushLabel) {
-    sendPushToUsers(userIds, {
-      title: pushLabel.title,
-      body: typeof pushLabel.body === 'function' ? pushLabel.body(rawNotifs[0].data ?? {}) : pushLabel.body,
-      data: { type, ...(rawNotifs[0].data ?? {}) },
-    }).catch(() => {})
-  }
+  const rows = rawNotifs.map((n) => ({ user_id: n.user_id, type: n.type as any, data: n.data ?? {} }))
+  const { error } = await notifyUsers(admin, rows)
+  if (error) return NextResponse.json({ error }, { status: 500 })
 
   return NextResponse.json({ ok: true, count: rows.length })
 }

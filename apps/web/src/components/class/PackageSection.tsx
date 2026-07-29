@@ -4,6 +4,9 @@ import { useState, useRef } from 'react'
 import { Package, ChevronDown, ChevronUp, CheckCircle2, Clock, Upload, X } from 'lucide-react'
 import { cn, formatCLP } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import {
+  detectReceiptType, RECEIPT_ALLOWED_MIME, RECEIPT_MAGIC_BYTES, type ReceiptFileType,
+} from '@danceclass/shared'
 
 type PackageSectionProps = {
   classPackages: any[]
@@ -39,6 +42,7 @@ function PackageCard({ pkg, myEnrollment, currentUserId, canEnrollUser }: {
   const [enrolled, setEnrolled] = useState<any>(myEnrollment)
   const [uploading, setUploading] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [fileType, setFileType] = useState<ReceiptFileType | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleEnroll() {
@@ -60,25 +64,33 @@ function PackageCard({ pkg, myEnrollment, currentUserId, canEnrollUser }: {
     const selected = e.target.files?.[0]
     if (!selected) return
 
-    // Validate magic bytes
-    const buffer = await selected.slice(0, 4).arrayBuffer()
-    const bytes = Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, '0')).join('')
-    const valid = bytes.startsWith('ffd8') || bytes.startsWith('89504e47') || bytes.startsWith('25504446') || bytes.startsWith('52494646')
-    if (!valid || !['image/jpeg', 'image/png', 'application/pdf', 'image/webp'].includes(selected.type)) {
+    // Tipo por contenido (magic bytes), no por nombre — ver D-4 y
+    // packages/shared/src/lib/receipts.ts.
+    const buffer = await selected.slice(0, RECEIPT_MAGIC_BYTES).arrayBuffer()
+    const detected = detectReceiptType(new Uint8Array(buffer))
+    if (!detected || !RECEIPT_ALLOWED_MIME.includes(selected.type)) {
       alert('Solo se aceptan imágenes (JPG, PNG, WEBP) o PDF.')
       return
     }
     setFile(selected)
+    setFileType(detected)
   }
 
   async function handleSubmitPayment() {
-    if (!file || !enrolled || uploading) return
+    if (!file || !fileType || !enrolled || !currentUserId || uploading) return
     setUploading(true)
     const supabase = createClient()
 
-    const ext = file.name.split('.').pop()
-    const path = `pkg_${enrolled.id}_${Date.now()}.${ext}`
-    const { error: uploadErr } = await supabase.storage.from('payment-receipts').upload(path, file, { upsert: true })
+    // El path DEBE empezar por la carpeta del propio usuario: la policy de
+    // INSERT del bucket exige `(storage.foldername(name))[1] = auth.uid()`
+    // (migración 007). Sin ese prefijo —como estaba— `foldername` devuelve un
+    // array vacío, la comparación da NULL y **toda subida de comprobante de
+    // paquete era rechazada por RLS**: la vía de pago de los paquetes no
+    // funcionaba. La extensión sale del tipo validado (D-4).
+    const path = `${currentUserId}/pkg_${enrolled.id}_${Date.now()}.${fileType.ext}`
+    const { error: uploadErr } = await supabase.storage
+      .from('payment-receipts')
+      .upload(path, file, { upsert: true, contentType: fileType.mime })
     if (uploadErr) {
       alert('Error al subir comprobante.')
       setUploading(false)

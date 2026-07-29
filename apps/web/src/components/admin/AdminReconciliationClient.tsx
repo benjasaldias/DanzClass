@@ -8,6 +8,12 @@ export interface ReconciliationData {
   totalBase: number
   totalGross: number
   count: number
+  /** Costo de procesamiento COBRADO al alumno (tramo estimado, con gross-up). */
+  totalFeeCharged: number
+  /** Costo de procesamiento que Mercado Pago cobró de verdad. */
+  totalFeeReal: number
+  /** Pagos con costo real conocido (los anteriores a la migración 070 no lo tienen). */
+  feeKnownCount: number
   byMonth: MonthRow[]
   byTeacher: TeacherRow[]
 }
@@ -33,6 +39,44 @@ export default function AdminReconciliationClient({ data }: { data: Reconciliati
         <StatCard label="Liquidado a profesores" value={formatCLP(data.totalBase)} />
         <StatCard label="Bruto procesado" value={formatCLP(data.totalGross)} />
         <StatCard label="Pagos confirmados" value={String(data.count)} />
+      </div>
+
+      {/* Excedente del tramo de procesamiento (D-2) */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-dark-text mb-2">
+          Costo de procesamiento de Mercado Pago
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-dark-text2 mb-3">
+          Al alumno se le cobra el tramo de <strong>disponibilidad inmediata</strong> (3,19% + IVA), el más caro,
+          porque Mercado Pago no expone el plazo de liberación de cada cuenta. Cuando el profesor libera a 10 o 30
+          días, MP cobra menos y esa diferencia <strong>queda en DanzClass</strong>. No es comisión de servicio:
+          va acá aparte para que sea contabilizable.
+        </p>
+        {data.feeKnownCount === 0 ? (
+          <p className="text-sm text-gray-400 dark:text-dark-text2">
+            Aún no hay pagos con costo real informado por Mercado Pago.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Cobrado al alumno (estimado)" value={formatCLP(data.totalFeeCharged)} />
+              <StatCard label="Cobrado por Mercado Pago (real)" value={formatCLP(data.totalFeeReal)} />
+              <StatCard
+                label="Excedente retenido"
+                value={formatCLP(data.totalFeeCharged - data.totalFeeReal)}
+                highlight
+              />
+              <StatCard label="Pagos con dato real" value={`${data.feeKnownCount} de ${data.count}`} />
+            </div>
+            {data.totalFeeCharged - data.totalFeeReal < 0 && (
+              <p className="text-sm text-coral-fuego mt-3">
+                El excedente es negativo: Mercado Pago está cobrando más que el tramo estimado. Revisa
+                <code className="mx-1">MP_FEE_RATE</code>
+                en packages/shared/src/lib/commission.ts — con esa diferencia el profesor no recibe el 100%.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Por mes */}

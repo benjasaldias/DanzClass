@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
-import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK } from '@danceclass/shared'
+import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK, WEB_URL } from '@danceclass/shared'
 import { Crown, Settings, CreditCard, Instagram, Music2, Video, Trash2, AlertCircle, Gift, TrendingUp, ChevronRight, Eye, FileText, ShieldCheck, MessageSquareWarning } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
@@ -331,7 +331,7 @@ export default async function ProfilePage({
             {profile?.username && (
               <EmbedWidgetButton
                 username={profile.username}
-                appUrl={process.env.APP_URL ?? 'https://dc-project-web.vercel.app'}
+                appUrl={process.env.APP_URL ?? WEB_URL}
                 asRow
               />
             )}

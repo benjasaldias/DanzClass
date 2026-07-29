@@ -7,7 +7,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { isPeriodicClass, effectiveClassPrice } from '../../packages/shared/src/lib/pricing'
+import { isPeriodicClass, effectiveClassPrice, twoxClassPrice } from '../../packages/shared/src/lib/pricing'
 
 test.describe('isPeriodicClass', () => {
   test('periodica and entrenamiento are periodic', () => {
@@ -43,5 +43,20 @@ test.describe('effectiveClassPrice', () => {
 
   test('missing discount fields fall back to base price', () => {
     expect(effectiveClassPrice({ type: 'suelta', price: 10000 })).toBe(10000)
+  })
+})
+
+test.describe('twoxClassPrice', () => {
+  test('prefers price_2x when both are set', () => {
+    expect(twoxClassPrice({ price_2x: 8000, price_suelta_2x: 6000 })).toBe(8000)
+  })
+
+  test('falls back to price_suelta_2x (2x de una sesión suelta en clase periódica)', () => {
+    expect(twoxClassPrice({ price_2x: null, price_suelta_2x: 6000 })).toBe(6000)
+  })
+
+  test('returns null when the teacher configured no 2x price', () => {
+    expect(twoxClassPrice({ price_2x: null, price_suelta_2x: null })).toBe(null)
+    expect(twoxClassPrice({})).toBe(null)
   })
 })

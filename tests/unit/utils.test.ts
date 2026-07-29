@@ -24,6 +24,12 @@ test.describe('formatTime', () => {
     expect(formatTime('09:05')).toBe('9:05 AM'))
   test('11:59 → 11:59 AM', () => expect(formatTime('11:59')).toBe('11:59 AM'))
   test('12:01 → 12:01 PM', () => expect(formatTime('12:01')).toBe('12:01 PM'))
+  // `recurring_time` es NULLABLE: una clase sin hora hacía que `null.split(':')`
+  // lanzara **durante el render de la tarjeta**, tumbando el feed entero para
+  // todos. Lo destapó el smoke de navegador de S7.
+  test('null → cadena vacía, no excepción', () => expect(formatTime(null)).toBe(''))
+  test('undefined → cadena vacía', () => expect(formatTime(undefined)).toBe(''))
+  test('cadena vacía → cadena vacía', () => expect(formatTime('')).toBe(''))
 })
 
 // ─── formatDate ──────────────────────────────────────────────────────────────

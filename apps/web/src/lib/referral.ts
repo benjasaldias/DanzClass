@@ -24,6 +24,39 @@ export async function rewardReferralIfNeeded(
 
   const referrerId = profile.referred_by as string
 
+  // Un auto-referido no es un referido. `referred_by` lo escribe el trigger de
+  // signup y desde la migración 065 el cliente no puede tocarlo, pero el premio
+  // vale dinero (+30 días Pro a ambos lados) y no debería depender de una sola
+  // barrera: si alguna vez se agrega una ruta que permita fijar el referidor,
+  // este chequeo sigue en pie.
+  if (referrerId === referredUserId) {
+    logger.warn('referral:self_referral_blocked', { user: referredUserId })
+    return
+  }
+
+  // El premio se paga contra una suscripción REAL del referido. Sin esto, basta
+  // con que la fila de suscripción exista (por ejemplo, un mes regalado por otro
+  // referido) para desbloquear el premio: las suscripciones de regalo llevan
+  // `mp_subscription_id` con prefijo `referral_` justamente para distinguirlas.
+  const { data: paidSub } = await (admin as any)
+    .from('subscriptions')
+    .select('id, mp_subscription_id, expires_at')
+    .eq('user_id', referredUserId)
+    .in('status', ['active', 'grace'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const isPaid =
+    !!paidSub?.mp_subscription_id &&
+    !String(paidSub.mp_subscription_id).startsWith('referral_') &&
+    (!paidSub.expires_at || new Date(paidSub.expires_at) > new Date())
+
+  if (!isPaid) {
+    logger.warn('referral:no_paid_subscription', { referred: referredUserId })
+    return
+  }
+
   // Marca ANTES de aplicar (idempotencia ante carreras webhook↔success): si dos
   // llamadas entran a la vez, solo la que gane el flag aplica el premio.
   const { data: claimed } = await (admin as any)

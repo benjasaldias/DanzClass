@@ -15,7 +15,7 @@ import FloatingActionButton from '../../../components/ui/FloatingActionButton'
 import OnboardingTour from '../../../components/feed/OnboardingTour'
 import { useTheme } from '../../../context/ThemeContext'
 import { getUserLocation, type LocationResult } from '../../../lib/location'
-import { canTeach } from '@danceclass/shared'
+import { canTeach, getActiveTier } from '@danceclass/shared'
 import type { FeedFilter, SubscriptionTier } from '@danceclass/shared'
 
 type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
@@ -92,11 +92,11 @@ export default function FeedScreen() {
         if (!user) return
         setUserId(user.id)
 
-        const [profileRes, followsRes, friendsRes, subRes] = await Promise.all([
+        const [profileRes, followsRes, friendsRes, activeTier] = await Promise.all([
           supabase.from('profiles').select('city').eq('id', user.id).single(),
           supabase.from('follows').select('following_id').eq('follower_id', user.id),
           supabase.from('friendships').select('requester_id, addressee_id').or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`).eq('status', 'accepted'),
-          supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').maybeSingle(),
+          getActiveTier(user.id, supabase),
         ])
 
         setUserCity(profileRes.data?.city ?? null)
@@ -105,7 +105,7 @@ export default function FeedScreen() {
           f.requester_id === user.id ? f.addressee_id : f.requester_id
         )
         setFriendIds(fids)
-        setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
+        setTier(activeTier)
       } catch {
         // init errors are non-blocking; feed will show empty state
       }

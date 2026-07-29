@@ -10,9 +10,7 @@ import {
 import { useTheme } from '../../../../context/ThemeContext'
 import { supabase } from '../../../../lib/supabase'
 import Avatar from '../../../../components/ui/Avatar'
-import { formatCLP } from '@danceclass/shared'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { formatCLP, WEB_URL } from '@danceclass/shared'
 
 function isPdfPath(path: string | null): boolean {
   return !!path && path.toLowerCase().split('?')[0].endsWith('.pdf')

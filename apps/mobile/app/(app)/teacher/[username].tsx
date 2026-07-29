@@ -5,6 +5,7 @@ import { ChevronLeft, MapPin, Users, Music2, Star } from 'lucide-react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { sendNotifications } from '../../../lib/notifications'
+import { upsertRating } from '../../../lib/ratings'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import MobilePostCard from '../../../components/feed/MobilePostCard'
 import StarRating from '../../../components/ui/StarRating'
@@ -228,20 +229,18 @@ export default function TeacherProfileScreen() {
   async function handleSubmitRating() {
     if (!currentUserId || !profile || ratingSelected < 1) return
     setRatingLoading(true)
-    const isEdit = myRating !== null
-    if (isEdit) {
-      await (supabase as any).from('ratings').update({ stars: ratingSelected }).eq('rater_id', currentUserId).eq('rated_user_id', profile.id)
-    } else {
-      await (supabase as any).from('ratings').insert({ rater_id: currentUserId, rated_user_id: profile.id, stars: ratingSelected })
-    }
-    const newCount = isEdit ? ratingCount : ratingCount + 1
-    const newAvg = isEdit
-      ? Math.round(((avgStars * ratingCount - (myRating ?? 0) + ratingSelected) / ratingCount) * 10) / 10
-      : Math.round(((avgStars * ratingCount + ratingSelected) / newCount) * 10) / 10
-    setMyRating(ratingSelected)
-    setRatingCount(newCount)
-    setAvgStars(newAvg)
+    // La ruta valida la elegibilidad (inscripción confirmada + clase ya
+    // ocurrida) y devuelve el promedio recalculado, así que no hay que
+    // estimarlo en el cliente.
+    const res = await upsertRating(profile.id, ratingSelected)
     setRatingLoading(false)
+    if (!res.ok) {
+      Alert.alert('No se pudo valorar', res.error)
+      return
+    }
+    setMyRating(ratingSelected)
+    setRatingCount(res.ratingCount)
+    setAvgStars(res.avgRating)
     setShowRatingModal(false)
   }
 
@@ -289,7 +288,7 @@ export default function TeacherProfileScreen() {
               <Text className="text-sm text-gris-humo dark:text-dark-text2 mt-0.5">{profile?.full_name}</Text>
             </View>
             <View className="items-center gap-2 mb-4">
-              <StarRating value={ratingSelected} onChange={setRatingSelected} size="lg" instanceId="rating-modal" />
+              <StarRating value={ratingSelected} onChange={setRatingSelected} size="lg" />
               <Text className="text-xs text-gray-500 dark:text-dark-text2" style={{ minHeight: 16 }}>
                 {ratingSelected > 0 ? ratingLabels[ratingSelected] ?? '' : 'Toca para valorar'}
               </Text>
@@ -377,7 +376,7 @@ export default function TeacherProfileScreen() {
                 <View className="w-px bg-gray-100 dark:bg-dark-border" />
                 <View className="items-center">
                   <Text className="text-lg font-bold" style={{ color: isDark ? '#e879f9' : '#c026d3' }}>{avgStars.toFixed(1)}</Text>
-                  <StarRating value={avgStars} readOnly size="sm" instanceId="profile-stats" />
+                  <StarRating value={avgStars} count={ratingCount} size="sm" />
                   <Text className="text-xs text-gris-humo dark:text-dark-text2">{ratingCount} val.</Text>
                 </View>
               </>

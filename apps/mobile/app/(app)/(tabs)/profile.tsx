@@ -13,7 +13,7 @@ import ProfilePostsGrid from '../../../components/profile/ProfilePostsGrid'
 import PlanHiddenPosts from '../../../components/profile/PlanHiddenPosts'
 import AiScanPreferenceCard from '../../../components/profile/AiScanPreferenceCard'
 import { supabase } from '../../../lib/supabase'
-import { canTeach } from '@danceclass/shared'
+import { canTeach, getActiveTier } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import { useTheme } from '../../../context/ThemeContext'
@@ -100,9 +100,9 @@ export default function ProfileScreen() {
       if (!user) return
       setUserId(user.id)
 
-      const [profileRes, subRes, followersRes, ratingsRes, classesRes, postsRes, takenRes] = await Promise.all([
+      const [profileRes, activeTier, followersRes, ratingsRes, classesRes, postsRes, takenRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('subscriptions').select('tier').eq('user_id', user.id).eq('status', 'active').single(),
+        getActiveTier(user.id, supabase),
         supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', user.id),
         (supabase as any).from('ratings').select('stars').eq('rated_user_id', user.id),
         (supabase as any).from('classes').select('*, teacher:profiles!teacher_id(*), media:class_media(*), enrollments(id,status)').eq('teacher_id', user.id).eq('status', 'active'),
@@ -117,7 +117,7 @@ export default function ProfileScreen() {
         : 0
 
       setProfile(profileRes.data)
-      setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
+      setTier(activeTier)
       setFollowers(followersRes.count ?? 0)
       setRatingCount(count)
       setAvgRating(avg)

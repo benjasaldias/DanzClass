@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyUsers } from '@/lib/notifyUsers'
+import { checkRateLimit } from '@/lib/rateLimit'
 import { z } from 'zod'
 
 const RehearsalSchema = z.object({
@@ -21,6 +23,9 @@ export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rlHit = await checkRateLimit(`rehearsal:${user.id}`, 'social')
+  if (rlHit) return rlHit
 
   const rawBody = await req.json().catch(() => null)
   const parsed = RehearsalSchema.safeParse(rawBody)
@@ -72,7 +77,7 @@ export async function POST(req: Request) {
 
     const notifRows = validInviteIds.map((uid: string) => ({
       user_id: uid,
-      type: 'rehearsal_invite',
+      type: 'rehearsal_invite' as const,
       data: {
         rehearsal_id: rehearsal.id,
         rehearsal_title: rehearsal.title,
@@ -80,9 +85,8 @@ export async function POST(req: Request) {
         from_username: creatorProfile?.username ?? '',
         from_full_name: creatorProfile?.full_name ?? '',
       },
-      read: false,
     }))
-    await (admin as any).from('notifications').insert(notifRows)
+    await notifyUsers(admin, notifRows)
   }
 
   return NextResponse.json({ ok: true, rehearsal })

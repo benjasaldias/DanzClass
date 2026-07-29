@@ -22,7 +22,7 @@ export default async function FinancieroDashboardPage() {
   const { data: recentPayments } = await (supabase as any)
     .from('payments')
     .select(`
-      id, amount, verified_at, submitted_at,
+      id, amount, verified_at, submitted_at, billing_period, offline_confirmed,
       enrollment:enrollments!inner(
         student_id,
         student:profiles!student_id(id, full_name, username, avatar_url),

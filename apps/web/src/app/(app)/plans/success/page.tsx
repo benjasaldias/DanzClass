@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getActiveTier } from '@/lib/subscription'
 import { rewardReferralIfNeeded } from '@/lib/referral'
 import { reconcilePlanContent } from '@/lib/planContent'
+import { logger } from '@/lib/logger'
 import { SubscriptionPolling } from '@/components/plans/SubscriptionPolling'
 import type { SubscriptionTier } from '@danceclass/shared'
 
@@ -27,7 +28,7 @@ async function activateIfNew(
     .maybeSingle()
 
   if (existing) {
-    console.log('[plans/success] subscription already active for mp_id:', mpId)
+    logger.info('plans_success:already_active', { mpId })
     return
   }
 
@@ -51,9 +52,9 @@ async function activateIfNew(
   })
 
   if (error) {
-    console.error('[plans/success] insert error:', error)
+    logger.error('plans_success:insert_error', error, { userId, tier, mpId })
   } else {
-    console.log('[plans/success] subscription activated — user:', userId, 'tier:', tier, 'months:', months)
+    logger.info('plans_success:activated', { userId, tier, months })
     // Devuelve a la vista los videos guardados en privado por falta de plan.
     await reconcilePlanContent(admin as any, userId)
   }
@@ -80,7 +81,7 @@ export default async function PlanSuccessPage({
       const preApproval = new PreApproval(mp)
       const sub = await preApproval.get({ id: preapproval_id })
 
-      console.log('[plans/success] preapproval status:', sub.status, '| ref:', sub.external_reference)
+      logger.info('plans_success:preapproval_status', { status: sub.status, ref: sub.external_reference })
 
       if (sub.external_reference && sub.id) {
         const [refUserId, tier] = sub.external_reference.split(':')
@@ -90,7 +91,7 @@ export default async function PlanSuccessPage({
         }
       }
     } catch (e) {
-      console.error('[plans/success] preapproval verification error:', e)
+      logger.error('plans_success:preapproval_verification_error', e, { preapproval_id })
     }
   }
 
@@ -100,7 +101,7 @@ export default async function PlanSuccessPage({
       const paymentClient = new Payment(mp)
       const payment = await paymentClient.get({ id: payment_id })
 
-      console.log('[plans/success] payment status:', payment.status, '| ref:', payment.external_reference)
+      logger.info('plans_success:payment_status', { status: payment.status, ref: payment.external_reference })
 
       if (payment.status === 'approved' && payment.external_reference) {
         const parts = payment.external_reference.split(':')
@@ -115,7 +116,7 @@ export default async function PlanSuccessPage({
         }
       }
     } catch (e) {
-      console.error('[plans/success] payment verification error:', e)
+      logger.error('plans_success:payment_verification_error', e, { payment_id })
     }
   }
 
@@ -124,7 +125,7 @@ export default async function PlanSuccessPage({
     try {
       await rewardReferralIfNeeded(admin, user.id)
     } catch (e) {
-      console.error('[plans/success] referral reward error:', e)
+      logger.error('plans_success:referral_reward_error', e, { userId: user.id })
     }
   }
 

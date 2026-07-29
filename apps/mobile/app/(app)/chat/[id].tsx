@@ -8,8 +8,7 @@ import { ChevronLeft, Send, Users } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import { useTheme } from '../../../context/ThemeContext'
 import Avatar from '../../../components/ui/Avatar'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 
 type Message = {
   id: string
@@ -35,11 +34,14 @@ export default function ChatScreen() {
   const [token, setToken] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const flatRef = useRef<FlatList>(null)
 
   const load = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) return
+    // Sin `setLoading(false)` acá, una sesión ausente dejaba la pantalla girando
+    // para siempre en vez de volver atrás.
+    if (!session?.user) { setLoading(false); router.back(); return }
     setCurrentUserId(session.user.id)
     setToken(session.access_token)
 
@@ -59,7 +61,7 @@ export default function ChatScreen() {
     setChat(chatRes.data)
     setParticipants(participantsRes.data ?? [])
     setLoading(false)
-  }, [chatId])
+  }, [chatId, router])
 
   useEffect(() => { load() }, [load])
 
@@ -96,13 +98,31 @@ export default function ChatScreen() {
     if (!content || sending || !currentUserId) return
     setSending(true)
     setText('')
-    await (supabase as any).from('chat_messages').insert({ chat_id: chatId, sender_id: currentUserId, content })
+    setSendError(null)
+    // Mismo criterio que en web: el error se muestra (antes se descartaba) y el
+    // mensaje se pinta al instante en vez de depender de que Realtime devuelva
+    // la propia fila. El dedupe por id evita el duplicado al llegar por el canal.
+    const { data, error } = await (supabase as any)
+      .from('chat_messages')
+      .insert({ chat_id: chatId, sender_id: currentUserId, content })
+      .select('id, content, created_at, sender_id')
+      .single()
+    if (error) {
+      setText(content)
+      setSendError('No se pudo enviar el mensaje. Intenta de nuevo.')
+    } else if (data) {
+      setMessages((prev: Message[]) => (
+        prev.some((m) => m.id === data.id) ? prev : [...prev, { ...data, sender: me }]
+      ))
+    }
     setSending(false)
   }
 
   const isGroup = chat?.type === 'rehearsal'
   const chatTitle = chat?.type === 'class' ? (chat?.class?.title ?? 'Chat de clase') : (chat?.rehearsal?.title ?? 'Chat de ensayo')
   const otherParticipant = isGroup ? null : participants.find((p: any) => p.user_id !== currentUserId)?.user
+  const me = participants.find((p: any) => p.user_id === currentUserId)?.user
+    ?? { id: currentUserId ?? '', full_name: 'Yo', username: '', avatar_url: null }
 
   const bg = isDark ? '#1A1035' : '#ffffff'
   const surfaceBg = isDark ? '#241547' : '#f9fafb'
@@ -143,7 +163,7 @@ export default function ChatScreen() {
             </View>
           ) : otherParticipant ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <Avatar src={otherParticipant.avatar_url} name={otherParticipant.full_name} size="sm" />
+              <Avatar url={otherParticipant.avatar_url ?? null} name={otherParticipant.full_name} size="sm" />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: textColor }} numberOfLines={1}>{otherParticipant.full_name}</Text>
                 <Text style={{ fontSize: 11, color: subColor }} numberOfLines={1}>{chatTitle}</Text>
@@ -158,7 +178,7 @@ export default function ChatScreen() {
         <FlatList
           ref={flatRef}
           data={messages}
-          keyExtractor={(m) => m.id}
+          keyExtractor={(m: Message) => m.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 4 }}
           ListEmptyComponent={
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
@@ -166,11 +186,11 @@ export default function ChatScreen() {
               <Text style={{ color: subColor, fontSize: 14, marginTop: 12 }}>Sé el primero en escribir 👋</Text>
             </View>
           }
-          renderItem={({ item: msg }) => {
+          renderItem={({ item: msg }: { item: Message }) => {
             const isMe = msg.sender.id === currentUserId
             return (
               <View style={{ flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 8, marginBottom: 4 }}>
-                {!isMe && <Avatar src={msg.sender.avatar_url} name={msg.sender.full_name} size="xs" />}
+                {!isMe && <Avatar url={msg.sender.avatar_url ?? null} name={msg.sender.full_name} size="xs" />}
                 <View style={{ maxWidth: '72%', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                   {isGroup && !isMe && (
                     <Text style={{ fontSize: 11, color: subColor, marginBottom: 2, marginLeft: 4 }}>{msg.sender.full_name}</Text>
@@ -192,6 +212,12 @@ export default function ChatScreen() {
           }}
           onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
         />
+
+        {sendError ? (
+          <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+            <Text style={{ fontSize: 12, color: '#dc2626' }}>{sendError}</Text>
+          </View>
+        ) : null}
 
         {/* Input */}
         <View style={{

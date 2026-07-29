@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireUser } from '@/lib/supabase/require-user'
+import { notifyUsers } from '@/lib/notifyUsers'
 
 export async function POST(req: Request) {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // `createClient()` sólo autentica por cookie: mobile manda Bearer, así que
+  // aceptar o rechazar una invitación a ensayo desde la app respondía 401 —y el
+  // cliente sólo miraba `res.ok`, con lo que el botón no hacía nada y tampoco
+  // decía por qué. `requireUser` acepta las dos vías.
+  const authed = await requireUser(req)
+  if ('error' in authed) return authed.error
+  const user = authed.user
 
   const { invite_id, status } = await req.json()
 
@@ -38,7 +43,7 @@ export async function POST(req: Request) {
     .eq('id', user.id)
     .single()
 
-  await (admin as any).from('notifications').insert({
+  await notifyUsers(admin, [{
     user_id: invite.rehearsal.creator_id,
     type: notifType,
     data: {
@@ -48,8 +53,7 @@ export async function POST(req: Request) {
       from_username: responderProfile?.username ?? '',
       from_full_name: responderProfile?.full_name ?? '',
     },
-    read: false,
-  })
+  }])
 
   return NextResponse.json({ ok: true })
 }

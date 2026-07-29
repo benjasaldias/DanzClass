@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router'
 import { XCircle, AlertTriangle, Trash2, ChevronDown, ChevronUp, ShieldAlert, BookOpen, GraduationCap, History, Receipt, Bell } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
 import { supabase } from '../../../lib/supabase'
-import { DAYS_OF_WEEK, formatCLP } from '@danceclass/shared'
+import { DAYS_OF_WEEK, formatBillingPeriod, formatCLP, getClassDeletionDate, paymentList, summarizeCharges } from '@danceclass/shared'
 import { useTheme } from '../../../context/ThemeContext'
 
 function formatDate(date: string) {
@@ -19,12 +19,12 @@ function formatTime(time: string) {
   const [h, m] = time.split(':').map(Number)
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
-function formatDeletionDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+function formatDeletionDate(date: Date) {
+  return date.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
-function isDeleted(deletionDate: string | null): boolean {
+function isDeleted(deletionDate: Date | null): boolean {
   if (!deletionDate) return false
-  return new Date(deletionDate) <= new Date()
+  return deletionDate <= new Date()
 }
 function classSchedule(cls: any) {
   if (!cls) return ''
@@ -134,7 +134,7 @@ function TeachingTab({
   const [expandedClass, setExpandedClass] = useState<string | null>(initialClasses[0]?.id ?? null)
 
   // Only show non-archived classes in the teaching view (archived → historial only)
-  const activeClasses = classData.filter((cls: any) => !isDeleted(cls.deletion_date ?? null))
+  const activeClasses = classData.filter((cls: any) => !isDeleted(getClassDeletionDate(cls)))
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -252,7 +252,8 @@ function TeachingTab({
         const confirmed = enrollments.filter((e: any) => e.status === 'confirmed').length
         const pending = enrollments.filter((e: any) => e.status === 'payment_submitted').length
         const total = enrollments.filter((e: any) => e.status !== 'cancelled').length
-        const deleted = isDeleted(cls.deletion_date)
+        const deletionDate = getClassDeletionDate(cls)
+        const deleted = isDeleted(deletionDate)
 
         return (
           <View key={cls.id} className="bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-dark-border shadow-sm overflow-hidden">
@@ -284,11 +285,11 @@ function TeachingTab({
                   })()}
 
                   {/* Deletion warning */}
-                  {cls.deletion_date && !deleted && (
+                  {deletionDate && !deleted && (
                     <View className="flex-row items-center gap-1 mt-1.5">
                       <AlertTriangle size={11} stroke="#D85A30" />
                       <Text className="text-xs" style={{ color: '#D85A30' }}>
-                        Archivos serán eliminados el {formatDeletionDate(cls.deletion_date)}
+                        Archivos serán eliminados el {formatDeletionDate(deletionDate)}
                       </Text>
                     </View>
                   )}
@@ -316,9 +317,20 @@ function TeachingTab({
                   <View>
                     {enrollments.filter((e: any) => e.status !== 'cancelled').map((enrollment: any) => {
                       const student = enrollment.student
-                      const payment = Array.isArray(enrollment.payment)
-                        ? enrollment.payment[0]
-                        : enrollment.payment
+                      const payments = paymentList<any>(enrollment.payment)
+                      // Entrenamiento: la deuda es la suma de mensualidades
+                      // impagas, no el estado de la inscripción (que queda
+                      // `confirmed` de forma permanente). Paridad con la web.
+                      const isTraining = cls.type === 'entrenamiento'
+                      const debt = isTraining ? summarizeCharges(payments, cls.billing_day ?? 1) : null
+                      const payment = isTraining
+                        ? (debt!.inReview[0]
+                            ? payments.find((p) => p.id === debt!.inReview[0].id)
+                            : payments.find((p) => p.confirmed_by === 'ai' && p.status === 'verified'))
+                        : payments.find((p) => !p.billing_period)
+                      const showReview = isTraining
+                        ? !!payment
+                        : (enrollment.status === 'payment_submitted' || payment?.confirmed_by === 'ai') && !!payment
 
                       return (
                         <View key={enrollment.id} className="p-4 border-t border-gray-50 dark:border-dark-border/40">
@@ -344,10 +356,20 @@ function TeachingTab({
                             <Text className="text-xs text-gris-humo dark:text-dark-text2">
                               {ENROLL_STATUS[enrollment.status]?.label ?? enrollment.status}
                             </Text>
+                            {debt && debt.unpaid.length > 0 && (
+                              <Text className={`text-xs font-semibold mt-0.5 ${debt.hasOverdue ? 'text-coral-fuego' : 'text-gray-600 dark:text-dark-text2'}`}>
+                                Debe {formatCLP(debt.totalUnpaid)} · {debt.unpaid.length === 1 ? '1 mes' : `${debt.unpaid.length} meses`}
+                                {' '}({debt.unpaid.map((c) => formatBillingPeriod(c.billing_period)).join(', ')})
+                                {debt.hasOverdue ? ' · sin acceso por QR' : ''}
+                              </Text>
+                            )}
+                            {debt && debt.unpaid.length === 0 && debt.charges.length > 0 && (
+                              <Text className="text-xs font-medium text-green-700 dark:text-green-400 mt-0.5">Al día</Text>
+                            )}
                           </View>
 
                           {/* Payment verification */}
-                          {(enrollment.status === 'payment_submitted' || payment?.confirmed_by === 'ai') && payment && (
+                          {showReview && payment && (
                             <View className="mt-3 ml-11 gap-2">
                               <Text className="text-xs text-gris-humo dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</Text>
                               {payment.confirmed_by === 'ai' && (
@@ -382,12 +404,17 @@ const PAYMENT_PILL_COLORS: Record<string, { container: string; text: string }> =
   rejected: { container: 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-800', text: 'text-red-600 dark:text-red-400' },
   pending: { container: 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800', text: 'text-yellow-800 dark:text-yellow-400' },
   no_payment: { container: 'bg-gray-50 dark:bg-dark-surface2 border-gray-200 dark:border-dark-border', text: 'text-gray-500 dark:text-dark-text2' },
+  void: { container: 'bg-gray-100 dark:bg-dark-surface2 border-gray-200 dark:border-dark-border', text: 'text-gray-500 dark:text-dark-text2' },
+  refunded: { container: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800', text: 'text-orange-700 dark:text-orange-400' },
 }
 
 function getPaymentKey(enrollment: any): keyof typeof PAYMENT_PILL_COLORS {
   const payment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
+  // Antes que el estado de la inscripción: Mercado Pago devolvió el dinero (P2-6).
+  if (payment?.status === 'refunded') return 'refunded'
   if (enrollment.status === 'confirmed') return 'confirmed'
   if (payment?.status === 'rejected') return 'rejected'
+  if (payment?.status === 'void') return 'void'
   if (enrollment.status === 'payment_submitted' || payment) return 'pending'
   return 'no_payment'
 }
@@ -397,6 +424,8 @@ const PAYMENT_KEY_LABEL: Record<string, string> = {
   rejected: 'Rechazado',
   pending: 'Pendiente',
   no_payment: 'Sin pago',
+  void: 'Anulado',
+  refunded: 'Reembolsado',
 }
 
 function AttendanceBadgeMobile({ dates }: { dates: string[] | undefined }) {
@@ -410,19 +439,42 @@ function AttendanceBadgeMobile({ dates }: { dates: string[] | undefined }) {
 }
 
 function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollments: any[]; teachingClasses: any[]; attendance?: Record<string, string[]> }) {
+  // Un entrenamiento cobra por MES (migración 068): una inscripción produce una
+  // fila POR CARGO, para que no se vea sólo un mes arbitrario de los que el
+  // alumno debe o pagó. Paridad con la web.
   const teacherRows = teachingClasses.flatMap((cls: any) =>
     (cls.enrollments ?? [])
       .filter((e: any) => e.status !== 'cancelled')
-      .map((e: any) => ({
-        id: e.id,
-        classId: cls.id,
-        classTitle: cls.title,
-        classDanceStyle: cls.dance_style,
-        student: e.student,
-        payment: Array.isArray(e.payment) ? e.payment[0] : e.payment,
-        enrollmentStatus: e.status,
-        createdAt: e.created_at,
-      }))
+      .flatMap((e: any) => {
+        const base = {
+          classId: cls.id,
+          classTitle: cls.title,
+          classDanceStyle: cls.dance_style,
+          student: e.student,
+          enrollmentStatus: e.status,
+        }
+        const payments = paymentList<any>(e.payment)
+        const monthly = payments
+          .filter((p) => p.billing_period && p.status !== 'void')
+          .sort((a, b) => String(b.billing_period).localeCompare(String(a.billing_period)))
+
+        if (monthly.length > 0) {
+          return monthly.map((p) => ({
+            ...base,
+            id: p.id,
+            payment: p,
+            billingPeriod: p.billing_period as string,
+            createdAt: p.submitted_at ?? e.created_at,
+          }))
+        }
+        return [{
+          ...base,
+          id: e.id,
+          payment: payments.find((p) => !p.billing_period) ?? null,
+          billingPeriod: null as string | null,
+          createdAt: e.created_at,
+        }]
+      })
   )
 
   const hasStudent = enrollments.length > 0
@@ -431,7 +483,10 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
   // Monthly summary for teacher view (only confirmed payments)
   const monthlyMap: Record<string, { total: number; count: number }> = {}
   for (const row of teacherRows) {
-    if (row.enrollmentStatus !== 'confirmed') continue
+    const paid = row.billingPeriod
+      ? row.payment?.status === 'verified'
+      : row.enrollmentStatus === 'confirmed'
+    if (!paid) continue
     const amount = row.payment?.amount ?? 0
     const month = new Date(row.createdAt).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
     if (!monthlyMap[month]) monthlyMap[month] = { total: 0, count: 0 }
@@ -465,7 +520,11 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
           <View className="gap-2">
             {enrollments.map((e: any) => {
               const cls = e.class
-              const payment = Array.isArray(e.payment) ? e.payment[0] : e.payment
+              const charges = paymentList<any>(e.payment)
+              const debt = cls?.type === 'entrenamiento'
+                ? summarizeCharges(charges, cls.billing_day ?? 1)
+                : null
+              const payment = charges.find((p) => !p.billing_period) ?? charges[0]
               const statusKey = getPaymentKey(e)
               const pill = PAYMENT_PILL_COLORS[statusKey]
               return (
@@ -479,8 +538,17 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
                         </View>
                       )}
                       <Text className="text-sm font-semibold text-gray-800 dark:text-dark-text mt-1">
-                        {payment?.amount ? formatCLP(payment.amount) : 'Sin pago registrado'}
+                        {debt
+                          ? (debt.unpaid.length > 0
+                              ? `Debes ${formatCLP(debt.totalUnpaid)} · ${debt.unpaid.length === 1 ? '1 mes' : `${debt.unpaid.length} meses`}`
+                              : 'Al día')
+                          : (payment?.amount ? formatCLP(payment.amount) : 'Sin pago registrado')}
                       </Text>
+                      {debt && debt.hasOverdue && (
+                        <Text className="text-xs text-coral-fuego mt-0.5">
+                          {debt.overdue.map((c) => formatBillingPeriod(c.billing_period)).join(', ')} · sin acceso por QR
+                        </Text>
+                      )}
                       <Text className="text-xs text-gray-400 dark:text-dark-text2 mt-0.5">
                         {new Date(e.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </Text>
@@ -507,8 +575,18 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
           )}
           <View className="gap-2">
             {teacherRows.map((row: any) => {
-              const statusKey = row.enrollmentStatus === 'confirmed' ? 'confirmed'
+              // Cargo mensual: manda el estado del CARGO. Que la inscripción esté
+              // `confirmed` no dice nada de si marzo está pagado.
+              const statusKey = row.billingPeriod
+                ? (row.payment?.status === 'verified' ? 'confirmed'
+                  : row.payment?.status === 'rejected' ? 'rejected'
+                  : row.payment?.status === 'refunded' ? 'refunded'
+                  : row.payment?.status === 'pending' ? 'pending'
+                  : 'no_payment')
+                : row.payment?.status === 'refunded' ? 'refunded'
+                : row.enrollmentStatus === 'confirmed' ? 'confirmed'
                 : row.payment?.status === 'rejected' ? 'rejected'
+                : row.payment?.status === 'void' ? 'void'
                 : row.enrollmentStatus === 'payment_submitted' || row.payment ? 'pending'
                 : 'no_payment'
               const pill = PAYMENT_PILL_COLORS[statusKey]
@@ -523,10 +601,16 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
                     <Text className="font-semibold text-sm text-gray-900 dark:text-dark-text" numberOfLines={1}>
                       {row.student?.full_name}
                     </Text>
-                    <Text className="text-xs text-gray-500 dark:text-dark-text2" numberOfLines={1}>{row.classTitle}</Text>
+                    <Text className="text-xs text-gray-500 dark:text-dark-text2" numberOfLines={1}>
+                      {row.classTitle}
+                      {row.billingPeriod ? ` · ${formatBillingPeriod(row.billingPeriod)}` : ''}
+                    </Text>
                     <Text className="text-sm font-semibold text-gray-800 dark:text-dark-text mt-0.5">
                       {row.payment?.amount ? formatCLP(row.payment.amount) : '—'}
                     </Text>
+                    {row.payment?.offline_confirmed && (
+                      <Text className="text-xs text-gray-400 dark:text-dark-text2">Sin comprobante · registrado por ti</Text>
+                    )}
                   </View>
                   <View className="items-end gap-1">
                     <View className={`rounded-full px-2.5 py-1 border ${pill.container}`}>

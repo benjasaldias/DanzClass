@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logger } from './logger'
 
 // Upstash Redis + Ratelimit — only active when env vars are configured.
 // If not configured, all requests pass through with a warning log.
@@ -53,6 +54,16 @@ const limiters = {
 
 type LimiterKey = keyof typeof limiters
 
+// P1-4: en dev/test, degradar en silencio (console.warn) está bien — no hay
+// Upstash local. En producción, la misma ausencia deja TODAS las rutas sin
+// límite (el checkRateLimit "fail-open" de más abajo es intencional para no
+// bloquear tráfico legítimo si Redis falla en caliente, pero una
+// configuración faltante desde el arranque es un error de despliegue, no un
+// blip transitorio). Se loguea una sola vez por proceso vía `logger.error`
+// (nivel que Vercel/Sentry indexan como error) para que sea imposible no
+// notarlo, sin generar una tormenta de logs por cada request sin límite.
+let warnedMissingUpstashInProd = false
+
 /**
  * Check rate limit. Returns a 429 NextResponse if exceeded, null if ok.
  * Key should be `${userId}:${optional_resource_id}` for per-resource limits.
@@ -63,8 +74,13 @@ export async function checkRateLimit(
 ): Promise<NextResponse | null> {
   const limiter = limiters[type]
   if (!limiter) {
-    // Upstash not configured — degrade gracefully
-    if (process.env.NODE_ENV !== 'test') {
+    // Upstash not configured — degrade gracefully (never block legitimate traffic)
+    if (process.env.NODE_ENV === 'production') {
+      if (!warnedMissingUpstashInProd) {
+        warnedMissingUpstashInProd = true
+        logger.error('rate_limit_upstash_not_configured', 'UPSTASH_REDIS_REST_URL/TOKEN missing in production', { type })
+      }
+    } else if (process.env.NODE_ENV !== 'test') {
       console.warn('[rateLimit] Upstash not configured — skipping rate limit check')
     }
     return null

@@ -1,0 +1,63 @@
+-- ============================================================
+-- 064_payments_void_status.sql
+-- ------------------------------------------------------------
+-- Habilita `payments.status = 'void'`, que **6 sitios del código ya escriben
+-- hoy sin que nunca haya funcionado**: `payments_status_check` (001) solo
+-- permite `('pending','verified','rejected')`. Documentado como deuda
+-- pendiente en el registro de sesiones de `marketplace-payments-v2-plan.md`
+-- §8 (Sesión 2, "bug de dinero #2") y resuelto en esta sesión junto con un
+-- bug real que habría aparecido recién al aplicar este fix solo:
+--
+-- Efecto hasta ahora (silencioso, en producción): al salir de una clase
+-- (`/api/class/leave`), re-inscribirse tras cancelar (`/api/class/enroll`), o
+-- vía el cron (`cleanup-classes`: timeout 2x, holds vencidos, reservas
+-- impagas a 72h), el `UPDATE payments SET status='void' ...` fallaba con
+-- 23514 y el error se descartaba sin control. El pago quedaba `pending` para
+-- siempre, contaminando la lista de "por confirmar" del profesor y el
+-- cálculo de deudores/limpieza de comprobantes en Storage (la query de
+-- purga de `payment-receipts` en `cleanup-classes` ya filtraba
+-- `.in('status', ['void','rejected'])` — nunca encontraba nada que borrar).
+--
+-- Bug encontrado AL revisar el impacto de este fix (no estaba en el plan):
+-- 3 de los 6 sitios (`enroll/route.ts`, y dos del timeout 2x en
+-- `cleanup-classes.ts`) excluían de la anulación las filas con
+-- `status IN ('confirmed', 'void')` — pero `'confirmed'` NUNCA es un valor
+-- válido de `payments.status` (ese es un valor de `enrollments.status`,
+-- confundido al escribir el filtro). El resultado: la exclusión de pagos
+-- 'confirmed' era un no-op, así que el filtro real dejaba pasar tanto
+-- pagos pendientes como pagos YA VERIFICADOS. Si esta migración se hubiera
+-- aplicado sin corregir antes esos 3 sitios, la primera vez que un alumno
+-- se fuera de una clase que había pagado y confirmado, y volviera a
+-- inscribirse, su pago `verified` (un cobro real, ya cerrado) se habría
+-- anulado silenciosamente — corrompiendo retroactivamente el panel
+-- Financiero (`/financiero` suma `status='verified'`) y el panel de
+-- conciliación de superadmin. Los 3 sitios se corrigieron en el mismo commit
+-- que esta migración para usar `'verified'` (como ya hacían los otros 2
+-- sitios del cron), ANTES de habilitar el valor 'void' en la DB.
+--
+-- Los consumidores existentes de `payments.status` (`PaymentReviewClient`,
+-- `/api/payment/confirm`, `/api/payment/scan`, el webhook MP, el panel
+-- Financiero) solo comparan contra 'pending'/'verified'/'rejected' — ninguno
+-- trata "cualquier valor que no sea esos tres" como un estado válido, así
+-- que agregar 'void' no les cambia comportamiento. Las vistas de historial
+-- de pago (`MyClassesClient.tsx`, mobile `my-classes.tsx`) SÍ agrupaban
+-- cualquier fila de `payments` no rechazada bajo "Pendiente" — se les agregó
+-- una categoría "Anulado" separada en el mismo commit para que un pago
+-- voideado deje de aparecer como si estuviera esperando revisión.
+--
+-- Aditiva e idempotente.
+--
+-- ROLLBACK:
+--   -- Requiere decidir qué hacer con filas ya en 'void' (ej. volverlas a
+--   -- 'pending' o dejarlas y aceptar que el rollback del CHECK fallará si
+--   -- existen). No se resuelve automáticamente porque implica pérdida de
+--   -- información sobre pagos anulados:
+--   -- UPDATE payments SET status = 'pending' WHERE status = 'void';
+--   ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_status_check;
+--   ALTER TABLE payments ADD CONSTRAINT payments_status_check
+--     CHECK (status IN ('pending', 'verified', 'rejected'));
+-- ============================================================
+
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_status_check;
+ALTER TABLE payments ADD CONSTRAINT payments_status_check
+  CHECK (status IN ('pending', 'verified', 'rejected', 'void'));

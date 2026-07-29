@@ -4,11 +4,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { canEnroll } from '@danceclass/shared'
 import { getActiveTier } from '@/lib/subscription'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 // POST /api/packages/[id]/enroll — student enrolls in a package
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const auth = await requireUser(request)
   if ('error' in auth) return auth.error
+
+  const rlHit = await checkRateLimit(`enroll:${auth.user.id}`, 'enroll')
+  if (rlHit) return rlHit
 
   const supabase = createClient()
   const tier = await getActiveTier(auth.user.id, supabase)

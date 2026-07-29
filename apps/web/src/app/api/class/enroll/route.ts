@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { notifyUsers } from '@/lib/notifyUsers'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   // Verify class exists and is active
   const { data: classData } = await (admin as any)
     .from('classes')
-    .select('id, teacher_id, title, status, price, type, date, ends_at, ends_indefinitely, requires_audition, audition_closed, allow_late_payment')
+    .select('id, teacher_id, title, status, price, type, date, ends_at, ends_indefinitely, requires_audition, audition_closed, allow_late_payment, accepts_mp, accepts_transfer')
     .eq('id', classId)
     .eq('status', 'active')
     .maybeSingle()
@@ -94,6 +95,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No puedes inscribirte en tu propia clase' }, { status: 403 })
   }
 
+  // La clase tiene que ofrecer alguna vía de pago viable. El CHECK de la
+  // migración 061 garantiza al menos un flag marcado, pero `accepts_mp` no basta
+  // si el profesor nunca conectó su cuenta de Mercado Pago: reservar ahí deja al
+  // alumno con un cupo que no puede pagar. `!== false` cubre las clases
+  // anteriores a la migración.
+  if (classData.accepts_transfer === false) {
+    const { data: teacherProfile } = await (admin as any)
+      .from('profiles')
+      .select('mp_connected')
+      .eq('id', classData.teacher_id)
+      .maybeSingle()
+    if (classData.accepts_mp === false || !teacherProfile?.mp_connected) {
+      return NextResponse.json({ error: 'no_payment_method' }, { status: 400 })
+    }
+  }
+
   // Check available spots via class_spots view
   const { data: spotsData } = await (admin as any)
     .from('class_spots')
@@ -136,12 +153,17 @@ export async function POST(request: Request) {
     if (spotsAvailable <= 0) {
       return NextResponse.json({ error: 'no_spots' }, { status: 409 })
     }
-    // Void any stale payments from the previous enrollment so teacher history stays clean
+    // Void any stale payments from the previous enrollment so teacher history stays clean.
+    // Excludes 'verified' (a real completed payment — must survive a later re-enrollment
+    // after leaving) and 'void' (already voided). NOTE: this used to exclude 'confirmed',
+    // a value that never exists in payments.status (that's an enrollment.status value) —
+    // the filter was a no-op and would have voided already-verified payments the first
+    // time this write actually succeeded (see 064_payments_void_status.sql).
     await (admin as any)
       .from('payments')
       .update({ status: 'void' })
       .eq('enrollment_id', existing.id)
-      .not('status', 'in', '("confirmed","void")')
+      .not('status', 'in', '("verified","void")')
 
     const { data: updated, error: updateErr } = await admin
       .from('enrollments')
@@ -204,11 +226,11 @@ export async function POST(request: Request) {
 
   if (hasDebt) {
     const { data: sp } = await admin.from('profiles').select('username').eq('id', userId).maybeSingle()
-    await admin.from('notifications').insert({
+    await notifyUsers(admin, [{
       user_id: classData.teacher_id,
       type: 'debt_warning',
       data: { student_id: userId, student_name: sp?.username ?? userId, class_id: classId },
-    } as any)
+    }])
   }
 
   return NextResponse.json({

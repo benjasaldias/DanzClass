@@ -5,10 +5,8 @@ import { useRouter } from 'expo-router'
 import * as WebBrowser from 'expo-web-browser'
 import { CheckCircle2, CreditCard, Wallet } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
-import { formatCLP } from '@danceclass/shared'
+import { formatCLP, getActiveTier, WEB_URL } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
 
 const PLANS = [
   {
@@ -20,6 +18,7 @@ const PLANS = [
       'Subir videos de baile',
       'Publicar clases (hasta 3 activas)',
       'Sistema de confianza',
+      'Sin comisión de servicio al pagar clases con Mercado Pago',
     ],
   },
   {
@@ -51,14 +50,7 @@ export default function PlansScreen() {
       if (!user) return
       setAccessToken(session?.access_token ?? null)
 
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('tier')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
-
-      setCurrentTier((sub?.tier as SubscriptionTier) ?? 'none')
+      setCurrentTier(await getActiveTier(user.id, supabase))
       setLoading(false)
     }
     load()
@@ -100,13 +92,7 @@ export default function PlansScreen() {
       // After browser closes, refresh subscription status
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: sub } = await supabase
-          .from('subscriptions')
-          .select('tier')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .single()
-        setCurrentTier((sub?.tier as SubscriptionTier) ?? 'none')
+        setCurrentTier(await getActiveTier(user.id, supabase))
       }
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'No se pudo abrir el checkout')

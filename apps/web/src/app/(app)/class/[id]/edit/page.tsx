@@ -25,5 +25,16 @@ export default async function EditClassPage({ params }: Props) {
   // Only the teacher of this class can edit it
   if (classData.teacher_id !== user.id) redirect(`/class/${params.id}`)
 
-  return <EditClassForm classData={classData} />
+  const [{ data: paymentInfo }, { data: profile }] = await Promise.all([
+    supabase.from('teacher_payment_info').select('teacher_id').eq('teacher_id', user.id).maybeSingle(),
+    supabase.from('profiles').select('mp_connected').eq('id', user.id).maybeSingle(),
+  ])
+
+  return (
+    <EditClassForm
+      classData={classData}
+      hasPaymentInfo={!!paymentInfo}
+      mpConnected={!!(profile as any)?.mp_connected}
+    />
+  )
 }

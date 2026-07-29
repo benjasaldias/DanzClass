@@ -5,10 +5,8 @@ import { Lock, Eye, Trash2, X } from 'lucide-react-native'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
-import { daysUntilPurge, postQuotaForTier, PLAN_HIDDEN_RETENTION_DAYS } from '@danceclass/shared'
+import { daysUntilPurge, postQuotaForTier, PLAN_HIDDEN_RETENTION_DAYS, WEB_URL } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
 
 interface HiddenPost {
   id: string

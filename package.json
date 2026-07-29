@@ -18,6 +18,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "playwright test --config=playwright.unit.config.ts",
+    "test:integration": "playwright test --config=playwright.integration.config.ts",
     "test:e2e:prod": "playwright test --config=playwright.production.config.ts",
     "test:e2e:prod:headed": "playwright test --config=playwright.production.config.ts --headed",
     "test:e2e:prod:ui": "playwright test --config=playwright.production.config.ts --ui"

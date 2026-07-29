@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, Modal, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'
 import { supabase } from '../../lib/supabase'
+import { upsertRating } from '../../lib/ratings'
 import StarRating from './StarRating'
 
 interface PendingRating {
@@ -60,7 +61,9 @@ export default function RatingPopup({ userId }: RatingPopupProps) {
         (supabase as any)
           .from('enrollments')
           .select('class:classes!class_id(id, type, date, time, day_of_week, recurring_time, custom_dates, duration_minutes, teacher_id, teacher:profiles!teacher_id(id, full_name))')
-          .eq('user_id', userId)
+          // `enrollments` no tiene `user_id` (es `student_id`): con la columna
+          // equivocada PostgREST devolvía error y el popup no aparecía nunca.
+          .eq('student_id', userId)
           .eq('status', 'confirmed'),
         (supabase as any)
           .from('ratings')
@@ -90,11 +93,12 @@ export default function RatingPopup({ userId }: RatingPopupProps) {
   async function handleSubmit() {
     if (!pending || stars < 1) return
     setLoading(true)
-    await (supabase as any).from('ratings').upsert(
-      { rater_id: userId, rated_user_id: pending.teacherId, stars },
-      { onConflict: 'rater_id,rated_user_id' }
-    )
+    const res = await upsertRating(pending.teacherId, stars)
     setLoading(false)
+    if (!res.ok) {
+      Alert.alert('No se pudo valorar', res.error)
+      return
+    }
     setDismissed(true)
   }
 
@@ -113,7 +117,7 @@ export default function RatingPopup({ userId }: RatingPopupProps) {
           </Text>
 
           <View className="items-center gap-2 py-2">
-            <StarRating value={stars} onChange={setStars} size="lg" instanceId="popup" />
+            <StarRating value={stars} onChange={setStars} size="lg" />
             {stars >= 1 && (
               <Text className="text-sm text-brand-600">{STAR_LABELS[stars] ?? ''}</Text>
             )}

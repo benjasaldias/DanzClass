@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { CheckCircle2 } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
+import { getActiveTier } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 const TIER_LABELS: Record<string, string> = {
@@ -22,14 +23,7 @@ export default function PlansSuccessScreen() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('tier')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
-
-      setTier((sub?.tier as SubscriptionTier) ?? null)
+      setTier(await getActiveTier(user.id, supabase))
       setLoading(false)
     }
     load()

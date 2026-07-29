@@ -20,6 +20,7 @@ export default function MpConnectCard({ connected }: MpConnectCardProps) {
   const searchParams = useSearchParams()
   const [disconnecting, setDisconnecting] = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const [disconnectNote, setDisconnectNote] = useState<string | null>(null)
 
   const status = searchParams?.get('mp') ?? null
   const banner = status && !dismissed ? STATUS_MESSAGES[status] : null
@@ -27,8 +28,25 @@ export default function MpConnectCard({ connected }: MpConnectCardProps) {
   async function handleDisconnect() {
     if (!confirm('¿Desconectar tu cuenta de Mercado Pago? Dejarás de recibir pagos in-app hasta reconectarla.')) return
     setDisconnecting(true)
-    await fetch('/api/mercadopago/oauth/disconnect', { method: 'POST' })
+    const res = await fetch('/api/mercadopago/oauth/disconnect', { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
     setDisconnecting(false)
+
+    // P2-4: las clases que solo aceptaban Mercado Pago quedan aceptando
+    // transferencia, para que los alumnos con pago pendiente no se queden sin
+    // ninguna vía. Lo único que no se puede reparar solo es la falta de datos
+    // bancarios: eso hay que decírselo.
+    if (data?.classesRepaired > 0) {
+      const clases = data.classesRepaired === 1 ? '1 clase tuya pasó' : `${data.classesRepaired} clases tuyas pasaron`
+      const alumnos = data.affectedStudents > 0
+        ? ` Hay ${data.affectedStudents} ${data.affectedStudents === 1 ? 'alumno' : 'alumnos'} con pago pendiente en ellas.`
+        : ''
+      setDisconnectNote(
+        data.hasPaymentInfo
+          ? `${clases} a aceptar transferencia para que tus alumnos puedan seguir pagándote.${alumnos}`
+          : `${clases} a aceptar transferencia, pero todavía no cargaste tus datos bancarios: hasta que lo hagas, tus alumnos no tienen cómo pagarte.${alumnos}`
+      )
+    }
     router.refresh()
   }
 
@@ -58,6 +76,16 @@ export default function MpConnectCard({ connected }: MpConnectCardProps) {
           {banner.kind === 'ok' ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> : <AlertTriangle className="h-4 w-4 flex-shrink-0 text-coral-fuego" />}
           <span className="flex-1">{banner.text}</span>
           <button onClick={() => setDismissed(true)} aria-label="Cerrar" className="flex-shrink-0">
+            <X className="h-4 w-4 opacity-60" />
+          </button>
+        </div>
+      )}
+
+      {disconnectNote && (
+        <div className="flex items-start gap-2 rounded-xl border border-coral-fuego/30 bg-coral-fuego/10 p-3 text-sm text-gray-700 dark:text-dark-text">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-coral-fuego mt-0.5" />
+          <span className="flex-1">{disconnectNote}</span>
+          <button onClick={() => setDisconnectNote(null)} aria-label="Cerrar" className="flex-shrink-0">
             <X className="h-4 w-4 opacity-60" />
           </button>
         </div>

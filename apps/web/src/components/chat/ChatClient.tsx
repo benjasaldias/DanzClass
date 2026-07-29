@@ -46,6 +46,7 @@ export default function ChatClient({ chatId, chat, currentUserId, participants, 
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -56,6 +57,8 @@ export default function ChatClient({ chatId, chat, currentUserId, participants, 
   const isGroup = chat.type === 'rehearsal'
   const otherParticipant = isGroup ? null
     : participants.find((p) => p.user_id !== currentUserId)?.user
+  const me = participants.find((p) => p.user_id === currentUserId)?.user
+    ?? { id: currentUserId, full_name: 'Yo', username: '', avatar_url: null }
 
   const backHref = chat.type === 'class' && chat.class_id
     ? `/class/${chat.class_id}`
@@ -99,11 +102,27 @@ export default function ChatClient({ chatId, chat, currentUserId, participants, 
     if (!content || sending) return
     setSending(true)
     setText('')
+    setSendError(null)
 
     const supabase = createClient()
-    await (supabase as any)
+    // `.select()` para (a) detectar el error —antes se descartaba y el mensaje
+    // desaparecía sin decir nada— y (b) pintar el mensaje de inmediato. Sin el
+    // append optimista, el remitente depende de que Realtime le devuelva su
+    // propia fila; el dedupe por id evita el duplicado cuando llega.
+    const { data, error } = await (supabase as any)
       .from('chat_messages')
       .insert({ chat_id: chatId, sender_id: currentUserId, content })
+      .select('id, content, created_at, sender_id')
+      .single()
+
+    if (error) {
+      setText(content)
+      setSendError('No se pudo enviar el mensaje. Intenta de nuevo.')
+    } else if (data) {
+      setMessages((prev) => (
+        prev.some((m) => m.id === data.id) ? prev : [...prev, { ...data, sender: me }]
+      ))
+    }
 
     setSending(false)
     inputRef.current?.focus()
@@ -207,6 +226,13 @@ export default function ChatClient({ chatId, chat, currentUserId, participants, 
       </div>
 
       {/* Input */}
+      {sendError && (
+        <div className="px-4 pt-2 flex-shrink-0">
+          <p className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+            {sendError}
+          </p>
+        </div>
+      )}
       <div className="flex items-end gap-2 px-4 py-3 border-t border-gray-100 dark:border-dark-border bg-white dark:bg-dark-surface flex-shrink-0">
         <input
           ref={inputRef}
@@ -220,6 +246,7 @@ export default function ChatClient({ chatId, chat, currentUserId, participants, 
         />
         <button
           onClick={handleSend}
+          aria-label="Enviar mensaje"
           disabled={!text.trim() || sending}
           className={cn(
             'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-violet-500 text-white transition-colors hover:bg-violet-600',

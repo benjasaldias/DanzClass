@@ -27,7 +27,13 @@ const nextConfig = {
     // blocked by the browser. Dev-only: never added to a production build.
     const isDev = process.env.NODE_ENV === 'development'
     const localSupabase = isDev ? ' http://127.0.0.1:54321' : ''
-    const localSupabaseWs = isDev ? ' ws://127.0.0.1:54321' : ''
+    // `ws://localhost:*` es el websocket de Hot Module Replacement de `next dev`
+    // (puerto aleatorio). Sin él, la CSP bloqueaba el HMR del propio Next: el
+    // navegador reintentaba en bucle, y cada error de consola dentro de un render
+    // hacía que el overlay de desarrollo lanzara además el warning "Cannot update
+    // a component (HotReload) while rendering a different component". Nada de
+    // esto existe en producción; en dev ensuciaba la consola sin parar.
+    const localSupabaseWs = isDev ? ' ws://127.0.0.1:54321 ws://localhost:* ws://127.0.0.1:*' : ''
 
     const csp = [
       "default-src 'self'",

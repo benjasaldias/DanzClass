@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyUsers } from '@/lib/notifyUsers'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 type Reason = 'copyright' | 'inappropriate' | 'spam' | 'other'
 type ContentType = 'post' | 'class'
@@ -40,6 +42,9 @@ export async function submitReport(params: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'unauthorized' }
 
+  const rlHit = await checkRateLimit(`reports:${user.id}`, 'social')
+  if (rlHit) return { ok: false, error: 'failed' }
+
   const admin = createAdminClient()
 
   const { error: reportErr } = await (admin as any).from('reports').insert({
@@ -64,7 +69,7 @@ export async function submitReport(params: {
       .eq('id', user.id)
       .single()
 
-    await (admin as any).from('notifications').insert({
+    await notifyUsers(admin, [{
       user_id: adminUserId,
       type: 'new_report',
       data: {
@@ -74,7 +79,7 @@ export async function submitReport(params: {
         content_id: contentId,
         reason,
       },
-    })
+    }])
   }
 
   return { ok: true }

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
 import { revokeAttendanceToken } from '@/lib/qrAttendance'
+import { notifyUsers } from '@/lib/notifyUsers'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (waitlistEntry && classInfo) {
-    await admin.from('notifications').insert({
+    await notifyUsers(admin, [{
       user_id: waitlistEntry.user_id,
       type: 'waitlist_available',
       data: {
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
         class_title: classInfo.title,
         spots_available: 1,
       },
-    } as any)
+    }])
   }
 
   return NextResponse.json({ ok: true })

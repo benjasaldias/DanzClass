@@ -5,8 +5,7 @@ import { useRouter } from 'expo-router'
 import { ChevronLeft, AlertTriangle, Trash2 } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import { useTheme } from '../../../context/ThemeContext'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 const CONFIRM_PHRASE = 'ELIMINAR'
 
 export default function DeleteAccountScreen() {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   const admin = createAdminClient()
@@ -18,6 +19,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rlHit = await checkRateLimit(`ratings:${userId}`, 'social')
+  if (rlHit) return rlHit
 
   const body = await req.json().catch(() => ({}))
   const { rated_user_id, stars } = body

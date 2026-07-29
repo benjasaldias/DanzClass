@@ -5,7 +5,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { MapPin, Calendar, Users, Ticket, Edit2, Share2, Trophy, BookOpen, Star, CheckCircle, Clock, Upload, X } from 'lucide-react'
 import { formatCLP } from '@/lib/utils'
-import { EVENT_TYPE_LABELS } from '@danceclass/shared'
+import {
+  EVENT_TYPE_LABELS, detectReceiptType, RECEIPT_MAGIC_BYTES, parseLocalDate,
+} from '@danceclass/shared'
 import type { EventType } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
 import LocationMap from '@/components/map/LocationMap'
@@ -53,7 +55,12 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
   const pendingInvites = (event.event_invites ?? []).filter((i: any) => i.status === 'pending')
   const enrolledCount = (event.event_enrollments ?? []).filter((e: any) => e.status !== 'cancelled').length
   const isFull = event.has_spots && event.max_spots != null && enrolledCount >= event.max_spots
-  const isPast = new Date(event.event_date) < new Date(new Date().toDateString())
+  // `new Date('YYYY-MM-DD')` parsea como medianoche UTC: en Chile (UTC-3/-4) eso
+  // cae el día ANTERIOR, así que un evento de HOY se consideraba pasado y la CTA
+  // de inscripción desaparecía el día del evento. `parseLocalDate` lo construye
+  // en hora local (mismo bug documentado en CLAUDE.md para `formatDate`).
+  const today = new Date()
+  const isPast = parseLocalDate(event.event_date) < new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
   async function handleShare() {
     await navigator.clipboard.writeText(`${window.location.origin}/event/${event.id}`)
@@ -85,19 +92,25 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
     setLoading(true)
     setError(null)
     try {
-      // Validate magic bytes
-      const header = await file.slice(0, 4).arrayBuffer()
-      const hex = Array.from(new Uint8Array(header)).map(b => b.toString(16).padStart(2, '0')).join('')
-      const allowed = ['ffd8ff', '89504e47', '25504446', '52494646']
-      if (!allowed.some(m => hex.startsWith(m))) {
+      // Tipo por contenido, no por nombre (D-4). Antes la extensión salía de
+      // `file.name.split('.').pop()`, así que un PNG llamado `.svg` quedaba
+      // guardado como SVG — y este bucket era público, o sea directamente
+      // servible y ejecutable.
+      const head = await file.slice(0, RECEIPT_MAGIC_BYTES).arrayBuffer()
+      const detected = detectReceiptType(new Uint8Array(head))
+      if (!detected) {
         throw new Error('Formato de archivo no válido. Usa JPG, PNG, PDF o WEBP.')
       }
 
-      const ext = file.name.split('.').pop()
-      const path = `${currentUser.id}/${event.id}/${Date.now()}.${ext}`
+      // `payment-receipts` (privado desde la migración 029) y no `event-media`
+      // (PÚBLICO): un comprobante de transferencia lleva nombre, RUT y número de
+      // cuenta, y ahí quedaba legible por cualquiera con la URL. De paso, el
+      // bucket de eventos sólo admite imágenes, así que subir un PDF —que la UI
+      // ofrece y la validación acepta— fallaba siempre.
+      const path = `${currentUser.id}/event_${event.id}_${Date.now()}.${detected.ext}`
       const { error: uploadErr } = await supabase.storage
-        .from('event-media')
-        .upload(path, file, { upsert: true })
+        .from('payment-receipts')
+        .upload(path, file, { upsert: true, contentType: detected.mime })
       if (uploadErr) throw uploadErr
 
       // Upsert payment record
@@ -132,6 +145,10 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
 
   const canEnroll = currentUser && !isCreator && !enrollment && !isFull && !isPast && event.status === 'active'
   const showPaymentSection = enrollment && event.has_entry && enrollment.status !== 'cancelled'
+  // Un comprobante rechazado queda 'void': deja de contar como pago, para que la
+  // pantalla vuelva a ofrecer subir uno nuevo en vez de quedarse en "el
+  // organizador confirmará tu inscripción" para siempre.
+  const activePayment = payment && payment.status !== 'void' ? payment : null
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -331,7 +348,7 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
             {enrollment.status === 'confirmed' ? '✅ Inscripción confirmada' : 'Comprobante de pago'}
           </h2>
 
-          {enrollment.status === 'pending_payment' && !payment && creatorPaymentInfo && (
+          {enrollment.status === 'pending_payment' && !activePayment && creatorPaymentInfo && (
             <div className="space-y-3">
               <p className="text-sm text-gray-600 dark:text-dark-text2">
                 Transfiere <strong>{formatCLP(event.entry_price ?? 0)}</strong> al organizador y sube tu comprobante:
@@ -346,7 +363,7 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
             </div>
           )}
 
-          {enrollment.status === 'pending_payment' && !payment && (
+          {enrollment.status === 'pending_payment' && !activePayment && (
             <div>
               <input ref={fileInputRef} type="file" accept="image/*,.pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadReceipt(f) }} />
               <button
@@ -360,7 +377,7 @@ export default function EventDetailClient({ event, currentUser, creatorPaymentIn
             </div>
           )}
 
-          {(enrollment.status === 'payment_submitted' || payment?.status === 'submitted') && (
+          {(enrollment.status === 'payment_submitted' || activePayment?.status === 'submitted') && (
             <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
               <Clock className="h-4 w-4 shrink-0" />
               Comprobante enviado. El organizador confirmará tu inscripción.
@@ -433,12 +450,29 @@ function EnrollmentConfirmList({ eventId }: { eventId: string }) {
     )
   }
 
-  async function confirm(enrollmentId: string) {
+  async function decide(enrollmentId: string, action: 'confirm' | 'reject') {
     setLoading(enrollmentId)
-    await (supabase as any).from('event_enrollments').update({ status: 'confirmed' }).eq('id', enrollmentId)
-    await (supabase as any).from('event_payments').update({ status: 'verified' }).eq('enrollment_id', enrollmentId)
-    setEnrollments(prev => prev.map(e => e.id === enrollmentId ? { ...e, status: 'confirmed' } : e))
+    // Antes eran dos UPDATE sueltos desde el navegador y el alumno no recibía
+    // ningún aviso; la ruta hace las dos escrituras y notifica.
+    const res = await fetch('/api/event/confirm-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enrollment_id: enrollmentId, action }),
+    })
+    if (res.ok) {
+      const { status } = await res.json()
+      setEnrollments(prev => prev.map(e => e.id === enrollmentId ? { ...e, status } : e))
+    } else {
+      alert('No se pudo actualizar el pago.')
+    }
     setLoading(null)
+  }
+
+  async function openReceipt(eventPaymentId: string) {
+    const res = await fetch(`/api/payment/receipt-url?eventPaymentId=${eventPaymentId}`)
+    if (!res.ok) { alert('No se pudo abrir el comprobante.'); return }
+    const { url } = await res.json()
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   if (enrollments.length === 0) return <p className="text-sm text-gray-500 dark:text-dark-text2">Sin inscripciones aún.</p>
@@ -459,13 +493,30 @@ function EnrollmentConfirmList({ eventId }: { eventId: string }) {
               </p>
             </div>
             {enroll.status === 'payment_submitted' && (
-              <button
-                onClick={() => confirm(enroll.id)}
-                disabled={loading === enroll.id}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {loading === enroll.id ? '...' : 'Confirmar'}
-              </button>
+              <div className="flex flex-wrap items-center gap-2 justify-end">
+                {pay?.id && (
+                  <button
+                    onClick={() => openReceipt(pay.id)}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-surface2"
+                  >
+                    Ver comprobante
+                  </button>
+                )}
+                <button
+                  onClick={() => decide(enroll.id, 'confirm')}
+                  disabled={loading === enroll.id}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {loading === enroll.id ? '...' : 'Confirmar'}
+                </button>
+                <button
+                  onClick={() => decide(enroll.id, 'reject')}
+                  disabled={loading === enroll.id}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                >
+                  Rechazar
+                </button>
+              </div>
             )}
           </div>
         )

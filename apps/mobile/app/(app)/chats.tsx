@@ -6,8 +6,7 @@ import { ChevronLeft, MessageCircle, Users, BookOpen } from 'lucide-react-native
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
 import Avatar from '../../components/ui/Avatar'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -79,7 +78,7 @@ export default function ChatsScreen() {
 
       <FlatList
         data={chats}
-        keyExtractor={(c) => c.id}
+        keyExtractor={(c: any) => c.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#8b5cf6" />}
         contentContainerStyle={{ paddingVertical: 8 }}
         ListEmptyComponent={
@@ -91,7 +90,7 @@ export default function ChatsScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item: chat }) => {
+        renderItem={({ item: chat }: { item: any }) => {
           const isGroup = chat.type === 'rehearsal'
           const otherParticipant = isGroup ? null
             : (chat.participants ?? []).find((p: any) => p.user_id !== currentUserId)?.user
@@ -115,7 +114,7 @@ export default function ChatsScreen() {
                   <Users stroke="#7c3aed" size={20} />
                 </View>
               ) : otherParticipant ? (
-                <Avatar src={otherParticipant.avatar_url} name={otherParticipant.full_name} size="md" />
+                <Avatar url={otherParticipant.avatar_url ?? null} name={otherParticipant.full_name} size="md" />
               ) : (
                 <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: isDark ? '#2E1B5C' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
                   <BookOpen stroke={subColor} size={20} />

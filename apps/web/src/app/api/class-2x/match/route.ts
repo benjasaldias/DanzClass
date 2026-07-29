@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { logger } from '@/lib/logger'
+import { notifyUsers } from '@/lib/notifyUsers'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   let user: any = null
@@ -23,6 +26,9 @@ export async function POST(req: NextRequest) {
     user = data.user
   }
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rlHit = await checkRateLimit(`enroll:${user.id}`, 'enroll')
+  if (rlHit) return rlHit
 
   const { request_id } = await req.json()
   if (!request_id) return NextResponse.json({ error: 'Missing request_id' }, { status: 400 })
@@ -97,8 +103,12 @@ export async function POST(req: NextRequest) {
   // Link A's enrollment to B
   await admin.from('enrollments').update({ partner_enrollment_id: enrollB.id }).eq('id', enrollA.id)
 
-  // Update 2x request to matched
-  await admin
+  // Update 2x request to matched.
+  // El error NO se puede ignorar: si esta escritura falla, el emparejamiento
+  // queda sin turno de pago y ni transfer-payment ni el pago por Mercado Pago
+  // funcionan (así se descubrió que `payment_assignee` nunca se había creado
+  // en la tabla — ver migración 062).
+  const { error: matchErr } = await admin
     .from('class_2x_requests' as any)
     .update({
       matched_with: user.id,
@@ -107,8 +117,14 @@ export async function POST(req: NextRequest) {
     })
     .eq('id', request_id)
 
+  if (matchErr) {
+    logger.error('twox_match_update_failed', matchErr, { request_id, class_id: req2x.class_id })
+    await admin.from('enrollments').delete().in('id', [enrollA.id, enrollB.id])
+    return NextResponse.json({ error: 'Failed to match' }, { status: 500 })
+  }
+
   // Notify requester (A) that B matched
-  await admin.from('notifications').insert({
+  await notifyUsers(admin, [{
     user_id: req2x.user_id,
     type: '2x_match',
     data: {
@@ -117,7 +133,7 @@ export async function POST(req: NextRequest) {
       matched_with: user.id,
       enrollment_id: enrollA.id,
     },
-  })
+  }])
 
   return NextResponse.json({ success: true, enrollment_id: enrollA.id })
 }

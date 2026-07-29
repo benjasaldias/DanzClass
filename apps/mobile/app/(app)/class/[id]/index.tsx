@@ -21,11 +21,13 @@ import StyleChip from '../../../../components/ui/StyleChip'
 import LeafletMap from '../../../../components/ui/LeafletMap'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
-import { formatCLP, DAYS_OF_WEEK, canEnroll, pluralize, LEVEL_LABELS } from '@danceclass/shared'
+import {
+  formatCLP, DAYS_OF_WEEK, canEnroll, pluralize, LEVEL_LABELS, getActiveTier, WEB_URL,
+  detectReceiptType, RECEIPT_MAGIC_BYTES,
+} from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const WEB_URL = 'https://dc-project-web.vercel.app'
 
 const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
   principiante: { bg: '#dcfce7', text: '#15803d' },
@@ -510,6 +512,7 @@ export default function ClassDetailScreen() {
   const [classPackages, setClassPackages] = useState<any[]>([])
   const [myPackageEnrollments, setMyPackageEnrollments] = useState<any[]>([])
   const [pkgEnrolling, setPkgEnrolling] = useState<string | null>(null)
+  const [pkgUploading, setPkgUploading] = useState<string | null>(null)
   const [expandedPkg, setExpandedPkg] = useState<string | null>(null)
 
   useEffect(() => {
@@ -525,12 +528,12 @@ export default function ClassDetailScreen() {
           .select('*, teacher:profiles!teacher_id(*), media:class_media(*)')
           .eq('id', id)
           .single(),
-        supabase.from('subscriptions').select('tier').eq('user_id', session.user.id).eq('status', 'active').single(),
+        getActiveTier(session.user.id, supabase),
         (supabase as any).from('class_spots').select('*').eq('class_id', id).maybeSingle(),
       ])
 
       setCls(clsRes.data)
-      setTier((subRes.data?.tier as SubscriptionTier) ?? 'none')
+      setTier(subRes)
       setSpots(spotsRes.data)
 
       if (clsRes.data) {
@@ -666,6 +669,10 @@ export default function ClassDetailScreen() {
     if (!error && data) {
       setTwoxRequest(data)
       setTwoxState('looking')
+    } else if (error?.code === '23505') {
+      Alert.alert('Ya tienes una búsqueda activa', 'Ya tienes una búsqueda de 2x activa para esta clase.')
+    } else if (error) {
+      Alert.alert('Error', 'No se pudo iniciar la búsqueda de 2x. Intenta de nuevo.')
     }
     setTwoxActing(false)
   }
@@ -749,6 +756,8 @@ export default function ClassDetailScreen() {
         }
       } else if (json.error === 'no_spots') {
         Alert.alert('Sin cupos', 'No hay cupos disponibles.')
+      } else if (json.error === 'no_payment_method') {
+        Alert.alert('Sin forma de pago', 'El profesor aún no habilitó una forma de pago para esta clase.')
       } else {
         Alert.alert('Error', 'No se pudo inscribir. Intenta nuevamente.')
       }
@@ -783,6 +792,54 @@ export default function ClassDetailScreen() {
         },
       ]
     )
+  }
+
+  // Mobile podía inscribirse a un paquete y NO tenía forma de pagarlo: la
+  // tarjeta sólo mostraba "Inscrito — pendiente de pago" sin subida de
+  // comprobante (la web sí la tenía). Mismo camino que la pantalla de pago de
+  // una clase: archivo al bucket privado bajo la carpeta del usuario y registro
+  // por la ruta de servidor.
+  async function handlePackageReceipt(pkgId: string, pkgEnrollmentId: string) {
+    if (!token || !userId) return
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    })
+    if (picked.canceled) return
+
+    setPkgUploading(pkgEnrollmentId)
+    try {
+      const base64 = await FileSystem.readAsStringAsync(picked.assets[0].uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      })
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+      const detected = detectReceiptType(bytes.slice(0, RECEIPT_MAGIC_BYTES))
+      if (!detected) {
+        Alert.alert('Formato no reconocido', 'Sube una imagen JPG, PNG o WEBP (una captura sirve).')
+        return
+      }
+
+      const path = `${userId}/pkg_${pkgEnrollmentId}_${Date.now()}.${detected.ext}`
+      const { error: upErr } = await supabase.storage
+        .from('payment-receipts')
+        .upload(path, bytes, { contentType: detected.mime, upsert: true })
+      if (upErr) throw upErr
+
+      const res = await fetch(`${WEB_URL}/api/packages/${pkgId}/submit-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ package_enrollment_id: pkgEnrollmentId, receipt_path: path }),
+      })
+      if (!res.ok) throw new Error('No se pudo registrar el comprobante')
+
+      setMyPackageEnrollments((prev) => prev.map((e) => (
+        e.id === pkgEnrollmentId ? { ...e, status: 'payment_submitted' } : e
+      )))
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'No se pudo subir el comprobante')
+    } finally {
+      setPkgUploading(null)
+    }
   }
 
   async function handleJoinWaitlist() {
@@ -923,6 +980,13 @@ export default function ClassDetailScreen() {
 
   // Training with audition: enrollment auto-created on accept — never show "Reservar lugar"
   const canEnrollDirectly = !isEntrenamiento || !cls.requires_audition
+  // Vías de pago habilitadas por el profesor para esta clase (marketplace v2).
+  // `!== false` cubre las clases anteriores a la migración 061.
+  const acceptsMpForClass = cls.accepts_mp !== false && !!teacher?.mp_connected
+  const acceptsTransferForClass = cls.accepts_transfer !== false
+  // El CHECK de la 061 garantiza una vía marcada, pero MP depende además de que
+  // el profesor tenga la cuenta conectada: en runtime puede no quedar ninguna.
+  const noPaymentMethodForClass = !acceptsMpForClass && !acceptsTransferForClass
   const auditionOpen = isEntrenamiento && cls.requires_audition && !cls.audition_closed
 
   return (
@@ -1279,6 +1343,12 @@ export default function ClassDetailScreen() {
               </Text>
             )}
 
+            {(acceptsMpForClass || acceptsTransferForClass) && (
+              <Text className="text-[11px] text-gray-400 dark:text-dark-text2/60">
+                Pago: {[acceptsMpForClass && 'Mercado Pago', acceptsTransferForClass && 'transferencia'].filter(Boolean).join(' · ')}
+              </Text>
+            )}
+
             {/* CTA for student */}
             {!isTeacher && canEnrollDirectly && (
               enrollment ? (
@@ -1359,6 +1429,10 @@ export default function ClassDetailScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
+              ) : noPaymentMethodForClass ? (
+                <Text className="text-xs text-coral-fuego font-medium mt-2">
+                  El profesor aún no habilitó una forma de pago para esta clase.
+                </Text>
               ) : (
                 <View>
                   <TouchableOpacity
@@ -1402,12 +1476,31 @@ export default function ClassDetailScreen() {
                             <Text key={item.class_id} className="text-xs text-gray-600 dark:text-dark-text2 mb-0.5">• {item.class?.title}</Text>
                           ))}
                           {myEnrollment ? (
-                            <View className="mt-2 rounded-lg bg-violet-100 dark:bg-violet-900/20 px-3 py-2">
-                              <Text className="text-xs font-semibold text-violet-700 dark:text-violet-400">
-                                {myEnrollment.status === 'confirmed' ? '✓ Pago confirmado' :
-                                 myEnrollment.status === 'payment_submitted' ? 'Comprobante enviado — pendiente de verificación' :
-                                 'Inscrito — pendiente de pago'}
-                              </Text>
+                            <View className="mt-2 gap-2">
+                              <View className="rounded-lg bg-violet-100 dark:bg-violet-900/20 px-3 py-2">
+                                <Text className="text-xs font-semibold text-violet-700 dark:text-violet-400">
+                                  {myEnrollment.status === 'confirmed' ? '✓ Pago confirmado' :
+                                   myEnrollment.status === 'payment_submitted' ? 'Comprobante enviado — pendiente de verificación' :
+                                   'Inscrito — pendiente de pago'}
+                                </Text>
+                              </View>
+                              {myEnrollment.status === 'pending_payment' && (
+                                <>
+                                  <Text className="text-xs text-gray-600 dark:text-dark-text2">
+                                    Transfiere {formatCLP(pkg.price)} al profesor y adjunta el comprobante.
+                                  </Text>
+                                  <TouchableOpacity
+                                    onPress={() => handlePackageReceipt(pkg.id, myEnrollment.id)}
+                                    disabled={pkgUploading === myEnrollment.id}
+                                    className="rounded-xl border border-violet-300 dark:border-violet-700 py-2.5 items-center"
+                                    style={{ opacity: pkgUploading === myEnrollment.id ? 0.5 : 1 }}
+                                  >
+                                    <Text className="text-sm font-semibold text-violet-700 dark:text-violet-300">
+                                      {pkgUploading === myEnrollment.id ? 'Subiendo...' : 'Subir comprobante'}
+                                    </Text>
+                                  </TouchableOpacity>
+                                </>
+                              )}
                             </View>
                           ) : canEnroll(tier) ? (
                             <TouchableOpacity

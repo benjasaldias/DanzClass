@@ -29,11 +29,16 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${settings}?mp=error`)
   }
 
-  // Defensa en profundidad: si hay sesión en cookie, debe coincidir con el state.
+  // El flujo legítimo siempre vuelve al navegador del profesor, que trae su
+  // cookie de sesión: se EXIGE sesión y que coincida con el `state`. Con la
+  // versión anterior ("si hay sesión, que coincida"), un `state` filtrado —
+  // queda en la URL de redirección, en el historial, en el referrer — le daba a
+  // quien lo tuviera 10 minutos para completar el flujo desde un navegador sin
+  // sesión y quedarse con los cobros de las clases de ese profesor.
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (user && user.id !== userId) {
-    logger.warn('mp_oauth_state_user_mismatch', { state_user: userId, session_user: user.id })
+  if (!user || user.id !== userId) {
+    logger.warn('mp_oauth_state_user_mismatch', { state_user: userId, session_user: user?.id ?? null })
     return NextResponse.redirect(`${settings}?mp=error`)
   }
 

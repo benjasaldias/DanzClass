@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
+import { formatBillingPeriod } from '@danceclass/shared'
 
 function timeAgo(date: string): string {
   const diff = Date.now() - new Date(date).getTime()
@@ -60,15 +61,21 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
         : `La clase "${data.class_title ?? ''}" fue cancelada`,
     route: (data) => (data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed'),
   },
+  // `data.event_id` → el pago es de una entrada a evento (ver la nota en el
+  // NotificationsClient de web).
   payment_confirmed: {
     icon: CheckCircle2, bgColor: '#f0fdf4', iconColor: '#16a34a',
-    label: () => '¡Tu pago fue confirmado! Cupo reservado.',
-    route: () => '/(app)/(tabs)/my-classes',
+    label: (data) => data.event_id
+      ? `Tu entrada para "${data.event_title ?? 'el evento'}" fue confirmada`
+      : '¡Tu pago fue confirmado! Cupo reservado.',
+    route: (data) => (data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/my-classes'),
   },
   payment_rejected: {
     icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
-    label: () => 'Tu pago fue rechazado. Contacta al profesor.',
-    route: () => '/(app)/(tabs)/my-classes',
+    label: (data) => data.event_id
+      ? `Tu comprobante para "${data.event_title ?? 'el evento'}" fue rechazado`
+      : 'Tu pago fue rechazado. Contacta al profesor.',
+    route: (data) => (data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/my-classes'),
   },
   '2x_request': {
     icon: Users, bgColor: '#fff7ed', iconColor: '#D85A30',
@@ -146,7 +153,18 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
   },
   payment_reminder: {
     icon: AlertCircle, bgColor: '#fefce8', iconColor: '#ca8a04',
-    label: (data) => `Tienes un pago pendiente para "${data.class_title ?? 'una clase'}". Sube tu comprobante para confirmar tu cupo.`,
+    // Dos usos: reserva sin comprobante (cron cleanup-classes) y mensualidad de
+    // un entrenamiento (cron monthly-charges, que sí manda `billing_period`).
+    label: (data) => {
+      const title = data.class_title ?? 'una clase'
+      if (!data.billing_period) {
+        return `Tienes un pago pendiente para "${title}". Sube tu comprobante para confirmar tu cupo.`
+      }
+      const month = formatBillingPeriod(String(data.billing_period))
+      return data.charge_stage === 'overdue'
+        ? `Debes ${month} de "${title}". Mientras no te pongas al día, tu QR de acceso no funciona.`
+        : `Nueva mensualidad de "${title}": ${month}.`
+    },
     route: (data) => data.enrollment_id ? `/(app)/payment/${data.enrollment_id}` : '/(app)/(tabs)/my-classes',
   },
   event_invite: {
@@ -175,6 +193,26 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
         : `${n} videos guardados en privado se eliminan ${cuando}. Activa un plan para conservarlos.`
     },
     route: () => '/(app)/(tabs)/profile',
+  },
+  mp_connection_expiring: {
+    icon: AlertCircle, bgColor: '#fff7ed', iconColor: '#D85A30',
+    label: (data) => {
+      if (data.expired) return 'Tu cuenta de Mercado Pago se desconectó. Reconéctala para volver a recibir pagos in-app.'
+      const days = Number(data.days_left ?? 0)
+      const cuando = days <= 1 ? 'mañana' : `en ${days} días`
+      return `Tu conexión con Mercado Pago vence ${cuando}. Reconéctala para seguir recibiendo pagos in-app.`
+    },
+    route: () => '/(app)/profile/payment-info',
+  },
+  payment_refunded: {
+    icon: AlertCircle, bgColor: '#fff7ed', iconColor: '#ea580c',
+    label: (data) => {
+      const evento = data.mp_status === 'charged_back' ? 'Se hizo un contracargo' : 'Se reembolsó'
+      return data.role === 'teacher'
+        ? `${evento} sobre un pago de una de tus clases. El alumno perdió el acceso hasta que vuelva a pagar.`
+        : `${evento} tu pago. Tu inscripción quedó pendiente de pago.`
+    },
+    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/my-classes',
   },
 }
 

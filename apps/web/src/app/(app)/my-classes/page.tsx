@@ -3,31 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import MyClassesClient from '@/components/class/MyClassesClient'
 import { getActiveTier } from '@/lib/subscription'
-import { canTeach } from '@danceclass/shared'
-
-// Fecha en que se archivan los archivos pesados de la clase: 24 h después de su
-// última sesión (item 1). Null para clases indefinidas o sin fecha determinable.
-function getClassDeletionDate(cls: any): Date | null {
-  const durMs = (cls.duration_minutes ?? 60) * 60 * 1000
-  const at = (ymd: string, hm: string | null | undefined): Date => {
-    const [y, mo, d] = ymd.split('-').map(Number)
-    const [h = 0, m = 0] = (hm ?? '00:00').split(':').map(Number)
-    const dt = new Date(y, mo - 1, d, h, m)
-    dt.setTime(dt.getTime() + durMs)
-    return dt
-  }
-  let lastSession: Date | null = null
-  if (cls.type === 'suelta') {
-    lastSession = cls.date ? at(cls.date, cls.time) : null
-  } else if (cls.recurrence === 'custom' || (cls.custom_dates?.length ?? 0) > 0) {
-    const dates: string[] = cls.custom_dates ?? []
-    if (dates.length) lastSession = at([...dates].sort().at(-1)!, cls.recurring_time ?? cls.time)
-  } else if (!cls.ends_indefinitely && cls.ends_at) {
-    lastSession = at(cls.ends_at, cls.recurring_time)
-  }
-  if (!lastSession) return null
-  return new Date(lastSession.getTime() + 24 * 60 * 60 * 1000)
-}
+// getClassDeletionDate vive en `packages/shared` (D-5) — antes había una copia
+// acá y otra (`lastSessionEnd`) en el cron de limpieza, con la misma regla
+// escrita dos veces.
+import { canTeach, getClassDeletionDate } from '@danceclass/shared'
 
 export default async function MyClassesPage() {
   const supabase = createClient()

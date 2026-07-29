@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { notifyUsers } from '@/lib/notifyUsers'
 
 export async function POST(req: NextRequest) {
   let user: any = null
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     .eq('id', request_id)
 
   // Notify new assignee
-  await admin.from('notifications').insert({
+  await notifyUsers(admin, [{
     user_id: newAssignee,
     type: '2x_payment_turn',
     data: {
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
       request_id,
       from_user_id: user.id,
     },
-  })
+  }])
 
   return NextResponse.json({ success: true })
 }

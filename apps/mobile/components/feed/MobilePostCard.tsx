@@ -3,8 +3,7 @@ import { View, Text, Image, TouchableOpacity, Share } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { Play, Eye, Users, Lock, Share2, Clapperboard } from 'lucide-react-native'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 
 interface MobilePostCardProps {
   post: any

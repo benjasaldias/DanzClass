@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import { timeAgo } from '@/lib/utils'
+import { formatBillingPeriod } from '@danceclass/shared'
 
 interface Notification {
   id: string
@@ -92,17 +93,25 @@ const NOTIF_CONFIG: Record<string, {
         : `La clase "${data.class_title ?? ''}" fue cancelada`,
     href: (data) => (data.class_id ? `/class/${data.class_id}` : '/feed'),
   },
+  // Un pago de entrada a evento reusa estos dos tipos (no hay tipo propio y
+  // agregar uno reescribe el CHECK entero de `notifications`): `data.event_id`
+  // distingue el caso y manda al evento en vez de a "Mis clases", donde los
+  // eventos no aparecen.
   payment_confirmed: {
     icon: CheckCircle2,
     color: 'text-green-500 bg-green-50 dark:bg-green-950/30 dark:text-green-400',
-    label: () => 'Tu pago fue confirmado. ¡Cupo reservado!',
-    href: () => '/my-classes',
+    label: (data) => data.event_id
+      ? `Tu entrada para "${data.event_title ?? 'el evento'}" fue confirmada`
+      : 'Tu pago fue confirmado. ¡Cupo reservado!',
+    href: (data) => (data.event_id ? `/event/${data.event_id}` : '/my-classes'),
   },
   payment_rejected: {
     icon: XCircle,
     color: 'text-red-500 bg-red-50 dark:bg-red-950/30 dark:text-red-400',
-    label: () => 'Tu pago fue rechazado. Contáctate con el profesor.',
-    href: () => '/my-classes',
+    label: (data) => data.event_id
+      ? `Tu comprobante para "${data.event_title ?? 'el evento'}" fue rechazado`
+      : 'Tu pago fue rechazado. Contáctate con el profesor.',
+    href: (data) => (data.event_id ? `/event/${data.event_id}` : '/my-classes'),
   },
   '2x_request': {
     icon: Users,
@@ -208,7 +217,18 @@ const NOTIF_CONFIG: Record<string, {
   payment_reminder: {
     icon: AlertCircle,
     color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
-    label: (data) => `Tienes un pago pendiente para "${data.class_title ?? 'una clase'}". Sube tu comprobante para confirmar tu cupo.`,
+    // Dos usos: reserva sin comprobante (cron cleanup-classes) y mensualidad de
+    // un entrenamiento (cron monthly-charges, que sí manda `billing_period`).
+    label: (data) => {
+      const title = data.class_title ?? 'una clase'
+      if (!data.billing_period) {
+        return `Tienes un pago pendiente para "${title}". Sube tu comprobante para confirmar tu cupo.`
+      }
+      const month = formatBillingPeriod(String(data.billing_period))
+      return data.charge_stage === 'overdue'
+        ? `Debes ${month} de "${title}". Mientras no te pongas al día, tu QR de acceso no funciona.`
+        : `Nueva mensualidad de "${title}": ${month}.`
+    },
     href: (data) => data.enrollment_id ? `/payment/${data.enrollment_id}` : '/my-classes',
   },
   event_invite: {
@@ -247,6 +267,30 @@ const NOTIF_CONFIG: Record<string, {
         : `${n} videos guardados en privado se eliminan ${cuando}. Activa un plan para conservarlos.`
     },
     href: () => '/profile',
+  },
+  mp_connection_expiring: {
+    icon: AlertCircle,
+    color: 'text-coral-fuego bg-coral-fuego/10',
+    label: (data) => {
+      if (data.expired) return 'Tu cuenta de Mercado Pago se desconectó. Reconéctala para volver a recibir pagos in-app.'
+      const days = Number(data.days_left ?? 0)
+      const cuando = days <= 1 ? 'mañana' : `en ${days} días`
+      return `Tu conexión con Mercado Pago vence ${cuando}. Reconéctala para seguir recibiendo pagos in-app.`
+    },
+    href: () => '/profile/payment-info',
+  },
+  payment_refunded: {
+    icon: AlertCircle,
+    color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
+    label: (data, { classMap }) => {
+      const title = data.class_id ? classMap[data.class_id]?.title : null
+      const clase = title ? `"${title}"` : 'una clase'
+      const evento = data.mp_status === 'charged_back' ? 'Se hizo un contracargo' : 'Se reembolsó'
+      return data.role === 'teacher'
+        ? `${evento} sobre un pago de ${clase}. El alumno perdió el acceso hasta que vuelva a pagar.`
+        : `${evento} tu pago de ${clase}. Tu inscripción quedó pendiente de pago.`
+    },
+    href: (data) => data.class_id ? `/class/${data.class_id}` : '/my-classes',
   },
 }
 

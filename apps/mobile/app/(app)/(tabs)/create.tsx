@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { canTeach, canPostVideo } from '@danceclass/shared'
+import { canTeach, canPostVideo, getActiveTier } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import { GraduationCap, CalendarDays, Repeat, Dumbbell, Film } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
@@ -16,13 +16,7 @@ export default function CreateScreen() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase
-        .from('subscriptions')
-        .select('tier')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .single()
-      setTier((data?.tier as SubscriptionTier) ?? 'none')
+      setTier(await getActiveTier(user.id, supabase))
     }
     load()
   }, [])

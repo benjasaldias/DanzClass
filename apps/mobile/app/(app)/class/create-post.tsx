@@ -202,7 +202,7 @@ export default function CreatePostScreen() {
           </Text>
           <TextInput
             value={description}
-            onChangeText={(t) => setDescription(t.slice(0, 280))}
+            onChangeText={(t: string) => setDescription(t.slice(0, 280))}
             placeholder="¿De qué trata este video? Contexto, estilo, nivel..."
             placeholderTextColor="#9CA3AF"
             multiline
@@ -254,8 +254,8 @@ export default function CreatePostScreen() {
               </View>
               <FlatList
                 data={[{ id: '', title: 'Sin etiquetar' }, ...enrolledClasses]}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
+                keyExtractor={(item: { id: string; title: string }) => item.id}
+                renderItem={({ item }: { item: { id: string; title: string } }) => (
                   <TouchableOpacity
                     onPress={() => { setClassId(item.id || null); setShowClassPicker(false) }}
                     className="px-4 py-3.5 border-b border-gray-50 dark:border-dark-border"

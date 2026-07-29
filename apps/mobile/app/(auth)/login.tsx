@@ -7,8 +7,7 @@ import { z } from 'zod'
 import { supabase } from '../../lib/supabase'
 import { Icon } from '../../components/ui/Icon'
 import LogoIcon from '../../components/ui/LogoIcon'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 const RESEND_COOLDOWN = 60
 
 const schema = z.object({

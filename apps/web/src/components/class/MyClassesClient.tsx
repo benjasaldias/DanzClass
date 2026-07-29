@@ -10,7 +10,7 @@ import {
   CalendarDays, MessageCircle, Download, Package, Plus,
 } from 'lucide-react'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
-import { DAYS_OF_WEEK } from '@danceclass/shared'
+import { DAYS_OF_WEEK, formatBillingPeriod, paymentList, summarizeCharges } from '@danceclass/shared'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
@@ -188,7 +188,7 @@ function TeachingTab({
       const { data } = await (supabase as any)
         .from('package_enrollments')
         .select(`
-          id, status, amount, created_at,
+          id, status, amount, created_at, receipt_url,
           student:profiles!student_id(id, full_name, username, avatar_url),
           package:class_packages!inner(id, title, price, teacher_id,
             items:class_package_items(class_id, class:classes(title))
@@ -200,6 +200,16 @@ function TeachingTab({
     }
     fetchPendingPackages()
   }, [currentUserId])
+
+  // El comprobante del paquete se guardaba y NADIE lo veía: el profesor
+  // confirmaba a ciegas. La URL se firma en el momento porque el bucket
+  // `payment-receipts` es privado desde la migración 029.
+  async function openPackageReceipt(pkgEnrollmentId: string) {
+    const res = await fetch(`/api/payment/receipt-url?packageEnrollmentId=${pkgEnrollmentId}`)
+    if (!res.ok) { alert('No se pudo abrir el comprobante.'); return }
+    const { url } = await res.json()
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
 
   async function handlePackageAction(pkgId: string, pkgEnrollmentId: string, action: 'confirm' | 'reject') {
     setConfirmingPkg(pkgEnrollmentId)
@@ -326,7 +336,15 @@ function TeachingTab({
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {pe.receipt_url && (
+                    <button
+                      onClick={() => openPackageReceipt(pe.id)}
+                      className="flex items-center gap-1.5 rounded-lg border border-violet-200 dark:border-violet-800 px-3 py-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                    >
+                      Ver comprobante
+                    </button>
+                  )}
                   <button
                     onClick={() => handlePackageAction(pe.package?.id, pe.id, 'confirm')}
                     disabled={confirmingPkg === pe.id}
@@ -540,8 +558,26 @@ function TeachingTab({
                         .filter((e: any) => e.status !== 'cancelled')
                         .map((enrollment: any) => {
                           const student = enrollment.student
-                          const payment = enrollment.payment?.[0] ?? enrollment.payment
+                          const payments = paymentList<any>(enrollment.payment)
                           const config = PAYMENT_STATUS[enrollment.status as keyof typeof PAYMENT_STATUS]
+
+                          // Entrenamiento: la deuda es la suma de mensualidades
+                          // impagas, no el estado de la inscripción (que queda
+                          // `confirmed` para siempre). El pago a revisar es el
+                          // cargo con comprobante enviado; en el resto de las
+                          // clases, el pago único de siempre.
+                          const isTraining = cls.type === 'entrenamiento'
+                          const debt = isTraining
+                            ? summarizeCharges(payments, cls.billing_day ?? 1)
+                            : null
+                          const payment = isTraining
+                            ? (debt!.inReview[0]
+                                ? payments.find((p) => p.id === debt!.inReview[0].id)
+                                : payments.find((p) => p.confirmed_by === 'ai' && p.status === 'verified'))
+                            : payments.find((p) => !p.billing_period)
+                          const showReview = isTraining
+                            ? !!payment
+                            : (enrollment.status === 'payment_submitted' || payment?.confirmed_by === 'ai') && !!payment
 
                           return (
                             <div key={enrollment.id} className="p-4 flex items-start gap-3">
@@ -565,7 +601,22 @@ function TeachingTab({
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-dark-text2">@{student?.username}</p>
 
-                                {(enrollment.status === 'payment_submitted' || payment?.confirmed_by === 'ai') && payment && (
+                                {debt && debt.unpaid.length > 0 && (
+                                  <p className={cn(
+                                    'mt-1 text-xs font-semibold',
+                                    debt.hasOverdue ? 'text-coral-fuego' : 'text-gray-600 dark:text-dark-text2'
+                                  )}>
+                                    Debe {formatCLP(debt.totalUnpaid)} ·{' '}
+                                    {debt.unpaid.length === 1 ? '1 mes' : `${debt.unpaid.length} meses`}
+                                    {' '}({debt.unpaid.map((c) => formatBillingPeriod(c.billing_period)).join(', ')})
+                                    {debt.hasOverdue && ' · sin acceso por QR'}
+                                  </p>
+                                )}
+                                {debt && debt.unpaid.length === 0 && debt.charges.length > 0 && (
+                                  <p className="mt-1 text-xs font-medium text-green-700 dark:text-green-400">Al día</p>
+                                )}
+
+                                {showReview && payment && (
                                   <div className="mt-2 space-y-1.5">
                                     <p className="text-xs text-gray-500 dark:text-dark-text2">Monto: {formatCLP(payment.amount)}</p>
                                     {payment.confirmed_by === 'ai' && (
@@ -602,12 +653,18 @@ const PAYMENT_PILL = {
   rejected: 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400',
   pending: 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-400',
   no_payment: 'bg-coral-fuego/10 border-coral-fuego/30 text-coral-fuego dark:bg-coral-fuego/5 dark:border-coral-fuego/20',
+  void: 'bg-gray-100 border-gray-200 text-gray-500 dark:bg-dark-surface2 dark:border-dark-border dark:text-dark-text2',
+  refunded: 'bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-400',
 }
 
 function paymentStatusLabel(enrollment: any): { key: keyof typeof PAYMENT_PILL; label: string } {
   const payment = Array.isArray(enrollment.payment) ? enrollment.payment[0] : enrollment.payment
+  // Antes que el estado de la inscripción: Mercado Pago devolvió el dinero, así
+  // que el pago manda aunque la inscripción siga en pie (P2-6).
+  if (payment?.status === 'refunded') return { key: 'refunded', label: 'Reembolsado' }
   if (enrollment.status === 'confirmed') return { key: 'confirmed', label: 'Confirmado' }
   if (payment?.status === 'rejected') return { key: 'rejected', label: 'Rechazado' }
+  if (payment?.status === 'void') return { key: 'void', label: 'Anulado' }
   if (enrollment.status === 'payment_submitted' || payment) return { key: 'pending', label: 'Pendiente' }
   return { key: 'no_payment', label: 'Sin pago' }
 }
@@ -622,20 +679,23 @@ function formatDateForCSV(dateStr: string): string {
 
 function exportTeacherCSV(teacherRows: any[]) {
   const STATUS_LABELS: Record<string, string> = {
-    confirmed: 'Confirmado', rejected: 'Rechazado', pending: 'Pendiente', no_payment: 'Sin pago',
+    confirmed: 'Confirmado', rejected: 'Rechazado', pending: 'Pendiente', no_payment: 'Sin pago', void: 'Anulado',
+    refunded: 'Reembolsado',
   }
-  const headers = ['Fecha', 'Alumno', 'Clase', 'Monto (CLP)', 'Estado']
+  // Columna "Mes cobrado": en un entrenamiento cada fila es la mensualidad de un
+  // mes concreto, y un pago atrasado se registra en una fecha que no es la del
+  // mes que salda — sin esta columna la contabilidad del profesor no cuadra.
+  const headers = ['Fecha', 'Alumno', 'Clase', 'Mes cobrado', 'Monto (CLP)', 'Estado', 'Comprobante']
   const rows = teacherRows.map((row: any) => {
-    const statusKey = row.enrollmentStatus === 'confirmed' ? 'confirmed'
-      : row.payment?.status === 'rejected' ? 'rejected'
-      : row.enrollmentStatus === 'payment_submitted' || row.payment ? 'pending'
-      : 'no_payment'
+    const statusKey = getStatusKey(row.enrollmentStatus, row.payment)
     return [
       formatDateForCSV(row.createdAt),
       row.student?.full_name ?? '—',
       row.classTitle,
+      row.billingPeriod ? formatBillingPeriod(row.billingPeriod) : '—',
       row.payment?.amount ? String(row.payment.amount) : '—',
       STATUS_LABELS[statusKey],
+      row.payment?.offline_confirmed ? 'Sin comprobante' : row.payment?.receipt_url ? 'Sí' : '—',
     ]
   })
   // Excel en locales con coma decimal (es-CL) usa `;` como separador de listas,
@@ -661,14 +721,27 @@ function getHistoryCutoff(): Date {
 }
 
 function getStatusKey(enrollmentStatus: string, payment: any): keyof typeof PAYMENT_PILL {
+  // Cargo mensual: manda el estado del CARGO. Que la inscripción esté
+  // `confirmed` no dice nada de si marzo está pagado — en un entrenamiento la
+  // inscripción queda confirmada de forma permanente (audit.md S4).
+  if (payment?.billing_period) {
+    if (payment.status === 'verified') return 'confirmed'
+    if (payment.status === 'rejected') return 'rejected'
+    if (payment.status === 'refunded') return 'refunded'
+    if (payment.status === 'pending') return 'pending'
+    return 'no_payment' // 'due'
+  }
+  if (payment?.status === 'refunded') return 'refunded'
   if (enrollmentStatus === 'confirmed') return 'confirmed'
   if (payment?.status === 'rejected') return 'rejected'
+  if (payment?.status === 'void') return 'void'
   if (enrollmentStatus === 'payment_submitted' || payment) return 'pending'
   return 'no_payment'
 }
 
 const STATUS_LABEL: Record<keyof typeof PAYMENT_PILL, string> = {
-  confirmed: 'Confirmado', rejected: 'Rechazado', pending: 'Pendiente', no_payment: 'Sin pago',
+  confirmed: 'Confirmado', rejected: 'Rechazado', pending: 'Pendiente', no_payment: 'Sin pago', void: 'Anulado',
+  refunded: 'Reembolsado',
 }
 
 // Badge "Asistencia confirmada" (item 2): visible cuando el alumno tiene al
@@ -691,25 +764,52 @@ function AttendanceBadge({ dates }: { dates: string[] | undefined }) {
 function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollments: any[]; teachingClasses: any[]; attendance?: Record<string, string[]> }) {
   const [closedMonths, setClosedMonths] = useState<Set<string>>(new Set())
   const [closedClasses, setClosedClasses] = useState<Set<string>>(new Set())
-  const [confirmEnroll, setConfirmEnroll] = useState<{ id: string; name: string; studentId: string; classId: string } | null>(null)
+  const [confirmEnroll, setConfirmEnroll] = useState<{ id: string; enrollmentId: string; paymentId: string | null; name: string; period: string | null } | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
   const [localConfirmed, setLocalConfirmed] = useState<Set<string>>(new Set())
 
   const cutoff = getHistoryCutoff()
 
   // ── Build teacher rows (all enrollments within 2-month window) ────────────
+  //
+  // Un entrenamiento cobra por MES (migración 068), así que una inscripción
+  // produce una fila POR CARGO, fechada en su período: si no, sólo se vería un
+  // mes arbitrario de los que el alumno debe o pagó. El resto de las clases
+  // sigue produciendo una fila por inscripción.
   const teacherRows = teachingClasses.flatMap((cls: any) =>
     (cls.enrollments ?? [])
       .filter((e: any) => e.status !== 'cancelled' && new Date(e.created_at) >= cutoff)
-      .map((e: any) => ({
-        id: e.id,
-        classId: cls.id,
-        classTitle: cls.title,
-        student: e.student,
-        payment: Array.isArray(e.payment) ? e.payment[0] : e.payment,
-        enrollmentStatus: localConfirmed.has(e.id) ? 'confirmed' : e.status,
-        createdAt: e.created_at,
-      }))
+      .flatMap((e: any) => {
+        const base = {
+          enrollmentId: e.id,
+          classId: cls.id,
+          classTitle: cls.title,
+          student: e.student,
+          enrollmentStatus: localConfirmed.has(e.id) ? 'confirmed' : e.status,
+        }
+        const payments = paymentList<any>(e.payment)
+        const monthly = payments
+          .filter((p) => p.billing_period && p.status !== 'void')
+          .sort((a, b) => String(b.billing_period).localeCompare(String(a.billing_period)))
+
+        if (monthly.length > 0) {
+          return monthly.map((p) => ({
+            ...base,
+            id: p.id,
+            payment: p,
+            billingPeriod: p.billing_period as string,
+            createdAt: p.submitted_at ?? e.created_at,
+          }))
+        }
+        return [{
+          ...base,
+          id: e.id,
+          payment: payments.find((p) => !p.billing_period) ?? null,
+          billingPeriod: null as string | null,
+          createdAt: e.created_at,
+        }]
+      })
   )
 
   // ── Student rows within 2-month window ────────────────────────────────────
@@ -761,19 +861,42 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
     setClosedClasses(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
   }
 
+  // P1-8: confirmar ya no es un PATCH a `enrollments` desde el navegador. Ese
+  // camino dejaba al alumno `confirmed` pero SIN token QR de asistencia (que
+  // sólo emite `autoConfirmPayment`), sin tocar `payments` y sin confirmar al
+  // compañero de un 2x — llegaba a la clase y el escáner lo rechazaba. Ahora va
+  // por `confirm_offline`, que registra el pago recibido fuera de la app con
+  // rastro (`offline_confirmed`) y confirma por el camino completo.
   async function handleConfirmEnrollment() {
     if (!confirmEnroll) return
     setConfirmingId(confirmEnroll.id)
-    const supabase = createClient()
-    await supabase.from('enrollments').update({ status: 'confirmed' }).eq('id', confirmEnroll.id)
-    await sendNotifications({
-      user_id: confirmEnroll.studentId,
-      type: 'payment_confirmed',
-      data: { class_id: confirmEnroll.classId },
+    setConfirmError(null)
+    const res = await fetch('/api/payment/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'confirm_offline',
+        ...(confirmEnroll.paymentId
+          ? { paymentId: confirmEnroll.paymentId }
+          : { enrollmentId: confirmEnroll.enrollmentId }),
+      }),
     })
-    setLocalConfirmed(prev => new Set([...prev, confirmEnroll.id]))
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      setConfirmError(
+        json.error === 'Payment has a receipt — use confirm'
+          ? 'Este alumno subió un comprobante: revísalo desde "Revisar pago".'
+          : 'No se pudo confirmar el pago. Intenta de nuevo.'
+      )
+      setConfirmingId(null)
+      return
+    }
+    setLocalConfirmed(prev => new Set([...prev, confirmEnroll.enrollmentId]))
     setConfirmEnroll(null)
     setConfirmingId(null)
+    // Un cargo mensual no cambia el estado de la inscripción, así que el
+    // optimismo local no alcanza para repintar su pill: se recarga.
+    if (confirmEnroll.paymentId) window.location.reload()
   }
 
   if (!hasStudent && !hasTeacher) {
@@ -794,11 +917,14 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
       {confirmEnroll && (
         <ConfirmDialog
           title="Confirmar pago"
-          message={`¿Segur@ que quieres confirmar el pago de ${confirmEnroll.name}?`}
+          message={
+            confirmError ??
+            `Registra el pago de ${confirmEnroll.name}${confirmEnroll.period ? ` (${formatBillingPeriod(confirmEnroll.period)})` : ''} como recibido fuera de la app (efectivo o transferencia directa). Queda marcado como "sin comprobante" en el historial.`
+          }
           confirmLabel="Sí, confirmar"
           loading={confirmingId !== null}
           onConfirm={handleConfirmEnrollment}
-          onCancel={() => setConfirmEnroll(null)}
+          onCancel={() => { setConfirmEnroll(null); setConfirmError(null) }}
         />
       )}
 
@@ -913,7 +1039,11 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
                                         <p className="text-xs font-semibold text-gray-900 dark:text-dark-text truncate">{row.student?.full_name}</p>
                                         <p className="text-[11px] text-gray-400 dark:text-dark-text2">
                                           @{row.student?.username}{row.payment?.amount ? ` · ${formatCLP(row.payment.amount)}` : ''}
+                                          {row.billingPeriod ? ` · ${formatBillingPeriod(row.billingPeriod)}` : ''}
                                         </p>
+                                        {row.payment?.offline_confirmed && (
+                                          <p className="text-[11px] text-gray-400 dark:text-dark-text2">Sin comprobante · registrado por ti</p>
+                                        )}
                                       </div>
                                       <div className="flex items-center gap-1.5 flex-shrink-0">
                                         <AttendanceBadge dates={attendance[`${row.classId}:${row.student?.id}`]} />
@@ -922,7 +1052,13 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
                                         </span>
                                         {sk === 'no_payment' && (
                                           <button
-                                            onClick={() => setConfirmEnroll({ id: row.id, name: row.student?.full_name ?? 'este alumno', studentId: row.student?.id ?? '', classId: row.classId })}
+                                            onClick={() => setConfirmEnroll({
+                                              id: row.id,
+                                              enrollmentId: row.enrollmentId,
+                                              paymentId: row.billingPeriod ? row.payment?.id ?? null : null,
+                                              name: row.student?.full_name ?? 'este alumno',
+                                              period: row.billingPeriod,
+                                            })}
                                             className="rounded-lg border border-coral-fuego/40 bg-coral-fuego/5 px-2 py-0.5 text-[11px] font-semibold text-coral-fuego hover:bg-coral-fuego/10 transition-colors"
                                           >
                                             Confirmar

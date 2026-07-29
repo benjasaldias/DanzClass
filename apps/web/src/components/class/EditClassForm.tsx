@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import { useForm } from 'react-hook-form'
@@ -12,12 +12,13 @@ import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { cn } from '@/lib/utils'
-import { DANCE_STYLES, DAYS_OF_WEEK, LEVEL_LABELS, resolveClassStartDate } from '@danceclass/shared'
+import { DANCE_STYLES, DAYS_OF_WEEK, LEVEL_LABELS, resolveClassStartDate, validatePeriodicaDates, lastCustomDate } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import DateInput from '@/components/ui/DateInput'
+import PaymentMethodsField from '@/components/class/PaymentMethodsField'
 import type { ClassLevel } from '@danceclass/shared'
 
 const schema = z.object({
@@ -49,20 +50,27 @@ const schema = z.object({
   ends_indefinitely: z.boolean().optional(),
   billing_day: z.coerce.number().int().min(1).max(27).optional(),
   allow_late_payment: z.boolean().optional(),
+  // Vías de pago que acepta la clase (marketplace v2)
+  accepts_mp: z.boolean(),
+  accepts_transfer: z.boolean(),
 }).superRefine((data, ctx) => {
+  // Espeja el CHECK `classes_payment_method_check` de la migración 061.
+  if (!data.accepts_mp && !data.accepts_transfer) {
+    ctx.addIssue({ code: 'custom', path: ['accepts_transfer'], message: 'Elige al menos una forma de pago' })
+  }
   if (data.type === 'suelta') {
     if (!data.date) ctx.addIssue({ code: 'custom', path: ['date'], message: 'Requerido' })
     if (!data.time) ctx.addIssue({ code: 'custom', path: ['time'], message: 'Requerido' })
   } else {
-    if (!data.recurrence) ctx.addIssue({ code: 'custom', path: ['recurrence'], message: 'Requerido' })
+    // La periódica ya no elige recurrencia: es siempre calendario (migración 067).
+    if (data.type !== 'periodica' && !data.recurrence) {
+      ctx.addIssue({ code: 'custom', path: ['recurrence'], message: 'Requerido' })
+    }
     if (!data.recurring_time) ctx.addIssue({ code: 'custom', path: ['recurring_time'], message: 'Requerido' })
     if (data.recurrence && data.recurrence !== 'custom') {
       if (data.day_of_week === undefined || isNaN(data.day_of_week as number)) {
         ctx.addIssue({ code: 'custom', path: ['day_of_week'], message: 'Requerido' })
       }
-    }
-    if (data.type === 'periodica' && !data.ends_at) {
-      ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'Las clases periódicas requieren fecha de término' })
     }
     if (data.type === 'entrenamiento' && !data.ends_at && !data.ends_indefinitely) {
       ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'Indica fecha de término o marca como Indefinido' })
@@ -92,9 +100,13 @@ interface ExistingMedia {
   id: string; url: string; type: 'image' | 'video'; order_index: number
 }
 
-interface EditClassFormProps { classData: any }
+interface EditClassFormProps {
+  classData: any
+  hasPaymentInfo: boolean
+  mpConnected: boolean
+}
 
-export default function EditClassForm({ classData }: EditClassFormProps) {
+export default function EditClassForm({ classData, hasPaymentInfo, mpConnected }: EditClassFormProps) {
   const router = useRouter()
   const supabase = createClient()
   const isEntrenamiento = classData.type === 'entrenamiento'
@@ -105,6 +117,12 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   )
   const [newMediaFiles, setNewMediaFiles] = useState<{ file: File; preview: string; type: 'image' | 'video' }[]>([])
   const [customDates, setCustomDates] = useState<string[]>(classData.custom_dates ?? [])
+  // Calendario tal como venía de la base. La migración 067 convirtió las
+  // periódicas weekly/biweekly ya publicadas expandiendo TODAS sus ocurrencias,
+  // así que muchas heredadas abarcan varios meses. La regla de "un solo mes"
+  // se aplica solo si el profesor TOCA el calendario: si no, no podría editar
+  // ni el precio de una clase que ya tiene alumnos pagando.
+  const [initialCustomDates] = useState<string[]>(() => [...(classData.custom_dates ?? [])].sort())
   const [cityValue, setCityValue] = useState<string>(classData.city ?? '')
   const [addressValue, setAddressValue] = useState<string>(classData.location_address ?? '')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
@@ -116,7 +134,6 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [showIndefinitePopup, setShowIndefinitePopup] = useState(false)
 
   const totalMedia = existingMedia.length + newMediaFiles.length
 
@@ -148,6 +165,9 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       ends_indefinitely: classData.ends_indefinitely ?? false,
       billing_day: classData.billing_day ?? 1,
       allow_late_payment: (classData as any).allow_late_payment ?? true,
+      // `!== false` para clases anteriores a la migración 061 (ambas por defecto).
+      accepts_mp: mpConnected && (classData as any).accepts_mp !== false,
+      accepts_transfer: (classData as any).accepts_transfer !== false,
     },
   })
 
@@ -155,6 +175,28 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   const recurrence = watch('recurrence')
   const endsIndefinitely = watch('ends_indefinitely')
   const allowLatePayment = watch('allow_late_payment')
+  const acceptsMp = watch('accepts_mp')
+  const acceptsTransfer = watch('accepts_transfer')
+  const priceValue = watch('price')
+  const price2xValue = watch('price_2x')
+  const priceSueltaValue = watch('price_suelta')
+  const priceSuelta2xValue = watch('price_suelta_2x')
+
+  // Una periódica creada antes de la migración 067 llega con recurrence
+  // 'weekly'/'biweekly'/'monthly'. Como el selector ya no se renderiza para
+  // ella, hay que forzarla a calendario al montar o el formulario no mostraría
+  // ningún modo de definir fechas.
+  useEffect(() => {
+    if (classData.type === 'periodica' && recurrence !== 'custom') {
+      setValue('recurrence', 'custom')
+    }
+  }, [classData.type, recurrence, setValue])
+
+  const datesUnchanged = customDates.length === initialCustomDates.length
+    && [...customDates].sort().every((d, i) => d === initialCustomDates[i])
+  const datesError = (isPeriodic && recurrence === 'custom' && customDates.length > 0)
+    ? validatePeriodicaDates(customDates, { allowMultiMonth: isEntrenamiento || datesUnchanged })
+    : null
 
   const MAX_VIDEO_BYTES = 200 * 1024 * 1024
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -199,7 +241,6 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   }
 
   function handleIndefiniteChange(checked: boolean) {
-    if (checked && classType === 'periodica') { setShowIndefinitePopup(true); return }
     setValue('ends_indefinitely', checked)
     if (checked) setValue('ends_at', undefined)
   }
@@ -216,13 +257,11 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
   }
 
   async function onSubmit(data: FormData) {
-    if (isPeriodic && data.recurrence === 'custom' && customDates.length === 0) {
-      setError('Selecciona al menos una fecha en el calendario'); return
-    }
-    // D-8: validar formato custom_dates.
     if (isPeriodic && data.recurrence === 'custom') {
-      const invalid = customDates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(new Date(d + 'T00:00:00').getTime()))
-      if (invalid) { setError(`Fecha inválida: ${invalid}`); return }
+      const dateError = validatePeriodicaDates(customDates, {
+        allowMultiMonth: isEntrenamiento || datesUnchanged,
+      })
+      if (dateError) { setError(dateError); return }
     }
     // Re-geocode if the address changed and has no resolved coordinates.
     let resolvedCoords = coords
@@ -270,7 +309,10 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       level: data.level,
       date: data.type === 'suelta' ? data.date : null,
       time: data.type === 'suelta' ? data.time : null,
-      recurrence: isPeriodic ? data.recurrence : null,
+      // La periódica es siempre calendario (CHECK classes_periodica_custom_only,
+      // migración 067). Explícito acá y no solo vía setValue, para que no
+      // dependa de que el efecto haya corrido antes del submit.
+      recurrence: isPeriodic ? (data.type === 'periodica' ? 'custom' : data.recurrence) : null,
       start_date: start_date_value,
       day_of_week: isPeriodic && data.recurrence !== 'custom' ? data.day_of_week : null,
       recurring_time: isPeriodic ? data.recurring_time : null,
@@ -286,10 +328,17 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
       price_suelta: (classType === 'periodica' && data.price_suelta) ? data.price_suelta : null,
       price_2x: data.price_2x || null,
       price_suelta_2x: (classType === 'periodica' && data.price_suelta_2x) ? data.price_suelta_2x : null,
-      ends_at: isPeriodic && !data.ends_indefinitely ? (data.ends_at || null) : null,
+      // La periódica deriva su término de la última fecha del calendario.
+      ends_at: classType === 'periodica'
+        ? lastCustomDate(customDates)
+        : (isPeriodic && !data.ends_indefinitely ? (data.ends_at || null) : null),
       ends_indefinitely: isEntrenamiento ? (data.ends_indefinitely ?? false) : false,
       billing_day: isEntrenamiento ? (data.billing_day ?? 1) : null,
       allow_late_payment: data.allow_late_payment ?? true,
+      // MP solo puede quedar activo con la cuenta del profesor conectada; si al
+      // descartarlo no quedara ninguna vía, se cae a transferencia (CHECK 061).
+      accepts_mp: mpConnected && data.accepts_mp,
+      accepts_transfer: (mpConnected && data.accepts_mp) ? data.accepts_transfer : true,
     } as any).eq('id', classData.id)
 
     if (updateError) { setError('Error al guardar los cambios.'); setSubmitting(false); return }
@@ -352,19 +401,6 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           confirmLabel="Eliminar clase" destructive loading={deleting}
           onConfirm={handleDeleteClass} onCancel={() => setShowDeleteConfirm(false)}
         />
-      )}
-
-      {showIndefinitePopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-6">
-          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-dark-surface p-5 shadow-xl">
-            <h3 className="text-base font-bold text-gray-900 dark:text-dark-text mb-2">Usa el tipo "Entrenamiento"</h3>
-            <p className="text-sm text-gray-600 dark:text-dark-text2 mb-4">
-              Las clases sin fecha de término deben ser de tipo <strong>Entrenamiento</strong>.
-              Las clases periódicas regulares requieren una fecha de cierre.
-            </p>
-            <button onClick={() => setShowIndefinitePopup(false)} className="w-full btn-primary py-2.5">Entendido</button>
-          </div>
-        </div>
       )}
 
       <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-1">Editar clase</h1>
@@ -453,19 +489,21 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
         {/* Schedule - Periodic/Entrenamiento */}
         {isPeriodic && (
           <div className="space-y-3">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Periodicidad *</label>
-              <select {...register('recurrence')} className="input">
-                <option value="">Seleccionar</option>
-                <option value="weekly">Semanal</option>
-                <option value="biweekly">Quincenal</option>
-                <option value="custom">Personalizado</option>
-              </select>
-              {recurrence === 'biweekly' && (
-                <p className="mt-1 text-xs text-gray-500 dark:text-dark-text2">Quincenal = cada 14 días desde la fecha de inicio.</p>
-              )}
-              {errors.recurrence && <p className="mt-1 text-xs text-red-600">{errors.recurrence.message}</p>}
-            </div>
+            {isEntrenamiento && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Periodicidad *</label>
+                <select {...register('recurrence')} className="input">
+                  <option value="">Seleccionar</option>
+                  <option value="weekly">Semanal</option>
+                  <option value="biweekly">Quincenal</option>
+                  <option value="custom">Personalizado</option>
+                </select>
+                {recurrence === 'biweekly' && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-dark-text2">Quincenal = cada 14 días desde la fecha de inicio.</p>
+                )}
+                {errors.recurrence && <p className="mt-1 text-xs text-red-600">{errors.recurrence.message}</p>}
+              </div>
+            )}
 
             {recurrence && recurrence !== 'custom' && (
               <div className="grid grid-cols-2 gap-3">
@@ -485,7 +523,18 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
 
             {recurrence === 'custom' && (
               <div className="space-y-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">
+                    Fechas de la clase *
+                  </label>
+                  <p className="mb-2 text-xs text-gray-500 dark:text-dark-text2">
+                    {isEntrenamiento
+                      ? 'Marca en el calendario los días en que se dicta.'
+                      : 'Marca en el calendario los días en que se dicta. Una clase periódica no puede extenderse más de un mes.'}
+                  </p>
+                </div>
                 <MonthCalendar selected={customDates} onChange={setCustomDates} />
+                {datesError && <p className="text-xs text-red-600">{datesError}</p>}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-dark-text2">Hora de inicio *</label>
                   <input {...register('recurring_time')} type="time" className="input" />
@@ -493,13 +542,11 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
               </div>
             )}
 
-            {/* Start date — obligatoria en entrenamiento, opcional en periódica */}
-            {recurrence !== 'custom' && (
+            {/* Start date — solo Entrenamiento con recurrencia semanal. */}
+            {isEntrenamiento && recurrence !== 'custom' && (
               <div className="rounded-xl border border-gray-200 dark:border-dark-border p-3 space-y-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">
-                  Fecha de inicio {isEntrenamiento
-                    ? '*'
-                    : <span className="text-gray-400 dark:text-dark-text2/50 font-normal">(opcional)</span>}
+                  Fecha de inicio *
                 </label>
                 <DateInput
                   value={watch('start_date') ?? ''}
@@ -513,7 +560,9 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
               </div>
             )}
 
-            {/* End date */}
+            {/* End date — solo Entrenamiento: en la periódica lo define la última
+                fecha marcada en el calendario. */}
+            {isEntrenamiento && (
             <div className="rounded-xl border border-gray-200 dark:border-dark-border p-3 space-y-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-dark-text2">Fecha de término *</label>
               {!endsIndefinitely && (
@@ -540,13 +589,8 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
                 </label>
               )}
 
-              {!isEntrenamiento && (
-                <label className="flex items-center gap-2 cursor-pointer text-gray-400" onClick={() => setShowIndefinitePopup(true)}>
-                  <input type="checkbox" className="h-4 w-4 rounded border-gray-300" disabled />
-                  <span className="text-sm line-through">Indefinido</span>
-                </label>
-              )}
             </div>
+            )}
 
             {/* Billing day (entrenamiento only) */}
             {isEntrenamiento && (
@@ -654,6 +698,24 @@ export default function EditClassForm({ classData }: EditClassFormProps) {
           <p className="text-xs text-gray-400 dark:text-dark-text2/60">Precio total para dos alumnos que pagan juntos</p>
           <input {...register('price_2x')} type="number" min={0} max={10000000} step="1" placeholder="ej: 18000" className="input mt-1" onWheel={(e) => (e.target as HTMLInputElement).blur()} onKeyDown={noExp} />
         </div>
+
+        {/* Formas de pago aceptadas + preview del precio que verá el alumno */}
+        <PaymentMethodsField
+          acceptsMp={!!acceptsMp}
+          acceptsTransfer={!!acceptsTransfer}
+          onChange={(patch) => {
+            if (patch.accepts_mp !== undefined) setValue('accepts_mp', patch.accepts_mp, { shouldValidate: true })
+            if (patch.accepts_transfer !== undefined) setValue('accepts_transfer', patch.accepts_transfer, { shouldValidate: true })
+          }}
+          mpConnected={mpConnected}
+          hasPaymentInfo={hasPaymentInfo}
+          price={Number(priceValue)}
+          priceLabel={isPeriodic ? 'Precio mensual' : 'Precio de la clase'}
+          price2x={Number(price2xValue)}
+          priceSuelta={classType === 'periodica' ? Number(priceSueltaValue) : undefined}
+          priceSuelta2x={classType === 'periodica' ? Number(priceSuelta2xValue) : undefined}
+          error={errors.accepts_transfer?.message as string | undefined}
+        />
 
         {/* Media */}
         <div>

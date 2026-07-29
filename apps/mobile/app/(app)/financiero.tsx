@@ -5,7 +5,7 @@ import { ChevronLeft, TrendingUp, Users, BookOpen, DollarSign } from 'lucide-rea
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
-import { canTeach } from '@danceclass/shared'
+import { canTeach, formatBillingPeriod } from '@danceclass/shared'
 import Avatar from '../../components/ui/Avatar'
 
 const MONTHS_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -55,7 +55,7 @@ export default function FinancieroScreen() {
       (supabase as any)
         .from('payments')
         .select(`
-          id, amount, verified_at, submitted_at,
+          id, amount, verified_at, submitted_at, billing_period, offline_confirmed,
           enrollment:enrollments!inner(
             student_id,
             student:profiles!student_id(id, full_name, username, avatar_url),
@@ -208,10 +208,18 @@ export default function FinancieroScreen() {
                 const date = new Date(p.verified_at ?? p.submitted_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
                 return (
                   <View key={p.id} className={`${cardBg} border ${borderColor} rounded-xl p-3 flex-row items-center gap-3`}>
-                    <Avatar src={student?.avatar_url} name={student?.full_name ?? '?'} size="sm" />
+                    <Avatar url={student?.avatar_url ?? null} name={student?.full_name ?? '?'} size="sm" />
                     <View className="flex-1 min-w-0">
                       <Text className={`text-sm font-semibold ${textPrimary}`} numberOfLines={1}>{student?.full_name}</Text>
-                      <Text className={`text-xs ${textSecondary}`} numberOfLines={1}>{cls?.title}</Text>
+                      <Text className={`text-xs ${textSecondary}`} numberOfLines={1}>
+                        {cls?.title}
+                        {/* Mensualidad de entrenamiento: el mes cobrado importa
+                            más que la fecha del pago (puede pagarse atrasado). */}
+                        {p.billing_period ? ` · ${formatBillingPeriod(p.billing_period)}` : ''}
+                      </Text>
+                      {p.offline_confirmed && (
+                        <Text className={`text-[10px] ${textSecondary}`}>Sin comprobante</Text>
+                      )}
                     </View>
                     <View className="items-end">
                       <Text className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{formatCLP(p.amount)}</Text>

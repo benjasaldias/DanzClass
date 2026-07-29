@@ -11,8 +11,7 @@ import {
 } from 'lucide-react-native'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
-
-const WEB_URL = 'https://dc-project-web.vercel.app'
+import { WEB_URL } from '@danceclass/shared'
 
 interface Audition {
   id: string

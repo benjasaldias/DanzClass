@@ -40,13 +40,18 @@ function timeAgo(date: string): string {
   return `hace ${Math.floor(hours / 24)}d`
 }
 
-function formatTime(time: string): string {
+// Estas dos toleran el valor ausente: ni `recurring_time` ni `date` son NOT NULL
+// y una fila incompleta reventaba el render de la tarjeta —y con ella el feed—
+// en vez de mostrar simplemente menos información (ver `formatTime` en lib/utils).
+function formatTime(time: string | null | undefined): string {
+  if (!time) return ''
   const [h, m] = time.split(':').map(Number)
   const ampm = h >= 12 ? 'PM' : 'AM'
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`
 }
 
-function formatDate(date: string): string {
+function formatDate(date: string | null | undefined): string {
+  if (!date) return ''
   const [y, m, d] = date.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
 }
@@ -59,9 +64,10 @@ export default function MobileClassCard({ classData, currentUserId, compact = fa
   const media = [...(classData.media ?? [])].sort((a: any, b: any) => a.order_index - b.order_index)
   const isOwner = classData.teacher_id === currentUserId
 
-  const schedule = classData.type === 'suelta'
-    ? `${formatDate(classData.date)} · ${formatTime(classData.time)}`
-    : `${DAYS_OF_WEEK[classData.day_of_week]} · ${formatTime(classData.recurring_time)}`
+  const schedule = (classData.type === 'suelta'
+    ? [formatDate(classData.date), formatTime(classData.time)]
+    : [DAYS_OF_WEEK[classData.day_of_week] ?? '', formatTime(classData.recurring_time)]
+  ).filter(Boolean).join(' · ')
 
   // Compact layout — used on own profile
   if (compact) {
