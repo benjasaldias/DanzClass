@@ -129,6 +129,79 @@ test.beforeAll(async () => {
     status: 'matched', payment_assignee: student.id,
   })
 
+  // --- audit2.md P0-1/P0-3: tablas de invitación/relación ---------------------
+
+  // Chat A: el atacante es participante legítimo (su propia clase).
+  // Chat B: conversación ajena (profesor ↔ compañero) que no debe poder tocar.
+  ids.chatA = await ins('chats', { type: 'class', class_id: ids.classId, student_id: student.id })
+  await admin.from('chat_participants').insert([
+    { chat_id: ids.chatA, user_id: student.id },
+    { chat_id: ids.chatA, user_id: teacher.id },
+  ])
+  ids.chatB = await ins('chats', { type: 'class', class_id: ids.classId2, student_id: partner.id })
+  await admin.from('chat_participants').insert([
+    { chat_id: ids.chatB, user_id: partner.id },
+    { chat_id: ids.chatB, user_id: teacher.id },
+  ])
+  await ins('chat_messages', { chat_id: ids.chatB, sender_id: partner.id, content: 'mensaje privado ajeno' })
+
+  // Amistad pendiente en la que el atacante es el destinatario (puede UPDATE).
+  ids.friendship = await ins('friendships', {
+    requester_id: partner.id, addressee_id: student.id, status: 'pending',
+  })
+
+  // Evento señuelo del atacante + auto-invitación (la policy de INSERT solo
+  // exige ser el creador del evento, y no impide invitarse a sí mismo).
+  ids.decoyEvent = await ins('events', {
+    creator_id: student.id, title: '[TEST] rls decoy', event_type: 'batalla',
+    event_date: '2027-05-01', event_time: '18:00', city: 'Santiago', status: 'active',
+  })
+  ids.decoyInvite = await ins('event_invites', {
+    event_id: ids.decoyEvent, teacher_id: student.id, status: 'pending',
+  })
+
+  // Dos ensayos privados ajenos: uno para el ataque por INSERT y otro para el
+  // ataque por UPDATE (con uno solo, el UNIQUE(rehearsal_id,user_id) haría que
+  // el segundo ataque falle por conflicto y se reporte como "bloqueado").
+  const mkRehearsal = (title: string) => ins('rehearsals', {
+    creator_id: teacher.id, title, date_mode: 'single',
+    rehearsal_date: '2027-05-10', rehearsal_time: '19:00', city: 'Santiago', status: 'active',
+  })
+  ids.privateRehearsalA = await mkRehearsal('[TEST] rls ensayo privado A')
+  ids.privateRehearsalB = await mkRehearsal('[TEST] rls ensayo privado B')
+  // Invitación legítima del atacante a un ensayo de un tercero: la fila propia
+  // desde la que intentará redirigirse al ensayo privado.
+  ids.otherRehearsal = await ins('rehearsals', {
+    creator_id: partner.id, title: '[TEST] rls ensayo del compañero', date_mode: 'single',
+    rehearsal_date: '2027-05-11', rehearsal_time: '19:00', city: 'Santiago', status: 'active',
+  })
+  ids.rehearsalInvite = await ins('rehearsal_invites', {
+    rehearsal_id: ids.otherRehearsal, user_id: student.id, status: 'pending',
+  })
+
+  // Entrenamientos con audición: uno con postulaciones existentes (ataque del
+  // profesor sobre `applicant_id`, y edición legítima del postulante), otro
+  // virgen para el ataque de auto-aceptarse una postulación nueva.
+  const entrena = {
+    teacher_id: teacher.id, type: 'entrenamiento', dance_style: 'House',
+    recurrence: 'weekly', day_of_week: 1, recurring_time: '20:00',
+    start_date: '2027-03-01', ends_indefinitely: true, requires_audition: true,
+    price: 30000, billing_day: 5, max_spots: 20, city: 'Santiago', status: 'active',
+  }
+  // Las tres van aparte por el UNIQUE(class_id, applicant_id): si la postulación
+  // del atacante y la del compañero vivieran en la misma clase, el ataque sobre
+  // `applicant_id` rebotaría con 23505 y se reportaría como "bloqueado" cuando en
+  // realidad la policy lo permite. Misma trampa que la clase 3 de arriba.
+  ids.entrenamiento = await ins('classes', { ...entrena, title: '[TEST] rls entrenamiento' })
+  ids.entrenamiento2 = await ins('classes', { ...entrena, title: '[TEST] rls entrenamiento 2' })
+  ids.entrenamiento3 = await ins('classes', { ...entrena, title: '[TEST] rls entrenamiento 3' })
+  ids.auditionPartner = await ins('auditions', {
+    class_id: ids.entrenamiento, applicant_id: partner.id, full_name: 'Compañero', status: 'pending',
+  })
+  ids.auditionStudent = await ins('auditions', {
+    class_id: ids.entrenamiento3, applicant_id: student.id, full_name: 'Alumno', phone: '111', status: 'pending',
+  })
+
   S = await asUser(student.email)
   T = await asUser(teacher.email)
 })
@@ -295,10 +368,145 @@ test('los caminos legítimos de escritura desde el cliente siguen funcionando', 
   expect(svcErr?.message ?? null, 'service role escribiendo columnas protegidas').toBeNull()
 })
 
+test('la superficie de escritura RLS rechaza los ataques de audit2 P0-1 (tablas de invitación/relación)', async () => {
+  test.setTimeout(120_000)
+
+  const breaches: string[] = []
+  async function attack(name: string, run: () => Promise<{ error: any }>, groundTruth?: () => Promise<boolean>) {
+    const { error } = await run()
+    const applied = error ? false : groundTruth ? await groundTruth() : true
+    if (applied) breaches.push(name)
+  }
+
+  // 1. Secuestro de chat: redirigir la propia fila de participación a un chat
+  //    ajeno. `is_chat_participant()` pasa a decir TRUE, y con eso se abre la
+  //    lectura Y la escritura de la conversación de dos desconocidos.
+  await attack('chat_participants.chat_id → chat ajeno (alumno)',
+    () => S.from('chat_participants').update({ chat_id: ids.chatB }).eq('user_id', ids.student).eq('chat_id', ids.chatA),
+    async () => (await admin.from('chat_participants').select('chat_id').eq('user_id', ids.student).eq('chat_id', ids.chatB)).data?.length > 0)
+  // Consecuencia, medida aparte: si el secuestro pasó, el atacante lee el
+  // mensaje privado. Se comprueba con su propio JWT, no con service role.
+  const { data: leaked } = await S.from('chat_messages').select('id').eq('chat_id', ids.chatB)
+  if ((leaked ?? []).length > 0) breaches.push('chat_messages de un chat ajeno legibles tras el secuestro')
+
+  // 2a. Forjar una amistad "aceptada" mudando el solicitante de una solicitud
+  //     real recibida → el atacante ve las publicaciones "solo amigos".
+  await attack('friendships.requester_id → víctima + accepted (destinatario)',
+    () => S.from('friendships').update({ requester_id: ids.teacher, status: 'accepted' }).eq('id', ids.friendship),
+    async () => (await admin.from('friendships').select('requester_id, status').eq('id', ids.friendship).single()).data?.requester_id === ids.teacher)
+
+  // 2b. Variante más directa: insertar la amistad YA aceptada (la policy de
+  //     INSERT solo exige ser el solicitante, no mira `status`).
+  await attack('friendships.insert status=accepted (alumno)',
+    () => S.from('friendships').insert({ requester_id: ids.student, addressee_id: ids.teacher, status: 'accepted' }),
+    async () => (await admin.from('friendships').select('id').eq('requester_id', ids.student).eq('addressee_id', ids.teacher).eq('status', 'accepted')).data?.length > 0)
+
+  // 3. Colarse como profesor "aceptado" en un evento ajeno, retargeteando la
+  //    auto-invitación de un evento señuelo propio.
+  await attack('event_invites.event_id → evento ajeno + accepted (invitado)',
+    () => S.from('event_invites').update({ event_id: ids.event, status: 'accepted' }).eq('id', ids.decoyInvite),
+    async () => (await admin.from('event_invites').select('event_id, status').eq('id', ids.decoyInvite).single()).data?.event_id === ids.event)
+
+  // 4a. Entrar a un ensayo privado insertando la invitación propia (la policy
+  //     `rehearsal_invites_own` es FOR ALL: su WITH CHECK solo mira `user_id`).
+  await attack('rehearsal_invites.insert en ensayo privado ajeno (alumno)',
+    () => S.from('rehearsal_invites').insert({ rehearsal_id: ids.privateRehearsalA, user_id: ids.student, status: 'accepted' }),
+    async () => (await admin.from('rehearsal_invites').select('id').eq('rehearsal_id', ids.privateRehearsalA).eq('user_id', ids.student)).data?.length > 0)
+
+  // 4b. Y la variante por UPDATE, redirigiendo una invitación legítima.
+  await attack('rehearsal_invites.rehearsal_id → ensayo privado ajeno (invitado)',
+    () => S.from('rehearsal_invites').update({ rehearsal_id: ids.privateRehearsalB, status: 'accepted' }).eq('id', ids.rehearsalInvite),
+    async () => (await admin.from('rehearsal_invites').select('rehearsal_id').eq('id', ids.rehearsalInvite).single()).data?.rehearsal_id === ids.privateRehearsalB)
+  // Consecuencia: el ensayo privado pasa a ser legible para el atacante.
+  const { data: rehLeak } = await S.from('rehearsals').select('id').in('id', [ids.privateRehearsalA, ids.privateRehearsalB])
+  if ((rehLeak ?? []).length > 0) breaches.push('rehearsals privados legibles tras colarse en los invites')
+
+  // 5. El profesor reescribiendo de quién es una postulación de su clase
+  //    (la policy protege `class_id`, pero `applicant_id` queda libre).
+  await attack('auditions.applicant_id → otro usuario (profesor)',
+    () => T.from('auditions').update({ applicant_id: ids.student, status: 'accepted' }).eq('id', ids.auditionPartner),
+    async () => (await admin.from('auditions').select('applicant_id').eq('id', ids.auditionPartner).single()).data?.applicant_id === ids.student)
+
+  // 6. Auto-aceptarse una postulación: `/api/class/enroll` exige una audición
+  //    con status 'accepted' para entrar a un entrenamiento, y la policy de
+  //    INSERT de `auditions` no mira `status`. Salta la selección completa.
+  await attack('auditions.insert status=accepted (alumno)',
+    () => S.from('auditions').insert({
+      class_id: ids.entrenamiento2, applicant_id: ids.student, full_name: 'Auto-aceptado', status: 'accepted',
+    }),
+    async () => (await admin.from('auditions').select('status').eq('class_id', ids.entrenamiento2).eq('applicant_id', ids.student).maybeSingle()).data?.status === 'accepted')
+
+  expect(breaches, `escrituras que NO deberían haber pasado:\n  - ${breaches.join('\n  - ')}`).toEqual([])
+})
+
+test('los caminos legítimos de las tablas de invitación/relación siguen funcionando', async () => {
+  test.setTimeout(120_000)
+
+  // (a) El destinatario acepta una solicitud de amistad real (UserCard /
+  //     TeacherProfileClient, web y mobile).
+  const { error: friendErr } = await S.from('friendships').update({ status: 'accepted' }).eq('id', ids.friendship)
+  expect(friendErr?.message ?? null, 'aceptar solicitud de amistad recibida').toBeNull()
+  expect((await admin.from('friendships').select('status').eq('id', ids.friendship).single()).data.status).toBe('accepted')
+
+  // (b) Cualquiera envía una solicitud de amistad (nace pendiente).
+  const { error: reqErr } = await S.from('friendships').insert({
+    requester_id: ids.student, addressee_id: ids.partner, status: 'pending',
+  })
+  expect(reqErr?.message ?? null, 'enviar solicitud de amistad').toBeNull()
+
+  // (c) El organizador invita a un profesor a su evento (InviteTeachersModal).
+  const { error: invErr } = await T.from('event_invites').insert({ event_id: ids.event, teacher_id: ids.partner })
+  expect(invErr?.message ?? null, 'organizador invitando a un profesor').toBeNull()
+
+  // (d) audit2 P0-3: el postulante edita su postulación PENDIENTE. Antes de la
+  //     migración 073 esto no fallaba con error: PostgREST devolvía 0 filas y el
+  //     modal cantaba éxito. Por eso el veredicto se lee de la base, no del error.
+  const { error: audEditErr } = await S
+    .from('auditions')
+    .update({ phone: '+56900000001', age: 22, video_url: `${ids.student}/audition.mp4` })
+    .eq('id', ids.auditionStudent)
+    .eq('status', 'pending')
+  expect(audEditErr?.message ?? null, 'postulante editando su postulación pendiente').toBeNull()
+  const { data: audAfter } = await admin.from('auditions').select('phone, age').eq('id', ids.auditionStudent).single()
+  expect(audAfter.phone, 'la edición del postulante debe persistir (P0-3)').toBe('+56900000001')
+  expect(audAfter.age).toBe(22)
+
+  // (e) El postulante NO puede auto-decidirse el estado por esa vía nueva.
+  await S.from('auditions').update({ status: 'accepted' }).eq('id', ids.auditionStudent)
+  expect((await admin.from('auditions').select('status').eq('id', ids.auditionStudent).single()).data.status,
+    'el postulante no decide su propio estado').toBe('pending')
+
+  // (f) El profesor publica su decisión (AuditionsListClient, web y mobile).
+  const { error: decErr } = await T.from('auditions').update({ status: 'accepted' }).eq('id', ids.auditionStudent)
+  expect(decErr?.message ?? null, 'profesor publicando la decisión de una audición').toBeNull()
+  expect((await admin.from('auditions').select('status').eq('id', ids.auditionStudent).single()).data.status).toBe('accepted')
+
+  // (g) Una vez decidida, el postulante ya no puede editar (la policy nueva
+  //     exige status='pending' en las dos puntas).
+  await S.from('auditions').update({ phone: '+56900000002' }).eq('id', ids.auditionStudent)
+  expect((await admin.from('auditions').select('phone').eq('id', ids.auditionStudent).single()).data.phone,
+    'postulación ya decidida: no editable').toBe('+56900000001')
+
+  // (h) El servicio sigue escribiendo todo lo protegido (es el camino de
+  //     /api/rehearsal/respond, /api/event/respond-invite y del chat).
+  const { error: svcInvErr } = await admin.from('rehearsal_invites').update({ status: 'accepted' }).eq('id', ids.rehearsalInvite)
+  expect(svcInvErr?.message ?? null, 'service role respondiendo una invitación de ensayo').toBeNull()
+  const { error: svcReadErr } = await admin
+    .from('chat_participants')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('chat_id', ids.chatA).eq('user_id', ids.student)
+  expect(svcReadErr?.message ?? null, 'service role marcando el chat como leído').toBeNull()
+})
+
 test.afterAll(async () => {
-  for (const key of ['classId', 'classId2', 'classId3']) if (ids[key]) await admin.from('classes').delete().eq('id', ids[key])
+  for (const key of ['classId', 'classId2', 'classId3', 'entrenamiento', 'entrenamiento2', 'entrenamiento3']) {
+    if (ids[key]) await admin.from('classes').delete().eq('id', ids[key])
+  }
   if (ids.package) await admin.from('class_packages').delete().eq('id', ids.package)
-  for (const key of ['event', 'event2']) if (ids[key]) await admin.from('events').delete().eq('id', ids[key])
+  for (const key of ['event', 'event2', 'decoyEvent']) if (ids[key]) await admin.from('events').delete().eq('id', ids[key])
+  for (const key of ['privateRehearsalA', 'privateRehearsalB', 'otherRehearsal']) {
+    if (ids[key]) await admin.from('rehearsals').delete().eq('id', ids[key])
+  }
   for (const key of ['teacher', 'student', 'partner']) {
     if (ids[key]) await admin.auth.admin.deleteUser(ids[key]).catch(() => {})
   }

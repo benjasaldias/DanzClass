@@ -71,6 +71,66 @@ jobs:
           path: test-results/unit-artifacts/
           retention-days: 7
 
+  # ── Integration tests (local Supabase stack) ───────────────────────────────
+  # audit2.md P1-1. Esta suite es la única razón por la que se puede afirmar que
+  # el agujero de escritura RLS de audit.md P0-1 (y el de audit2.md P0-1) sigue
+  # cerrado: reproduce los ataques con un JWT de usuario real contra PostgREST.
+  # Hasta ahora dependía de que alguien se acordara de levantar el stack local y
+  # correrla a mano — así que una migración futura podía reabrir el agujero con
+  # CI en verde. Es exactamente el mecanismo que dejó pasar los dos hallazgos.
+  #
+  # Levanta el stack completo de Supabase en el runner (Docker viene incluido en
+  # ubuntu-latest) y replaya TODAS las migraciones desde cero, que además es lo
+  # único que destapa migraciones no reproducibles (ver "Entorno de desarrollo
+  # local" en CLAUDE.md: así aparecieron los bugs de 006, 035 y 049–051).
+  #
+  # LÍMITE CONOCIDO: los casos que hablan por HTTP con la app (paquetes,
+  # eventos, /api/chat/list, responder invitación de ensayo) se SALTAN acá,
+  # porque levantar `dev:web` exigiría los secretos de Mercado Pago/Cloudinary.
+  # Se ven en el resumen como "skipped", no como verdes. Todo lo que toca RLS
+  # —incluida rls-guards.spec.ts completa— sí corre.
+  test-integration:
+    name: Integration Tests (Supabase local)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start Supabase (applies every migration from scratch)
+        run: npx supabase start
+
+      # Las suites leen SOLO este archivo (gitignored, cada una define por su
+      # cuenta lo demás que necesita, como QR_TOKEN_SECRET). Los valores salen
+      # del stack recién levantado, sin comillas: tres de los specs hacen
+      # `.trim()` sin quitarlas.
+      - name: Point the suite at the local stack
+        run: |
+          eval "$(npx supabase status -o env)"
+          printf 'NEXT_PUBLIC_SUPABASE_URL=%s\nNEXT_PUBLIC_SUPABASE_ANON_KEY=%s\nSUPABASE_SERVICE_ROLE_KEY=%s\n' \
+            "$API_URL" "$ANON_KEY" "$SERVICE_ROLE_KEY" > apps/web/.env.development.local
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Supabase logs on failure
+        if: failure()
+        run: docker ps -a && npx supabase status || true
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-artifacts
+          path: test-results/integration-artifacts/
+          retention-days: 7
+
   # ── Smoke tests (production, read-only) ───────────────────────────────────
   # These run against the production URL and require no local server.
   # They are skipped if prod credentials are not configured.

@@ -48,12 +48,17 @@ export async function POST(request: Request) {
     .update({ status: 'cancelled' } as any)
     .eq('id', enrollmentId)
 
-  // Void any pending/submitted payment so it doesn't pollute teacher's history
+  // Void any unresolved payment so it doesn't pollute teacher's history.
+  // 'payment_submitted' never was a valid `payments.status` value (that
+  // string belongs to `enrollments.status`) — this filter was a silent
+  // no-op. 'due'/'rejected' matter most: they're unpaid monthly training
+  // charges (068) that would otherwise survive as phantom debt if this
+  // enrollment gets reactivated later (audit2.md P0-2).
   await (admin as any)
     .from('payments')
     .update({ status: 'void' })
     .eq('enrollment_id', enrollmentId)
-    .in('status', ['pending', 'payment_submitted'])
+    .in('status', ['pending', 'due', 'rejected'])
 
   // Revoke the attendance QR token (soft — preserves past attendance)
   await revokeAttendanceToken(admin, enrollmentId)

@@ -36,22 +36,62 @@ const { summarizeCharges, billingPeriodOf, shiftBillingPeriod } = require(`${ROO
 // Los dos tests comparten la clase/inscripción sembrada por el primero.
 test.describe.configure({ mode: 'serial' })
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { createClient: createSupabaseClient } = require('@supabase/supabase-js')
+
 const admin = createAdminClient()
 const stamp = Date.now()
 const ids: { teacher?: string; student?: string; classId?: string; enrollmentId?: string } = {}
 
 const BILLING_DAY = 5
 const MONTHLY_PRICE = 40000
+const PASSWORD = 'Test1234!'
+
+// Sólo lo necesita el test de /api/class/leave (P0-2, más abajo): es el único
+// caso de este archivo que habla por HTTP con la app en vez de importar
+// módulos de servidor directo.
+const APP = process.env.QA_APP_URL ?? 'http://localhost:3000'
+let serverUp = false
+
+test.beforeAll(async () => {
+  try {
+    const res = await fetch(`${APP}/api/chat/list`, { headers: { Authorization: 'Bearer nope' } })
+    serverUp = res.status !== 0
+  } catch {
+    serverUp = false
+  }
+})
 
 async function mkUser(prefix: string): Promise<string> {
   const { data, error } = await admin.auth.admin.createUser({
     email: `${prefix}-${stamp}@chargetest.local`,
-    password: 'Test1234!',
+    password: PASSWORD,
     email_confirm: true,
     user_metadata: { full_name: `${prefix} ${stamp}`, username: `${prefix}${stamp}` },
   })
   if (error) throw error
   return data.user.id
+}
+
+/** Como `mkUser`, pero además firma sesión: hace falta un Bearer token real
+ * para llamar `/api/class/leave` tal como lo llama el cliente. */
+async function mkSignedUser(prefix: string): Promise<{ id: string; token: string }> {
+  const email = `${prefix}-${stamp}@chargetest.local`
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: PASSWORD,
+    email_confirm: true,
+    user_metadata: { full_name: `${prefix} ${stamp}`, username: `${prefix}${stamp}` },
+  })
+  if (error) throw error
+  const client = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+  const { data: session, error: signErr } = await client.auth.signInWithPassword({ email, password: PASSWORD })
+  if (signErr) throw signErr
+  return { id: data.user.id, token: session.session.access_token }
 }
 
 async function charges(): Promise<any[]> {
@@ -115,14 +155,21 @@ test('cobro mensual de entrenamiento: emisión, deuda acumulada, QR y pago atras
   if (enrErr) throw enrErr
   ids.enrollmentId = (enr as any).id
 
-  // El alumno entró al programa hace 3 meses. Sin retrodatar `created_at`, la
-  // ventana de cobro arranca en el mes de la inscripción (que es hoy) y no
-  // habría deuda acumulada que probar — es, de hecho, el comportamiento
-  // correcto para un alumno recién inscrito: no se le cobran meses anteriores
-  // a su entrada aunque la clase lleve años.
+  // El alumno entró al programa hace 3 meses. Sin retrodatar, la ventana de
+  // cobro arranca en el mes de la inscripción (que es hoy) y no habría deuda
+  // acumulada que probar — es, de hecho, el comportamiento correcto para un
+  // alumno recién inscrito: no se le cobran meses anteriores a su entrada
+  // aunque la clase lleve años.
+  //
+  // `billing_since` (migración 074, audit2.md P0-2) es la columna que
+  // `generate_monthly_charges` realmente lee — se retrodata junto con
+  // `created_at` por fidelidad histórica del fixture, aunque sólo la primera
+  // importa para la función. El trigger honra este valor explícito porque el
+  // caller es privilegiado y esto no es una reactivación (ver el comentario
+  // en `enrollments_write_guard` de la migración).
   await admin
     .from('enrollments')
-    .update({ created_at: threeMonthsAgo.toISOString() } as any)
+    .update({ created_at: threeMonthsAgo.toISOString(), billing_since: threeMonthsAgo.toISOString() } as any)
     .eq('id', ids.enrollmentId)
 
   // ── 1. Emisión: todos los meses desde el inicio, ninguno de más ───────────
@@ -350,6 +397,155 @@ test('el primer mes se emite al inscribirse, sin esperar al día de cobro', asyn
   expect((rows as any[])[0].status).toBe('due')
 
   await admin.from('classes').delete().eq('id', (cls as any).id)
+})
+
+// ─────────────────────────────────────────────────────────────────────────
+// audit2.md P0-2: un alumno que se va y vuelve a un entrenamiento no hereda
+// deuda de los meses en que no estuvo inscrito.
+// ─────────────────────────────────────────────────────────────────────────
+
+test('P0-2 (audit2): reactivar tras salir reinicia el ancla de facturación, no hereda los meses en que no estuvo inscrito', async () => {
+  test.setTimeout(30_000)
+
+  const fourMonthsAgo = new Date()
+  fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4)
+  fourMonthsAgo.setDate(1)
+  const startDate = fourMonthsAgo.toISOString().slice(0, 10)
+
+  const { data: cls } = await admin
+    .from('classes')
+    .insert({
+      teacher_id: ids.teacher,
+      title: '[TEST] entrenamiento reingreso',
+      type: 'entrenamiento',
+      dance_style: 'House',
+      recurrence: 'weekly',
+      day_of_week: 1,
+      recurring_time: '20:00',
+      start_date: startDate,
+      ends_indefinitely: true,
+      price: MONTHLY_PRICE,
+      billing_day: BILLING_DAY,
+      max_spots: 20,
+      city: 'Santiago',
+      level: 'principiante',
+      status: 'active',
+    } as any)
+    .select('id')
+    .single()
+  const classId = (cls as any).id
+
+  const { data: enr } = await admin
+    .from('enrollments')
+    .insert({ student_id: ids.student, class_id: classId, session_id: null, status: 'pending_payment' } as any)
+    .select('id')
+    .single()
+  const enrollmentId = (enr as any).id
+
+  // Se inscribió hace 4 meses (mismo truco de retrodatado que el primer test
+  // de este archivo). Antes de la migración 074 esto es lo único que hace
+  // falta para reproducir el bug: `generate_monthly_charges` leía
+  // `created_at` directo, y nada lo reiniciaba al reactivarse.
+  await admin.from('enrollments').update({ created_at: fourMonthsAgo.toISOString() } as any).eq('id', enrollmentId)
+
+  // Nunca pagó y se fue — como hace /api/class/leave.
+  await admin.from('enrollments').update({ status: 'cancelled' } as any).eq('id', enrollmentId)
+
+  // El profesor lo vuelve a aceptar HOY: mismo UPDATE de la MISMA fila que
+  // hace /api/class/auditions/enroll-accepted (nunca un INSERT nuevo).
+  await admin.from('enrollments').update({ status: 'pending_payment' } as any).eq('id', enrollmentId)
+
+  await (admin as any).rpc('generate_monthly_charges', { p_enrollment_id: enrollmentId })
+
+  const { data: rows } = await admin
+    .from('payments')
+    .select('billing_period')
+    .eq('enrollment_id', enrollmentId)
+    .not('billing_period', 'is', null)
+    .order('billing_period')
+
+  // ANTES del fix: 4-5 cargos, uno por cada mes desde la inscripción original
+  // de hace 4 meses — incluidos los meses en que el alumno NO estuvo inscrito.
+  // DESPUÉS: sólo el mes de la reactivación.
+  expect(
+    (rows as any[]).map((r) => r.billing_period),
+    'sólo el mes de la reactivación; nada de los meses en que el alumno no estuvo inscrito'
+  ).toEqual([billingPeriodOf()])
+
+  await admin.from('classes').delete().eq('id', classId)
+})
+
+test('P0-2 (audit2): /api/class/leave anula los cargos mensuales impagos, no sobreviven a una reactivación futura', async () => {
+  test.setTimeout(30_000)
+  test.skip(!serverUp, 'requiere npm run dev:web')
+
+  const student = await mkSignedUser('chleavealu')
+
+  const { data: cls } = await admin
+    .from('classes')
+    .insert({
+      teacher_id: ids.teacher,
+      title: '[TEST] entrenamiento leave',
+      type: 'entrenamiento',
+      dance_style: 'House',
+      recurrence: 'weekly',
+      day_of_week: 1,
+      recurring_time: '20:00',
+      start_date: new Date().toISOString().slice(0, 10),
+      ends_indefinitely: true,
+      price: MONTHLY_PRICE,
+      billing_day: BILLING_DAY,
+      max_spots: 20,
+      city: 'Santiago',
+      level: 'principiante',
+      status: 'active',
+    } as any)
+    .select('id')
+    .single()
+  const classId = (cls as any).id
+
+  const { data: enr } = await admin
+    .from('enrollments')
+    .insert({ student_id: student.id, class_id: classId, session_id: null, status: 'pending_payment' } as any)
+    .select('id')
+    .single()
+  const enrollmentId = (enr as any).id
+
+  await (admin as any).rpc('generate_monthly_charges', { p_enrollment_id: enrollmentId })
+
+  // Simula un comprobante rechazado: vuelve a ser deuda, exactamente lo que
+  // /api/class/leave debe anular igual que un 'due' recién emitido y nunca
+  // tocado (el filtro viejo, `.in('status', ['pending', 'payment_submitted'])`,
+  // tenía un string que nunca fue válido en `payments.status` y no incluía
+  // 'due' en absoluto).
+  const { data: dueRow } = await admin
+    .from('payments')
+    .select('id')
+    .eq('enrollment_id', enrollmentId)
+    .eq('status', 'due')
+    .limit(1)
+    .single()
+  await admin.from('payments').update({ status: 'rejected' } as any).eq('id', (dueRow as any).id)
+
+  const res = await fetch(`${APP}/api/class/leave`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${student.token}` },
+    body: JSON.stringify({ enrollmentId }),
+  })
+  expect(res.status, 'POST /api/class/leave debe responder 200').toBe(200)
+
+  const { data: after } = await admin
+    .from('payments')
+    .select('status')
+    .eq('enrollment_id', enrollmentId)
+    .not('billing_period', 'is', null)
+  expect(
+    (after as any[]).every((p) => p.status === 'void'),
+    "todo cargo mensual impago (due/rejected) queda 'void' al salir — ninguno sobrevive para resucitar si el alumno vuelve"
+  ).toBe(true)
+
+  await admin.from('classes').delete().eq('id', classId)
+  await admin.auth.admin.deleteUser(student.id).catch(() => {})
 })
 
 test.afterAll(async () => {

@@ -83,12 +83,16 @@ export default function AuditionModal({ classId, userId, teacherId, existing, on
         phone: phone.trim() || null,
       }
       if (videoUrl) update.video_url = videoUrl
-      const { error: updateErr } = await (supabase as any)
+      // `.select()` no es cosmético: si RLS filtra la fila, PostgREST devuelve
+      // 0 filas SIN error, y este modal cantaba éxito sin haber guardado nada
+      // (audit2.md P0-3: la policy de UPDATE para el postulante no existía).
+      const { data: updated, error: updateErr } = await (supabase as any)
         .from('auditions')
         .update(update)
         .eq('id', existing.id)
         .eq('status', 'pending')
-      if (updateErr) setError('Error al actualizar la postulación.')
+        .select('id')
+      if (updateErr || !updated?.length) setError('Error al actualizar la postulación.')
       else onSubmitted()
       setSubmitting(false)
       return

@@ -37,6 +37,37 @@ async function pingHealthcheck(uuid: string | undefined) {
 
 const clp = (n: number) => `$${n.toLocaleString('es-CL')}`
 
+// audit2.md P2-1 — el mismo bug que P2-5 cerró en `cleanup-classes`: PostgREST
+// corta en 1000 filas por defecto, EN SILENCIO (sin error). Sin paginar, el día
+// que la plataforma pase esa cantidad de cargos impagos, los alumnos que caigan
+// "al final" de la lista dejan de recibir el aviso de mensualidad vencida —
+// justo el que les explica por qué su QR dejó de funcionar. La emisión en sí
+// (`generate_monthly_charges`, un cursor SQL) no tiene este problema.
+const PAGE_SIZE = 500
+
+async function fetchAllPages(
+  build: (from: number, to: number) => any,
+): Promise<{ rows: any[]; error: string | null }> {
+  const rows: any[] = []
+  for (let page = 0; ; page++) {
+    const { data, error } = await build(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1)
+    if (error) return { rows, error: error.message }
+    if (!data || data.length === 0) break
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) break
+  }
+  return { rows, error: null }
+}
+
+// Un `.in()` con miles de UUIDs no se corta en silencio: revienta el largo de la
+// URL. Se trocea por las mismas razones por las que se pagina.
+const IN_CHUNK = 200
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET) {
     logger.error('monthly-charges', 'CRON_SECRET not configured')
@@ -67,21 +98,25 @@ export async function GET(request: Request) {
   // en que el cargo cruza su vencimiento.
   const today = todayInChile()
 
-  const { data: unpaid, error: unpaidErr } = await (admin as any)
-    .from('payments')
-    .select(`
-      id, amount, status, billing_period,
-      enrollment:enrollments!inner(
-        id, student_id, status,
-        class:classes!inner(id, title, type, status, billing_day)
-      )
-    `)
-    .not('billing_period', 'is', null)
-    .in('status', ['due', 'rejected'])
+  const { rows: unpaid, error: unpaidErr } = await fetchAllPages((from, to) =>
+    (admin as any)
+      .from('payments')
+      .select(`
+        id, amount, status, billing_period,
+        enrollment:enrollments!inner(
+          id, student_id, status,
+          class:classes!inner(id, title, type, status, billing_day)
+        )
+      `)
+      .not('billing_period', 'is', null)
+      .in('status', ['due', 'rejected'])
+      .order('id', { ascending: true })
+      .range(from, to)
+  )
 
   if (unpaidErr) {
-    errors.push(`unpaid: ${unpaidErr.message}`)
-    logger.error('monthly-charges:unpaid_query_failed', unpaidErr.message)
+    errors.push(`unpaid: ${unpaidErr}`)
+    logger.error('monthly-charges:unpaid_query_failed', unpaidErr)
     await pingHealthcheck(process.env.HEALTHCHECK_MONTHLY_CHARGES_UUID)
     return NextResponse.json({ created, notified: 0, errors })
   }
@@ -98,12 +133,30 @@ export async function GET(request: Request) {
     const studentIds = Array.from(new Set(pending.map((p: any) => p.enrollment.student_id)))
     const since = new Date(Date.now() - NOTIFY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
-    const { data: sent } = await (admin as any)
-      .from('notifications')
-      .select('user_id, data')
-      .eq('type', 'payment_reminder')
-      .in('user_id', studentIds)
-      .gte('created_at', since)
+    // Esta query también estaba sin paginar, y acá el corte silencioso falla al
+    // revés: creer que un aviso nunca se mandó y volver a mandarlo.
+    const sent: any[] = []
+    for (const ids of chunk(studentIds as string[], IN_CHUNK)) {
+      const { rows, error: sentErr } = await fetchAllPages((from, to) =>
+        (admin as any)
+          .from('notifications')
+          .select('user_id, data')
+          .eq('type', 'payment_reminder')
+          .in('user_id', ids)
+          .gte('created_at', since)
+          .order('created_at', { ascending: true })
+          .range(from, to)
+      )
+      if (sentErr) {
+        // Sin la lista de avisos ya enviados no se puede deduplicar: es mejor no
+        // avisar esta corrida (el cron es diario) que duplicar avisos de dinero.
+        errors.push(`sent: ${sentErr}`)
+        logger.error('monthly-charges:sent_query_failed', sentErr)
+        await pingHealthcheck(process.env.HEALTHCHECK_MONTHLY_CHARGES_UUID)
+        return NextResponse.json({ created, notified: 0, pending: pending.length, errors })
+      }
+      sent.push(...rows)
+    }
 
     const alreadySent = new Set(
       (sent ?? [])

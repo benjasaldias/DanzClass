@@ -125,6 +125,7 @@ test.beforeAll(async () => {
 
 test.describe('Chat', () => {
   test('Realtime entrega el mensaje nuevo a los participantes', async () => {
+    test.setTimeout(60_000)
     const classId = await ins('classes', { ...classBase(teacher.id), title: '[QA] chat realtime', date: '2027-04-01', price: 10000 })
     await ins('enrollments', { class_id: classId, student_id: student.id, status: 'confirmed' })
     const chatId = await ins('chats', { type: 'class', class_id: classId, student_id: student.id })
@@ -150,10 +151,29 @@ test.describe('Chat', () => {
       })
     })
 
-    await admin.from('chat_messages').insert({ chat_id: chatId, sender_id: teacher.id, content: 'hola desde el profe' })
-
     // Sin la migración 071 (tabla fuera de la publicación) esto nunca llega.
-    await expect.poll(() => received.length, { timeout: 10_000, intervals: [200] }).toBeGreaterThan(0)
+    //
+    // El insert se REINTENTA a propósito: `SUBSCRIBED` solo confirma que se unió
+    // al canal por websocket, NO que el servidor de Realtime ya tenga andando la
+    // replicación de la publicación. Recién arrancado el stack (`db:reset` /
+    // `supabase start`, que es justo el caso del job de CI) hay unos segundos en
+    // que un INSERT se pierde aunque el canal diga SUBSCRIBED: el test fallaba y
+    // pasaba al reintentarlo a mano. Reintentar es lo único que distingue
+    // "todavía calentando" de "la tabla no está publicada" — con la tabla fuera
+    // de la publicación esto sigue fallando al agotarse el plazo, así que el
+    // valor de regresión de 071 se conserva. Todos los inserts llevan el mismo
+    // contenido para que la aserción de abajo valga igual.
+    await expect
+      .poll(
+        async () => {
+          if (received.length === 0) {
+            await admin.from('chat_messages').insert({ chat_id: chatId, sender_id: teacher.id, content: 'hola desde el profe' })
+          }
+          return received.length
+        },
+        { timeout: 25_000, intervals: [1000] },
+      )
+      .toBeGreaterThan(0)
     expect(received[0].content).toBe('hola desde el profe')
 
     await student.client.removeChannel(channel)
