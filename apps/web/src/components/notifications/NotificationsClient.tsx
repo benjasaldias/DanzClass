@@ -217,10 +217,17 @@ const NOTIF_CONFIG: Record<string, {
   payment_reminder: {
     icon: AlertCircle,
     color: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
-    // Dos usos: reserva sin comprobante (cron cleanup-classes) y mensualidad de
-    // un entrenamiento (cron monthly-charges, que sí manda `billing_period`).
+    // Tres usos: reserva sin comprobante (cron cleanup-classes), mensualidad de
+    // un entrenamiento (cron monthly-charges, que sí manda `billing_period`) y
+    // —con `role: 'teacher'`— el aviso al PROFESOR de un comprobante que lleva
+    // días sin revisar (audit3 P0-1).
     label: (data) => {
       const title = data.class_title ?? 'una clase'
+      if (data.role === 'teacher') {
+        const days = Number(data.waiting_days ?? 0)
+        const since = days > 0 ? ` hace ${days} ${days === 1 ? 'día' : 'días'}` : ''
+        return `Tienes un comprobante de "${title}" esperando tu revisión${since}.`
+      }
       if (!data.billing_period) {
         return `Tienes un pago pendiente para "${title}". Sube tu comprobante para confirmar tu cupo.`
       }
@@ -229,7 +236,10 @@ const NOTIF_CONFIG: Record<string, {
         ? `Debes ${month} de "${title}". Mientras no te pongas al día, tu QR de acceso no funciona.`
         : `Nueva mensualidad de "${title}": ${month}.`
     },
-    href: (data) => data.enrollment_id ? `/payment/${data.enrollment_id}` : '/my-classes',
+    href: (data) =>
+      data.role === 'teacher'
+        ? (data.payment_id ? `/payment/review/${data.payment_id}` : '/my-classes')
+        : (data.enrollment_id ? `/payment/${data.enrollment_id}` : '/my-classes'),
   },
   event_invite: {
     icon: Users,

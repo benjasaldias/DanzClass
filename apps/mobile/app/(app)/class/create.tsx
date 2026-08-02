@@ -12,8 +12,9 @@ import { supabase } from '../../../lib/supabase'
 import { sendNotifications } from '../../../lib/notifications'
 import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../lib/cloudinary'
 import {
-  DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, resolveClassStartDate,
+  DANCE_STYLES, DAYS_OF_WEEK, canUploadVideo, resolveClassStartDate,
   validatePeriodicaDates, lastCustomDate, getActiveTier,
+  canPublishClassType, classQuotaErrorMessage, monthlyClassQuotaForTier,
 } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileSelect from '../../../components/ui/MobileSelect'
@@ -96,9 +97,16 @@ export default function CreateClassScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
+  const [sueltasThisMonth, setSueltasThisMonth] = useState(0)
+  const [planLoaded, setPlanLoaded] = useState(false)
 
-  const unlimited = canTeachUnlimited(tier)
   const mediaLimit = tier === 'basic' ? 1 : 5
+
+  // Cupo del plan (audit3 P1-1). Lo hace cumplir el trigger de `075`; esto es
+  // para no dejar al profesor llenar el formulario entero antes de enterarse.
+  const typeAllowed = canPublishClassType(tier, classType)
+  const monthlyQuota = monthlyClassQuotaForTier(tier)
+  const quotaReached = classType === 'suelta' && sueltasThisMonth >= monthlyQuota
 
   useEffect(() => {
     async function load() {
@@ -106,12 +114,25 @@ export default function CreateClassScreen() {
       if (!user) return
       setTeacherId(user.id)
 
-      const [activeTier, payRes, profRes] = await Promise.all([
+      // Mes calendario en UTC, igual que `date_trunc('month', now())` del
+      // trigger: así el contador de la app y el de la base dicen lo mismo.
+      const now = new Date()
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
+
+      const [activeTier, payRes, profRes, sueltasRes] = await Promise.all([
         getActiveTier(user.id, supabase),
         supabase.from('teacher_payment_info').select('id').eq('teacher_id', user.id).maybeSingle(),
         (supabase as any).from('profiles').select('mp_connected').eq('id', user.id).maybeSingle(),
+        supabase
+          .from('classes')
+          .select('id', { count: 'exact', head: true })
+          .eq('teacher_id', user.id)
+          .eq('type', 'suelta')
+          .gte('created_at', monthStart),
       ])
       setTier(activeTier)
+      setSueltasThisMonth(sueltasRes.count ?? 0)
+      setPlanLoaded(true)
       setHasPaymentInfo(!!payRes.data)
       // Por defecto se ofrecen todas las vías disponibles para el profesor.
       const connected = !!profRes.data?.mp_connected
@@ -221,6 +242,14 @@ export default function CreateClassScreen() {
 
   async function handleSubmit() {
     if (!teacherId) return
+    if (quotaReached || !typeAllowed) {
+      setGlobalError(
+        quotaReached
+          ? 'El plan Básico permite publicar 1 clase suelta por mes. Actualiza a Pro para publicar sin límite.'
+          : 'Las clases periódicas y los entrenamientos son del plan Pro.'
+      )
+      return
+    }
     if (!validate()) return
 
     setSubmitting(true)
@@ -298,7 +327,10 @@ export default function CreateClassScreen() {
       .single()
 
     if (classError || !classRecord) {
-      setGlobalError('Error al crear la clase. Intenta de nuevo.')
+      // El tope del plan lo hace cumplir el trigger de `075` (el INSERT sale del
+      // cliente): sin traducir su mensaje, el profesor Básico vería "Error al
+      // crear la clase" sin saber que el problema es su plan.
+      setGlobalError(classQuotaErrorMessage(classError?.message) ?? 'Error al crear la clase. Intenta de nuevo.')
       setSubmitting(false)
       return
     }
@@ -358,6 +390,31 @@ export default function CreateClassScreen() {
 
   const typeLabel = classType === 'suelta' ? 'Clase suelta' : classType === 'periodica' ? 'Periódica' : 'Entrenamiento'
 
+  // El tipo no es del plan: no tiene sentido mostrar el formulario entero para
+  // que la base lo rechace al final.
+  if (planLoaded && !typeAllowed) {
+    return (
+      <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg items-center justify-center px-6" edges={['top']}>
+        <Text className="text-lg font-bold text-gray-900 dark:text-dark-text text-center">
+          {typeLabel} es del plan Pro
+        </Text>
+        <Text className="text-sm text-gray-500 dark:text-dark-text2 text-center mt-2 mb-6">
+          Con el plan Básico puedes publicar 1 clase suelta al mes. El plan Pro agrega clases
+          periódicas, entrenamientos y publicaciones sin límite.
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/plans' as any)}
+          className="bg-brand-600 rounded-xl px-8 py-3"
+        >
+          <Text className="text-white font-semibold">Ver planes</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} className="mt-4 px-8 py-2">
+          <Text className="text-sm text-gray-500 dark:text-dark-text2">Volver</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-blanco-violeta dark:bg-dark-bg" edges={['top']}>
       {/* Header */}
@@ -392,6 +449,28 @@ export default function CreateClassScreen() {
         {globalError && (
           <View className="bg-red-50 border border-red-200 rounded-xl p-3">
             <Text className="text-sm text-red-700">{globalError}</Text>
+          </View>
+        )}
+
+        {/* Tope mensual del plan Básico (audit3 P1-1) */}
+        {planLoaded && quotaReached && (
+          <View className="bg-brand-50 dark:bg-brand-950/30 border border-brand-200 dark:border-brand-900/50 rounded-xl p-3 gap-1">
+            <Text className="text-sm font-semibold text-brand-800 dark:text-brand-200">Límite mensual alcanzado</Text>
+            <Text className="text-xs text-brand-700 dark:text-brand-300">
+              El plan Básico permite 1 clase suelta por mes y ya publicaste la de este mes.
+              Actualiza a Pro para publicar sin límite.
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/(app)/plans' as any)} className="mt-1">
+              <Text className="text-xs font-semibold text-brand-700 dark:text-brand-300 underline">Ver planes</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {planLoaded && tier === 'basic' && !quotaReached && (
+          <View className="bg-gray-50 dark:bg-dark-surface2 border border-gray-200 dark:border-dark-border rounded-xl p-3">
+            <Text className="text-xs text-gray-600 dark:text-dark-text2">
+              Plan Básico: 1 clase suelta por mes, con hasta 1 foto o video.
+            </Text>
           </View>
         )}
 
@@ -825,9 +904,9 @@ export default function CreateClassScreen() {
         {/* Submit */}
         <TouchableOpacity
           onPress={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || quotaReached}
           className="bg-brand-600 rounded-xl py-3.5 items-center mt-2 mb-4"
-          style={{ opacity: submitting ? 0.6 : 1 }}
+          style={{ opacity: submitting || quotaReached ? 0.6 : 1 }}
         >
           {submitting ? (
             <ActivityIndicator color="white" />

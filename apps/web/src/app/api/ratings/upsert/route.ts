@@ -26,7 +26,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const { rated_user_id, stars } = body
 
-  if (!rated_user_id || typeof stars !== 'number' || stars < 1 || stars > 5) {
+  // P2-6: la tabla exige pasos de 0,5 (`(stars * 2) = FLOOR(stars * 2)`,
+  // migración 019) pero esta ruta sólo validaba el rango — un `3.7` pasaba
+  // acá y moría en la base con un 500 genérico en vez de un 400 explicable.
+  // La UI sólo manda enteros, así que hoy no se dispara; esto cierra la
+  // ruta para cualquier caller directo (Bearer, PostgREST-style POST).
+  if (
+    !rated_user_id ||
+    typeof stars !== 'number' ||
+    !Number.isFinite(stars) ||
+    stars < 1 ||
+    stars > 5 ||
+    Math.round(stars * 2) !== stars * 2
+  ) {
     return NextResponse.json({ error: 'Invalid params' }, { status: 400 })
   }
 

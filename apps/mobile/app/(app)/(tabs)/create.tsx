@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { canTeach, canPostVideo, getActiveTier } from '@danceclass/shared'
+import { canTeach, canPostVideo, canPublishClassType, getActiveTier } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import { GraduationCap, CalendarDays, Repeat, Dumbbell, Film } from 'lucide-react-native'
 import { Icon } from '../../../components/ui/Icon'
@@ -20,6 +20,8 @@ export default function CreateScreen() {
     }
     load()
   }, [])
+
+  const proTypes = tier !== null && canPublishClassType(tier, 'periodica')
 
   if (tier !== null && !canTeach(tier)) {
     return (
@@ -58,23 +60,44 @@ export default function CreateScreen() {
           <Text className="text-sm text-gray-500 dark:text-dark-text2">Una fecha específica</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => router.push('/(app)/class/create?type=periodica' as any)}
-          className="bg-white dark:bg-dark-surface border-2 border-morado-flow/40 rounded-2xl p-5 gap-2"
-        >
-          <Icon icon={Repeat} size={28} stroke="#7F77DD" />
-          <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Clase periódica</Text>
-          <Text className="text-sm text-gray-500 dark:text-dark-text2">Semanal, quincenal o mensual</Text>
-        </TouchableOpacity>
+        {/* Periódicas y entrenamientos son del plan Pro (audit3 P1-1). Hasta esta
+            sesión la pantalla los ofrecía a cualquiera con plan y el candado no
+            existía en ninguna capa de mobile. */}
+        {proTypes ? (
+          <>
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/class/create?type=periodica' as any)}
+              className="bg-white dark:bg-dark-surface border-2 border-morado-flow/40 rounded-2xl p-5 gap-2"
+            >
+              <Icon icon={Repeat} size={28} stroke="#7F77DD" />
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Clase periódica</Text>
+              <Text className="text-sm text-gray-500 dark:text-dark-text2">Semanal, quincenal o mensual</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => router.push('/(app)/class/create?type=entrenamiento' as any)}
-          className="bg-white dark:bg-dark-surface border-2 border-gray-200 dark:border-dark-border rounded-2xl p-5 gap-2"
-        >
-          <Icon icon={Dumbbell} size={28} />
-          <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Entrenamiento</Text>
-          <Text className="text-sm text-gray-500 dark:text-dark-text2">Con o sin audición</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/class/create?type=entrenamiento' as any)}
+              className="bg-white dark:bg-dark-surface border-2 border-gray-200 dark:border-dark-border rounded-2xl p-5 gap-2"
+            >
+              <Icon icon={Dumbbell} size={28} />
+              <Text className="text-lg font-bold text-gray-900 dark:text-dark-text">Entrenamiento</Text>
+              <Text className="text-sm text-gray-500 dark:text-dark-text2">Con o sin audición</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity
+            onPress={() => router.push('/(app)/plans' as any)}
+            className="bg-gray-50 dark:bg-dark-surface2 border-2 border-gray-100 dark:border-dark-border rounded-2xl p-5 gap-2"
+          >
+            <View className="flex-row gap-3">
+              <Icon icon={Repeat} size={28} />
+              <Icon icon={Dumbbell} size={28} />
+            </View>
+            <Text className="text-lg font-bold text-gray-500 dark:text-dark-text2">Periódica y Entrenamiento</Text>
+            <Text className="text-sm text-gray-400 dark:text-dark-text2/60">
+              Disponibles con el plan Pro. Toca para ver los planes.
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {tier !== null && canPostVideo(tier) ? (
           <TouchableOpacity

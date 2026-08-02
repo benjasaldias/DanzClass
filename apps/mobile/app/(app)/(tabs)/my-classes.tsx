@@ -415,6 +415,9 @@ function getPaymentKey(enrollment: any): keyof typeof PAYMENT_PILL_COLORS {
   if (enrollment.status === 'confirmed') return 'confirmed'
   if (payment?.status === 'rejected') return 'rejected'
   if (payment?.status === 'void') return 'void'
+  // 'due' = fila sin pago detrás (checkout de MP abandonado, o registro en
+  // efectivo pendiente): existir no es estar pagado (audit3 P0-1).
+  if (payment?.status === 'due') return 'no_payment'
   if (enrollment.status === 'payment_submitted' || payment) return 'pending'
   return 'no_payment'
 }
@@ -587,6 +590,7 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
                 : row.enrollmentStatus === 'confirmed' ? 'confirmed'
                 : row.payment?.status === 'rejected' ? 'rejected'
                 : row.payment?.status === 'void' ? 'void'
+                : row.payment?.status === 'due' ? 'no_payment'
                 : row.enrollmentStatus === 'payment_submitted' || row.payment ? 'pending'
                 : 'no_payment'
               const pill = PAYMENT_PILL_COLORS[statusKey]

@@ -116,6 +116,10 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
   const [transferring, setTransferring] = useState(false)
   const [mpLoading, setMpLoading] = useState(false)
   const [mpError, setMpError] = useState<string | null>(null)
+  // La rama de transferencia sólo logueaba el fallo en consola: el alumno subía
+  // el comprobante, no pasaba nada y no había ningún mensaje. Mobile ya avisaba
+  // con un Alert (audit3, sesión 1).
+  const [transferError, setTransferError] = useState<string | null>(null)
 
   // En un entrenamiento el estado de la inscripción no dice nada sobre el mes
   // en curso (puede estar `confirmed` desde hace un año y deber marzo): lo que
@@ -192,6 +196,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
 
   async function handleSubmit() {
     if (!receipt || !receiptType) return
+    setTransferError(null)
     setUploading(true)
 
     const supabase = createClient()
@@ -211,6 +216,7 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
+      setTransferError('No se pudo subir el comprobante. Intenta de nuevo.')
       setUploading(false)
       return
     }
@@ -232,7 +238,13 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
     })
 
     if (!submitRes.ok) {
-      console.error('submit-transfer error:', await submitRes.json().catch(() => ({})))
+      const err = await submitRes.json().catch(() => ({}))
+      console.error('submit-transfer error:', err)
+      setTransferError(
+        err?.error === 'receipt_not_found'
+          ? 'No encontramos el comprobante subido. Vuelve a seleccionarlo e inténtalo de nuevo.'
+          : 'No se pudo registrar el comprobante. Intenta de nuevo.'
+      )
       setUploading(false)
       return
     }
@@ -573,6 +585,10 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
               </div>
             )}
           </div>
+
+          {transferError && (
+            <p className="text-xs text-red-600 dark:text-red-400">{transferError}</p>
+          )}
 
           {!alreadySubmitted && (
             <button

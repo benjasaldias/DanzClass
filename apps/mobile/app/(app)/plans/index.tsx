@@ -2,46 +2,97 @@ import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import * as WebBrowser from 'expo-web-browser'
-import { CheckCircle2, CreditCard, Wallet } from 'lucide-react-native'
+import { CheckCircle2, Globe, XCircle } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
-import { formatCLP, getActiveTier, WEB_URL } from '@danceclass/shared'
+import {
+  formatCLP,
+  getActiveSubscription,
+  getCancelledPendingExpiry,
+  SUBSCRIPTION_PLANS,
+  WEB_URL,
+} from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
-const PLANS = [
-  {
-    id: 'basic' as const,
-    name: 'Básico',
-    price: 1500,
-    features: [
-      'Inscribirse a clases',
-      'Subir videos de baile',
-      'Publicar clases (hasta 3 activas)',
-      'Sistema de confianza',
-      'Sin comisión de servicio al pagar clases con Mercado Pago',
-    ],
-  },
-  {
-    id: 'pro' as const,
-    name: 'Pro',
-    price: 3500,
-    features: [
-      'Todo lo del plan Básico',
-      'Clases ilimitadas',
-      'Entrenamientos y audiciones',
-      'Descuentos espontáneos',
-      'Dashboard de analytics (próximamente)',
-    ],
-    highlight: true,
-  },
-]
+// Mismo formato que `CancelSubscriptionButton.tsx` (web): `expires_at` es un
+// TIMESTAMPTZ completo, no un YYYY-MM-DD — hay que tomar solo la fecha y
+// construirla en hora local para evitar el off-by-one de `new Date(iso)`.
+function formatExpiryDate(iso: string) {
+  const [y, m, d] = iso.split('T')[0].split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-CL', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
+
+// ---------------------------------------------------------------------------
+// WHY_NO_PURCHASE_IN_APP — no borrar sin leer esto (sesión 2026-08-02)
+// ---------------------------------------------------------------------------
+// Esta pantalla NO vende suscripciones, a propósito. Hasta esta sesión tenía
+// dos botones ("Mensual" / "Anual") que abrían el checkout de Mercado Pago
+// dentro de la app con `WebBrowser.openBrowserAsync(init_point)`.
+//
+// Eso es exactamente lo que App Store (guía 3.1.1) y Google Play (Payments
+// policy) prohíben: contenido o funcionalidad DIGITAL que se desbloquea dentro
+// de la app —acá, publicar clases y subir videos— debe venderse por el sistema
+// de compras de la tienda. La sanción no es una comisión (las tiendas no tienen
+// forma de cobrar sobre un pago de Mercado Pago): es el RECHAZO de la app en
+// revisión. Un revisor abre esta pantalla, toca "Suscribirse", ve Mercado Pago
+// y rechaza la publicación.
+//
+// ⚠️ Redirigir a danzclass.com TAMPOCO sirve, que es la intuición natural:
+// las reglas anti-steering (guía 3.1.3) prohíben enlazar a un mecanismo de
+// compra externo desde adentro de la app. En EE.UU. eso cambió tras un fallo
+// judicial de 2025; Chile no está cubierto por esa excepción ni por las de la
+// UE. Por eso el aviso de abajo es texto plano SIN link tocable.
+//
+// LO QUE SÍ ESTÁ PERMITIDO Y NO HAY QUE TOCAR: los pagos de CLASES por Mercado
+// Pago (todo el marketplace, `PaymentClient`, `create-payment`, el 2% de
+// comisión y el gross-up). Una clase de baile es un servicio físico presencial
+// que se consume FUERA de la app — el mismo caso de Uber o Airbnb, permitido
+// explícitamente por la guía 3.1.5(a). La restricción aplica sólo a la
+// suscripción a los planes.
+//
+// Si algún día se quiere volver a vender desde la app, la única vía compatible
+// es integrar Apple IAP + Google Play Billing (15-30% de comisión), no
+// reponer estos botones. Ver `audit3.md` §9.2 U-8.
+// ---------------------------------------------------------------------------
+
+// Fuente única: `SUBSCRIPTION_PLANS` (packages/shared) es lo que alimenta
+// también la página de planes de la web. Acá había un array duplicado que se
+// había desincronizado y prometía cosas que no son ciertas:
+//   - "Publicar clases (hasta 3 activas)" cuando el Básico permite 1 clase
+//     suelta POR MES — un tope que la migración 075 ahora hace cumplir en la
+//     base, así que el segundo intento sería rechazado con la app prometiendo
+//     lo contrario.
+//   - "Sistema de confianza", eliminado en 2026-05-22 (lo reemplazaron las
+//     valoraciones con estrellas).
+//   - "Dashboard de analytics (próximamente)", que existe desde 2026-05-31
+//     como Panel Financiero.
+const PLANS = SUBSCRIPTION_PLANS.map((p) => ({
+  id: p.tier,
+  name: p.name,
+  price: p.price,
+  features: p.features as readonly string[],
+  highlight: p.tier === 'pro',
+}))
 
 export default function PlansScreen() {
   const router = useRouter()
   const [currentTier, setCurrentTier] = useState<SubscriptionTier>('none')
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
+  const [cancelledExpiry, setCancelledExpiry] = useState<{ tier: SubscriptionTier; expires_at: string } | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [checkingOut, setCheckingOut] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
+
+  async function refreshSubscriptionState(userId: string) {
+    const [sub, cancelled] = await Promise.all([
+      getActiveSubscription(userId, supabase),
+      getCancelledPendingExpiry(userId, supabase),
+    ])
+    setCurrentTier(sub?.tier ?? 'none')
+    setExpiresAt(sub?.expires_at ?? null)
+    setCancelledExpiry(cancelled)
+  }
 
   useEffect(() => {
     async function load() {
@@ -50,54 +101,44 @@ export default function PlansScreen() {
       if (!user) return
       setAccessToken(session?.access_token ?? null)
 
-      setCurrentTier(await getActiveTier(user.id, supabase))
+      await refreshSubscriptionState(user.id)
       setLoading(false)
     }
     load()
   }, [])
 
-  async function handleSubscribe(planId: 'basic' | 'pro', period: 'monthly' | 'annual') {
-    if (!accessToken) {
-      Alert.alert('Error', 'Sesión no encontrada. Vuelve a iniciar sesión.')
-      return
-    }
-    setCheckingOut(`${planId}-${period}`)
-    try {
-      const endpoint = period === 'monthly'
-        ? `${WEB_URL}/api/mercadopago/create-subscription`
-        : `${WEB_URL}/api/mercadopago/create-preference`
-
-      const body = period === 'annual'
-        ? { plan: planId, period: 'annual' }
-        : { plan: planId }
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+  // P1-5: la pantalla prometía "Podés cancelar en cualquier momento" sin
+  // ningún botón que lo hiciera, y aunque hubiera existido no habría
+  // funcionado — `/api/subscriptions/cancel` sólo aceptaba cookie. Mismo
+  // flujo y mismo texto que `CancelSubscriptionButton.tsx` (web).
+  function handleCancelSubscription() {
+    if (!accessToken || !expiresAt) return
+    Alert.alert(
+      '¿Cancelar suscripción?',
+      `Tu plan seguirá activo hasta el ${formatExpiryDate(expiresAt)}. No se realizarán más cobros.`,
+      [
+        { text: 'Volver', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true)
+            try {
+              const res = await fetch(`${WEB_URL}/api/subscriptions/cancel`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${accessToken}` },
+              })
+              if (!res.ok) throw new Error()
+              const { data: { user } } = await supabase.auth.getUser()
+              if (user) await refreshSubscriptionState(user.id)
+            } catch {
+              Alert.alert('Error', 'No se pudo cancelar la suscripción. Intenta de nuevo.')
+            }
+            setCancelling(false)
+          },
         },
-        body: JSON.stringify(body),
-      })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error ?? 'Error al iniciar el pago')
-      }
-
-      const { init_point } = await res.json()
-      if (!init_point) throw new Error('No se recibió URL de pago')
-
-      await WebBrowser.openBrowserAsync(init_point)
-      // After browser closes, refresh subscription status
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setCurrentTier(await getActiveTier(user.id, supabase))
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo abrir el checkout')
-    }
-    setCheckingOut(null)
+      ]
+    )
   }
 
   if (loading) {
@@ -128,18 +169,32 @@ export default function PlansScreen() {
           </View>
 
           {currentTier !== 'none' && (
-            <View className="bg-green-50 border border-green-200 rounded-2xl p-4 flex-row items-center gap-3">
+            <View className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4 flex-row items-center gap-3">
               <CheckCircle2 size={20} stroke="#16a34a" />
-              <Text className="text-green-800 font-semibold text-sm">
+              <Text className="text-green-800 dark:text-green-400 font-semibold text-sm flex-1">
                 Plan activo: {currentTier === 'basic' ? 'Básico' : currentTier === 'pro' ? 'Pro' : currentTier}
+              </Text>
+              <TouchableOpacity onPress={handleCancelSubscription} disabled={cancelling}>
+                <Text className="text-xs text-gray-400 dark:text-dark-text2 underline">
+                  {cancelling ? 'Cancelando…' : 'Cancelar plan'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {cancelledExpiry && (
+            <View className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex-row items-start gap-3">
+              <XCircle size={18} stroke="#d97706" style={{ marginTop: 2 }} />
+              <Text className="text-amber-700 dark:text-amber-400 text-sm flex-1">
+                Tu suscripción fue cancelada. Tienes acceso hasta el{' '}
+                <Text className="font-semibold">{formatExpiryDate(cancelledExpiry.expires_at)}</Text>.
+                No se realizarán nuevos cobros.
               </Text>
             </View>
           )}
 
           {PLANS.map((plan) => {
             const isActive = currentTier === plan.id
-            const annualPrice = plan.price * 12
-            const annualSavings = Math.round((plan.price * 2))
 
             return (
               <View
@@ -174,47 +229,13 @@ export default function PlansScreen() {
                     ))}
                   </View>
 
-                  {isActive ? (
-                    <View className="border border-brand-200 bg-brand-50 rounded-xl py-3 items-center">
-                      <Text className="text-brand-600 font-semibold text-sm">Plan actual</Text>
-                    </View>
-                  ) : (
-                    <View className="gap-2">
-                      {/* Monthly — credit card only */}
-                      <TouchableOpacity
-                        onPress={() => handleSubscribe(plan.id, 'monthly')}
-                        disabled={!!checkingOut}
-                        className={`flex-row items-center gap-3 px-4 py-3 rounded-xl bg-brand-600 ${checkingOut ? 'opacity-60' : ''}`}
-                      >
-                        <CreditCard size={16} stroke="white" />
-                        <View className="flex-1">
-                          <Text className="text-white font-semibold text-sm">
-                            {checkingOut === `${plan.id}-monthly`
-                              ? 'Abriendo checkout...'
-                              : `Mensual · ${formatCLP(plan.price)}`}
-                          </Text>
-                          <Text className="text-white text-xs opacity-75">Cobro automático · solo tarjeta de crédito</Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      {/* Annual — any payment method */}
-                      <TouchableOpacity
-                        onPress={() => handleSubscribe(plan.id, 'annual')}
-                        disabled={!!checkingOut}
-                        className={`flex-row items-center gap-3 px-4 py-3 rounded-xl border-2 border-brand-200 dark:border-brand-600 dark:bg-dark-surface2 ${checkingOut ? 'opacity-60' : ''}`}
-                      >
-                        <Wallet size={16} stroke="#7F77DD" />
-                        <View className="flex-1">
-                          <Text className="text-brand-700 dark:text-dark-text font-semibold text-sm">
-                            {checkingOut === `${plan.id}-annual`
-                              ? 'Abriendo checkout...'
-                              : `Anual · ${formatCLP(annualPrice)}`}
-                          </Text>
-                          <Text className="text-brand-500 dark:text-dark-text2 text-xs">
-                            Pago único · cualquier medio · ahorras {formatCLP(annualSavings)}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
+                  {/* Sólo se marca el plan activo. Los demás no llevan
+                      ningún botón ni etiqueta de compra — ver
+                      `WHY_NO_PURCHASE_IN_APP` arriba; dónde se contrata se
+                      dice UNA vez al pie de la pantalla, no por tarjeta. */}
+                  {isActive && (
+                    <View className="border border-brand-200 dark:border-brand-600 bg-brand-50 dark:bg-dark-surface2 rounded-xl py-3 items-center">
+                      <Text className="text-brand-600 dark:text-brand-300 font-semibold text-sm">Plan actual</Text>
                     </View>
                   )}
                 </View>
@@ -222,10 +243,24 @@ export default function PlansScreen() {
             )
           })}
 
+          {/* Dónde se contrata. Texto plano, NO tocable, y una sola vez en la
+              pantalla — ver `WHY_NO_PURCHASE_IN_APP` arriba. */}
+          <View className="bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-2xl p-4 flex-row items-start gap-3">
+            <Globe size={18} stroke="#7F77DD" style={{ marginTop: 1 }} />
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-gray-900 dark:text-dark-text mb-1">
+                Contratar un plan
+              </Text>
+              <Text className="text-xs text-gris-humo dark:text-dark-text2 leading-5">
+                Los planes se contratan y gestionan desde el sitio web de DanzClass,
+                con tu misma cuenta. Una vez activo, se refleja acá automáticamente.
+              </Text>
+            </View>
+          </View>
+
           {/* Footer note */}
           <View className="items-center pb-4">
             <Text className="text-xs text-gris-humo dark:text-dark-text2 text-center">
-              Los pagos son procesados de forma segura por Mercado Pago.{'\n'}
               Podés cancelar en cualquier momento.
             </Text>
           </View>

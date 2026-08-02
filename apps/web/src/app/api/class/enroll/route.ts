@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { notifyUsers } from '@/lib/notifyUsers'
+import { assertCanEnroll, loadEnrollableClass } from '@/lib/enrollGuards'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
@@ -43,12 +44,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
 
   // Verify class exists and is active
-  const { data: classData } = await (admin as any)
-    .from('classes')
-    .select('id, teacher_id, title, status, price, type, date, ends_at, ends_indefinitely, requires_audition, audition_closed, allow_late_payment, accepts_mp, accepts_transfer')
-    .eq('id', classId)
-    .eq('status', 'active')
-    .maybeSingle()
+  const classData = await loadEnrollableClass(admin, classId)
 
   if (!classData) return NextResponse.json({ error: 'Clase no encontrada o no disponible' }, { status: 404 })
 
@@ -67,49 +63,13 @@ export async function POST(request: Request) {
     if (reserveLimit) return reserveLimit
   }
 
-  // Validate class is not expired
+  // Clase vencida, audición requerida, inscribirse en la propia clase, y vía de
+  // pago viable. Vive en `lib/enrollGuards.ts` porque `/api/class-2x/match`
+  // también crea inscripciones y no repetía ninguna de estas comprobaciones
+  // (audit3 P0-2).
   const today = new Date().toISOString().split('T')[0]
-  if (classData.type === 'suelta') {
-    if (classData.date && classData.date < today) {
-      return NextResponse.json({ error: 'class_expired' }, { status: 400 })
-    }
-  } else if (!classData.ends_indefinitely && classData.ends_at && classData.ends_at < today) {
-    return NextResponse.json({ error: 'class_expired' }, { status: 400 })
-  }
-
-  // For classes requiring audition, verify the student was accepted
-  if (classData.requires_audition) {
-    const { data: audition } = await (admin as any)
-      .from('auditions')
-      .select('status')
-      .eq('class_id', classId)
-      .eq('applicant_id', userId)
-      .maybeSingle()
-    if (!audition || audition.status !== 'accepted') {
-      return NextResponse.json({ error: 'audition_required' }, { status: 403 })
-    }
-  }
-
-  // Prevent teacher from enrolling in own class
-  if (classData.teacher_id === userId) {
-    return NextResponse.json({ error: 'No puedes inscribirte en tu propia clase' }, { status: 403 })
-  }
-
-  // La clase tiene que ofrecer alguna vía de pago viable. El CHECK de la
-  // migración 061 garantiza al menos un flag marcado, pero `accepts_mp` no basta
-  // si el profesor nunca conectó su cuenta de Mercado Pago: reservar ahí deja al
-  // alumno con un cupo que no puede pagar. `!== false` cubre las clases
-  // anteriores a la migración.
-  if (classData.accepts_transfer === false) {
-    const { data: teacherProfile } = await (admin as any)
-      .from('profiles')
-      .select('mp_connected')
-      .eq('id', classData.teacher_id)
-      .maybeSingle()
-    if (classData.accepts_mp === false || !teacherProfile?.mp_connected) {
-      return NextResponse.json({ error: 'no_payment_method' }, { status: 400 })
-    }
-  }
+  const block = await assertCanEnroll(admin, classData, userId)
+  if (block) return NextResponse.json({ error: block.error }, { status: block.status })
 
   // Check available spots via class_spots view
   const { data: spotsData } = await (admin as any)
@@ -210,6 +170,11 @@ export async function POST(request: Request) {
     }
     enrollment = inserted
   }
+
+  // Ya está inscrito: no tiene sentido seguir en la fila de espera (audit3
+  // P1-4). Sin este borrado, el próximo cupo liberado lo vuelve a avisar a
+  // ÉL en vez de a quien sigue en la fila.
+  await (admin as any).from('waitlist').delete().eq('class_id', classId).eq('user_id', userId)
 
   // Debt check: notify teacher if student has unpaid pending_payment from past sueltas for this teacher
   const { data: debts } = await (admin as any)

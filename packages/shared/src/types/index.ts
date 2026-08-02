@@ -462,19 +462,48 @@ export interface PaymentInfoFormData {
 // Constants
 // ============================================================
 
+/**
+ * Planes de suscripción. **Fuente única** de lo que se le promete al usuario:
+ * la leen la página de planes web, la tarjeta de suscripción del perfil web y
+ * la pantalla de planes de mobile. Ninguna de las tres debe tener su propia
+ * copia (mobile la tenía y se desincronizó — ver la sesión 2026-08-02).
+ *
+ * ⚠️ **Cada viñeta es una promesa comercial: sólo va acá si el código la hace
+ * cumplir.** Prometer algo que no existe o que es gratis es publicidad
+ * engañosa bajo la Ley 19.496 (SERNAC), que los propios `/terms` citan.
+ * Verificado contra el código en la sesión 2026-08-02:
+ *
+ *   - Publicar clases → `class_quota_for_tier()` (migración 075) y
+ *     `canPublishClassType()`: none 0 · basic 1 suelta/mes · pro ilimitadas y
+ *     de cualquier tipo. Periódicas y entrenamientos son exclusivos de Pro.
+ *   - Archivos por clase → `mediaLimit` en los 4 formularios: basic 1, pro 5.
+ *   - Videos de coreografía → `postQuotaForTier()` (espejo de la migración
+ *     060): none 0 · basic 3 · pro ilimitados.
+ *   - Paquetes y 2x → `canEnroll(tier)` en `/api/packages/[id]/enroll` y en el
+ *     bloque 2x de `ClassDetailClient`.
+ *   - Sin comisión de servicio → `paysCommission(tier)`: sólo `'none'` la paga.
+ *
+ * Se ELIMINARON en esa sesión cuatro viñetas que no se sostenían:
+ *   - "Perfil destacado" (Pro) — la única aparición de esa frase en todo el
+ *     repo era esta línea: **la funcionalidad nunca se construyó**.
+ *   - "Inscríbete en cualquier clase" (Básico) — la inscripción está abierta a
+ *     todos desde marketplace v2; `canEnroll` ya no la gatea.
+ *   - "Explora profesores" (Básico) — `/feed` y `/explore` son rutas públicas
+ *     en el middleware: no requieren plan ni siquiera cuenta.
+ *   - Y el Pro no nombraba los **entrenamientos**, que son su diferenciador
+ *     más grande.
+ */
 export const SUBSCRIPTION_PLANS = [
   {
     tier: 'basic' as const,
     name: 'Básico',
     price: 1500,
-    description: 'Toma y dicta clases',
+    description: 'Empieza a dictar clases',
     features: [
-      'Inscríbete en cualquier clase',
       'Publica 1 clase suelta por mes',
       'Sube 1 foto o video en esa clase',
       'Hasta 3 videos de coreografías publicados',
-      'Explora profesores',
-      'Busca compañero 2x',
+      'Busca compañero 2x y accede a paquetes de clases',
       'Sin comisión de servicio al pagar clases con Mercado Pago',
     ],
   },
@@ -482,13 +511,13 @@ export const SUBSCRIPTION_PLANS = [
     tier: 'pro' as const,
     name: 'Pro',
     price: 3500,
-    description: 'Experiencia completa sin límites',
+    description: 'Sin límites para enseñar',
     features: [
       'Todo lo del plan Básico',
-      'Publica clases ilimitadas (sueltas y periódicas)',
+      'Publica clases ilimitadas: sueltas, periódicas y entrenamientos',
+      'Entrenamientos con audiciones y cobro mensual automático',
       'Sube hasta 5 fotos/videos por clase',
       'Videos de coreografías ilimitados',
-      'Perfil destacado',
     ],
   },
 ] as const

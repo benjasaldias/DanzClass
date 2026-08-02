@@ -78,12 +78,25 @@ export async function POST(req: NextRequest) {
       discount_price_monthly: discount_price_monthly ?? null,
     }
 
-    const { data: followers } = await admin
-      .from('follows')
-      .select('follower_id')
-      .eq('following_id', user.id)
+    // P2-1: sin paginar, PostgREST corta en 1000 filas por defecto y se
+    // pierde el resto en silencio — mismo patrón que `audit.md` P2-5 y
+    // `audit2.md` P2-1 ya corrigieron en los crons. Con el volumen de hoy no
+    // pasa nada, pero un profesor con más de 1000 seguidores dejaría a los
+    // demás sin el aviso de descuento sin que nadie se entere del corte.
+    const FOLLOWERS_PAGE_SIZE = 500
+    const followers: { follower_id: string }[] = []
+    for (let page = 0; ; page++) {
+      const { data: pageData, error: pageErr } = await admin
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', user.id)
+        .range(page * FOLLOWERS_PAGE_SIZE, page * FOLLOWERS_PAGE_SIZE + FOLLOWERS_PAGE_SIZE - 1)
+      if (pageErr || !pageData || pageData.length === 0) break
+      followers.push(...(pageData as { follower_id: string }[]))
+      if (pageData.length < FOLLOWERS_PAGE_SIZE) break
+    }
 
-    if (followers && followers.length > 0) {
+    if (followers.length > 0) {
       await notifyUsers(admin, followers.map((f: any) => ({
         user_id: f.follower_id,
         type: 'class_discount' as const,

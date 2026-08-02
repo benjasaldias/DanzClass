@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/supabase/require-user'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { receiptObjectExists } from '@/lib/receipts'
+import { logger } from '@/lib/logger'
 
 // POST /api/packages/[id]/submit-payment — student uploads receipt for package payment
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -22,6 +24,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // comprobante propio el path de cualquier otro archivo del bucket.
   if (!receipt_path.startsWith(`${auth.user.id}/`)) {
     return NextResponse.json({ error: 'invalid_receipt_path' }, { status: 400 })
+  }
+  // Y el archivo tiene que existir (audit3 P0-1, misma forma que
+  // `/api/payment/submit-transfer`): el prefijo dice de quién es el path, no que
+  // haya algo subido. Sin esto, un paquete entero pasaba a "esperando revisión"
+  // —con sus inscripciones individuales— sin ningún comprobante detrás.
+  if (!(await receiptObjectExists(admin, receipt_path))) {
+    logger.warn('package_receipt_missing', {
+      user_id: auth.user.id,
+      package_id: packageId,
+      path: receipt_path,
+    })
+    return NextResponse.json({ error: 'receipt_not_found' }, { status: 400 })
   }
 
   // Verify enrollment belongs to this student

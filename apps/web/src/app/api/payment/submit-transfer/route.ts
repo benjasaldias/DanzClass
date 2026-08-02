@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { effectiveClassPrice, paymentList, twoxClassPrice } from '@danceclass/shared'
 import { getDebtSummary, resolveChargesToPay } from '@/lib/monthlyCharges'
+import { receiptObjectExists } from '@/lib/receipts'
 import { logger } from '@/lib/logger'
 
 // Best-effort: dispara el escaneo IA de un comprobante (sólo corre de verdad si
@@ -60,6 +61,14 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient()
+
+  // …y el archivo tiene que existir de verdad (audit3 P0-1). Sin esto, un POST
+  // con un nombre inventado registraba el pago: es la diferencia entre "el
+  // alumno dice que pagó" y "hay un comprobante que revisar".
+  if (!(await receiptObjectExists(admin, receiptPath))) {
+    logger.warn('payment_receipt_missing', { user_id: userId, enrollment_id: enrollmentId, path: receiptPath })
+    return NextResponse.json({ error: 'receipt_not_found' }, { status: 400 })
+  }
 
   const { data: enrollment } = await (admin as any)
     .from('enrollments')
@@ -213,6 +222,10 @@ export async function POST(request: Request) {
         payment_method: 'transfer',
         commission_amount: 0,
         recipient_teacher_id: cls.teacher_id,
+        // El reenvío es un comprobante NUEVO: sin refrescar la fecha, la
+        // antigüedad seguía siendo la del intento rechazado (de la que dependen
+        // la purga a 90 días y el aviso de comprobantes sin revisar).
+        submitted_at: new Date().toISOString(),
         mp_payment_id: null,
         mp_status: null,
         scan_status: 'pending',

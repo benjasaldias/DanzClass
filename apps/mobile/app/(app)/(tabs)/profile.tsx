@@ -13,6 +13,7 @@ import ProfilePostsGrid from '../../../components/profile/ProfilePostsGrid'
 import PlanHiddenPosts from '../../../components/profile/PlanHiddenPosts'
 import AiScanPreferenceCard from '../../../components/profile/AiScanPreferenceCard'
 import { supabase } from '../../../lib/supabase'
+import { registerForPushNotifications, deletePushToken } from '../../../lib/pushNotifications'
 import { canTeach, getActiveTier } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
@@ -138,6 +139,13 @@ export default function ProfileScreen() {
         text: 'Cerrar sesión',
         style: 'destructive',
         onPress: async () => {
+          // P1-6: `deletePushToken` existía sin ningún llamador — cerrar
+          // sesión dejaba el token vivo, así que el teléfono seguía
+          // recibiendo push de una cuenta con la que ya nadie estaba
+          // logueado (y en uno compartido, las de la cuenta anterior).
+          const { data: { user } } = await supabase.auth.getUser()
+          const token = await registerForPushNotifications()
+          if (user && token) await deletePushToken(user.id, token)
           await supabase.auth.signOut()
           router.replace('/(auth)/login')
         },

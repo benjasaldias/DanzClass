@@ -14,8 +14,9 @@ import { logger } from '@/lib/logger'
 // Crea una preferencia de Checkout Pro con SPLIT: el pago se crea con el
 // access_token del profesor (cuenta MP conectada) y marketplace_fee = comisión,
 // de modo que MP liquida al profe el precio de la clase y a DanzClass la comisión.
-// Registra el pago como payment_method='mp', status='pending' (lo confirma el
-// webhook cuando MP aprueba — Fase 4).
+// Registra el pago como payment_method='mp' y lo deja SIN pagar ('due'): abrir
+// el checkout no mueve dinero. Sólo el webhook lo pasa a 'verified' cuando MP
+// aprueba (Fase 4). Ver el comentario de `paymentRow` más abajo (audit3 P0-1).
 export async function POST(request: Request) {
   const auth = await requireUser(request)
   if ('error' in auth) return auth.error
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
   let price: number
   // Cargo mensual: el monto es el que se congeló al emitirlo, no el precio de
   // hoy — la deuda de un mes pasado no se reprecia (ver migración 068).
-  let monthlyCharge: { id: string; billing_period: string; amount: number } | null = null
+  let monthlyCharge: { id: string; billing_period: string; amount: number; receipt_url?: string | null } | null = null
   if (isTraining) {
     const debt = await getDebtSummary(admin, enrollmentId, cls.billing_day ?? 1)
     const resolved = resolveChargesToPay(debt, chargeId ? [chargeId] : null)
@@ -210,7 +211,21 @@ export async function POST(request: Request) {
     amount: base, // lo que recibe el profesor (el panel Financiero suma esto)
     commission_amount: commission,
     payment_method: 'mp',
-    status: 'pending',
+    // audit3 P0-1: abrir el checkout NO es pagar. Esta fila quedaba en 'pending'
+    // ("comprobante enviado, esperando revisión") desde el momento de crear la
+    // preferencia, así que abrir Mercado Pago y abandonarlo bastaba para que una
+    // mensualidad de entrenamiento dejara de contar como vencida y el QR de
+    // acceso volviera a funcionar, sin que se moviera un peso. Y no había forma
+    // de revertirlo: `/api/payment/confirm` responde 409 sobre pagos MP (S5), y
+    // el cargo dejaba de ser seleccionable en la pantalla de pago, así que el
+    // alumno tampoco podía reintentar por transferencia.
+    //
+    // 'due' = "cargo emitido, sin pagar" — está en la lista UNPAID de
+    // `summarizeCharges` y es el mismo estado que ya usa `confirm_offline` para
+    // un pago único que el alumno nunca registró. Sólo el webhook lo mueve a
+    // 'verified' (approved) y, mientras tanto, `mp_status` deja el rastro de que
+    // hay un checkout abierto.
+    status: 'due',
     recipient_teacher_id: cls.teacher_id,
     mp_status: 'pending',
     // MP no usa comprobante ni escaneo IA.
@@ -241,8 +256,12 @@ export async function POST(request: Request) {
   //      archivarla).
   //   2. La inscripción seguía en 'payment_submitted', así que el profesor veía
   //      "Revisar pago" sobre un pago sin comprobante que revisar.
-  if (existing?.receipt_url) {
-    await deleteReceiptObject(admin, existing.receipt_url)
+  // Un cargo mensual llega acá con su propio comprobante posible (el alumno
+  // subió una transferencia por marzo y después eligió MP): la fila también
+  // queda con `receipt_url: null`, así que el archivo hay que borrarlo igual.
+  const orphanReceipt = existing?.receipt_url ?? monthlyCharge?.receipt_url
+  if (orphanReceipt) {
+    await deleteReceiptObject(admin, orphanReceipt)
   }
   if (enrollment.status === 'payment_submitted') {
     await admin

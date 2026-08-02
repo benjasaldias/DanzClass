@@ -665,6 +665,10 @@ function paymentStatusLabel(enrollment: any): { key: keyof typeof PAYMENT_PILL; 
   if (enrollment.status === 'confirmed') return { key: 'confirmed', label: 'Confirmado' }
   if (payment?.status === 'rejected') return { key: 'rejected', label: 'Rechazado' }
   if (payment?.status === 'void') return { key: 'void', label: 'Anulado' }
+  // 'due' = fila creada sin pago detrás (checkout de MP abandonado, o registro
+  // en efectivo pendiente). Existir no es estar pagado: sin esta línea el
+  // fallback de abajo la mostraba como "Pendiente" (audit3 P0-1).
+  if (payment?.status === 'due') return { key: 'no_payment', label: 'Sin pago' }
   if (enrollment.status === 'payment_submitted' || payment) return { key: 'pending', label: 'Pendiente' }
   return { key: 'no_payment', label: 'Sin pago' }
 }
@@ -735,6 +739,7 @@ function getStatusKey(enrollmentStatus: string, payment: any): keyof typeof PAYM
   if (enrollmentStatus === 'confirmed') return 'confirmed'
   if (payment?.status === 'rejected') return 'rejected'
   if (payment?.status === 'void') return 'void'
+  if (payment?.status === 'due') return 'no_payment'
   if (enrollmentStatus === 'payment_submitted' || payment) return 'pending'
   return 'no_payment'
 }

@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { sendNotifications } from '@/lib/notifications'
 import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { cn } from '@/lib/utils'
-import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, LEVEL_LABELS, resolveClassStartDate, validatePeriodicaDates, lastCustomDate } from '@danceclass/shared'
+import { DANCE_STYLES, DAYS_OF_WEEK, canTeachUnlimited, canUploadVideo, classQuotaErrorMessage, LEVEL_LABELS, resolveClassStartDate, validatePeriodicaDates, lastCustomDate } from '@danceclass/shared'
 import MonthCalendar from '@/components/ui/MonthCalendar'
 import CityCombobox from '@/components/ui/CityCombobox'
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete'
@@ -378,7 +378,14 @@ export default function CreateClassForm({ teacherId, hasPaymentInfo, mpConnected
     if (classError || !classRecord) {
       const code = classError?.code
       const msg = classError?.message ?? ''
-      if (code === '42501' || msg.includes('row-level security') || msg.includes('policy')) {
+      // El tope del plan lo hace cumplir el trigger de `075`: el INSERT sale del
+      // cliente, así que el gate de arriba es cortesía y éste es el control.
+      const quotaMsg = classQuotaErrorMessage(msg)
+      if (msg.includes('class_quota_exceeded')) {
+        setShowLimitModal(true)
+      } else if (quotaMsg) {
+        setError(quotaMsg)
+      } else if (code === '42501' || msg.includes('row-level security') || msg.includes('policy')) {
         if (isBasic && sueltas_this_month >= 1) {
           setShowLimitModal(true)
         } else {

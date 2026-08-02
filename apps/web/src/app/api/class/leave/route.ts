@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
 import { revokeAttendanceToken } from '@/lib/qrAttendance'
-import { notifyUsers } from '@/lib/notifyUsers'
+import { notifyWaitlist } from '@/lib/waitlist'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
@@ -63,32 +63,8 @@ export async function POST(request: Request) {
   // Revoke the attendance QR token (soft — preserves past attendance)
   await revokeAttendanceToken(admin, enrollmentId)
 
-  // Notify first user in waitlist (if any)
-  const { data: classInfo } = await admin
-    .from('classes')
-    .select('id, title')
-    .eq('id', enrollment.class_id)
-    .maybeSingle()
-
-  const { data: waitlistEntry } = await (admin as any)
-    .from('waitlist')
-    .select('user_id')
-    .eq('class_id', enrollment.class_id)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  if (waitlistEntry && classInfo) {
-    await notifyUsers(admin, [{
-      user_id: waitlistEntry.user_id,
-      type: 'waitlist_available',
-      data: {
-        class_id: classInfo.id,
-        class_title: classInfo.title,
-        spots_available: 1,
-      },
-    }])
-  }
+  // Notify the first person in the waitlist who isn't already enrolled (P1-4).
+  await notifyWaitlist(admin, enrollment.class_id)
 
   return NextResponse.json({ ok: true })
 }

@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger'
 import { deleteCloudinaryAssets } from '@/lib/cloudinary-admin'
 import { receiptStoragePath } from '@/lib/receipts'
 import { notifyUsers, type NotifyRow } from '@/lib/notifyUsers'
+import { notifyWaitlist } from '@/lib/waitlist'
 import { lastSessionEnd } from '@danceclass/shared'
 
 // Vercel Cron runs this daily at 03:00 UTC.
@@ -279,6 +280,10 @@ export async function GET(request: Request) {
       data: { class_id: e.class_id, reason: '2x_payment_timeout' },
     }])
 
+    // P1-4: este timeout libera cupo igual que los otros dos barridos de más
+    // abajo — también tiene que avisar a la fila de espera.
+    await notifyWaitlist(supabase, e.class_id)
+
     cancelled2x++
   }
 
@@ -290,7 +295,7 @@ export async function GET(request: Request) {
   // anular su pago pendiente. Solo toca pending_payment con hold vencido.
   const { data: expiredHolds } = await (supabase as any)
     .from('enrollments')
-    .select('id')
+    .select('id, class_id')
     .eq('status', 'pending_payment')
     .not('hold_expires_at', 'is', null)
     .lt('hold_expires_at', now.toISOString())
@@ -306,6 +311,10 @@ export async function GET(request: Request) {
       .in('enrollment_id', expiredHoldIds)
       .not('status', 'in', '("verified","void")')
     logger.info('cleanup-classes:holds', { releasedHolds })
+    // P1-4: cada hold vencido libera un cupo — la fila de espera de esa clase
+    // tiene que enterarse, igual que los otros dos barridos que liberan cupo.
+    const heldClassIds = new Set<string>((expiredHolds ?? []).map((e: any) => e.class_id))
+    for (const classId of heldClassIds) await notifyWaitlist(supabase, classId)
   }
 
   // ── P1-1: auto-cancelar reservas impagas sin hold tras 72h ───────────────────
@@ -351,6 +360,9 @@ export async function GET(request: Request) {
       type: 'class_cancelled' as const,
       data: { class_id: e.class_id, class_title: e.class.title, reason: 'payment_timeout' },
     })))
+    // P1-4: idem — este barrido también libera cupo.
+    const staleClassIds = new Set<string>(staleEligible.map((e: any) => e.class_id))
+    for (const classId of staleClassIds) await notifyWaitlist(supabase, classId)
     logger.info('cleanup-classes:stale-pending', { cancelledStale })
   }
 
@@ -409,38 +421,221 @@ export async function GET(request: Request) {
 
   if (paymentReminders > 0) logger.info('cleanup-classes:payment-reminders', { paymentReminders })
 
-  // ── P3-6: purga de comprobantes de pagos anulados/rechazados ────────────────
+  // ── audit3 P0-1: comprobantes que llevan días esperando revisión ─────────────
+  //
+  // Nada barre `payment_submitted`. Una vez que el alumno sube un comprobante la
+  // inscripción se queda ahí —con el hold ya borrado— hasta que el profesor
+  // decida, y si nunca decide, el cupo queda tomado y el ingreso sin registrar.
+  //
+  // Deliberadamente NO se cancela nada: el alumno hizo su parte, y quitarle el
+  // cupo por la demora del profesor sería castigar al lado equivocado. Lo que
+  // falta es que quien tiene la decisión pendiente se entere, así que el barrido
+  // es un aviso al profesor. Se repite como mucho una vez por semana por
+  // comprobante, para que un profesor con varios atrasados no reciba el mismo
+  // recordatorio todos los días.
+  const REVIEW_NUDGE_AFTER_DAYS = 3
+  const REVIEW_NUDGE_COOLDOWN_DAYS = 7
+  const REVIEW_NUDGE_CAP = 500
+  const reviewCutoff = new Date(now.getTime() - REVIEW_NUDGE_AFTER_DAYS * 24 * 60 * 60 * 1000)
+  let reviewNudges = 0
+  try {
+    const { data: unreviewed } = await (supabase as any)
+      .from('payments')
+      .select('id, submitted_at, billing_period, enrollment:enrollments!inner(id, student_id, class:classes!inner(id, title, teacher_id, status))')
+      .eq('status', 'pending')
+      .not('receipt_url', 'is', null)
+      .lt('submitted_at', reviewCutoff.toISOString())
+      .order('submitted_at', { ascending: true })
+      .limit(REVIEW_NUDGE_CAP)
+
+    const rows = (unreviewed ?? []) as any[]
+    // El tope es explícito (no el corte silencioso de 1000 de PostgREST): si se
+    // alcanza, los que quedaron afuera entran en la corrida siguiente, y queda
+    // registrado en el log que hay más de lo que un aviso puede cubrir.
+    if (rows.length === REVIEW_NUDGE_CAP) {
+      logger.warn('cleanup-classes:review-nudge-capped', { cap: REVIEW_NUDGE_CAP })
+    }
+
+    const candidates = rows.filter((p) => p.enrollment?.class?.status === 'active')
+
+    if (candidates.length > 0) {
+      const cooldownFrom = new Date(now.getTime() - REVIEW_NUDGE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000)
+      const { data: recentNudges } = await (supabase as any)
+        .from('notifications')
+        .select('user_id, data')
+        .eq('type', 'payment_reminder')
+        .gte('created_at', cooldownFrom.toISOString())
+
+      const alreadyNudged = new Set<string>(
+        (recentNudges ?? [])
+          .filter((n: any) => (n.data as any)?.role === 'teacher')
+          .map((n: any) => `${n.user_id}:${(n.data as any)?.payment_id}`)
+      )
+
+      const nudges: NotifyRow[] = []
+      for (const p of candidates) {
+        const cls = p.enrollment.class
+        if (alreadyNudged.has(`${cls.teacher_id}:${p.id}`)) continue
+        nudges.push({
+          user_id: cls.teacher_id,
+          type: 'payment_reminder',
+          data: {
+            role: 'teacher',
+            payment_id: p.id,
+            class_id: cls.id,
+            class_title: cls.title,
+            student_id: p.enrollment.student_id,
+            billing_period: p.billing_period ?? null,
+            waiting_days: Math.floor((now.getTime() - new Date(p.submitted_at).getTime()) / 86400000),
+          },
+        })
+      }
+
+      if (nudges.length > 0) {
+        await notifyUsers(supabase, nudges)
+        reviewNudges = nudges.length
+        logger.info('cleanup-classes:review-nudges', { reviewNudges })
+      }
+    }
+  } catch (e) {
+    logger.error('cleanup-classes:review-nudges', e)
+  }
+
+  // ── P3-6 / audit3 P2-3: purga de comprobantes de pagos anulados/rechazados ──
   // Un comprobante de un pago que quedó 'void' (inscripción cancelada) o
   // 'rejected' (el profesor lo rechazó) no vuelve a usarse, pero seguía viviendo
   // en el bucket privado `payment-receipts` para siempre. Se purga a los 90 días
   // (el alumno ya tuvo tiempo de resubir uno nuevo). Los pagos 'verified' NO se
   // tocan: son el respaldo del pago. Nota: `payments` no tiene created_at — la
   // referencia de antigüedad es submitted_at (cuándo se subió el comprobante).
+  //
+  // Sin paginar, PostgREST corta en 1000 filas por defecto — mismo patrón que
+  // ya se corrigió dos veces en este repo (`audit.md` P2-5, `audit2.md` P2-1).
   const RECEIPT_RETENTION_DAYS = 90
   const receiptCutoff = new Date(now.getTime() - RECEIPT_RETENTION_DAYS * 24 * 60 * 60 * 1000)
+  const RECEIPT_PAGE_SIZE = 500
   let purgedReceipts = 0
   try {
-    const { data: staleReceipts } = await (supabase as any)
-      .from('payments')
-      .select('id, receipt_url')
-      .in('status', ['void', 'rejected', 'refunded'])
-      .not('receipt_url', 'is', null)
-      .lt('submitted_at', receiptCutoff.toISOString())
+    const staleReceipts: { id: string; receipt_url: string }[] = []
+    for (let page = 0; ; page++) {
+      const { data: pageData, error: pageErr } = await (supabase as any)
+        .from('payments')
+        .select('id, receipt_url')
+        .in('status', ['void', 'rejected', 'refunded'])
+        .not('receipt_url', 'is', null)
+        .lt('submitted_at', receiptCutoff.toISOString())
+        .range(page * RECEIPT_PAGE_SIZE, page * RECEIPT_PAGE_SIZE + RECEIPT_PAGE_SIZE - 1)
+      if (pageErr || !pageData || pageData.length === 0) break
+      staleReceipts.push(...pageData)
+      if (pageData.length < RECEIPT_PAGE_SIZE) break
+    }
 
-    if (staleReceipts && staleReceipts.length > 0) {
+    if (staleReceipts.length > 0) {
       const paths = staleReceipts
-        .map((p: any) => receiptStoragePath(p.receipt_url))
+        .map((p) => receiptStoragePath(p.receipt_url))
         .filter(Boolean) as string[]
       if (paths.length > 0) await supabase.storage.from('payment-receipts').remove(paths)
       await (supabase as any)
         .from('payments')
         .update({ receipt_url: null })
-        .in('id', staleReceipts.map((p: any) => p.id))
+        .in('id', staleReceipts.map((p) => p.id))
       purgedReceipts = staleReceipts.length
       logger.info('cleanup-classes:receipts', { purgedReceipts })
     }
   } catch (e) {
     logger.error('cleanup-classes:receipts', e)
+  }
+
+  // ── audit3 P2-3: idem para entradas de evento y paquetes ────────────────────
+  // Desde que S7 movió los comprobantes de entrada de evento al bucket privado
+  // (antes vivían en `event-media`, PÚBLICO — nombre, RUT y número de cuenta
+  // legibles por cualquiera con la URL), nadie los purgaba. Mismo defecto para
+  // paquetes: `submit-payment` sube a `payment-receipts` desde el día uno, pero
+  // ningún barrido los tocaba tampoco.
+  let purgedEventReceipts = 0
+  try {
+    const staleEventReceipts: { id: string; receipt_url: string }[] = []
+    for (let page = 0; ; page++) {
+      const { data: pageData, error: pageErr } = await (supabase as any)
+        .from('event_payments')
+        .select('id, receipt_url')
+        .eq('status', 'void')
+        .not('receipt_url', 'is', null)
+        .lt('created_at', receiptCutoff.toISOString())
+        .range(page * RECEIPT_PAGE_SIZE, page * RECEIPT_PAGE_SIZE + RECEIPT_PAGE_SIZE - 1)
+      if (pageErr || !pageData || pageData.length === 0) break
+      staleEventReceipts.push(...pageData)
+      if (pageData.length < RECEIPT_PAGE_SIZE) break
+    }
+
+    if (staleEventReceipts.length > 0) {
+      // Comprobantes viejos vivían en `event-media` (URL pública completa);
+      // los nuevos son un path bajo `payment-receipts`. `receiptStoragePath`
+      // sólo despoja el marcador de `payment-receipts`, así que una URL legacy
+      // de `event-media` hay que reconocerla y borrarla de SU bucket.
+      const paymentReceiptPaths: string[] = []
+      const legacyEventMediaPaths: string[] = []
+      for (const row of staleEventReceipts) {
+        const raw = row.receipt_url
+        const legacyMarker = '/event-media/'
+        const legacyIdx = raw.indexOf(legacyMarker)
+        if (legacyIdx >= 0) {
+          legacyEventMediaPaths.push(raw.slice(legacyIdx + legacyMarker.length).split('?')[0])
+        } else {
+          const p = receiptStoragePath(raw)
+          if (p) paymentReceiptPaths.push(p)
+        }
+      }
+      if (paymentReceiptPaths.length > 0) await supabase.storage.from('payment-receipts').remove(paymentReceiptPaths)
+      if (legacyEventMediaPaths.length > 0) await supabase.storage.from('event-media').remove(legacyEventMediaPaths)
+      await (supabase as any)
+        .from('event_payments')
+        .update({ receipt_url: null })
+        .in('id', staleEventReceipts.map((p) => p.id))
+      purgedEventReceipts = staleEventReceipts.length
+      logger.info('cleanup-classes:event-receipts', { purgedEventReceipts })
+    }
+  } catch (e) {
+    logger.error('cleanup-classes:event-receipts', e)
+  }
+
+  let purgedPackageReceipts = 0
+  try {
+    // `package_enrollments` no distingue "rechazado" de "nunca se envió nada":
+    // los dos son `status='pending_payment'`. Sólo se purga cuando además hay
+    // `receipt_url` (o sea, sí hubo un comprobante, y el profesor lo rechazó
+    // — `payment_submitted` es el estado "en revisión", nunca se toca) y
+    // `updated_at` es viejo — el mismo trigger que mantiene `updated_at` se
+    // dispara en cada transición de estado, así que mide justo lo que
+    // interesa: hace cuánto que nadie tocó esta fila.
+    const staleReceipts: { id: string; receipt_url: string }[] = []
+    for (let page = 0; ; page++) {
+      const { data: pageData, error: pageErr } = await (supabase as any)
+        .from('package_enrollments')
+        .select('id, receipt_url')
+        .eq('status', 'pending_payment')
+        .not('receipt_url', 'is', null)
+        .lt('updated_at', receiptCutoff.toISOString())
+        .range(page * RECEIPT_PAGE_SIZE, page * RECEIPT_PAGE_SIZE + RECEIPT_PAGE_SIZE - 1)
+      if (pageErr || !pageData || pageData.length === 0) break
+      staleReceipts.push(...pageData)
+      if (pageData.length < RECEIPT_PAGE_SIZE) break
+    }
+
+    if (staleReceipts.length > 0) {
+      const paths = staleReceipts
+        .map((p) => receiptStoragePath(p.receipt_url))
+        .filter(Boolean) as string[]
+      if (paths.length > 0) await supabase.storage.from('payment-receipts').remove(paths)
+      await (supabase as any)
+        .from('package_enrollments')
+        .update({ receipt_url: null })
+        .in('id', staleReceipts.map((p) => p.id))
+      purgedPackageReceipts = staleReceipts.length
+      logger.info('cleanup-classes:package-receipts', { purgedPackageReceipts })
+    }
+  } catch (e) {
+    logger.error('cleanup-classes:package-receipts', e)
   }
 
   // ── Delete stale chats (class chats 48h after class ended, rehearsal chats 48h after last date) ──
@@ -491,7 +686,11 @@ export async function GET(request: Request) {
 
   await pingHealthcheck(process.env.HEALTHCHECK_CLEANUP_CLASSES_UUID)
 
-  return NextResponse.json({ archived: deleted, errors, reminders, cancelled2x, releasedHolds, cancelledStale, paymentReminders, purgedReceipts, deletedChats })
+  return NextResponse.json({
+    archived: deleted, errors, reminders, cancelled2x, releasedHolds, cancelledStale,
+    paymentReminders, reviewNudges, purgedReceipts, purgedEventReceipts, purgedPackageReceipts,
+    deletedChats,
+  })
 }
 
 async function archiveClass(supabase: ReturnType<typeof createAdminClient>, cls: any) {

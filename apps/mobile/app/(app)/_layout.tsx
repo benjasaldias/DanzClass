@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
 import { supabase } from '../../lib/supabase'
 import { registerForPushNotifications, savePushToken } from '../../lib/pushNotifications'
+import { resolveNotificationRoute } from '../../lib/notificationRoutes'
 
 export default function AppLayout() {
+  const router = useRouter()
   const notificationListener = useRef<Notifications.EventSubscription | null>(null)
   const responseListener = useRef<Notifications.EventSubscription | null>(null)
 
@@ -21,9 +23,17 @@ export default function AppLayout() {
         // Notification handled by handler set in pushNotifications.ts
       })
 
-      // Handle tap on notification
-      responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
-        // Navigation on tap is handled by expo-router's deep link support
+      // Handle tap on notification (audit3 P1-6). `sendPushToUsers` sends
+      // `data: { type, ...rowData }` (lib/notifyUsers.ts) — never a `url`
+      // field, so expo-router's deep-link auto-navigation (the previous
+      // assumption here) never had anything to follow. Same route table as
+      // the in-app notification list, so the two never drift apart.
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(async (response) => {
+        const raw = (response.notification.request.content.data ?? {}) as Record<string, any>
+        const { type, ...data } = raw
+        if (!type) return
+        const route = await resolveNotificationRoute(String(type), data, supabase)
+        if (route) router.push(route as any)
       })
     }
 

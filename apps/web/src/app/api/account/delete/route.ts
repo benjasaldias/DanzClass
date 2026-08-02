@@ -3,9 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient as createBrowserClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { cancelBillableSubscriptions } from '@/lib/subscriptionCancel'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   let userId: string
+  let accessToken: string | null = null
   let supabaseForSignOut: any
 
   const authHeader = request.headers.get('authorization')
@@ -19,12 +22,15 @@ export async function POST(request: Request) {
     const { data: { user } } = await anonClient.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userId = user.id
+    accessToken = token
     supabaseForSignOut = anonClient
   } else {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     userId = user.id
+    const { data: { session } } = await supabase.auth.getSession()
+    accessToken = session?.access_token ?? null
     supabaseForSignOut = supabase
   }
 
@@ -49,10 +55,21 @@ export async function POST(request: Request) {
     deleted_at: now,
   } as any).eq('id', userId)
 
-  // Cancel active subscription (soft-cancel only — no MP API call in MVP)
-  await admin.from('subscriptions').update({ status: 'cancelled' } as any)
-    .eq('user_id', userId)
-    .in('status', ['active', 'trialing'])
+  // Cancelar de verdad: en Mercado Pago y en la base, incluyendo 'grace'.
+  // Antes era soft-cancel sin llamar nunca a MP, así que al usuario que se iba
+  // le seguían cobrando sin ninguna forma de detenerlo (audit3 P1-3).
+  const cancelled = await cancelBillableSubscriptions(admin, userId, 'account_delete_subscription_cancel')
+  if (cancelled.mpFailed.length > 0) {
+    // Cobro que sigue corriendo sobre una cuenta borrada: hay que verlo.
+    logger.error(
+      'account_delete_mp_cancel_failed',
+      new Error('preapproval cancel failed'),
+      { user_id: userId, mp_subscription_ids: cancelled.mpFailed }
+    )
+  }
+
+  // El teléfono no puede seguir recibiendo notificaciones de una cuenta borrada.
+  await admin.from('push_tokens' as any).delete().eq('user_id', userId)
 
   // Tombstone the auth email so the user cannot sign back in
   await admin.auth.admin.updateUserById(userId, {
@@ -60,8 +77,24 @@ export async function POST(request: Request) {
     email_confirm: true,
   })
 
-  // Sign out the current session
-  await supabaseForSignOut.auth.signOut()
+  // Terminar la sesión de VERDAD. `supabaseForSignOut.auth.signOut()` no
+  // alcanzaba: en el camino de mobile el cliente se construye con el Bearer en
+  // un header y no tiene ninguna sesión guardada que cerrar, así que la llamada
+  // no hacía nada y el refresh token del dispositivo seguía renovando la sesión
+  // indefinidamente (verificado en audit3 P1-3). El scope 'global' revoca todos
+  // los refresh tokens del usuario.
+  //
+  // El access token que ya está emitido sigue siendo válido hasta que expire
+  // (es un JWT, PostgREST sólo verifica firma y vencimiento): la sesión muere
+  // cuando ese token caduca, no antes.
+  if (accessToken) {
+    const { error: signOutError } = await admin.auth.admin.signOut(accessToken, 'global')
+    if (signOutError) {
+      logger.warn('account_delete_signout_failed', { user_id: userId, reason: signOutError.message })
+    }
+  }
+  // Y limpiar las cookies del navegador en el camino web.
+  await supabaseForSignOut.auth.signOut().catch(() => {})
 
   return NextResponse.json({ ok: true })
 }

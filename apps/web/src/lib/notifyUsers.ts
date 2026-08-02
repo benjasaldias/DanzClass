@@ -31,7 +31,15 @@ export const PUSH_LABELS: Record<string, { title: string; body: string | ((data:
   rehearsal_rejected: { title: 'Invitación declinada', body: (d) => `@${d.from_username ?? 'Alguien'} declinó tu invitación al ensayo "${d.rehearsal_title ?? ''}"` },
   new_report: { title: 'Nueva denuncia', body: (d) => `${d.reporter_name ?? 'Alguien'} denunció ${d.content_type === 'post' ? 'un video' : 'una clase'}` },
   class_reminder: { title: 'Tu clase es mañana 📅', body: (d) => `"${d.class_title ?? ''}" es mañana${d.session_time ? ` a las ${d.session_time}` : ''}` },
-  payment_reminder: { title: 'Recordatorio de pago', body: (d) => `Aún no subes el comprobante de "${d.class_title ?? 'tu clase'}"` },
+  payment_reminder: {
+    title: 'Recordatorio de pago',
+    // Con `role: 'teacher'` el destinatario es el profesor y la deuda no es
+    // suya: es un comprobante que lleva días esperando su revisión (audit3 P0-1).
+    body: (d) =>
+      d.role === 'teacher'
+        ? `Tienes un comprobante de "${d.class_title ?? 'una clase'}" sin revisar`
+        : `Aún no subes el comprobante de "${d.class_title ?? 'tu clase'}"`,
+  },
   debt_warning: { title: 'Alumno con deuda', body: (d) => `${d.student_name ?? 'Un alumno'} tiene una clase suelta impaga contigo` },
   '2x_match': { title: '¡Encontraste compañer@! 🤝', body: (d) => `Alguien se unió a tu búsqueda 2x para "${d.class_title ?? 'una clase'}"` },
   '2x_payment_turn': { title: 'Te toca pagar el 2x', body: 'Tu compañer@ te transfirió el turno de pago' },

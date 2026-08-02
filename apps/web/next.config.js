@@ -35,7 +35,7 @@ const nextConfig = {
     // esto existe en producción; en dev ensuciaba la consola sin parar.
     const localSupabaseWs = isDev ? ' ws://127.0.0.1:54321 ws://localhost:* ws://127.0.0.1:*' : ''
 
-    const csp = [
+    const cspBase = [
       "default-src 'self'",
       // Next.js App Router requires inline scripts for hydration; unsafe-eval for some edge configs
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
@@ -46,20 +46,39 @@ const nextConfig = {
       `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://api.cloudinary.com https://exp.host${localSupabase}${localSupabaseWs}`,
       "font-src 'self' data:",
       "frame-src https://www.mercadopago.com.ar https://www.mercadopago.cl",
-      "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-    ].join('; ')
+    ]
+
+    const csp = [...cspBase, "frame-ancestors 'none'"].join('; ')
+    // audit3 P1-2: `/embed/*` existe para que un profesor lo pegue como <iframe>
+    // en su propia web — pero el bloque de abajo (`/((?!embed/).*)`) le manda
+    // `X-Frame-Options: DENY` + `frame-ancestors 'none'` a TODO el sitio sin
+    // excepción, así que ningún navegador lo deja embeber en ninguna parte.
+    // Este bloque es más específico (Next.js aplica ambos cuando coinciden, y
+    // el header sólo se define una vez por bloque), así que `/embed/*` nunca
+    // recibe `X-Frame-Options` y usa `frame-ancestors *` en su lugar.
+    const embedCsp = [...cspBase, "frame-ancestors *"].join('; ')
 
     return [
       {
-        source: '/(.*)',
+        // Todo el sitio EXCEPTO /embed/*, que tiene su propio bloque abajo.
+        source: '/((?!embed/).*)',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(self)' },
           { key: 'Content-Security-Policy', value: csp },
+        ],
+      },
+      {
+        source: '/embed/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Content-Security-Policy', value: embedCsp },
         ],
       },
     ]

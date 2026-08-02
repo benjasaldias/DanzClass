@@ -18,14 +18,27 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
   if (userIds.length === 0) return
 
   const admin = createAdminClient()
-  const { data: tokens } = await admin
-    .from('push_tokens' as any)
-    .select('token, user_id')
-    .in('user_id', userIds)
 
-  if (!tokens || tokens.length === 0) return
+  // P2-2: un `.in('user_id', ids)` con un batch grande (todos los seguidores
+  // de un descuento, por ejemplo) puede reventar el largo de la URL o
+  // cortarse en las 1000 filas por defecto de PostgREST — en silencio,
+  // porque el `catch` de más abajo se come cualquier error. Trocear en
+  // tandas de usuarios evita las dos cosas: mismo patrón que `audit2.md`
+  // P2-1 ya usó para este problema exacto en el cron de mensualidades.
+  const USER_CHUNK_SIZE = 200
+  const tokens: { token: string; user_id: string }[] = []
+  for (let i = 0; i < userIds.length; i += USER_CHUNK_SIZE) {
+    const chunk = userIds.slice(i, i + USER_CHUNK_SIZE)
+    const { data } = await admin
+      .from('push_tokens' as any)
+      .select('token, user_id')
+      .in('user_id', chunk)
+    if (data) tokens.push(...(data as unknown as { token: string; user_id: string }[]))
+  }
 
-  const messages = (tokens as unknown as { token: string; user_id: string }[])
+  if (tokens.length === 0) return
+
+  const messages = tokens
     .filter((t) => Expo.isExpoPushToken(t.token))
     .map((t) => ({
       to: t.token,
@@ -43,19 +56,27 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
       chunks.map((chunk) => expo.sendPushNotificationsAsync(chunk))
     )
 
-    // Collect invalid tokens to clean up
+    // Collect invalid tokens to clean up.
+    //
+    // P1-6: `ExpoPushTicket` (the real SDK type, `expo-server-sdk/build/
+    // ExpoClient.d.ts`) has no `to` field — that comparison was always
+    // `undefined`, so `invalidTokens` stayed empty forever and no dead token
+    // was ever deleted. The SDK guarantees tickets come back in the SAME
+    // order and count as the messages in the chunk that produced them (per
+    // its own docs: "the nth receipt is for the nth message"), so the token
+    // is `chunk[ticketIndex].to` — falling back to `details.expoPushToken`
+    // when the SDK does supply it.
     const invalidTokens: string[] = []
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        for (const ticket of result.value) {
-          if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
-            // Find the token for this ticket (by matching to and position)
-            const matchingMsg = messages.find((m) => m.to === (ticket as any).to)
-            if (matchingMsg) invalidTokens.push(matchingMsg.to)
-          }
+    results.forEach((result, chunkIndex) => {
+      if (result.status !== 'fulfilled') return
+      const chunk = chunks[chunkIndex]
+      result.value.forEach((ticket, ticketIndex) => {
+        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+          const token = ticket.details?.expoPushToken ?? chunk[ticketIndex]?.to
+          if (typeof token === 'string') invalidTokens.push(token)
         }
-      }
-    }
+      })
+    })
 
     // Remove expired tokens
     if (invalidTokens.length > 0) {

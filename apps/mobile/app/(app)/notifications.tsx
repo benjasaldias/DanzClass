@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
 import { formatBillingPeriod } from '@danceclass/shared'
+import { resolveNotificationRoute } from '../../lib/notificationRoutes'
 
 function timeAgo(date: string): string {
   const diff = Date.now() - new Date(date).getTime()
@@ -24,34 +25,31 @@ type NotifConfig = {
   bgColor: string
   iconColor: string
   label: (data: Record<string, any>, profileMap: Record<string, any>) => string
-  route: (data: Record<string, any>) => string
 }
 
+// La ruta de cada tipo vive en `lib/notificationRoutes.ts` — compartida con el
+// tap sobre un push (audit3 P1-6) — así que este mapa ya no tiene su propio
+// `route`, sólo lo que hace falta para pintar la fila en la lista.
 const NOTIF_CONFIG: Record<string, NotifConfig> = {
   follow: {
     icon: Users, bgColor: '#eff6ff', iconColor: '#3b82f6',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} empezó a seguirte` : 'Alguien empezó a seguirte',
-    route: (data) => data.from_user_id ? '/(app)/teacher/PLACEHOLDER' : '/(app)/(tabs)/explore',
   },
   friend_request: {
     icon: UserPlus, bgColor: '#f5f3ff', iconColor: '#7c3aed',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} te envió una solicitud de amistad` : 'Recibiste una solicitud de amistad',
-    route: () => '/(app)/(tabs)/explore',
   },
   friend_accepted: {
     icon: UserCheck, bgColor: '#f0fdf4', iconColor: '#16a34a',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} aceptó tu solicitud de amistad` : 'Alguien aceptó tu solicitud',
-    route: () => '/(app)/(tabs)/explore',
   },
   new_class: {
     icon: Music2, bgColor: '#fdf4ff', iconColor: '#c026d3',
     label: (data) => `Nueva clase: "${data.class_title ?? 'Sin título'}"`,
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/explore',
   },
   class_updated: {
     icon: AlertCircle, bgColor: '#fefce8', iconColor: '#ca8a04',
     label: (data) => `La clase "${data.class_title ?? ''}" fue modificada`,
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed',
   },
   class_cancelled: {
     icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
@@ -59,7 +57,6 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
       data.reason === 'payment_timeout' || data.reason === '2x_payment_timeout'
         ? `Tu reserva en "${data.class_title ?? 'una clase'}" se canceló por falta de pago`
         : `La clase "${data.class_title ?? ''}" fue cancelada`,
-    route: (data) => (data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed'),
   },
   // `data.event_id` → el pago es de una entrada a evento (ver la nota en el
   // NotificationsClient de web).
@@ -68,34 +65,28 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
     label: (data) => data.event_id
       ? `Tu entrada para "${data.event_title ?? 'el evento'}" fue confirmada`
       : '¡Tu pago fue confirmado! Cupo reservado.',
-    route: (data) => (data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/my-classes'),
   },
   payment_rejected: {
     icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
     label: (data) => data.event_id
       ? `Tu comprobante para "${data.event_title ?? 'el evento'}" fue rechazado`
       : 'Tu pago fue rechazado. Contacta al profesor.',
-    route: (data) => (data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/my-classes'),
   },
   '2x_request': {
     icon: Users, bgColor: '#fff7ed', iconColor: '#D85A30',
     label: () => 'Alguien busca compañer@ para tu clase 2x',
-    route: () => '/(app)/(tabs)/feed',
   },
   '2x_match': {
     icon: Users, bgColor: '#fff7ed', iconColor: '#D85A30',
     label: () => '¡Encontraste compañer@ para ir 2x!',
-    route: () => '/(app)/(tabs)/my-classes',
   },
   '2x_payment_turn': {
     icon: Users, bgColor: '#fdf4ff', iconColor: '#c026d3',
     label: () => 'Tu compañer@ te pasó el turno de pago para la clase 2x',
-    route: () => '/(app)/(tabs)/my-classes',
   },
   debt_warning: {
     icon: AlertCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
     label: (data) => `${data.student_name ?? 'Un alumno'} que te debe un pago se inscribió en tu clase`,
-    route: () => '/(app)/(tabs)/my-classes',
   },
   new_report: {
     icon: Flag, bgColor: '#fff7ed', iconColor: '#D85A30',
@@ -104,59 +95,56 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
       const reporter = data.reporter_name ? `@${data.reporter_name}` : 'alguien'
       return `Nuevo reporte de ${reporter}: ${data.reason ?? ''} en ${type}`
     },
-    route: () => '/(app)/(tabs)/feed',
   },
   class_discount: {
     icon: Tag, bgColor: '#fff7ed', iconColor: '#D85A30',
     label: (data) => `Descuento en "${data.class_title ?? 'una clase'}"`,
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed',
   },
   audition_accepted: {
     icon: CheckCircle2, bgColor: '#f0fdf4', iconColor: '#16a34a',
     label: (data) => `¡Felicidades! Fuiste aceptad@ en "${data.class_title ?? 'el entrenamiento'}"`,
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed',
   },
   audition_rejected: {
     icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
     label: (data) => `Tu postulación a "${data.class_title ?? 'el entrenamiento'}" no fue seleccionada`,
-    route: () => '/(app)/(tabs)/explore',
   },
   new_audition: {
     icon: ClipboardList, bgColor: '#fdf4ff', iconColor: '#c026d3',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} se postuló a tu entrenamiento` : 'Recibiste una nueva postulación',
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/my-classes',
   },
   class_reminder: {
     icon: CalendarClock, bgColor: '#fdf4ff', iconColor: '#c026d3',
     label: (data) => `Mañana tienes ${data.class_title ?? 'una clase'}${data.session_time ? ` a las ${data.session_time}` : ''}`,
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/my-classes',
   },
   waitlist_available: {
     icon: UserCheck2, bgColor: '#f0fdf4', iconColor: '#16a34a',
     label: (data) => `¡Se liberó un cupo en ${data.class_title ?? 'una clase'}! Tienes 24h para inscribirte.`,
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/feed',
   },
   rehearsal_invite: {
     icon: CalendarClock, bgColor: '#f5f3ff', iconColor: '#7F77DD',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} te invitó a un ensayo: "${data.rehearsal_title ?? ''}"` : `Te invitaron a un ensayo: "${data.rehearsal_title ?? ''}"`,
-    route: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
   },
   rehearsal_accepted: {
     icon: CheckCircle2, bgColor: '#f0fdf4', iconColor: '#16a34a',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} confirmó asistencia al ensayo "${data.rehearsal_title ?? ''}"` : `Alguien confirmó asistencia al ensayo`,
-    route: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
   },
   rehearsal_rejected: {
     icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} rechazó la invitación al ensayo "${data.rehearsal_title ?? ''}"` : `Alguien rechazó la invitación al ensayo`,
-    route: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
   },
   payment_reminder: {
     icon: AlertCircle, bgColor: '#fefce8', iconColor: '#ca8a04',
-    // Dos usos: reserva sin comprobante (cron cleanup-classes) y mensualidad de
-    // un entrenamiento (cron monthly-charges, que sí manda `billing_period`).
+    // Tres usos: reserva sin comprobante (cron cleanup-classes), mensualidad de
+    // un entrenamiento (cron monthly-charges, que sí manda `billing_period`) y
+    // —con `role: 'teacher'`— el aviso al PROFESOR de un comprobante que lleva
+    // días sin revisar (audit3 P0-1).
     label: (data) => {
       const title = data.class_title ?? 'una clase'
+      if (data.role === 'teacher') {
+        const days = Number(data.waiting_days ?? 0)
+        const since = days > 0 ? ` hace ${days} ${days === 1 ? 'día' : 'días'}` : ''
+        return `Tienes un comprobante de "${title}" esperando tu revisión${since}.`
+      }
       if (!data.billing_period) {
         return `Tienes un pago pendiente para "${title}". Sube tu comprobante para confirmar tu cupo.`
       }
@@ -165,22 +153,18 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
         ? `Debes ${month} de "${title}". Mientras no te pongas al día, tu QR de acceso no funciona.`
         : `Nueva mensualidad de "${title}": ${month}.`
     },
-    route: (data) => data.enrollment_id ? `/(app)/payment/${data.enrollment_id}` : '/(app)/(tabs)/my-classes',
   },
   event_invite: {
     icon: Users, bgColor: '#fff7ed', iconColor: '#ea580c',
     label: (data) => `Te invitaron a participar como profe en "${data.event_title ?? 'un evento'}"`,
-    route: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
   },
   event_invite_accepted: {
     icon: UserCheck, bgColor: '#f0fdf4', iconColor: '#16a34a',
     label: (data, pm) => pm[data.teacher_id] ? `@${pm[data.teacher_id].username} aceptó tu invitación al evento` : 'Un profesor aceptó tu invitación',
-    route: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
   },
   event_invite_rejected: {
     icon: XCircle, bgColor: '#f9fafb', iconColor: '#6b7280',
     label: (data, pm) => pm[data.teacher_id] ? `@${pm[data.teacher_id].username} declinó tu invitación al evento` : 'Un profesor declinó tu invitación',
-    route: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
   },
   posts_expiring: {
     icon: Lock, bgColor: '#fffbeb', iconColor: '#d97706',
@@ -192,7 +176,6 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
         ? `Tu video guardado en privado se elimina ${cuando}. Activa un plan para conservarlo.`
         : `${n} videos guardados en privado se eliminan ${cuando}. Activa un plan para conservarlos.`
     },
-    route: () => '/(app)/(tabs)/profile',
   },
   mp_connection_expiring: {
     icon: AlertCircle, bgColor: '#fff7ed', iconColor: '#D85A30',
@@ -202,7 +185,6 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
       const cuando = days <= 1 ? 'mañana' : `en ${days} días`
       return `Tu conexión con Mercado Pago vence ${cuando}. Reconéctala para seguir recibiendo pagos in-app.`
     },
-    route: () => '/(app)/profile/payment-info',
   },
   payment_refunded: {
     icon: AlertCircle, bgColor: '#fff7ed', iconColor: '#ea580c',
@@ -212,7 +194,6 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
         ? `${evento} sobre un pago de una de tus clases. El alumno perdió el acceso hasta que vuelva a pagar.`
         : `${evento} tu pago. Tu inscripción quedó pendiente de pago.`
     },
-    route: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/my-classes',
   },
 }
 
@@ -259,24 +240,16 @@ export default function NotificationsScreen() {
 
   useEffect(() => { load() }, [load])
 
-  function handlePress(notif: any) {
-    const config = NOTIF_CONFIG[notif.type]
-    if (!config) return
-    let route = config.route(notif.data ?? {})
-    // For follow/friend notifications, resolve to the actual user profile
-    if (notif.type === 'follow' && notif.data?.from_user_id) {
-      const p = profileMap[notif.data.from_user_id]
-      if (p?.username) route = `/(app)/teacher/${p.username}`
-    }
-    if (notif.type === 'friend_request' && notif.data?.from_user_id) {
-      const p = profileMap[notif.data.from_user_id]
-      if (p?.username) route = `/(app)/teacher/${p.username}`
-    }
-    if (notif.type === 'friend_accepted' && notif.data?.from_user_id) {
-      const p = profileMap[notif.data.from_user_id]
-      if (p?.username) route = `/(app)/teacher/${p.username}`
-    }
-    router.push(route as any)
+  async function handlePress(notif: any) {
+    if (!NOTIF_CONFIG[notif.type]) return
+    // `profileMap` ya está cargado en esta pantalla (se usa para el label), así
+    // que se evita el round-trip extra de `resolveNotificationRoute` para
+    // follow/friend_* cuando el perfil ya está en memoria.
+    const cached = profileMap[notif.data?.from_user_id]
+    const route = cached?.username
+      ? `/(app)/teacher/${cached.username}`
+      : await resolveNotificationRoute(notif.type, notif.data ?? {}, supabase)
+    if (route) router.push(route as any)
   }
 
   return (
