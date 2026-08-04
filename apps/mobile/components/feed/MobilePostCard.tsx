@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { Play, Eye, Users, Lock, Share2, Clapperboard } from 'lucide-react-native'
 import { WEB_URL } from '@danceclass/shared'
+import PostActions from './PostActions'
 
 interface MobilePostCardProps {
   post: any
@@ -121,6 +122,16 @@ export default function MobilePostCard({ post, currentUserId }: MobilePostCardPr
           )}
         </View>
       ) : null}
+
+      {/* Like + "¡Enséñala!" */}
+      <PostActions
+        postId={post.id}
+        authorId={author?.id ?? post.user_id}
+        likesCount={post.likes_count}
+        teachRequestsCount={post.teach_requests_count}
+        allowTeachRequests={post.allow_teach_requests}
+        currentUserId={currentUserId || null}
+      />
 
       {/* Title + description */}
       {(post.title || post.description) && (

@@ -22,7 +22,7 @@ import LeafletMap from '../../../../components/ui/LeafletMap'
 import { supabase } from '../../../../lib/supabase'
 import { sendNotifications } from '../../../../lib/notifications'
 import {
-  formatCLP, DAYS_OF_WEEK, canEnroll, pluralize, LEVEL_LABELS, getActiveTier, WEB_URL,
+  formatCLP, DAYS_OF_WEEK, pluralize, LEVEL_LABELS, getActiveTier, WEB_URL,
   detectReceiptType, RECEIPT_MAGIC_BYTES,
 } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
@@ -1506,7 +1506,10 @@ export default function ClassDetailScreen() {
                                 </>
                               )}
                             </View>
-                          ) : canEnroll(tier) ? (
+                          ) : userId ? (
+                            /* Comprar un paquete no exige plan (2026-08-02):
+                               es una forma de pagar clases, abierta a todos.
+                               Antes acá había `canEnroll(tier)`. */
                             <TouchableOpacity
                               onPress={async () => {
                                 setPkgEnrolling(pkg.id)

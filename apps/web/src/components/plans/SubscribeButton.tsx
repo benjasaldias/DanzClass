@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { CreditCard, Wallet } from 'lucide-react'
-import { formatCLP } from '@danceclass/shared'
+import { formatCLP, annualPlanPrice, annualPlanSavings, ANNUAL_DISCOUNT_RATE } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 
 interface Props {
@@ -86,9 +86,14 @@ export function SubscribeButton({ plan, currentTier, price }: Props) {
         <Wallet className="h-4 w-4 flex-shrink-0" />
         <div className="flex-1 text-left">
           <p className="text-sm font-semibold leading-none">
-            {loadingAnnual ? 'Redirigiendo...' : `Anual · ${formatCLP(price * 12)}`}
+            {loadingAnnual ? 'Redirigiendo...' : `Anual · ${formatCLP(annualPlanPrice(price))}`}
           </p>
-          <p className="text-[11px] opacity-75 mt-0.5">Pago único · cualquier medio de pago</p>
+          {/* El precio y el ahorro salen de `annualPlanPrice`/`annualPlanSavings`,
+              el MISMO helper que usa `create-preference` para cobrar. Nunca
+              recalcular el descuento acá: sería anunciar un monto y cobrar otro. */}
+          <p className="text-[11px] opacity-75 mt-0.5">
+            Pago único · cualquier medio de pago · ahorras {formatCLP(annualPlanSavings(price))} ({Math.round(ANNUAL_DISCOUNT_RATE * 100)}%)
+          </p>
         </div>
       </button>
 

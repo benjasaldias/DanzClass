@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   UserPlus, UserCheck, Bell, Music2, AlertCircle,
   CheckCircle2, XCircle, Users, Flag, ClipboardList, CalendarClock, UserCheck2, Lock,
+  GraduationCap,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
@@ -264,6 +265,16 @@ const NOTIF_CONFIG: Record<string, {
       return `${who} declinó tu invitación al evento`
     },
     href: (data) => data.event_id ? `/event/${data.event_id}` : '/feed',
+  },
+  teach_request: {
+    icon: GraduationCap,
+    color: 'text-[#7F77DD] bg-[#EEEDFE] dark:bg-dark-surface2 dark:text-[#A79FF0]',
+    label: (data) => {
+      const who = data.from_username ? `@${data.from_username}` : 'Alguien'
+      const que = data.post_title ? `«${data.post_title}»` : 'una de tus coreografías'
+      return `${who} quiere que enseñes ${que}`
+    },
+    href: () => '/profile',
   },
   posts_expiring: {
     icon: Lock,

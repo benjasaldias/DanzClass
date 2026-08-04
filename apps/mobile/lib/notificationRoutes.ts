@@ -43,6 +43,8 @@ export const NOTIFICATION_ROUTES: Record<string, NotificationRouteResolver> = {
   event_invite_accepted: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
   event_invite_rejected: (data) => data.event_id ? `/(app)/event/${data.event_id}` : '/(app)/(tabs)/feed',
   posts_expiring: () => '/(app)/(tabs)/profile',
+  // El video pedido es del destinatario: su perfil es donde vive su grilla.
+  teach_request: () => '/(app)/(tabs)/profile',
   mp_connection_expiring: () => '/(app)/profile/payment-info',
   payment_refunded: (data) => data.class_id ? `/(app)/class/${data.class_id}` : '/(app)/(tabs)/my-classes',
 }

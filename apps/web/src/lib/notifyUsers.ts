@@ -41,6 +41,10 @@ export const PUSH_LABELS: Record<string, { title: string; body: string | ((data:
         : `Aún no subes el comprobante de "${d.class_title ?? 'tu clase'}"`,
   },
   debt_warning: { title: 'Alumno con deuda', body: (d) => `${d.student_name ?? 'Un alumno'} tiene una clase suelta impaga contigo` },
+  teach_request: {
+    title: '¡Quieren aprender tu coreo! 🎓',
+    body: (d) => `@${d.from_username ?? 'Alguien'} quiere que enseñes "${d.post_title || 'uno de tus videos'}"`,
+  },
   '2x_match': { title: '¡Encontraste compañer@! 🤝', body: (d) => `Alguien se unió a tu búsqueda 2x para "${d.class_title ?? 'una clase'}"` },
   '2x_payment_turn': { title: 'Te toca pagar el 2x', body: 'Tu compañer@ te transfirió el turno de pago' },
 }

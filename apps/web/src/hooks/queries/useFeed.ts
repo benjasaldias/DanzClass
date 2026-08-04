@@ -126,7 +126,7 @@ export async function fetchFeedData({ filter, followingIds, currentProfile, user
 
   let postQuery = supabase
     .from('posts' as any)
-    .select('id, title, description, video_url, thumbnail_url, visibility, is_public, class_id, created_at, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
+    .select('id, title, description, video_url, thumbnail_url, visibility, is_public, class_id, created_at, likes_count, teach_requests_count, allow_teach_requests, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
     // Videos ocultos por falta de plan: la RLS ya los esconde a terceros, pero
     // su autor sí los ve — sin este filtro se los encontraría en su propio feed.
     .is('plan_hidden_at', null)

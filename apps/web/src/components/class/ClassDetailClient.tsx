@@ -27,7 +27,6 @@ import PackageSection from '@/components/class/PackageSection'
 import LocationMap from '@/components/map/LocationMap'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, SubscriptionTier } from '@danceclass/shared'
-import { canEnroll } from '@danceclass/shared'
 
 interface ClassDetailClientProps {
   classData: any
@@ -286,9 +285,11 @@ export default function ClassDetailClient({
 
   // Training with audition: enrollment is auto-created on accept — never show "Reservar cupo"
   const canEnrollDirectly = !isEntrenamiento || !classData.requires_audition
-  // `canEnroll` ya NO gatea la inscripción a la clase (abierta a todos desde el
-  // marketplace): solo paquetes y 2x, que siguen reservados a alumnos con plan.
-  const canUserEnroll = canEnroll(userTier)
+  // Ni la inscripción, ni los paquetes, ni el 2x exigen plan (2026-08-02).
+  // Los tres son formas de PAGAR una clase, y eso está abierto a todos: es lo
+  // que los alumnos ya hacen hoy por Instagram, y cobrarles por poder pagar
+  // sería la fricción exacta que la app viene a quitar. Lo único que se pide es
+  // tener sesión iniciada. `canEnroll(tier)` quedó sin llamadores.
 
   // Vías de pago habilitadas por el profesor para esta clase (marketplace v2).
   // `!== false` cubre las clases anteriores a la migración 061.
@@ -673,7 +674,7 @@ export default function ClassDetailClient({
             myPackageEnrollments={myPackageEnrollments}
             currentUserId={userId}
             isTeacher={isTeacher}
-            canEnrollUser={canUserEnroll}
+            canEnrollUser={!!userId}
           />
         )}
       </div>
@@ -788,8 +789,8 @@ export default function ClassDetailClient({
             </p>
           )}
 
-          {/* 2x button — solo para usuarios con plan cuando hay cupos */}
-          {currentUser && canUserEnroll && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
+          {/* 2x — abierto a cualquier usuario con sesión, con o sin plan */}
+          {currentUser && (classData.price_2x || classData.price_suelta_2x) && !isFull && (
             <TwoxRequestButton
               classId={classData.id}
               classTitle={classData.title}

@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import ReportModal from '@/components/ui/ReportModal'
+import PostActions from './PostActions'
 
 type Visibility = 'public' | 'followers' | 'friends'
 
@@ -23,6 +24,9 @@ interface PostCardProps {
     city?: string | null
     description?: string | null
     class_id?: string | null
+    likes_count?: number | null
+    teach_requests_count?: number | null
+    allow_teach_requests?: boolean | null
     tagged_class?: {
       id: string
       title: string
@@ -226,6 +230,15 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
             />
           </div>
         )}
+
+        <PostActions
+          postId={post.id}
+          authorId={user.id}
+          likesCount={post.likes_count}
+          teachRequestsCount={post.teach_requests_count}
+          allowTeachRequests={post.allow_teach_requests}
+          currentUserId={currentUserId || null}
+        />
 
         {post.description && (
           <p className="mt-3 text-sm text-gray-700 dark:text-dark-text2 leading-relaxed">{post.description}</p>

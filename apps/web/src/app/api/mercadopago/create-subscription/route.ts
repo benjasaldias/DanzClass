@@ -5,10 +5,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { checkRateLimit } from '@/lib/rateLimit'
 
-const PLAN_CONFIG: Record<string, { name: string; price: number }> = {
-  basic: { name: 'DanzClass Básico', price: 1500 },
-  pro:   { name: 'DanzClass Pro',    price: 3500 },
-}
+import { paidPlanConfig } from '@danceclass/shared'
 
 export async function POST(request: Request) {
   let user: any = null
@@ -37,11 +34,11 @@ export async function POST(request: Request) {
   const body = await request.json()
   const plan = body.plan as string
 
-  if (!['basic', 'pro'].includes(plan)) {
+  const config = paidPlanConfig(plan)
+  if (!config) {
     return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
   }
 
-  const config = PLAN_CONFIG[plan]
   const appUrl =
     process.env.APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||

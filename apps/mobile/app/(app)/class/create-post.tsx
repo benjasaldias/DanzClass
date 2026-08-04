@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTheme } from '../../../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
-import { ChevronLeft, Video, X, Globe, Lock, Users, Clapperboard, ChevronDown } from 'lucide-react-native'
+import { ChevronLeft, Video, X, Globe, Lock, Users, Clapperboard, ChevronDown, GraduationCap, Check } from 'lucide-react-native'
 import { supabase } from '../../../lib/supabase'
 import { isCloudinaryConfigured, uploadVideoToCloudinary } from '../../../lib/cloudinary'
 
@@ -28,6 +28,9 @@ export default function CreatePostScreen() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [visibility, setVisibility] = useState<Visibility>('public')
+  // Apagado por defecto: muchos videos son coreografías ajenas (covers) y su
+  // autor no las puede enseñar. Lo habilita quien sí es dueño del paso.
+  const [allowTeachRequests, setAllowTeachRequests] = useState(false)
   const [videoUri, setVideoUri] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(false)
@@ -128,6 +131,7 @@ export default function CreatePostScreen() {
         is_public: visibility === 'public',
         visibility,
         class_id: classId || null,
+        allow_teach_requests: allowTeachRequests,
       } as any)
 
     setLoading(false)
@@ -292,6 +296,39 @@ export default function CreatePostScreen() {
             })}
           </View>
         </View>
+
+        {/* "¡Enséñala!" — el autor decide si acepta pedidos para dictar esta coreo */}
+        <TouchableOpacity
+          onPress={() => setAllowTeachRequests((v) => !v)}
+          activeOpacity={0.8}
+          className="flex-row items-start gap-3 rounded-xl border p-3"
+          style={{
+            borderColor: allowTeachRequests ? '#7F77DD' : (isDark ? '#3D2870' : '#E5E7EB'),
+            backgroundColor: allowTeachRequests ? (isDark ? 'rgba(127,119,221,0.15)' : '#EEEDFE') : 'transparent',
+          }}
+        >
+          <View
+            className="w-5 h-5 rounded-md border items-center justify-center mt-0.5"
+            style={{
+              borderColor: allowTeachRequests ? '#7F77DD' : (isDark ? '#3D2870' : '#D1D5DB'),
+              backgroundColor: allowTeachRequests ? '#7F77DD' : 'transparent',
+            }}
+          >
+            {allowTeachRequests && <Check size={13} stroke="#fff" />}
+          </View>
+          <View className="flex-1">
+            <View className="flex-row items-center gap-1.5">
+              <GraduationCap size={16} stroke="#7F77DD" />
+              <Text className="text-sm font-medium text-gray-700 dark:text-dark-text2">
+                Permitir que te pidan «¡Enséñala!»
+              </Text>
+            </View>
+            <Text className="text-xs text-gray-500 dark:text-dark-text2/70 mt-0.5 leading-snug">
+              Actívalo solo si la coreografía es tuya y podrías dictarla. Quien vea el video podrá
+              pedirte que la enseñes y te avisamos cuánta gente lo pidió.
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {error && (
           <View className="bg-red-50 border border-red-200 rounded-xl p-3">

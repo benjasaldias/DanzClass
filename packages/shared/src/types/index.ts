@@ -40,6 +40,7 @@ export type NotificationType =
   | 'posts_expiring'
   | 'mp_connection_expiring'
   | 'payment_refunded'
+  | 'teach_request'
 
 export type EventType = 'batalla' | 'masterclass' | 'otro'
 export type EventStatus = 'active' | 'cancelled' | 'finished'
@@ -117,7 +118,26 @@ export function canUploadMedia(tier: SubscriptionTier): boolean {
   return tier === 'basic' || tier === 'teacher' || tier === 'pro'
 }
 
-// Helper: si el tier permite inscribirse en clases
+/**
+ * @deprecated **Sin llamadores desde 2026-08-02. No usar en código nuevo.**
+ *
+ * Nada de lo que un alumno hace para *pagar una clase* exige plan:
+ *   - Inscribirse a una clase — abierto desde marketplace v2.
+ *   - **Comprar un paquete de clases** — abierto desde 2026-08-02
+ *     (`/api/packages/[id]/enroll` ya no la llama).
+ *   - **Buscar compañero 2x** — ídem (`ClassDetailClient`; mobile nunca la
+ *     gateó, así que las dos plataformas quedaron consistentes).
+ *
+ * La razón es de producto, no técnica: los alumnos ya compran clases por
+ * Instagram sin pagarle a nadie por el privilegio. Cobrar por poder pagar sería
+ * la fricción exacta que la app viene a quitar, y mataría la adopción del lado
+ * que trae la demanda. Los planes se justifican por lo que le dan al PROFESOR
+ * (publicar, entrenamientos, audiciones) y por la exención de la comisión de
+ * servicio — no por bloquear la compra.
+ *
+ * Se conserva sólo para no romper un import externo; borrarla es una decisión
+ * aparte (mismo criterio que `canPayByTransfer` en lib/commission.ts).
+ */
 export function canEnroll(tier: SubscriptionTier): boolean {
   return tier === 'basic' || tier === 'teacher' || tier === 'pro'
 }
@@ -479,15 +499,20 @@ export interface PaymentInfoFormData {
  *   - Archivos por clase → `mediaLimit` en los 4 formularios: basic 1, pro 5.
  *   - Videos de coreografía → `postQuotaForTier()` (espejo de la migración
  *     060): none 0 · basic 3 · pro ilimitados.
- *   - Paquetes y 2x → `canEnroll(tier)` en `/api/packages/[id]/enroll` y en el
- *     bloque 2x de `ClassDetailClient`.
  *   - Sin comisión de servicio → `paysCommission(tier)`: sólo `'none'` la paga.
+ *
+ * **Nada de lo que un alumno hace para PAGAR una clase va en esta lista**
+ * (decisión de producto, 2026-08-02): inscribirse, comprar un paquete y buscar
+ * compañero 2x están abiertos a las cuentas gratis. Ver el `@deprecated` de
+ * `canEnroll` más arriba para el porqué.
  *
  * Se ELIMINARON en esa sesión cuatro viñetas que no se sostenían:
  *   - "Perfil destacado" (Pro) — la única aparición de esa frase en todo el
  *     repo era esta línea: **la funcionalidad nunca se construyó**.
  *   - "Inscríbete en cualquier clase" (Básico) — la inscripción está abierta a
- *     todos desde marketplace v2; `canEnroll` ya no la gatea.
+ *     todos desde marketplace v2.
+ *   - "Busca compañero 2x y accede a paquetes de clases" (Básico) — se abrieron
+ *     a las cuentas gratis el 2026-08-02, por la misma razón.
  *   - "Explora profesores" (Básico) — `/feed` y `/explore` son rutas públicas
  *     en el middleware: no requieren plan ni siquiera cuenta.
  *   - Y el Pro no nombraba los **entrenamientos**, que son su diferenciador
@@ -497,20 +522,19 @@ export const SUBSCRIPTION_PLANS = [
   {
     tier: 'basic' as const,
     name: 'Básico',
-    price: 1500,
+    price: 2000,
     description: 'Empieza a dictar clases',
     features: [
       'Publica 1 clase suelta por mes',
       'Sube 1 foto o video en esa clase',
       'Hasta 3 videos de coreografías publicados',
-      'Busca compañero 2x y accede a paquetes de clases',
       'Sin comisión de servicio al pagar clases con Mercado Pago',
     ],
   },
   {
     tier: 'pro' as const,
     name: 'Pro',
-    price: 3500,
+    price: 8000,
     description: 'Sin límites para enseñar',
     features: [
       'Todo lo del plan Básico',
@@ -521,6 +545,26 @@ export const SUBSCRIPTION_PLANS = [
     ],
   },
 ] as const
+
+/**
+ * Configuración de un plan pago tal como la necesitan las rutas de Mercado
+ * Pago: el nombre que ve el usuario en el checkout y el precio mensual en CLP.
+ *
+ * ⚠️ **El precio de un plan vive en UN solo lugar: `SUBSCRIPTION_PLANS`.** Hasta
+ * la sesión 2026-08-02, `create-subscription` y `create-preference` tenían cada
+ * una su PROPIA constante `PLAN_CONFIG` con el precio hardcodeado — tres copias
+ * en total contando la de display. Un cambio de precio en dos de ellas y no en
+ * la tercera cobra un monto distinto del que se anunció, que es el mismo tipo
+ * de defecto que causó las ocho promesas falsas de esa sesión.
+ *
+ * Devuelve `null` si el tier no corresponde a un plan pago — el llamador debe
+ * responder 400, no asumir un default.
+ */
+export function paidPlanConfig(tier: string): { name: string; price: number } | null {
+  const plan = SUBSCRIPTION_PLANS.find((p) => p.tier === tier)
+  if (!plan) return null
+  return { name: `DanzClass ${plan.name}`, price: plan.price }
+}
 
 export const DANCE_STYLES = [
   'Bachata',

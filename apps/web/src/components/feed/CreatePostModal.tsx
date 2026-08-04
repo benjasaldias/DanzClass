@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { X, Upload, Loader2, Globe, Lock, Users, Clapperboard } from 'lucide-react'
+import { X, Upload, Loader2, Globe, Lock, Users, Clapperboard, GraduationCap } from 'lucide-react'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
 import { createClient } from '@/lib/supabase/client'
 import { uploadToCloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
@@ -27,6 +27,9 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [visibility, setVisibility] = useState<Visibility>('public')
+  // Apagado por defecto: muchos videos son coreografías ajenas (covers) y su
+  // autor no las puede enseñar. Lo habilita quien sí es dueño del paso.
+  const [allowTeachRequests, setAllowTeachRequests] = useState(false)
   const [videoFile, setVideoFile] = useState<{ file: File; preview: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -111,6 +114,7 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
         is_public: visibility === 'public',
         visibility,
         class_id: classId || null,
+        allow_teach_requests: allowTeachRequests,
       } as any)
       .select('*, user:profiles!user_id(*), tagged_class:classes!class_id(id, title, teacher:profiles!teacher_id(username, full_name))')
       .single()
@@ -231,6 +235,32 @@ export default function CreatePostModal({ userId, onClose, onCreated }: CreatePo
               ))}
             </div>
           </div>
+
+          <label
+            className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
+              allowTeachRequests
+                ? 'border-morado-flow/50 bg-morado-flow/10'
+                : 'border-gray-200 dark:border-dark-border hover:border-morado-flow/40'
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={allowTeachRequests}
+              onChange={(e) => setAllowTeachRequests(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#7F77DD]"
+            />
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-dark-text2">
+                <GraduationCap className="h-4 w-4 text-morado-flow" />
+                Permitir que te pidan «¡Enséñala!»
+              </span>
+              <span className="mt-0.5 block text-xs text-gray-500 dark:text-dark-text2/70">
+                Actívalo solo si la coreografía es tuya y podrías dictarla. Quien vea el video
+                podrá pedirte que la enseñes y te avisamos cuánta gente lo pidió.
+              </span>
+            </span>
+          </label>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

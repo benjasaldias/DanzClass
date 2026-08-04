@@ -623,6 +623,17 @@ Lo que **sí** se verificó como cierto y quedó: los cupos de clases (`class_qu
 
 **Alcance del cambio de `SUBSCRIPTION_PLANS`:** lo leen **tres** pantallas — `/plans` web, la tarjeta de suscripción de `/profile` web, y planes de mobile. Las tres quedan corregidas de una vez.
 
+#### Precios nuevos y el descuento anual — la misma enfermedad, una capa más abajo
+
+Decisión de negocio del usuario en la misma sesión: **Básico $2.000, Pro $8.000** (antes $1.500/$3.500) y **10% de descuento en el pago único anual**. Sin usuarios todavía, así que va sin aviso ni migración. Al aplicarlo apareció el mismo defecto de fondo una capa más abajo: **el precio tenía tres copias** — `SUBSCRIPTION_PLANS` para display, y una constante `PLAN_CONFIG` propia dentro de `create-subscription` **y** de `create-preference`. Cambiar dos y olvidar la tercera cobra un monto distinto del anunciado.
+
+- Las rutas leen ahora **`paidPlanConfig(tier)`** (nuevo, `packages/shared`), del mismo array que la UI. Devuelve `null` para un tier inválido en vez de un default silencioso que cobraría el precio de otro plan.
+- **`ANNUAL_DISCOUNT_RATE = 0.10`** + `annualPlanPrice()` / `annualPlanSavings()` (`lib/pricing.ts`), usados por la UI que **anuncia** y por `create-preference` que **cobra**. Básico anual $21.600 (ahorra $2.400); Pro anual $86.400 (ahorra $9.600). El botón anual de la web vuelve a decir "ahorras X" — **ahora es cierto**, y sale del mismo helper que cobra.
+- **`tests/unit/planPricing.test.ts`**, 16 casos: precios vigentes, que `paidPlanConfig` devuelva el mismo precio que la UI, rechazo de tiers inválidos, y la invariante de que el ahorro anunciado sea la diferencia exacta con lo cobrado.
+- Verificado que **el webhook no valida monto de suscripción** (sólo de pagos de clase, contra `payments.amount`), así que cambiar el precio no rompe nada ya emitido.
+
+**Se descartó cobrar en USD**, que el usuario planteó para evitar reajustes por inflación. Cuatro razones: Mercado Pago Chile (site MLC) liquida en **CLP** y toda la app —clases, split, comisiones— es CLP, así que cobrar USD exigiría otro procesador y rompería el split marketplace; un precio en moneda extranjera es un precio **variable en CLP cada mes**, peor para el usuario y discutible bajo la Ley 19.496 (el precio debe ser claro y determinable); la herramienta chilena para indexar sería la **UF**, no el dólar, y tiene el mismo problema; y con ~4% de inflación anual un plan de $2.000 pierde ~$80/año de valor real — editar una constante una vez al año es mucho más barato que la complejidad multi-moneda.
+
 #### La parte no-código: el checklist §9 explicado
 
 Se recorrió con el usuario, en orden ejecutable y en lenguaje accesible, todo §9.2 (U-1 a U-11) más §4, explicando qué es cada cosa (qué es una migración, qué es un backup, qué es sandbox de MP, qué significa cada variable de entorno). **Hallazgo de estado no listado en el documento:** el código de S1–S3 **sigue sin commitear** (`git status` con ~27 archivos, `git log` sin ningún commit de `audit3` — el último es `ea0ecee`, de `audit2`). §9 asume el código "listo para desplegar"; se le marcó como **paso 0**, antes de U-1/U-2.

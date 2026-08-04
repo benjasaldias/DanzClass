@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/supabase/require-user'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { canEnroll } from '@danceclass/shared'
-import { getActiveTier } from '@/lib/subscription'
-import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit } from '@/lib/rateLimit'
 
 // POST /api/packages/[id]/enroll — student enrolls in a package
@@ -14,12 +11,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const rlHit = await checkRateLimit(`enroll:${auth.user.id}`, 'enroll')
   if (rlHit) return rlHit
 
-  const supabase = createClient()
-  const tier = await getActiveTier(auth.user.id, supabase)
-  if (!canEnroll(tier)) {
-    return NextResponse.json({ error: 'requires_plan' }, { status: 403 })
-  }
-
+  // Comprar un paquete de clases NO exige plan (decisión de producto,
+  // 2026-08-02): es una forma de pagar clases, y pagar clases está abierto a
+  // todo el mundo desde marketplace v2 — es exactamente lo que los alumnos ya
+  // hacen hoy por Instagram. Antes había acá un `canEnroll(tier)` que devolvía
+  // 403 `requires_plan`.
   const admin = createAdminClient()
   const packageId = params.id
 

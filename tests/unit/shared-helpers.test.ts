@@ -45,7 +45,13 @@ test.describe('canTeachUnlimited', () => {
 
 // ─── canEnroll ───────────────────────────────────────────────────────────────
 
-test.describe('canEnroll', () => {
+// ⚠️ `canEnroll` está @deprecated y SIN LLAMADORES desde 2026-08-02: nada de lo
+// que un alumno hace para pagar una clase (inscribirse, comprar un paquete,
+// buscar compañero 2x) exige plan. Estos casos sólo fijan que la función no
+// cambió de comportamiento mientras siga exportada — **no** describen ninguna
+// regla vigente del producto. Si algún día se borra la función, se borran con
+// ella.
+test.describe('canEnroll (@deprecated — sin llamadores)', () => {
   test('none → false', () => expect(canEnroll('none')).toBe(false))
   test('basic → true', () => expect(canEnroll('basic')).toBe(true))
   test('teacher → true', () => expect(canEnroll('teacher')).toBe(true))

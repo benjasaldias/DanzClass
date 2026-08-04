@@ -24,7 +24,7 @@ export type CancelSubscriptionsResult = {
  * Cancela en Mercado Pago y en la base todas las suscripciones que siguen
  * cobrando. Compartido por `/api/subscriptions/cancel` y por el borrado de
  * cuenta, que hasta audit3 P1-3 hacía un soft-cancel sin llamar nunca a MP: el
- * usuario se iba y le seguían cobrando $1.500 o $3.500 al mes, sin forma de
+ * usuario se iba y le seguían cobrando su plan todos los meses, sin forma de
  * pararlo desde la app (no puede volver a entrar por el tombstone del correo).
  *
  * Recorre TODAS las suscripciones cobrables, no sólo la más reciente: si por una

@@ -20,7 +20,7 @@ function fakeSupabase(username: string | null) {
   }
 }
 
-// Los 29 tipos de `NotificationType` (packages/shared/src/types/index.ts).
+// Los 30 tipos de `NotificationType` (packages/shared/src/types/index.ts).
 // Copiado a propósito en vez de importado: si algún día divergen, este test
 // debe fallar por la comparación explícita, no quedarse mudo porque ambos
 // leyeron la misma lista.
@@ -36,11 +36,12 @@ const ALL_NOTIFICATION_TYPES = [
   'payment_reminder',
   'event_invite', 'event_invite_accepted', 'event_invite_rejected',
   'posts_expiring', 'mp_connection_expiring', 'payment_refunded',
+  'teach_request',
 ]
 
 test.describe('NOTIFICATION_ROUTES', () => {
-  test('cubre los 29 tipos de notificación — ninguno queda sin ruta', async () => {
-    expect(ALL_NOTIFICATION_TYPES).toHaveLength(29)
+  test('cubre los 30 tipos de notificación — ninguno queda sin ruta', async () => {
+    expect(ALL_NOTIFICATION_TYPES).toHaveLength(30)
     for (const type of ALL_NOTIFICATION_TYPES) {
       expect(NOTIFICATION_ROUTES[type], `falta el tipo ${type}`).toBeTruthy()
     }

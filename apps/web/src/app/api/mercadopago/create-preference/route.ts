@@ -4,11 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { checkRateLimit } from '@/lib/rateLimit'
-
-const PLAN_CONFIG: Record<string, { name: string; price: number }> = {
-  basic: { name: 'DanzClass Básico', price: 1500 },
-  pro:   { name: 'DanzClass Pro',    price: 3500 },
-}
+import { paidPlanConfig, annualPlanPrice } from '@danceclass/shared'
 
 export async function POST(request: Request) {
   let user: any = null
@@ -38,12 +34,15 @@ export async function POST(request: Request) {
   const plan = body.plan as string
   const period: 'annual' | 'monthly' = body.period === 'annual' ? 'annual' : 'monthly'
 
-  if (!['basic', 'pro'].includes(plan)) {
+  const config = paidPlanConfig(plan)
+  if (!config) {
     return NextResponse.json({ error: 'Plan inválido' }, { status: 400 })
   }
 
-  const config = PLAN_CONFIG[plan]
-  const unitPrice = period === 'annual' ? config.price * 12 : config.price
+  // El anual lleva ANNUAL_DISCOUNT_RATE de descuento sobre 12 meses. El monto
+  // sale del mismo helper que anuncia la UI: si se recalculara acá a mano, se
+  // podría cobrar algo distinto de lo que se le mostró al usuario.
+  const unitPrice = period === 'annual' ? annualPlanPrice(config.price) : config.price
   const title = period === 'annual'
     ? `${config.name} (Anual)`
     : config.name
