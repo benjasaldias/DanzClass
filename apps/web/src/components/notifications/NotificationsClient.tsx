@@ -5,12 +5,12 @@ import Link from 'next/link'
 import {
   UserPlus, UserCheck, Bell, Music2, AlertCircle,
   CheckCircle2, XCircle, Users, Flag, ClipboardList, CalendarClock, UserCheck2, Lock,
-  GraduationCap,
+  GraduationCap, CalendarCheck2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import { timeAgo } from '@/lib/utils'
-import { formatBillingPeriod } from '@danceclass/shared'
+import { formatBillingPeriod, formatRehearsalWhen } from '@danceclass/shared'
 
 interface Notification {
   id: string
@@ -194,6 +194,24 @@ const NOTIF_CONFIG: Record<string, {
     label: (data) => {
       const who = data.from_username ? `@${data.from_username}` : 'Alguien'
       return `${who} te invitó al ensayo "${data.rehearsal_title ?? 'Ensayo'}"`
+    },
+    href: (data) => data.rehearsal_id ? `/rehearsal/${data.rehearsal_id}` : '/feed',
+  },
+  rehearsal_vote: {
+    icon: Users,
+    color: 'text-[#7F77DD] bg-[#EEEDFE] dark:bg-dark-surface2 dark:text-violet-300',
+    label: (data) => {
+      const when = formatRehearsalWhen({ date_mode: 'single', rehearsal_date: data.proposed_date })
+      return `¿Puedes el ${when} de ${data.range_label ?? ''}? Vota el horario del ensayo "${data.rehearsal_title ?? ''}"`
+    },
+    href: (data) => data.rehearsal_id ? `/rehearsal/${data.rehearsal_id}` : '/feed',
+  },
+  rehearsal_date_set: {
+    icon: CalendarCheck2,
+    color: 'text-green-500 bg-green-50 dark:bg-green-950/30 dark:text-green-400',
+    label: (data) => {
+      const when = formatRehearsalWhen({ date_mode: 'single', rehearsal_date: data.rehearsal_date })
+      return `El ensayo "${data.rehearsal_title ?? ''}" quedó fijado para el ${when}${data.range_label ? `, ${data.range_label}` : ''}`
     },
     href: (data) => data.rehearsal_id ? `/rehearsal/${data.rehearsal_id}` : '/feed',
   },

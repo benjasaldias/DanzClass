@@ -1,25 +1,44 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireUser } from '@/lib/supabase/require-user'
 import { isSleepHour } from '@danceclass/shared'
 
+/**
+ * Disponibilidad del grupo para coordinar un ensayo.
+ *
+ * Devuelve, por día del mes: las horas en que están libres TODOS
+ * (`available_hours`) y —lo que agrega esta versión— QUIÉNES están libres en
+ * cada hora (`hour_free`). Sin eso la UI sólo podía decir "no hay horario en
+ * que coincidan todos" y el creador no tenía forma de saber si el que falta era
+ * imprescindible.
+ *
+ * `hour_free` usa ÍNDICES dentro del array `members`, no UUIDs: un mes son
+ * 31 × 24 entradas y con UUIDs el payload se iba a cientos de KB por cada
+ * apertura del calendario.
+ */
 export async function GET(req: Request) {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // requireUser acepta Bearer (mobile) y cookie (web). Antes esta ruta usaba
+  // createClient() a secas, así que el calendario de mobile habría dado 401 —
+  // el mismo defecto que S7 encontró en /api/rehearsal/respond.
+  const auth = await requireUser(req)
+  if ('error' in auth) return auth.error
+  const { user } = auth
 
   const { searchParams } = new URL(req.url)
   const rehearsalId = searchParams.get('rehearsal_id')
   if (!rehearsalId) return NextResponse.json({ error: 'rehearsal_id requerido' }, { status: 400 })
   // Optional month override (YYYY-MM). Falls back to rehearsal.coordinate_month.
   const monthOverride = searchParams.get('month')
+  if (monthOverride && !/^\d{4}-\d{2}$/.test(monthOverride)) {
+    return NextResponse.json({ error: 'month inválido' }, { status: 400 })
+  }
 
   const admin = createAdminClient()
 
   // Use admin client to bypass RLS; access is verified manually below
   const { data: rehearsal } = await (admin as any)
     .from('rehearsals')
-    .select('id, creator_id, coordinate_month')
+    .select('id, creator_id, coordinate_month, rehearsal_date, rehearsal_time, duration_minutes, confirmed_at')
     .eq('id', rehearsalId)
     .single()
 
@@ -145,56 +164,138 @@ export async function GET(req: Request) {
     : [new Date().getFullYear(), new Date().getMonth() + 1]
 
   const daysInMonth = new Date(year, month, 0).getDate()
+  const monthPrefix = `${year}-${String(month).padStart(2, '0')}`
+
+  // 5. Descartes explícitos del mes. Pesan MÁS que la ocupación derivada: un
+  //    bloque ocupado es una inferencia, un descarte es "ese día no puedo".
+  //    Van indexados por fecha (no por weekday) porque son puntuales.
+  const { data: discardRows } = await (admin as any)
+    .from('rehearsal_discards')
+    .select('user_id, discard_date, hour')
+    .eq('rehearsal_id', rehearsalId)
+    .gte('discard_date', `${monthPrefix}-01`)
+    .lte('discard_date', `${monthPrefix}-${String(daysInMonth).padStart(2, '0')}`)
+
+  // date → userId → Set<hour> | 'all'
+  const discardsByDate = new Map<string, Map<string, Set<number> | 'all'>>()
+  for (const d of (discardRows as any[] ?? [])) {
+    if (!discardsByDate.has(d.discard_date)) discardsByDate.set(d.discard_date, new Map())
+    const perUser = discardsByDate.get(d.discard_date)!
+    if (d.hour === null || d.hour === undefined) {
+      perUser.set(d.user_id, 'all')
+    } else {
+      const cur = perUser.get(d.user_id)
+      if (cur === 'all') continue
+      const set = cur ?? new Set<number>()
+      set.add(d.hour)
+      perUser.set(d.user_id, set)
+    }
+  }
+
+  function isDiscarded(userId: string, dateStr: string, hour: number): boolean {
+    const perUser = discardsByDate.get(dateStr)
+    if (!perUser) return false
+    const entry = perUser.get(userId)
+    if (entry === 'all') return true
+    return entry?.has(hour) ?? false
+  }
 
   type DayAvailability = {
     date: string
     available_count: number
     total_members: number
     available_hours: number[]
+    /** hora → índices (en `members`) de quienes están libres. Sólo horas con ≥1. */
+    hour_free: Record<number, number[]>
   }
 
   const calendar: DayAvailability[] = []
   const total = uniqueMemberIds.length
+  const indexOfMember = new Map(uniqueMemberIds.map((id, i) => [id, i]))
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const dateStr = `${monthPrefix}-${String(day).padStart(2, '0')}`
     const date = new Date(dateStr + 'T00:00:00')
     const jsDay = date.getDay()
     const wd = jsDay === 0 ? 6 : jsDay - 1 // 0=Mon..6=Sun
 
-    // For each hour, count how many members are free
     const availableHours: number[] = []
-    for (let h = 0; h <= 23; h++) {
-      const key = `${wd}:${h}`
-      const freeCount = uniqueMemberIds.filter((uid) => !occupancy[uid]?.has(key)).length
-      if (freeCount === total) availableHours.push(h)
-    }
-
-    // available_count: max number of members free at any single hour
+    const hourFree: Record<number, number[]> = {}
     let maxFreeAtOnce = 0
+
     for (let h = 0; h <= 23; h++) {
       const key = `${wd}:${h}`
-      const freeCount = uniqueMemberIds.filter((uid) => !occupancy[uid]?.has(key)).length
-      if (freeCount > maxFreeAtOnce) maxFreeAtOnce = freeCount
+      const freeIdx: number[] = []
+      for (const uid of uniqueMemberIds) {
+        if (occupancy[uid]?.has(key)) continue
+        if (isDiscarded(uid, dateStr, h)) continue
+        freeIdx.push(indexOfMember.get(uid)!)
+      }
+      if (freeIdx.length > 0) hourFree[h] = freeIdx
+      if (freeIdx.length === total) availableHours.push(h)
+      if (freeIdx.length > maxFreeAtOnce) maxFreeAtOnce = freeIdx.length
     }
 
     calendar.push({
       date: dateStr,
+      // available_count: max number of members free at any single hour
       available_count: maxFreeAtOnce,
       total_members: total,
       available_hours: availableHours,
+      hour_free: hourFree,
     })
   }
 
-  // Also return member info for legend
+  // Member info for the legend and for resolving hour_free indices
   const { data: memberProfiles } = await admin
     .from('profiles')
     .select('id, username, full_name, avatar_url')
     .in('id', uniqueMemberIds)
 
+  // Ordered exactly like uniqueMemberIds — hour_free indexes into THIS array.
+  const profileById = new Map((memberProfiles as any[] ?? []).map((p: any) => [p.id, p]))
+  const members = uniqueMemberIds.map((id) => {
+    const p = profileById.get(id)
+    return {
+      id,
+      username: p?.username ?? '',
+      full_name: p?.full_name ?? '',
+      avatar_url: p?.avatar_url ?? null,
+      is_creator: id === rehearsal.creator_id,
+      invite_status: id === rehearsal.creator_id
+        ? 'creator'
+        : ((invites as any[] ?? []).find((i: any) => i.user_id === id)?.status ?? null),
+    }
+  })
+
+  // Votación abierta (o la última resuelta, para que la UI pueda contar lo que
+  // pasó). Una sola abierta a la vez la garantiza el índice único de 077.
+  const { data: proposals } = await (admin as any)
+    .from('rehearsal_proposals')
+    .select('*, votes:rehearsal_proposal_votes(user_id, vote)')
+    .eq('rehearsal_id', rehearsalId)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  const proposalRows = (proposals as any[] ?? [])
+  const openProposal = proposalRows.find((p: any) => p.status === 'open') ?? null
+
   return NextResponse.json({
     calendar,
-    members: memberProfiles ?? [],
+    members,
     invites: invites ?? [],
+    // Crudos, para que cada integrante sepa qué descartó él mismo y el creador
+    // vea de quién es cada descarte.
+    discards: (discardRows as any[] ?? []),
+    proposal: openProposal,
+    last_resolved_proposal: proposalRows.find((p: any) => p.status === 'confirmed') ?? null,
+    fixed: rehearsal.rehearsal_date
+      ? {
+          date: rehearsal.rehearsal_date,
+          time: rehearsal.rehearsal_time,
+          duration_minutes: rehearsal.duration_minutes,
+          confirmed_at: rehearsal.confirmed_at,
+        }
+      : null,
   })
 }

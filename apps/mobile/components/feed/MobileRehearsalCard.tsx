@@ -5,32 +5,7 @@ import { Calendar, MapPin, Clock, Users, Check, X, ChevronDown, ChevronUp } from
 import Avatar from '../ui/Avatar'
 import { useTheme } from '../../context/ThemeContext'
 import { supabase } from '../../lib/supabase'
-import { WEB_URL } from '@danceclass/shared'
-
-const MONTHS_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-function formatRehearsalDate(rehearsal: any): string {
-  if (rehearsal.date_mode === 'single' && rehearsal.rehearsal_date) {
-    const [y, m, d] = rehearsal.rehearsal_date.split('-').map(Number)
-    return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-  }
-  if (rehearsal.date_mode === 'custom' && rehearsal.custom_dates?.length) {
-    const sorted = [...rehearsal.custom_dates].sort()
-    if (sorted.length === 1) {
-      const [y, m, d] = sorted[0].split('-').map(Number)
-      return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-    }
-    return `${sorted.length} fechas seleccionadas`
-  }
-  if (rehearsal.date_mode === 'coordinate' && rehearsal.coordinate_month) {
-    const [y, m] = rehearsal.coordinate_month.split('-').map(Number)
-    return `Coordinando para ${MONTHS_ES[m - 1]} ${y}`
-  }
-  return 'Fecha por coordinar'
-}
+import { WEB_URL, formatRehearsalWhen } from '@danceclass/shared'
 
 interface Props {
   rehearsal: any
@@ -50,7 +25,7 @@ export default function MobileRehearsalCard({ rehearsal, currentUserId, onUpdate
   const invites: any[] = rehearsal.invites ?? []
   const acceptedCount = invites.filter((i: any) => i.status === 'accepted').length
   const pendingCount = invites.filter((i: any) => i.status === 'pending').length
-  const dateLabel = formatRehearsalDate(rehearsal)
+  const dateLabel = formatRehearsalWhen(rehearsal)
 
   async function handleRespond(status: 'accepted' | 'rejected') {
     if (!myInvite) return

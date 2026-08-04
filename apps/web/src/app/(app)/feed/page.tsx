@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import FeedClient from '@/components/feed/FeedClient'
 import { attachClassSpots } from '@/lib/feedSpots'
+import { rehearsalNotExpiredFilter } from '@danceclass/shared'
 
 export default async function FeedPage() {
   const supabase = createClient()
@@ -59,7 +60,10 @@ export default async function FeedPage() {
     (r: any) => r.class?.teacher_id !== user!.id
   )
 
-  // Fetch rehearsals where user is creator or invitee
+  // Fetch rehearsals where user is creator or invitee.
+  // `rehearsalNotExpiredFilter` cubre las horas entre que un ensayo termina y
+  // que el cron lo marca `expired`: antes de 077 no había NINGÚN filtro de
+  // fecha acá y un ensayo del año pasado seguía en el feed para siempre.
   const rehearsalsQuery = (supabase as any)
     .from('rehearsals')
     .select(`
@@ -68,6 +72,7 @@ export default async function FeedPage() {
       invites:rehearsal_invites(id, user_id, status, user:profiles!user_id(id, username, full_name, avatar_url))
     `)
     .eq('status', 'active')
+    .or(rehearsalNotExpiredFilter())
     .order('created_at', { ascending: false })
     .limit(20)
 

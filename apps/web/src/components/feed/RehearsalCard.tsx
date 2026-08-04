@@ -6,6 +6,7 @@ import { Calendar, MapPin, Clock, Users, Check, X, ChevronDown, Pencil } from 'l
 import { cn } from '@/lib/utils'
 import Avatar from '@/components/ui/Avatar'
 import dynamic from 'next/dynamic'
+import { formatRehearsalWhen } from '@danceclass/shared'
 
 const RehearsalCoordinationCalendar = dynamic(
   () => import('@/components/rehearsal/RehearsalCoordinationCalendar'),
@@ -16,31 +17,6 @@ const EditRehearsalModal = dynamic(
   () => import('@/components/rehearsal/EditRehearsalModal'),
   { ssr: false }
 )
-
-const MONTHS_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-function formatRehearsalDate(rehearsal: any): string {
-  if (rehearsal.date_mode === 'single' && rehearsal.rehearsal_date) {
-    const [y, m, d] = rehearsal.rehearsal_date.split('-').map(Number)
-    return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-  }
-  if (rehearsal.date_mode === 'custom' && rehearsal.custom_dates?.length) {
-    const sorted = [...rehearsal.custom_dates].sort()
-    if (sorted.length === 1) {
-      const [y, m, d] = sorted[0].split('-').map(Number)
-      return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-    }
-    return `${sorted.length} fechas seleccionadas`
-  }
-  if (rehearsal.date_mode === 'coordinate' && rehearsal.coordinate_month) {
-    const [y, m] = rehearsal.coordinate_month.split('-').map(Number)
-    return `Coordinando para ${MONTHS_ES[m - 1]} ${y}`
-  }
-  return 'Fecha por coordinar'
-}
 
 function formatTime(time: string | null): string {
   if (!time) return ''
@@ -87,7 +63,7 @@ export default function RehearsalCard({ rehearsal, currentUserId, onRespond, onE
     }
   }
 
-  const dateLabel = formatRehearsalDate(rehearsal)
+  const dateLabel = formatRehearsalWhen(rehearsal)
   const timeLabel = rehearsal.rehearsal_time ? formatTime(rehearsal.rehearsal_time) : null
 
   return (
@@ -224,7 +200,9 @@ export default function RehearsalCard({ rehearsal, currentUserId, onRespond, onE
             className="flex items-center gap-1.5 text-xs font-medium text-[#7F77DD] hover:text-[#6B64C8] transition-colors"
           >
             <Calendar className="h-3.5 w-3.5" />
-            {showCoordination ? 'Ocultar disponibilidad' : 'Ver disponibilidad del grupo'}
+            {showCoordination
+              ? 'Ocultar disponibilidad'
+              : rehearsal.rehearsal_date ? 'Ver cómo se coordinó' : 'Coordinar fecha y hora'}
             <ChevronDown className={cn('h-3 w-3 transition-transform', showCoordination && 'rotate-180')} />
           </button>
           {showCoordination && rehearsal.coordinate_month && (
@@ -232,6 +210,9 @@ export default function RehearsalCard({ rehearsal, currentUserId, onRespond, onE
               <RehearsalCoordinationCalendar
                 rehearsalId={rehearsal.id}
                 coordinateMonth={rehearsal.coordinate_month}
+                currentUserId={currentUserId}
+                isCreator={isCreator}
+                onDateFixed={() => onEdited?.()}
               />
             </div>
           )}

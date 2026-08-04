@@ -2,6 +2,11 @@
 // Database Types - aligned with Supabase schema
 // ============================================================
 
+// `ProposalStatus` vive en el helper que lo usa, no acá, para que el barrel no
+// exporte dos veces el mismo nombre. `rehearsalSchedule` no importa tipos, así
+// que no hay ciclo.
+import type { ProposalStatus } from '../lib/rehearsalSchedule'
+
 export type UserRole = 'user'
 export type SubscriptionTier = 'none' | 'basic' | 'teacher' | 'pro' // 'teacher' kept for DB compat only
 export type SubscriptionStatus = 'active' | 'grace' | 'expired' | 'cancelled'
@@ -41,6 +46,8 @@ export type NotificationType =
   | 'mp_connection_expiring'
   | 'payment_refunded'
   | 'teach_request'
+  | 'rehearsal_vote'
+  | 'rehearsal_date_set'
 
 export type EventType = 'batalla' | 'masterclass' | 'otro'
 export type EventStatus = 'active' | 'cancelled' | 'finished'
@@ -54,7 +61,9 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
 }
 
 export type RehearsalDateMode = 'single' | 'custom' | 'coordinate'
-export type RehearsalStatus = 'active' | 'cancelled'
+// 'expired' (077) = ocurrió o se le pasó el plazo de coordinación. Distinto de
+// 'cancelled', que es "el creador lo dio de baja".
+export type RehearsalStatus = 'active' | 'cancelled' | 'expired'
 export type RehearsalInviteStatus = 'pending' | 'accepted' | 'rejected'
 
 export type ClassType = 'suelta' | 'periodica' | 'entrenamiento'
@@ -362,6 +371,10 @@ export interface Rehearsal {
   coordinate_month: string | null
   duration_minutes: number
   status: RehearsalStatus
+  // DERIVADA por trigger (077). NULL = no caduca. El cliente no la escribe.
+  expires_at: string | null
+  // Cuándo se fijó la fecha de un ensayo `coordinate`. NULL = sigue coordinando.
+  confirmed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -378,6 +391,37 @@ export interface RehearsalWithDetails extends Rehearsal {
   creator: Pick<Profile, 'id' | 'username' | 'full_name' | 'avatar_url'>
   invites: (RehearsalInvite & { user: Pick<Profile, 'id' | 'username' | 'full_name' | 'avatar_url'> })[]
   my_invite?: RehearsalInvite | null
+}
+
+/** Indisponibilidad declarada para UN ensayo. `hour === null` = el día completo. */
+export interface RehearsalDiscard {
+  id: string
+  rehearsal_id: string
+  user_id: string
+  discard_date: string
+  hour: number | null
+  created_at: string
+}
+
+export interface RehearsalProposal {
+  id: string
+  rehearsal_id: string
+  created_by: string
+  proposed_date: string
+  start_time: string
+  end_time: string
+  required_confirmations: number
+  status: ProposalStatus
+  resolved_at: string | null
+  created_at: string
+}
+
+export interface RehearsalProposalVote {
+  proposal_id: string
+  user_id: string
+  vote: 'yes' | 'no'
+  created_at: string
+  updated_at: string
 }
 
 export interface Class2xRequest {

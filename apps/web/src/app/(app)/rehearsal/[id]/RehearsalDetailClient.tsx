@@ -6,6 +6,7 @@ import { ArrowLeft, Calendar, MapPin, Clock, Users, Check, X, Pencil, ChevronDow
 import { cn } from '@/lib/utils'
 import Avatar from '@/components/ui/Avatar'
 import dynamic from 'next/dynamic'
+import { formatRehearsalWhen, REHEARSAL_MONTHS_ES } from '@danceclass/shared'
 
 const RehearsalCoordinationCalendar = dynamic(
   () => import('@/components/rehearsal/RehearsalCoordinationCalendar'),
@@ -17,30 +18,9 @@ const EditRehearsalModal = dynamic(
   { ssr: false }
 )
 
-const MONTHS_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-function formatRehearsalDate(rehearsal: any): string {
-  if (rehearsal.date_mode === 'single' && rehearsal.rehearsal_date) {
-    const [y, m, d] = rehearsal.rehearsal_date.split('-').map(Number)
-    return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-  }
-  if (rehearsal.date_mode === 'custom' && rehearsal.custom_dates?.length) {
-    const sorted = [...rehearsal.custom_dates].sort()
-    if (sorted.length === 1) {
-      const [y, m, d] = sorted[0].split('-').map(Number)
-      return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-    }
-    return `${sorted.length} fechas seleccionadas`
-  }
-  if (rehearsal.date_mode === 'coordinate' && rehearsal.coordinate_month) {
-    const [y, m] = rehearsal.coordinate_month.split('-').map(Number)
-    return `Coordinando para ${MONTHS_ES[m - 1]} ${y}`
-  }
-  return 'Fecha por coordinar'
-}
+// formatRehearsalWhen vive en shared: estaba copiado en 5 pantallas y las 5
+// mostraban "Coordinando para agosto" en un ensayo cuya fecha ya estaba fijada.
+const MONTHS_ES = REHEARSAL_MONTHS_ES
 
 interface Props {
   rehearsal: any
@@ -84,7 +64,7 @@ export default function RehearsalDetailClient({ rehearsal: initialRehearsal, cur
     }
   }
 
-  const dateLabel = formatRehearsalDate(rehearsal)
+  const dateLabel = formatRehearsalWhen(rehearsal)
   const customDatesSorted = rehearsal.date_mode === 'custom' ? [...(rehearsal.custom_dates ?? [])].sort() : []
 
   return (
@@ -305,11 +285,14 @@ export default function RehearsalDetailClient({ rehearsal: initialRehearsal, cur
         {rehearsal.date_mode === 'coordinate' && rehearsal.coordinate_month && (isCreator || localStatus === 'accepted') && (
           <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border p-5">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gris-humo dark:text-dark-text2 mb-4">
-              Disponibilidad del grupo
+              {rehearsal.rehearsal_date ? 'Cómo se coordinó' : 'Coordinar fecha y hora'}
             </h3>
             <RehearsalCoordinationCalendar
               rehearsalId={rehearsal.id}
               coordinateMonth={rehearsal.coordinate_month}
+              currentUserId={currentUserId}
+              isCreator={isCreator}
+              onDateFixed={reloadRehearsal}
             />
           </div>
         )}

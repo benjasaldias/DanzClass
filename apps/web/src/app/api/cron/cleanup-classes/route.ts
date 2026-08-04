@@ -5,7 +5,7 @@ import { deleteCloudinaryAssets } from '@/lib/cloudinary-admin'
 import { receiptStoragePath } from '@/lib/receipts'
 import { notifyUsers, type NotifyRow } from '@/lib/notifyUsers'
 import { notifyWaitlist } from '@/lib/waitlist'
-import { lastSessionEnd } from '@danceclass/shared'
+import { lastSessionEnd, rehearsalExpiresAt, isProposalStale } from '@danceclass/shared'
 
 // Vercel Cron runs this daily at 03:00 UTC.
 // Deletes class-media storage files + class_media rows + payment-receipt files
@@ -638,6 +638,53 @@ export async function GET(request: Request) {
     logger.error('cleanup-classes:package-receipts', e)
   }
 
+  // ── Ensayos vencidos → status 'expired' ──────────────────────────────────
+  // La regla vive en `rehearsals.expires_at`, que un trigger de 077 mantiene:
+  // acá sólo se cambia el estado, para que las ~8 pantallas que ya filtran por
+  // `status='active'` dejen de mostrarlo sin tocar ninguna de ellas.
+  let expiredRehearsals = 0
+  try {
+    const { data: expiredRows } = await (supabase as any)
+      .from('rehearsals')
+      .update({ status: 'expired' })
+      .eq('status', 'active')
+      .not('expires_at', 'is', null)
+      .lt('expires_at', now.toISOString())
+      .select('id')
+    expiredRehearsals = ((expiredRows as any[]) ?? []).length
+    if (expiredRehearsals > 0) logger.info('cleanup-classes:rehearsals-expired', { expiredRehearsals })
+  } catch (e) {
+    logger.error('cleanup-classes:rehearsals-expired', { error: String(e) })
+  }
+
+  // ── Votaciones de horario cuyo horario ya pasó → 'expired' ────────────────
+  // Sin esto una votación que no alcanzó el umbral queda abierta para siempre y,
+  // como sólo puede haber una abierta por ensayo (índice único de 077), el
+  // creador no puede proponer otro horario nunca más.
+  let expiredProposals = 0
+  try {
+    const { data: openProposals } = await (supabase as any)
+      .from('rehearsal_proposals')
+      .select('id, proposed_date, end_time, status')
+      .eq('status', 'open')
+
+    const staleIds = ((openProposals as any[]) ?? [])
+      .filter((p) => isProposalStale(p, now))
+      .map((p) => p.id)
+
+    if (staleIds.length > 0) {
+      await (supabase as any)
+        .from('rehearsal_proposals')
+        .update({ status: 'expired', resolved_at: now.toISOString() })
+        .in('id', staleIds)
+        .eq('status', 'open')
+      expiredProposals = staleIds.length
+      logger.info('cleanup-classes:proposals-expired', { expiredProposals })
+    }
+  } catch (e) {
+    logger.error('cleanup-classes:proposals-expired', { error: String(e) })
+  }
+
   // ── Delete stale chats (class chats 48h after class ended, rehearsal chats 48h after last date) ──
   // P2-3: recolectar ids en un Set y borrar en un solo batch (además corrige el
   // doble-conteo P3-2: cada chat se contaba/borraba hasta dos veces con los `if`
@@ -662,18 +709,18 @@ export async function GET(request: Request) {
     }
     const { data: staleRehearsalChats } = await (supabase as any)
       .from('chats')
-      .select('id, rehearsal_id, rehearsal:rehearsals(rehearsal_date, custom_dates, date_mode, status)')
+      .select('id, rehearsal_id, rehearsal:rehearsals(rehearsal_date, rehearsal_time, custom_dates, date_mode, coordinate_month, duration_minutes, status)')
       .eq('type', 'rehearsal')
     for (const chat of (staleRehearsalChats ?? []) as any[]) {
       const r = chat.rehearsal
       if (!r || r.status === 'cancelled') { chatIdsToDelete.add(chat.id); continue }
-      let lastDate: Date | null = null
-      if (r.date_mode === 'single' && r.rehearsal_date) lastDate = new Date(r.rehearsal_date)
-      if (r.date_mode === 'custom' && r.custom_dates?.length) {
-        const sorted = [...r.custom_dates].sort()
-        lastDate = new Date(sorted[sorted.length - 1])
-      }
-      if (lastDate && lastDate.getTime() + CHAT_GRACE_MS < Date.now()) chatIdsToDelete.add(chat.id)
+      // Antes esto calculaba `lastDate` a mano y sólo cubría 'single' y 'custom':
+      // un ensayo `coordinate` (que puede no tener ninguna fecha) daba `null` y
+      // su chat grupal no se borraba JAMÁS. Ahora se apoya en la misma regla de
+      // caducidad que la base — `rehearsalExpiresAt` — más las 48 h de gracia
+      // que el chat siempre tuvo por encima del fin del ensayo.
+      const expiresAt = rehearsalExpiresAt(r)
+      if (expiresAt && expiresAt.getTime() + CHAT_GRACE_MS < Date.now()) chatIdsToDelete.add(chat.id)
     }
     if (chatIdsToDelete.size > 0) {
       await (supabase as any).from('chats').delete().in('id', [...chatIdsToDelete])
@@ -689,7 +736,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     archived: deleted, errors, reminders, cancelled2x, releasedHolds, cancelledStale,
     paymentReminders, reviewNudges, purgedReceipts, purgedEventReceipts, purgedPackageReceipts,
-    deletedChats,
+    deletedChats, expiredRehearsals, expiredProposals,
   })
 }
 

@@ -1116,7 +1116,10 @@ function HistoryTab({ enrollments, teachingClasses, attendance = {} }: { enrollm
 const MONTHS_ES_SHORT = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 function formatRehearsalDateShort(r: any): string {
-  if (r.date_mode === 'single' && r.rehearsal_date) {
+  // La fecha manda sobre el modo: un `coordinate` ya fijado por votación tiene
+  // fecha concreta y decía "Coord. Ago". Misma corrección que formatRehearsalWhen
+  // en shared, en versión corta.
+  if (r.rehearsal_date) {
     const [, m, d] = r.rehearsal_date.split('-').map(Number)
     return `${d} ${MONTHS_ES_SHORT[m - 1]}`
   }

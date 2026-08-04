@@ -15,7 +15,7 @@ import FloatingActionButton from '../../../components/ui/FloatingActionButton'
 import OnboardingTour from '../../../components/feed/OnboardingTour'
 import { useTheme } from '../../../context/ThemeContext'
 import { getUserLocation, type LocationResult } from '../../../lib/location'
-import { canTeach, getActiveTier } from '@danceclass/shared'
+import { canTeach, getActiveTier, rehearsalNotExpiredFilter } from '@danceclass/shared'
 import type { FeedFilter, SubscriptionTier } from '@danceclass/shared'
 
 type TeacherRatings = Record<string, { avg_stars: number; rating_count: number }>
@@ -210,6 +210,9 @@ export default function FeedScreen() {
         .from('rehearsals')
         .select('*, creator:profiles!creator_id(id, username, full_name, avatar_url), invites:rehearsal_invites(id, user_id, status, user:profiles!user_id(id, username, full_name, avatar_url))')
         .eq('status', 'active')
+        // Espejo del filtro del feed web: un ensayo sale de circulación 2 h
+        // después de terminar, sin esperar la pasada diaria del cron.
+        .or(rehearsalNotExpiredFilter())
         .order('created_at', { ascending: false })
         .limit(20)
       ;(rehearsalData ?? []).forEach((r: any) => {

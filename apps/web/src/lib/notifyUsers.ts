@@ -29,6 +29,14 @@ export const PUSH_LABELS: Record<string, { title: string; body: string | ((data:
   rehearsal_invite: { title: 'Invitación a ensayo', body: (d) => `Te invitaron al ensayo "${d.rehearsal_title ?? ''}"` },
   rehearsal_accepted: { title: 'Invitación aceptada', body: (d) => `@${d.from_username ?? 'Alguien'} aceptó tu invitación al ensayo "${d.rehearsal_title ?? ''}"` },
   rehearsal_rejected: { title: 'Invitación declinada', body: (d) => `@${d.from_username ?? 'Alguien'} declinó tu invitación al ensayo "${d.rehearsal_title ?? ''}"` },
+  rehearsal_vote: {
+    title: 'Vota el horario del ensayo 🗓️',
+    body: (d) => `"${d.rehearsal_title ?? 'Un ensayo'}": ¿puedes ${d.range_label ?? 'ese horario'}?`,
+  },
+  rehearsal_date_set: {
+    title: '¡Ensayo confirmado! 🎉',
+    body: (d) => `"${d.rehearsal_title ?? 'Tu ensayo'}" quedó fijado${d.range_label ? `: ${d.range_label}` : ''}`,
+  },
   new_report: { title: 'Nueva denuncia', body: (d) => `${d.reporter_name ?? 'Alguien'} denunció ${d.content_type === 'post' ? 'un video' : 'una clase'}` },
   class_reminder: { title: 'Tu clase es mañana 📅', body: (d) => `"${d.class_title ?? ''}" es mañana${d.session_time ? ` a las ${d.session_time}` : ''}` },
   payment_reminder: {

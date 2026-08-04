@@ -6,7 +6,7 @@ import { getActiveTier } from '@/lib/subscription'
 // getClassDeletionDate vive en `packages/shared` (D-5) — antes había una copia
 // acá y otra (`lastSessionEnd`) en el cron de limpieza, con la misma regla
 // escrita dos veces.
-import { canTeach, getClassDeletionDate } from '@danceclass/shared'
+import { canTeach, getClassDeletionDate, isRehearsalExpired, rehearsalNotExpiredFilter } from '@danceclass/shared'
 
 export default async function MyClassesPage() {
   const supabase = createClient()
@@ -68,6 +68,7 @@ export default async function MyClassesPage() {
       `)
       .eq('creator_id', user.id)
       .eq('status', 'active')
+      .or(rehearsalNotExpiredFilter())
       .order('created_at', { ascending: false }),
 
     // Ensayos a los que fui invitado (no rechazados) — admin client bypasses RLS
@@ -77,7 +78,7 @@ export default async function MyClassesPage() {
         id, status,
         rehearsal:rehearsals(
           id, title, date_mode, rehearsal_date, rehearsal_time,
-          custom_dates, coordinate_month, duration_minutes,
+          custom_dates, coordinate_month, duration_minutes, status, expires_at,
           creator:profiles!creator_id(id, username, full_name, avatar_url)
         )
       `)
@@ -87,6 +88,16 @@ export default async function MyClassesPage() {
   ])
 
   const dismissedStudentIds = (dismissedDebts as any[] ?? []).map((d: any) => d.student_id)
+
+  // El tab Ensayos listaba las invitaciones sin mirar el estado del ensayo: un
+  // ensayo CANCELADO por su creador seguía apareciendo como invitación viva (y
+  // desde 077, uno caducado también). Se filtra acá porque el `.or()` de
+  // PostgREST no aplica a una tabla embebida.
+  const liveRehearsalInvites = (rehearsalInvites as any[] ?? []).filter((inv: any) => {
+    const r = inv.rehearsal
+    if (!r || r.status !== 'active') return false
+    return !isRehearsalExpired(r)
+  })
 
   // Add deletion date to each teaching class
   const classesWithDeletion = (teachingClasses as any[] ?? []).map((cls) => ({
@@ -118,7 +129,7 @@ export default async function MyClassesPage() {
       currentUserId={user.id}
       dismissedStudentIds={dismissedStudentIds}
       ownRehearsals={(ownRehearsals as any[]) ?? []}
-      rehearsalInvites={(rehearsalInvites as any[]) ?? []}
+      rehearsalInvites={liveRehearsalInvites}
       attendance={attendanceMap}
     />
   )

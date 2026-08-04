@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTheme } from '../../context/ThemeContext'
-import { formatBillingPeriod } from '@danceclass/shared'
+import { formatBillingPeriod, formatRehearsalWhen } from '@danceclass/shared'
 import { resolveNotificationRoute } from '../../lib/notificationRoutes'
 
 function timeAgo(date: string): string {
@@ -131,6 +131,20 @@ const NOTIF_CONFIG: Record<string, NotifConfig> = {
   rehearsal_rejected: {
     icon: XCircle, bgColor: '#fef2f2', iconColor: '#dc2626',
     label: (data, pm) => pm[data.from_user_id] ? `@${pm[data.from_user_id].username} rechazó la invitación al ensayo "${data.rehearsal_title ?? ''}"` : `Alguien rechazó la invitación al ensayo`,
+  },
+  rehearsal_vote: {
+    icon: CalendarClock, bgColor: '#f5f3ff', iconColor: '#7F77DD',
+    label: (data) => {
+      const when = formatRehearsalWhen({ date_mode: 'single', rehearsal_date: data.proposed_date })
+      return `¿Puedes el ${when} de ${data.range_label ?? ''}? Vota el horario del ensayo "${data.rehearsal_title ?? ''}"`
+    },
+  },
+  rehearsal_date_set: {
+    icon: CheckCircle2, bgColor: '#f0fdf4', iconColor: '#16a34a',
+    label: (data) => {
+      const when = formatRehearsalWhen({ date_mode: 'single', rehearsal_date: data.rehearsal_date })
+      return `El ensayo "${data.rehearsal_title ?? ''}" quedó fijado para el ${when}${data.range_label ? `, ${data.range_label}` : ''}`
+    },
   },
   payment_reminder: {
     icon: AlertCircle, bgColor: '#fefce8', iconColor: '#ca8a04',

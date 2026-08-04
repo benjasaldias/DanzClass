@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import AgendaClient from '@/components/agenda/AgendaClient'
+import { rehearsalNotExpiredFilter } from '@danceclass/shared'
 
 export default async function AgendaPage() {
   const supabase = createClient()
@@ -39,7 +40,8 @@ export default async function AgendaPage() {
     (admin as any)
       .from('rehearsals')
       .select('id, title, date_mode, rehearsal_date, rehearsal_time, custom_dates, coordinate_month, duration_minutes, creator_id')
-      .eq('status', 'active'),
+      .eq('status', 'active')
+      .or(rehearsalNotExpiredFilter()),
 
     // Invitaciones del usuario para filtrar rechazadas
     (admin as any)

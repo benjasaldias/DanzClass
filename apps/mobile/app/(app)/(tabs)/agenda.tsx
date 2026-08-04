@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, Clock, ChevronDown, Moon, Chec
 import { supabase } from '../../../lib/supabase'
 import { getClassSessions, toYMD, formatTime } from '../../../lib/utils'
 import { useTheme } from '../../../context/ThemeContext'
-import { canTeach, isSleepHour, getActiveTier } from '@danceclass/shared'
+import { canTeach, isSleepHour, getActiveTier, rehearsalNotExpiredFilter } from '@danceclass/shared'
 import TopBar from '../../../components/ui/TopBar'
 
 const MONTHS_ES = [
@@ -107,7 +107,8 @@ export default function AgendaScreen() {
       (supabase as any)
         .from('rehearsals')
         .select('id, title, date_mode, rehearsal_date, rehearsal_time, custom_dates, invites:rehearsal_invites(user_id, status)')
-        .eq('status', 'active'),
+        .eq('status', 'active')
+        .or(rehearsalNotExpiredFilter()),
     ])
 
     const enrolled = (enrollments ?? []).map((e: any) => e.class).filter(Boolean)

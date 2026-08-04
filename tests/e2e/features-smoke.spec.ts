@@ -52,6 +52,7 @@ const seeded = {
   teacherEmail: '', studentEmail: '',
   teacherId: '', studentId: '',
   classId: '', eventId: '', rehearsalId: '', chatId: '',
+  coordRehearsalId: '', coordMonth: '',
 }
 
 async function mkUser(prefix: string) {
@@ -124,6 +125,21 @@ test.beforeAll(async () => {
     date_mode: 'single', rehearsal_date: '2027-09-05', rehearsal_time: '19:00', status: 'active',
   })
   await ins('rehearsal_invites', { rehearsal_id: seeded.rehearsalId, user_id: student.id, status: 'accepted' })
+
+  // Ensayo `coordinate` para el calendario de coordinación (077). Mes a futuro
+  // para que no caduque durante el test.
+  const coordMonth = (() => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() + 2)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })()
+  seeded.coordMonth = coordMonth
+  seeded.coordRehearsalId = await ins('rehearsals', {
+    creator_id: teacher.id, title: '[SMOKE] Ensayo a coordinar', city: 'Santiago',
+    date_mode: 'coordinate', coordinate_month: coordMonth, status: 'active',
+  })
+  await ins('rehearsal_invites', { rehearsal_id: seeded.coordRehearsalId, user_id: student.id, status: 'accepted' })
 
   // Precompila las rutas en el dev server para que los tiempos de espera midan
   // la app y no al bundler.
@@ -223,6 +239,8 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByText(/Entrada:/)).toBeVisible()
       await visit(page, `/rehearsal/${seeded.rehearsalId}`, '[SMOKE] Ensayo')
       await expect(page.getByText('Integrantes')).toBeVisible()
+      await visit(page, `/rehearsal/${seeded.coordRehearsalId}`, '[SMOKE] Ensayo a coordinar')
+      await expect(page.getByText('Coordinar fecha y hora')).toBeVisible()
     })
 
     test('profesor: mis clases, evento propio y ensayo propio', async ({ page }) => {
@@ -262,4 +280,89 @@ test('el chat envía y muestra el mensaje al instante', async ({ page }) => {
   // estaba en la publicación: el remitente no veía nada hasta recargar.
   await expect(page.getByText(text)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('No se pudo enviar el mensaje. Intenta de nuevo.')).toHaveCount(0)
+})
+
+test('coordinación de ensayo: descartar un día, ver el panel parcial y abrir una votación', async ({ page }) => {
+  await login(page, seeded.teacherEmail, seeded.teacherId)
+  await gotoStable(page, `/rehearsal/${seeded.coordRehearsalId}`)
+
+  // El calendario es un import dinámico que además pide
+  // /api/rehearsal/group-availability: en `next dev` la primera visita paga la
+  // compilación de las dos cosas. Timeouts generosos por el mismo motivo por el
+  // que `login()` usa 60 s, no porque la pantalla sea lenta en producción.
+  await expect(page.getByText('Coordinar fecha y hora')).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByText(/\d+ integrantes?/)).toBeVisible({ timeout: 60_000 })
+
+  // Un día cualquiera del mes coordinado (el 15 existe en todos los meses).
+  // El calendario es un client component: hasta que React hidrata, el click no
+  // tiene handler y no pasa nada — el mismo problema que el chat documenta más
+  // arriba. Pero el día es un TOGGLE, así que reintentar a ciegas lo puede
+  // volver a cerrar: cada intento comprueba primero si ya está abierto.
+  const day15 = page.getByRole('button', { name: /^15 de / })
+  const panel0Title = page.getByText(/Horarios libres para todos el 15/)
+  await expect(async () => {
+    if (await panel0Title.isVisible()) return
+    await day15.click()
+    await expect(panel0Title).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 60_000 })
+
+  // Panel 1: disponibilidad parcial. El problema (3) era justamente que no había
+  // forma de llegar acá. Las pestañas no son toggles, pero el deslizador tiene
+  // una transición de 300 ms: reintentar es inofensivo y cubre el caso en que el
+  // click llegue antes de que el panel esté montado.
+  const tabParciales = page.getByRole('button', { name: /Parciales/ })
+  const tabTodos = page.getByRole('button', { name: /Para todos/ })
+  await expect(async () => {
+    await tabParciales.click()
+    await expect(page.getByText(/Horarios parciales el 15/)).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 30_000 })
+
+  // Hover sobre un horario → quiénes están disponibles. El bloque vive FUERA del
+  // deslizador porque como tooltip flotante lo recortaba su `overflow-hidden`;
+  // esta aserción es la que impide que vuelva a moverse adentro.
+  await expect(async () => {
+    await tabTodos.click()
+    await expect(page.getByText(/Horarios libres para todos el 15/)).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 30_000 })
+  const hourChip = page.getByTitle('Descartar este horario').first()
+  await expect(hourChip).toBeVisible({ timeout: 10_000 })
+  await hourChip.hover()
+  await expect(page.getByText('Disponibles', { exact: true })).toBeVisible()
+  const reveal = page.getByText(/^\d{2}:00 · \d+ de \d+$/)
+  await expect(reveal).toBeVisible()
+  // Visible de verdad, no recortado a 0 px de alto por un contenedor padre.
+  const box = await reveal.boundingBox()
+  expect(box!.height).toBeGreaterThan(0)
+
+  // Descartar el día completo y verificar que el propio chip lo refleja.
+  await page.getByRole('button', { name: 'Descartar día' }).click()
+  await expect(page.getByRole('button', { name: 'Recuperar día' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Descartaron el día completo')).toBeVisible()
+
+  // Recuperarlo deja el calendario como estaba.
+  await page.getByRole('button', { name: 'Recuperar día' }).click()
+  await expect(page.getByRole('button', { name: 'Descartar día' })).toBeVisible({ timeout: 15_000 })
+
+  // Iniciar una votación desde un horario libre para todos.
+  const vote = page.getByTitle('Iniciar votación en este horario').first()
+  await expect(vote).toBeVisible({ timeout: 10_000 })
+  await vote.click()
+  await expect(page.getByText(/Iniciar votación · 15 de/)).toBeVisible()
+
+  // Rango con minutos no redondos: el caso que el usuario pidió explícitamente.
+  const [from, to] = await page.locator('input[type="time"]').all()
+  await from.fill('12:30')
+  await to.fill('13:35')
+  await page.getByRole('button', { name: /Iniciar votación \(12:30 a 13:35/ }).click()
+
+  await expect(page.getByText(/Votación abierta · 15 de/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('12:30 a 13:35 (1 h 5 min)')).toBeVisible()
+  // El creador cuenta como confirmado sin votar, y tiene las dos salidas manuales.
+  await expect(page.getByRole('button', { name: /Fijar ahora/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cancelar' })).toBeVisible()
+
+  // Fijar la fecha cambia la tarjeta "Cuándo y dónde" del ensayo.
+  await page.getByRole('button', { name: /Fijar ahora/ }).click()
+  await expect(page.getByText(/Fecha fijada: 15 de/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText(/\(fecha fijada\)/)).toBeVisible({ timeout: 20_000 })
 })

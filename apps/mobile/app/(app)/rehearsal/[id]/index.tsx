@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -6,32 +6,10 @@ import { ArrowLeft, Calendar, MapPin, Clock, Users, Check, X, ChevronDown, Chevr
 import { supabase } from '../../../../lib/supabase'
 import { useTheme } from '../../../../context/ThemeContext'
 import Avatar from '../../../../components/ui/Avatar'
-import { WEB_URL } from '@danceclass/shared'
+import RehearsalCoordinationCalendar from '../../../../components/rehearsal/RehearsalCoordinationCalendar'
+import { WEB_URL, formatRehearsalWhen, REHEARSAL_MONTHS_ES } from '@danceclass/shared'
 
-const MONTHS_ES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
-
-function formatRehearsalDate(rehearsal: any): string {
-  if (rehearsal.date_mode === 'single' && rehearsal.rehearsal_date) {
-    const [y, m, d] = rehearsal.rehearsal_date.split('-').map(Number)
-    return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-  }
-  if (rehearsal.date_mode === 'custom' && rehearsal.custom_dates?.length) {
-    const sorted = [...rehearsal.custom_dates].sort()
-    if (sorted.length === 1) {
-      const [y, m, d] = sorted[0].split('-').map(Number)
-      return `${d} de ${MONTHS_ES[m - 1]} ${y}`
-    }
-    return `${sorted.length} fechas seleccionadas`
-  }
-  if (rehearsal.date_mode === 'coordinate' && rehearsal.coordinate_month) {
-    const [y, m] = rehearsal.coordinate_month.split('-').map(Number)
-    return `Coordinando para ${MONTHS_ES[m - 1]} ${y}`
-  }
-  return 'Fecha por coordinar'
-}
+const MONTHS_ES = REHEARSAL_MONTHS_ES
 
 export default function RehearsalDetailScreen() {
   const router = useRouter()
@@ -45,36 +23,38 @@ export default function RehearsalDetailScreen() {
   const [localStatus, setLocalStatus] = useState<string | null>(null)
   const [showCustomDates, setShowCustomDates] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.back(); return }
-      setUserId(user.id)
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) setToken(session.access_token)
+  // useCallback y no una función local del efecto: el calendario de coordinación
+  // la vuelve a llamar cuando una votación fija la fecha, para que la tarjeta de
+  // "Cuándo y dónde" se actualice sin salir de la pantalla.
+  const load = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.back(); return }
+    setUserId(user.id)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) setToken(session.access_token)
 
-      const { data } = await (supabase as any)
-        .from('rehearsals')
-        .select(`
-          *,
-          creator:profiles!creator_id(id, username, full_name, avatar_url),
-          invites:rehearsal_invites(
-            id, user_id, status,
-            user:profiles!user_id(id, username, full_name, avatar_url)
-          )
-        `)
-        .eq('id', id)
-        .eq('status', 'active')
-        .single()
+    const { data } = await (supabase as any)
+      .from('rehearsals')
+      .select(`
+        *,
+        creator:profiles!creator_id(id, username, full_name, avatar_url),
+        invites:rehearsal_invites(
+          id, user_id, status,
+          user:profiles!user_id(id, username, full_name, avatar_url)
+        )
+      `)
+      .eq('id', id)
+      .eq('status', 'active')
+      .single()
 
-      if (!data) { router.back(); return }
-      const myInvite = (data.invites ?? []).find((i: any) => i.user_id === user.id) ?? null
-      setRehearsal({ ...data, my_invite: myInvite })
-      setLocalStatus(myInvite?.status ?? null)
-      setLoading(false)
-    }
-    load()
+    if (!data) { router.back(); return }
+    const myInvite = (data.invites ?? []).find((i: any) => i.user_id === user.id) ?? null
+    setRehearsal({ ...data, my_invite: myInvite })
+    setLocalStatus(myInvite?.status ?? null)
+    setLoading(false)
   }, [id])
+
+  useEffect(() => { load() }, [load])
 
   async function handleRespond(status: 'accepted' | 'rejected') {
     if (!rehearsal?.my_invite) return
@@ -106,7 +86,7 @@ export default function RehearsalDetailScreen() {
   const invites: any[] = rehearsal.invites ?? []
   const acceptedCount = invites.filter((i: any) => i.status === 'accepted').length
   const pendingCount = invites.filter((i: any) => i.status === 'pending').length
-  const dateLabel = formatRehearsalDate(rehearsal)
+  const dateLabel = formatRehearsalWhen(rehearsal)
   const customDatesSorted = rehearsal.date_mode === 'custom' ? [...(rehearsal.custom_dates ?? [])].sort() : []
 
   return (
@@ -324,6 +304,23 @@ export default function RehearsalDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* Coordinación de fecha y hora (paridad con web, esta sesión) */}
+        {rehearsal.date_mode === 'coordinate' && rehearsal.coordinate_month && (isCreator || localStatus === 'accepted') ? (
+          <View className="bg-white dark:bg-dark-surface rounded-2xl border border-gray-100 dark:border-dark-border p-4">
+            <Text className="text-xs font-semibold uppercase tracking-wide text-gris-humo dark:text-dark-text2 mb-3">
+              {rehearsal.rehearsal_date ? 'Cómo se coordinó' : 'Coordinar fecha y hora'}
+            </Text>
+            <RehearsalCoordinationCalendar
+              rehearsalId={rehearsal.id}
+              coordinateMonth={rehearsal.coordinate_month}
+              currentUserId={userId ?? ''}
+              isCreator={isCreator}
+              token={token}
+              onDateFixed={load}
+            />
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   )

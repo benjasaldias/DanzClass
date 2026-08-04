@@ -35,6 +35,8 @@ export const NOTIFICATION_ROUTES: Record<string, NotificationRouteResolver> = {
   rehearsal_invite: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
   rehearsal_accepted: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
   rehearsal_rejected: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
+  rehearsal_vote: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
+  rehearsal_date_set: (data) => data.rehearsal_id ? `/(app)/rehearsal/${data.rehearsal_id}` : '/(app)/(tabs)/feed',
   payment_reminder: (data) =>
     data.role === 'teacher'
       ? (data.payment_id ? `/(app)/payment/review/${data.payment_id}` : '/(app)/(tabs)/my-classes')
