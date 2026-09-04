@@ -170,15 +170,19 @@ function TermsES() {
             </li>
             <li>
               <strong>Comisión de servicio de DanzClass.</strong> Equivalente al <strong>2% del precio de la
-              clase, con un tope de $700 CLP por pago</strong>. Se cobra únicamente a estudiantes{' '}
-              <strong>sin un plan activo</strong> que pagan por Mercado Pago. Los estudiantes con un plan activo
-              no la pagan. Es la remuneración de DanzClass por el servicio de la Plataforma.
+              clase, con un tope de $700 CLP por pago</strong>. Se cobra a <strong>cualquier estudiante</strong>{' '}
+              que pague por Mercado Pago. Es la remuneración de DanzClass por el servicio de la Plataforma.
             </li>
           </ul>
           <p>
-            <strong>Por transferencia bancaria no existe ningún cargo adicional para ningún estudiante</strong>,
-            tenga o no un plan activo: el monto que se transfiere es exactamente el precio fijado por el
-            profesor.
+            <strong>Por transferencia bancaria no existe ningún cargo adicional para ningún estudiante</strong>:
+            el monto que se transfiere es exactamente el precio fijado por el profesor.
+          </p>
+          <p>
+            <strong>Planes de suscripción.</strong> Durante el período de lanzamiento, DanzClass entrega todas las
+            funcionalidades de la Plataforma <strong>sin costo</strong> y no comercializa planes de suscripción. Si
+            en el futuro se reactiva el cobro de planes, se informará previamente a los usuarios y estos Términos
+            se actualizarán en consecuencia.
           </p>
           <p>
             <strong>Impuestos.</strong> Dado que el pago in-app se divide en el origen, el profesor recibe y es el
@@ -418,14 +422,18 @@ function TermsEN() {
             </li>
             <li>
               <strong>DanzClass service commission.</strong> Equivalent to <strong>2% of the class price, capped
-              at CLP $700 per payment</strong>. Charged only to students <strong>without an active plan</strong>{' '}
-              who pay via Mercado Pago. Students with an active plan do not pay it. This is DanzClass&rsquo;s
-              remuneration for the Platform service.
+              at CLP $700 per payment</strong>. Charged to <strong>any student</strong> paying via Mercado Pago.
+              This is DanzClass&rsquo;s remuneration for the Platform service.
             </li>
           </ul>
           <p>
-            <strong>Direct bank transfer carries no additional charge for any student</strong>, with or without
-            an active plan: the amount transferred is exactly the price set by the teacher.
+            <strong>Direct bank transfer carries no additional charge for any student</strong>: the amount
+            transferred is exactly the price set by the teacher.
+          </p>
+          <p>
+            <strong>Subscription plans.</strong> During the launch period, DanzClass provides all Platform
+            features <strong>free of charge</strong> and does not sell subscription plans. If paid plans are
+            reintroduced, users will be notified in advance and these Terms will be updated accordingly.
           </p>
           <p>
             <strong>Taxes.</strong> Because the in-app payment is split at the source, the teacher receives and is

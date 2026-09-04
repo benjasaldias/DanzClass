@@ -59,7 +59,7 @@ export default function MpConnectCard({ connected }: MpConnectCardProps) {
         <div className="min-w-0">
           <h3 className="font-semibold text-sm text-gray-900 dark:text-dark-text">Pagos in-app (Mercado Pago)</h3>
           <p className="text-xs text-gray-500 dark:text-dark-text2 mt-0.5">
-            Conecta tu cuenta de Mercado Pago para que los alumnos sin plan puedan pagarte dentro de la app.
+            Conecta tu cuenta de Mercado Pago para que tus alumnos puedan pagarte dentro de la app.
             Recibes el precio completo de tu clase; DanzClass cobra su comisión aparte.
           </p>
         </div>

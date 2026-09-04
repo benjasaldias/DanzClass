@@ -2,9 +2,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
-import { getActiveTier, getActiveSubscription } from '@/lib/subscription'
-import { canTeach, SUBSCRIPTION_PLANS, DAYS_OF_WEEK, WEB_URL } from '@danceclass/shared'
-import { Crown, Settings, CreditCard, Instagram, Music2, Video, Trash2, AlertCircle, Gift, TrendingUp, ChevronRight, Eye, FileText, ShieldCheck, MessageSquareWarning } from 'lucide-react'
+import { getActiveTier } from '@/lib/subscription'
+import { canTeach, DAYS_OF_WEEK, WEB_URL } from '@danceclass/shared'
+import { Settings, CreditCard, Instagram, Music2, Video, Trash2, Gift, TrendingUp, ChevronRight, Eye, FileText, ShieldCheck, MessageSquareWarning } from 'lucide-react'
 import Avatar from '@/components/ui/Avatar'
 import LogoutButton from '@/components/ui/LogoutButton'
 import StyleChip from '@/components/ui/StyleChip'
@@ -16,13 +16,6 @@ import EmbedWidgetButton from '@/components/profile/EmbedWidgetButton'
 import ReferralCopyButton from '@/components/profile/ReferralCopyButton'
 import ProfileTabs, { type ProfileTab } from '@/components/profile/ProfileTabs'
 import { cn, formatCLP, formatDate, formatTime } from '@/lib/utils'
-
-const TIER_LABELS: Record<string, string> = {
-  none: 'Sin plan',
-  basic: 'Plan Básico',
-  teacher: 'Plan Profesor',
-  pro: 'Plan Pro',
-}
 
 export default async function ProfilePage({
   searchParams,
@@ -36,7 +29,6 @@ export default async function ProfilePage({
   const [
     { data: profileData },
     tier,
-    activeSub,
     { count: followersCount },
     { count: classesCount },
     { count: paidSpotsCount },
@@ -48,7 +40,6 @@ export default async function ProfilePage({
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     getActiveTier(user.id, supabase as any),
-    getActiveSubscription(user.id, supabase as any),
     supabase.from('follows' as any).select('*', { count: 'exact', head: true }).eq('following_id', user.id),
     // D-9/D-10: excluir clases canceladas (soft-deleted)
     supabase
@@ -91,7 +82,6 @@ export default async function ProfilePage({
   ])
 
   const profile = profileData as any
-  const planInfo = SUBSCRIPTION_PLANS.find((p) => p.tier === tier)
   const enrolledClasses = (enrolledData as any[]) ?? []
   const ownPosts = (ownPostsData as any[]) ?? []
   // Videos ocultos por falta de plan: solo los ve su autor y viven en su propia
@@ -105,7 +95,6 @@ export default async function ProfilePage({
     : 0
 
   const isTeacher = canTeach(tier)
-  const subActive = tier !== 'none'
 
   // Stats: profesores ven 4, alumnos 2.
   const stats: { value: React.ReactNode; label: string }[] = isTeacher
@@ -169,48 +158,14 @@ export default async function ProfilePage({
         </div>
       </div>
 
-      {/* ── Suscripción (tappable) ─────────────────────────── */}
-      <Link
-        href="/plans"
-        className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-dark-border bg-gradient-to-r from-lavanda-suave/70 to-white px-4 py-3.5 dark:from-dark-surface2 dark:to-dark-surface"
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-600 text-white">
-            <Crown className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-gray-900 dark:text-dark-text">{TIER_LABELS[tier] ?? 'Sin plan'}</span>
-              {subActive && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                  Activo
-                </span>
-              )}
-            </div>
-            <p className="mt-0.5 text-xs text-gray-400 dark:text-dark-text2">
-              {planInfo?.description ?? 'Conoce los planes disponibles'}
-            </p>
-          </div>
-        </div>
-        <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-300 dark:text-dark-text2" />
-      </Link>
-
-      {/* Subscription expiry warning — shown 7 days before expiry */}
-      {activeSub && (() => {
-        const daysLeft = Math.ceil((new Date(activeSub.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-        if (daysLeft > 7) return null
-        const [y, m, d] = activeSub.expires_at.split('T')[0].split('-').map(Number)
-        const label = new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
-        return (
-          <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3">
-            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              Tu plan vence el <span className="font-semibold">{label}</span>.{' '}
-              <Link href="/plans" className="underline">Renovar ahora</Link>
-            </p>
-          </div>
-        )
-      })()}
+      {/* ── Suscripción ────────────────────────────────────────
+          Oculta durante el lanzamiento gratuito (2026-09-04): toda cuenta nace
+          con Pro sin costo (migración 078), así que la tarjeta mostraría un
+          plan que nadie eligió y llevaría a /plans, que hoy redirige acá.
+          Junto con ella se quitó el aviso de vencimiento a 7 días, que con el
+          regalo (expires_at a 100 años) nunca se dispararía.
+          Para reactivar: `git log` de este archivo — el bloque se eliminó
+          entero, no se comentó, para no dejar JSX muerto. */}
 
       {/* ── Acción primaria ────────────────────────────────── */}
       <div className="flex gap-2 px-4 py-3">

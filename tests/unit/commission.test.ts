@@ -14,6 +14,7 @@ import { test, expect } from '@playwright/test'
 import {
   platformCommission,
   paysCommission,
+  COMMISSION_APPLIES_TO_ALL_TIERS,
   canPayByTransfer,
   paymentBreakdown,
   COMMISSION_CAP_CLP,
@@ -56,11 +57,18 @@ test.describe('MP rates', () => {
 })
 
 test.describe('paysCommission / canPayByTransfer', () => {
-  test('only planless students pay the DanzClass service commission', () => {
+  // Lanzamiento gratuito (2026-09-04): toda cuenta nace Pro (migración 078),
+  // así que la comisión se desacopló del tier — atada al plan habría quedado
+  // en $0 para todo el mundo como efecto lateral del regalo. Si algún día se
+  // vuelve al modelo por plan (COMMISSION_APPLIES_TO_ALL_TIERS = false), este
+  // test falla a propósito: es la señal de revisar el copy que promete la
+  // exención (ver el docstring de la constante).
+  test('every tier pays the service commission while the free launch lasts', () => {
+    expect(COMMISSION_APPLIES_TO_ALL_TIERS).toBe(true)
     expect(paysCommission('none')).toBe(true)
-    expect(paysCommission('basic')).toBe(false)
-    expect(paysCommission('teacher')).toBe(false)
-    expect(paysCommission('pro')).toBe(false)
+    expect(paysCommission('basic')).toBe(true)
+    expect(paysCommission('teacher')).toBe(true)
+    expect(paysCommission('pro')).toBe(true)
   })
 
   // Deprecada para clases individuales (ahora manda classes.accepts_transfer),
@@ -118,35 +126,31 @@ test.describe('paymentBreakdown — mp, planless student', () => {
   })
 })
 
-test.describe('paymentBreakdown — mp, student with a plan', () => {
-  const cases: Array<{ price: number; total: number }> = [
-    { price: 15000, total: 15592 },
-    { price: 25000, total: 25986 },
-    { price: 35000, total: 36381 },
-    { price: 50000, total: 51973 },
+test.describe('paymentBreakdown — mp, cualquier tier (lanzamiento gratuito)', () => {
+  // Con la comisión desacoplada del plan, el desglose por MP es idéntico para
+  // los cuatro tiers: mismos montos que la tabla de arriba.
+  const cases: Array<{ price: number; commission: number; total: number }> = [
+    { price: 15000, commission: 300, total: 15904 },
+    { price: 35000, commission: 700, total: 37109 },
+    { price: 50000, commission: 700, total: 52701 },
   ]
 
-  for (const { price, total } of cases) {
-    test(`price ${price} → no commission, total ${total}`, () => {
-      const b = paymentBreakdown(price, 'basic', 'mp')
-      expect(b.base).toBe(price)
-      expect(b.commission).toBe(0)
-      expect(b.total).toBe(total)
-      expect(b.mpFeeCovered).toBe(total - price)
+  for (const { price, commission, total } of cases) {
+    test(`price ${price} → mismo total para todos los tiers (${total})`, () => {
+      for (const tier of ['none', 'basic', 'teacher', 'pro'] as const) {
+        const b = paymentBreakdown(price, tier, 'mp')
+        expect(b.base).toBe(price)
+        expect(b.commission).toBe(commission)
+        expect(b.total).toBe(total)
+        expect(b.mpFeeCovered).toBe(total - price - commission)
+      }
     })
   }
 
-  test('the plan-holder surcharge is only the MP gross-up (~3.95%, constant)', () => {
-    for (const price of [10000, 25000, 80000]) {
-      const b = paymentBreakdown(price, 'pro', 'mp')
-      expect((b.total - b.base) / b.base).toBeCloseTo(MP_TOTAL_RATE / (1 - MP_TOTAL_RATE), 4)
-    }
-  })
-
-  test('a plan always costs the student less by MP than no plan', () => {
+  test('tener plan ya no abarata el pago por MP (la exención está desactivada)', () => {
     for (const price of [5000, 15000, 35000, 90000]) {
-      expect(paymentBreakdown(price, 'basic', 'mp').total)
-        .toBeLessThan(paymentBreakdown(price, 'none', 'mp').total)
+      expect(paymentBreakdown(price, 'pro', 'mp').total)
+        .toBe(paymentBreakdown(price, 'none', 'mp').total)
     }
   })
 })

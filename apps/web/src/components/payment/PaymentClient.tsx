@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { useDropzone } from 'react-dropzone'
 import { Copy, Check, Upload, FileImage, Loader2, CheckCircle2, ChevronLeft, Users, AlertTriangle, CreditCard, Building2, CalendarClock, QrCode } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -450,11 +449,11 @@ export default function PaymentClient({ enrollment, currentUserId, twoxRequest, 
             <div className="flex justify-between font-semibold text-gray-900 dark:text-dark-text pt-1">
               <span>Total</span><span>{formatCLP(mpBreakdown.total)}</span>
             </div>
-            {mpBreakdown.commission > 0 && (
-              <p className="text-[11px] text-gray-500 dark:text-dark-text2 pt-1">
-                Con un plan no pagas la comisión de servicio de DanzClass (el costo de procesamiento de Mercado Pago se mantiene). <Link href="/plans" className="underline font-medium">Ver planes</Link>
-              </p>
-            )}
+            {/* El upsell "con un plan no pagas la comisión" se quitó el
+                2026-09-04: durante el lanzamiento gratuito toda cuenta es Pro y
+                la comisión de servicio la paga cualquier alumno que pague por
+                Mercado Pago (`COMMISSION_APPLIES_TO_ALL_TIERS`). Ofrecer una
+                exención que ya no existe sería publicidad engañosa. */}
           </div>
 
           {mpNeedsSingleMonth && (

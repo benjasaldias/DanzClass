@@ -95,7 +95,22 @@ async function api(path: string, token: string, init?: RequestInit): Promise<Res
   })
 }
 
+/**
+ * Quita el Pro gratuito que la migración `078_free_pro_launch.sql` le da a TODA
+ * cuenta nueva desde el lanzamiento (2026-09-04).
+ *
+ * Los tests de esta sección prueban el MODELO DE PLANES, que sigue vivo bajo el
+ * regalo: `get_user_tier()` devuelve el tier más alto vigente, así que sin esto
+ * un usuario "sin plan" o "con Básico" sería Pro y los topes de la migración
+ * `075` no se dispararían nunca. Cuando termine el lanzamiento gratuito, esta
+ * limpieza deja de hacer falta pero no molesta.
+ */
+async function clearLaunchGift(userId: string) {
+  await admin.from('subscriptions').delete().eq('user_id', userId).eq('source', 'free_launch')
+}
+
 async function givePlan(userId: string, tier = 'pro') {
+  await clearLaunchGift(userId)
   await admin.from('subscriptions').insert({
     user_id: userId,
     tier,
@@ -407,6 +422,7 @@ test.describe('Referidos', () => {
     //     tampoco se premia, o el premio se auto-alimentaría.
     const referrer = await mkUser('a3ref')
     const gifted = await mkUser('a3gift')
+    await clearLaunchGift(gifted.id)
     await admin.from('subscriptions').insert({
       user_id: gifted.id,
       tier: 'pro',
@@ -834,6 +850,7 @@ test.describe('Cupo de publicación por plan', () => {
 
   test('sin plan no se publica ninguna clase', async () => {
     const nobody = await mkUser('a3sin')
+    await clearLaunchGift(nobody.id)
 
     const { error } = await nobody.client.from('classes').insert({
       ...classBase(nobody.id),
@@ -930,6 +947,9 @@ test.describe('Cancelar suscripción (P1-5)', () => {
     test.skip(!serverUp, 'necesita `npm run dev:web`')
 
     const canceller = await mkUser('a3cancel')
+    // Sin esto quedarían DOS suscripciones activas (el regalo de lanzamiento y
+    // ésta) y el `.single()` de la aserción fallaría.
+    await clearLaunchGift(canceller.id)
     await admin.from('subscriptions').insert({
       user_id: canceller.id,
       tier: 'pro',

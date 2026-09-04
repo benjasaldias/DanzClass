@@ -482,11 +482,10 @@ export default function PaymentScreen() {
                   <Text className="text-xs font-bold text-gray-900 dark:text-dark-text">Total</Text>
                   <Text className="text-xs font-bold text-gray-900 dark:text-dark-text">{formatCLP(mpBreakdown.total)}</Text>
                 </View>
-                {mpBreakdown.commission > 0 && (
-                  <Text className="text-[11px] text-gray-500 dark:text-dark-text2 pt-1">
-                    Con un plan no pagas la comisión de servicio de DanzClass (el costo de procesamiento de Mercado Pago se mantiene).
-                  </Text>
-                )}
+                {/* El upsell "con un plan no pagas la comisión" se quitó el
+                    2026-09-04: durante el lanzamiento gratuito toda cuenta es
+                    Pro y la comisión de servicio la paga cualquier alumno que
+                    pague por Mercado Pago. Espejo del mismo cambio en web. */}
               </View>
 
               <TouchableOpacity

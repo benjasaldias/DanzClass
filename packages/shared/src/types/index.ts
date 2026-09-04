@@ -527,9 +527,18 @@ export interface PaymentInfoFormData {
 // ============================================================
 
 /**
- * Planes de suscripción. **Fuente única** de lo que se le promete al usuario:
- * la leen la página de planes web, la tarjeta de suscripción del perfil web y
- * la pantalla de planes de mobile. Ninguna de las tres debe tener su propia
+ * Planes de suscripción.
+ *
+ * ⚠️ **OCULTOS DESDE EL 2026-09-04 (lanzamiento gratuito).** Toda cuenta nace
+ * con Pro sin costo (migración `078_free_pro_launch.sql`) y no hay ninguna
+ * superficie que venda un plan: `/plans` redirige, la pantalla de planes de
+ * mobile no es alcanzable y la tarjeta de suscripción del perfil no se
+ * renderiza. Este array queda como fuente de verdad para cuando se reactive el
+ * cobro — no es código muerto, pero hoy **no lo lee ninguna pantalla**.
+ *
+ * **Fuente única** de lo que se le promete al usuario: la leen la página de
+ * planes web, la tarjeta de suscripción del perfil web y la pantalla de planes
+ * de mobile. Ninguna de las tres debe tener su propia
  * copia (mobile la tenía y se desincronizó — ver la sesión 2026-08-02).
  *
  * ⚠️ **Cada viñeta es una promesa comercial: sólo va acá si el código la hace
@@ -543,7 +552,11 @@ export interface PaymentInfoFormData {
  *   - Archivos por clase → `mediaLimit` en los 4 formularios: basic 1, pro 5.
  *   - Videos de coreografía → `postQuotaForTier()` (espejo de la migración
  *     060): none 0 · basic 3 · pro ilimitados.
- *   - Sin comisión de servicio → `paysCommission(tier)`: sólo `'none'` la paga.
+ *   - Sin comisión de servicio → **ELIMINADA el 2026-09-04**: el lanzamiento
+ *     gratuito regala Pro a todas las cuentas, así que la comisión se
+ *     desacopló del plan (`COMMISSION_APPLIES_TO_ALL_TIERS`) y hoy la paga
+ *     cualquier alumno que pague por Mercado Pago. Prometer la exención sería
+ *     falso. Si se reactiva el modelo por plan, vuelve la viñeta.
  *
  * **Nada de lo que un alumno hace para PAGAR una clase va en esta lista**
  * (decisión de producto, 2026-08-02): inscribirse, comprar un paquete y buscar
@@ -572,7 +585,6 @@ export const SUBSCRIPTION_PLANS = [
       'Publica 1 clase suelta por mes',
       'Sube 1 foto o video en esa clase',
       'Hasta 3 videos de coreografías publicados',
-      'Sin comisión de servicio al pagar clases con Mercado Pago',
     ],
   },
   {

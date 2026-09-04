@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import {
   AtSign, Gift, Copy, TrendingUp, CreditCard,
-  ChevronRight, LogOut, Crown, Eye, Settings, Sun, Moon,
+  ChevronRight, LogOut, Eye, Settings, Sun, Moon,
 } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import StyleChip from '../../../components/ui/StyleChip'
@@ -18,13 +18,6 @@ import { canTeach, getActiveTier } from '@danceclass/shared'
 import type { SubscriptionTier } from '@danceclass/shared'
 import MobileClassCard from '../../../components/feed/MobileClassCard'
 import { useTheme } from '../../../context/ThemeContext'
-
-const TIER_LABELS: Record<string, string> = {
-  none: 'Sin plan',
-  basic: 'Plan Básico',
-  teacher: 'Plan Profesor',
-  pro: 'Plan Pro',
-}
 
 /* ── Helpers ──────────────────────────────────────────────── */
 
@@ -163,7 +156,6 @@ export default function ProfileScreen() {
     .toUpperCase() || 'U'
 
   const isTeacher = canTeach(tier)
-  const subActive = tier !== 'none'
   const border = isDark ? '#3D2870' : '#f3f4f6'
 
   // Gestión es exclusiva del profesor (herramientas de enseñanza).
@@ -227,31 +219,11 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Suscripción (tappable) ───────────────────────── */}
-        <TouchableOpacity
-          onPress={() => router.push('/(app)/plans' as any)}
-          activeOpacity={0.8}
-          className="flex-row items-center justify-between px-4 py-3.5 bg-white dark:bg-dark-surface"
-          style={{ borderBottomWidth: 1, borderBottomColor: border }}
-        >
-          <View className="flex-row items-center gap-3">
-            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#2D1B69', alignItems: 'center', justifyContent: 'center' }}>
-              <Crown size={20} stroke="#fff" />
-            </View>
-            <View>
-              <View className="flex-row items-center gap-2">
-                <Text className="font-bold text-gray-900 dark:text-dark-text">{TIER_LABELS[tier] ?? 'Sin plan'}</Text>
-                {subActive && (
-                  <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: isDark ? '#10331F' : '#DDF2E5' }}>
-                    <Text className="text-[10px] font-bold" style={{ color: isDark ? '#45D389' : '#1E9D57' }}>Activo</Text>
-                  </View>
-                )}
-              </View>
-              <Text className="mt-0.5 text-xs text-gray-400 dark:text-dark-text2">Ver planes y beneficios</Text>
-            </View>
-          </View>
-          <ChevronRight size={20} stroke={isDark ? '#A39BBF' : '#cbd5e1'} />
-        </TouchableOpacity>
+        {/* ── Suscripción ──────────────────────────────────────
+            Oculta durante el lanzamiento gratuito (2026-09-04): toda cuenta
+            nace con Pro sin costo (migración 078), así que la tarjeta mostraría
+            un plan que nadie eligió y llevaría a una pantalla que ya no vende
+            nada. Espejo del mismo cambio en el perfil web. */}
 
         {/* ── Acción primaria ──────────────────────────────── */}
         <View className="flex-row gap-2 px-4 py-3">

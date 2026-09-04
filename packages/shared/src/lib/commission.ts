@@ -7,9 +7,12 @@
 //     puede usar cualquiera de los métodos habilitados, tenga plan o no.
 //   * El PROFESOR RECIBE SIEMPRE EL 100% del precio que fijó, sin importar el
 //     método ni el plan del alumno. Nunca absorbe la comisión de Mercado Pago.
-//   * La única diferencia por plan es económica: pagando por MP, un alumno SIN
-//     plan paga además la comisión de servicio de DanzClass (2%, tope $700);
-//     con plan, esa comisión es $0.
+//   * Pagando por MP, el alumno paga además la comisión de servicio de
+//     DanzClass (2%, tope $700). Durante el lanzamiento gratuito la paga
+//     cualquier alumno: ver `COMMISSION_APPLIES_TO_ALL_TIERS` más abajo, que
+//     es lo que desacopla esta comisión del plan ahora que todas las cuentas
+//     nacen Pro (migración 078). En el modelo por plan la pagaba sólo quien no
+//     tuviera plan.
 //   * Por transferencia no hay comisión de DanzClass para nadie (el dinero se
 //     mueve banco a banco, fuera de toda pasarela: no hay mecanismo para
 //     cobrarla sin custodiar fondos). El alumno paga exactamente el precio.
@@ -56,11 +59,30 @@ export function platformCommission(amount: number): number {
 }
 
 /**
+ * Lanzamiento gratuito (2026-09-04): durante el lanzamiento TODA cuenta nace
+ * con un plan Pro sin costo (migración `078_free_pro_launch.sql`), así que
+ * dejar la comisión de servicio atada al tier la habría puesto en $0 para todo
+ * el mundo — sin que nadie lo decidiera, como efecto lateral de regalar el
+ * plan. Decisión del usuario: la comisión sigue vigente para todos mientras
+ * dure el regalo, y es el único ingreso de la plataforma en ese período.
+ *
+ * Para volver al modelo por plan, poner esto en `false`. Hay que revisar
+ * también el copy que este cambio ajustó, o volvería a prometer algo falso:
+ * `/terms` §6 (ES+EN), el desglose de `PaymentClient` (web y mobile), el
+ * preview de precio de `PaymentMethodsField` (web y mobile) y la viñeta del
+ * plan Básico en `SUBSCRIPTION_PLANS`.
+ */
+export const COMMISSION_APPLIES_TO_ALL_TIERS: boolean = true
+
+/**
  * Si un alumno con este tier paga comisión de servicio al pagar por Mercado
- * Pago. Solo los alumnos sin plan ('none') la pagan. No aplica a transferencia
- * (ver `paymentBreakdown`).
+ * Pago. No aplica a transferencia (ver `paymentBreakdown`).
+ *
+ * Modelo por plan (hoy desactivado, ver arriba): sólo los alumnos sin plan
+ * ('none') la pagan.
  */
 export function paysCommission(tier: SubscriptionTier): boolean {
+  if (COMMISSION_APPLIES_TO_ALL_TIERS) return true
   return tier === 'none'
 }
 
@@ -87,7 +109,7 @@ export function canPayByTransfer(tier: SubscriptionTier): boolean {
 export interface PaymentBreakdown {
   /** Precio fijado por el profesor — SIEMPRE lo que recibe, íntegro. */
   base: number
-  /** Comisión de servicio de DanzClass (0 con plan, y 0 en transferencia). */
+  /** Comisión de servicio de DanzClass (0 en transferencia; ver `paysCommission`). */
   commission: number
   /** Porción del total que cubre el costo de procesamiento de MP (0 en transferencia). */
   mpFeeCovered: number
@@ -120,9 +142,10 @@ export function grossUpForMp(net: number): number {
  *
  * - `'transfer'`: sin comisión ni gross-up. El alumno paga `base` y el profesor
  *   recibe `base`. Igual para todos los tiers.
- * - `'mp'`: el alumno paga `base` + comisión de DanzClass (solo sin plan) + el
- *   costo de procesamiento de MP, calculado con gross-up para que el profesor
- *   reciba `base` completo y DanzClass reciba `commission` vía marketplace_fee.
+ * - `'mp'`: el alumno paga `base` + comisión de DanzClass (ver `paysCommission`)
+ *   + el costo de procesamiento de MP, calculado con gross-up para que el
+ *   profesor reciba `base` completo y DanzClass reciba `commission` vía
+ *   marketplace_fee.
  *
  * Montos no positivos o inválidos devuelven un desglose en cero (el llamador
  * debe rechazar el pago; ver `create-payment` → `invalid_amount`).

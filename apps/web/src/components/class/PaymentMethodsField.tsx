@@ -40,9 +40,13 @@ function PricePreview({
 }) {
   // El profesor recibe `amount` íntegro en las dos vías — es la invariante del
   // modelo. Lo que cambia es cuánto paga el alumno por MP (gross-up + comisión
-  // de servicio si no tiene plan).
-  const noPlan = paymentBreakdown(amount, 'none', 'mp')
-  const withPlan = paymentBreakdown(amount, 'pro', 'mp')
+  // de servicio).
+  //
+  // Desde el lanzamiento gratuito (2026-09-04) el desglose ya no depende del
+  // plan del alumno: todas las cuentas son Pro y la comisión se cobra igual a
+  // todos (`COMMISSION_APPLIES_TO_ALL_TIERS`), así que acá había dos totales
+  // idénticos presentados como si fueran distintos. Queda uno solo.
+  const mp = paymentBreakdown(amount, 'none', 'mp')
 
   return (
     <div className="space-y-0.5">
@@ -56,9 +60,7 @@ function PricePreview({
       )}
       {showMp && (
         <p className="text-xs text-gray-500 dark:text-dark-text2 pl-3">
-          · Por Mercado Pago paga <strong>{formatCLP(withPlan.total)}</strong> con plan
-          {' · '}
-          <strong>{formatCLP(noPlan.total)}</strong> sin plan
+          · Por Mercado Pago el alumno paga <strong>{formatCLP(mp.total)}</strong>
         </p>
       )}
     </div>
@@ -185,8 +187,8 @@ export default function PaymentMethodsField({
           )}
           {acceptsMp && mpConnected && (
             <p className="text-[11px] text-gray-400 dark:text-dark-text2/60">
-              La diferencia por Mercado Pago cubre el costo de procesamiento de la pasarela y, para alumnos sin plan,
-              la comisión de servicio de DanzClass. Tú recibes siempre el precio que fijaste.
+              La diferencia por Mercado Pago cubre el costo de procesamiento de la pasarela y la comisión
+              de servicio de DanzClass. Tú recibes siempre el precio que fijaste.
             </p>
           )}
         </div>
